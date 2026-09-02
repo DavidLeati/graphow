@@ -1,0 +1,37 @@
+{
+  "_comentario": [
+    "Fiacao dos hooks de sessao do Claude Code ao subcomando 'graphow harness'.",
+    "Copie o bloco 'hooks' para o seu settings.json (usuario ou projeto).",
+    "SessionStart emite execucao_solicitada e abre a Sessao sob o Setor indicado;",
+    "SessionEnd emite execucao_concluida e fecha a Sessao.",
+    "A versao anterior passava $CLAUDE_SESSION_ID e $CLAUDE_MODEL, variaveis que o",
+    "ambiente nao define: o id da sessao chega no JSON da entrada padrao. Com a",
+    "variavel vazia o comando terminava em IndexError. '--entrada-hook' le esse",
+    "JSON no proprio subcomando, sem depender de 'jq' no PATH. Ver defeito V-02.",
+    "Troque 'setor-engenharia' pelo id do Setor que voce criou no grafo."
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphow harness --fase inicio --entrada-hook --setor setor-engenharia",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphow harness --fase fim --entrada-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+/* ==========================================================================
+   GRAPHOW DESIGN SYSTEM — PRECISION ENGINEERING THEME
+   Inspired by Linear, GitHub Dark, Raycast and Vercel.
+   ========================================================================== */
+
+:root {
+  /* Surfaces & Backgrounds */
+  --bg-canvas: #090c13;
+  --bg-primary: #0d121c;
+  --bg-secondary: #111724;
+  --bg-tertiary: #161e2e;
+  --bg-surface: #121824;
+  --bg-surface-raised: #182030;
+  --bg-surface-hover: #1e283d;
+  --bg-surface-active: #24314a;
+  --bg-input: #0a0e16;
+  --bg-tooltip: #1a2334;
+  --bg-backdrop: rgba(5, 8, 14, 0.75);
+
+  /* Legacy compatibility aliases */
+  --bg-deep-void: var(--bg-canvas);
+  --bg-hover: var(--bg-surface-hover);
+
+  /* Borders & Dividers */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-focus: #3b82f6;
+  --border-hud: var(--border-default);
+  --border-dark: var(--border-subtle);
+
+  /* Typography Colors */
+  --text-main: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-faint: #475569;
+  --text-inverse: #0f172a;
+  --text-accent: #60a5fa;
+
+  /* Functional Accents */
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-blue-subtle: rgba(59, 130, 246, 0.12);
+  --accent-green: #10b981;
+  --accent-green-subtle: rgba(16, 185, 129, 0.12);
+  --accent-amber: #f59e0b;
+  --accent-amber-subtle: rgba(245, 158, 11, 0.12);
+  --accent-red: #ef4444;
+  --accent-red-subtle: rgba(239, 68, 68, 0.12);
+
+  /* Ontological Node Type Colors (Solid, Crisp, Semantic) */
+  --color-projeto: #3b82f6;
+  --color-setor: #6366f1;
+  --color-sessao: #a855f7;
+  --color-goal: #f43f5e;
+  --color-task: #0ea5e9;
+  --color-decision: #10b981;
+  --color-question: #f59e0b;
+  --color-constraint: #ef4444;
+  --color-artifact: #06b6d4;
+  --color-evidence: #14b8a6;
+  --color-run: #8b5cf6;
+  --color-note: #64748b;
+
+  /* Ontological Edge Colors */
+  --edge-default: rgba(148, 163, 184, 0.35);
+  --edge-contem: #3b82f6;
+  --edge-produz: #a855f7;
+  --edge-ocorreu_em: #8b5cf6;
+  --edge-decompoe: #f43f5e;
+  --edge-depende_de: #0ea5e9;
+  --edge-bloqueia: #ef4444;
+  --edge-justifica: #10b981;
+  --edge-contradiz: #f97316;
+  --edge-substitui: #eab308;
+  --edge-escopa: #ef4444;
+  --edge-deriva_de: #06b6d4;
+
+  /* Typography Stacks */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "SF Mono", monospace;
+  --font-hud: var(--font-sans);
+
+  /* Radii */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+
+  /* Shadows (Subtle, Clean & High Definition) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  --shadow-card-selected: 0 0 0 2px #3b82f6, 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Precise Minimalist Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

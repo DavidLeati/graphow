@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphow — Grafo Agêntico Bilateral</title>
+  <link rel="stylesheet" href="/styles/theme.css">
+  <link rel="stylesheet" href="/styles/layout.css">
+  <link rel="stylesheet" href="/styles/canvas.css">
+  <link rel="stylesheet" href="/styles/components.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Top Navigation Bar -->
+    <header id="top-bar">
+      <div class="top-left">
+        <div class="logo">
+          <span class="logo-icon">🌐</span>
+          <span>Graphow</span>
+          <span class="logo-badge">v1.0</span>
+        </div>
+
+        <div class="branch-selector-container">
+          <label for="branch-select" style="font-size:11px; color:var(--text-muted);">Ramo:</label>
+          <select id="branch-select" class="select-input select-input-sm">
+            <option value="main">main</option>
+          </select>
+          <button id="btn-new-fork" class="btn btn-secondary btn-xs" title="Criar novo ramo a partir do ponto atual">+ Fork</button>
+        </div>
+
+        <button id="btn-trigger-quick-finder" class="btn-quick-finder" title="Buscar nós no grafo (Cmd+K)">
+          <span>🔍 Buscar nó...</span>
+          <span class="kbd-shortcut">⌘K</span>
+        </button>
+      </div>
+
+      <!-- Time Travel Playback Controls -->
+      <div class="top-center time-travel-bar">
+        <span class="time-label">Histórico:</span>
+        <button id="btn-replay-step-back" class="btn btn-icon btn-xs" title="Voltar 1 evento">◀</button>
+        <button id="btn-replay-play" class="btn btn-icon btn-xs" title="Reproduzir histórico">▶</button>
+        <button id="btn-replay-step-fwd" class="btn btn-icon btn-xs" title="Avançar 1 evento">▶</button>
+        <input type="range" id="time-travel-slider" min="0" max="0" value="0" step="1">
+        <span id="time-travel-version" class="version-badge">#0 / #0</span>
+      </div>
+
+      <div class="top-right">
+        <!-- Identidade da sessao: fixada pelo servidor, nunca escolhida no cliente.
+             O seletor de papel vivia aqui e decidia a autoria de cada escrita, o
+             inverso da garantia do MCP. Ele agora existe so no simulador de
+             tokens, onde tem sentido: la o papel e uma pergunta, nao uma
+             credencial. Ver achado A-11. -->
+        <div class="identity-badge" title="Identidade fixada na abertura do servidor">
+          <span id="session-author" class="identity-author">humano</span>
+          <span class="identity-role">humano</span>
+        </div>
+
+        <!-- Live SSE Status Indicator -->
+        <div id="sse-status" class="sse-status sse-disconnected" title="Conexão em tempo real">
+          <span class="status-dot"></span>
+          <span class="status-text">SSE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main id="workspace">
+      <!-- Left Sidebar: Hierarchical Container Navigation & Ontological Palette -->
+      <aside id="left-sidebar">
+        <div class="panel-header">
+          <h3>Navegação & Escopo</h3>
+          <button id="btn-add-container" class="btn btn-icon btn-xs" title="Criar Projeto/Setor/Sessão">➕</button>
+        </div>
+
+        <div class="session-scope-banner">
+          <span>Escopo:</span>
+          <strong id="active-scope-label">Todas as Sessões</strong>
+          <button id="btn-clear-scope" class="btn-link btn-xs" style="display:none;">Limpar</button>
+        </div>
+
+        <div class="hierarchy-search-box">
+          <input type="text" id="hierarchy-search-input" class="text-input text-input-sm" style="width:100%;" placeholder="Filtrar contêineres...">
+        </div>
+
+        <div id="hierarchy-tree" class="hierarchy-tree-container">
+          <!-- Populated dynamically -->
+        </div>
+      </aside>
+
+      <!-- Center Spatial Viewport: Canvas & Interactive Graph -->
+      <section id="canvas-viewport">
+        <!-- Project Tabs Bar -->
+        <div id="project-tabs-container" class="project-tabs-container">
+          <div id="project-tabs-list" class="project-tabs-list">
+            <!-- Abas dinâmicas de projetos -->
+          </div>
+          <button id="btn-add-project-tab" class="btn btn-secondary btn-xs" title="Criar Novo Projeto">+ Projeto</button>
+        </div>
+
+        <!-- Floating Canvas Toolbar -->
+        <div class="canvas-floating-toolbar">
+          <button id="btn-layout-hierarchical" class="btn btn-secondary btn-xs" title="Organizar layout hierárquico automático">⛶ Auto-Layout</button>
+          <button id="btn-canvas-fit-view" class="btn btn-secondary btn-xs" title="Enquadrar todos os nós na tela (F)">🔍 Enquadrar (F)</button>
+          <button id="btn-toggle-structural" class="btn btn-secondary btn-xs" title="Ocultar/Exibir arestas de sessão">👁️ Arestas de Sessão: Ocultas</button>
+          <button id="btn-batch-delete" class="btn btn-secondary btn-xs" title="Excluir múltiplos elementos em lote">🗑️ Lote</button>
+          <span class="zoom-level" id="zoom-indicator">100%</span>
+        </div>
+
+        <!-- SVG / HTML Canvas Area -->
+        <div id="canvas-surface">
+          <svg id="edges-layer"></svg>
+          <div id="nodes-layer"></div>
+        </div>
+
+        <!-- Floating Palette Trigger & Popover (Bottom-Left) -->
+        <div id="floating-palette-container" class="floating-palette-container">
+          <button id="btn-floating-palette" class="btn btn-floating-add" title="Adicionar nó ao grafo (+)">
+            <span class="plus-icon">＋</span>
+            <span>Adicionar Nó</span>
+          </button>
+
+          <div id="floating-palette-popover" class="floating-palette-popover" style="display:none;">
+            <div class="popover-header">
+              <span>Paleta Ontológica</span>
+              <span class="kbd-shortcut">ESC</span>
+            </div>
+            <p class="popover-hint">Clique para criar ou arraste para o canvas</p>
+            <div class="palette-grid">
+              <div class="palette-item" draggable="true" data-type="Goal">
+                <span class="palette-dot" style="background:var(--color-goal);"></span>
+                <span>Goal</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Task">
+                <span class="palette-dot" style="background:var(--color-task);"></span>
+                <span>Task</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Decision">
+                <span class="palette-dot" style="background:var(--color-decision);"></span>
+                <span>Decision</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Question">
+                <span class="palette-dot" style="background:var(--color-question);"></span>
+                <span>Question</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Constraint">
+                <span class="palette-dot" style="background:var(--color-constraint);"></span>
+                <span>Constraint</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Artifact">
+                <span class="palette-dot" style="background:var(--color-artifact);"></span>
+                <span>Artifact</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Evidence">
+                <span class="palette-dot" style="background:var(--color-evidence);"></span>
+                <span>Evidence</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Run">
+                <span class="palette-dot" style="background:var(--color-run);"></span>
+                <span>Run</span>
+              </div>
+              <div class="palette-item" draggable="true" data-type="Note">
+                <span class="palette-dot" style="background:var(--color-note);"></span>
+                <span>Note</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Spatial Minimap (Bottom-Right) -->
+        <div id="minimap-container">
+          <canvas id="minimap-canvas"></canvas>
+          <div id="minimap-frustum"></div>
+        </div>
+      </section>
+
+      <!-- Right Sidebar: Contextual Inspector & Editor -->
+      <aside id="right-sidebar">
+        <div class="panel-header">
+          <h3>Inspetor</h3>
+          <span id="selected-type-badge" class="type-badge-preview">Nenhum</span>
+        </div>
+        <div id="inspector-content" class="inspector-body">
+          <div class="empty-selection-message" style="padding:24px 8px; text-align:center; color:var(--text-muted);">
+            <p style="font-size:11.5px; line-height:1.6;">
+              Selecione um nó ou aresta no canvas para visualizar detalhes, editar atributos ou rastrear proveniência causal.
+            </p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Expandable Workbench -->
+    <footer id="bottom-workbench" class="workbench-collapsed">
+      <div class="workbench-header">
+        <div class="workbench-tabs">
+          <button class="wb-tab active" data-tab="timeline">📜 Timeline de Eventos</button>
+          <button class="wb-tab" data-tab="lineage">🧬 Linhagem Causal</button>
+          <button class="wb-tab" data-tab="diff">🔀 Comparador de Ramos</button>
+          <button class="wb-tab" data-tab="tokens">🪙 Orçamento de Tokens</button>
+          <button class="wb-tab" data-tab="patch">⌨️ Terminal RFC 6902</button>
+        </div>
+        <div class="workbench-actions">
+          <button id="btn-toggle-workbench" class="btn btn-icon btn-xs" title="Expandir/Recolher painel">▲</button>
+        </div>
+      </div>
+      <div class="workbench-body">
+        <!-- Tab 1: Timeline View -->
+        <div id="tab-timeline" class="wb-content active">
+          <div class="timeline-controls" style="display:flex; gap:8px; margin-bottom:10px;">
+            <input type="text" id="timeline-search" class="text-input text-input-sm" style="flex:1;" placeholder="Buscar por payload, autor ou hash...">
+            <select id="timeline-role-filter" class="select-input select-input-sm">
+              <option value="">Todos os Papéis</option>
+              <option value="humano">Humano</option>
+              <option value="planejador">Planejador</option>
+              <option value="executor">Executor</option>
+              <option value="revisor">Revisor</option>
+              <option value="sistema">Sistema</option>
+            </select>
+            <button id="btn-refresh-timeline" class="btn btn-secondary btn-xs">Atualizar</button>
+          </div>
+          <div id="timeline-list" class="timeline-event-list"></div>
+        </div>
+
+        <!-- Tab 2: Lineage View -->
+        <div id="tab-lineage" class="wb-content">
+          <div class="lineage-header" style="margin-bottom:8px; font-size:11.5px; color:var(--text-secondary);">
+            <span id="lineage-target-label">Selecione um nó e clique em "Rastrear Linhagem"</span>
+          </div>
+          <div id="lineage-tree" class="lineage-path-container"></div>
+        </div>
+
+        <!-- Tab 3: Fork Diff View -->
+        <div id="tab-diff" class="wb-content">
+          <div class="diff-controls" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span style="font-size:11px; color:var(--text-secondary);">Comparar:</span>
+            <select id="diff-branch-a" class="select-input select-input-sm"></select>
+            <span style="font-size:11px; color:var(--text-secondary);">Com:</span>
+            <select id="diff-branch-b" class="select-input select-input-sm"></select>
+            <button id="btn-compute-diff" class="btn btn-primary btn-xs">Calcular Diferenças</button>
+          </div>
+          <div id="diff-results" class="diff-grid-container"></div>
+        </div>
+
+        <!-- Tab 4: Token Budget Simulator View -->
+        <div id="tab-tokens" class="wb-content">
+          <div class="token-sim-controls" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span style="font-size:11px; color:var(--text-secondary);">Nó Alvo:</span>
+            <input type="text" id="token-target-id" class="text-input text-input-sm" placeholder="id-do-no">
+            <span style="font-size:11px; color:var(--text-secondary);">Papel:</span>
+            <select id="token-sim-role" class="select-input select-input-sm">
+              <option value="planejador">Planejador</option>
+              <option value="executor" selected>Executor</option>
+              <option value="revisor">Revisor</option>
+            </select>
+            <span style="font-size:11px; color:var(--text-secondary);">Orçamento:</span>
+            <input type="number" id="token-budget-input" class="text-input text-input-sm" value="1000" step="100" style="width:80px;">
+            <button id="btn-run-token-sim" class="btn btn-primary btn-xs">Simular Projeção</button>
+          </div>
+          <div class="token-metrics-bar" style="margin-bottom:8px; font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">
+            <span id="token-metrics-info">Tokens Estimados: 0 / 1000</span>
+          </div>
+          <pre id="token-preview-content" class="code-preview" style="max-height:160px;"></pre>
+        </div>
+
+        <!-- Tab 5: Patch Console View -->
+        <div id="tab-patch" class="wb-content">
+          <div class="patch-console-layout" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="patch-input-area" style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:11px; color:var(--text-secondary);">Proposta JSON Patch (RFC 6902):</label>
+              <textarea id="patch-json-input" class="code-editor" rows="6" placeholder='{"operacoes": [{"op": "add", "path": "/nos/task-1", "value": {"id": "task-1", "tipo": "Task", "rotulo": "Nova Tarefa"}}]}'></textarea>
+              <button id="btn-submit-raw-patch" class="btn btn-primary btn-xs" style="align-self:flex-start;">Submeter ao Kernel</button>
+            </div>
+            <div class="patch-output-area" style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:11px; color:var(--text-secondary);">Recibo do Kernel & Diagnóstico MAST:</label>
+              <pre id="patch-receipt-output" class="code-preview" style="height:140px;">// Aguardando submissão...</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Quick Finder Spotlight Modal (Cmd+K) -->
+  <div id="quick-finder-modal">
+    <div class="quick-finder-box">
+      <div class="quick-finder-header">
+        <span style="color:var(--text-muted);">🔍</span>
+        <input type="text" id="quick-finder-input" class="quick-finder-input" placeholder="Buscar nós por título, tipo, ID ou status...">
+        <span class="kbd-shortcut">ESC</span>
+      </div>
+      <div id="quick-finder-list" class="quick-finder-list"></div>
+      <div class="quick-finder-footer">
+        <span><kbd class="kbd-shortcut">↑</kbd> <kbd class="kbd-shortcut">↓</kbd> Navegar</span>
+        <span><kbd class="kbd-shortcut">↵</kbd> Selecionar & Focar</span>
+        <span><kbd class="kbd-shortcut">ESC</kbd> Fechar</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating Nodes / Containers / Forks -->
+  <div id="app-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-title">Título do Modal</h3>
+        <button id="btn-close-modal" class="btn-icon btn-xs">✕</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="btn-modal-cancel" class="btn btn-secondary btn-sm">Cancelar</button>
+        <button id="btn-modal-confirm" class="btn btn-primary btn-sm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Application Scripts (Modular ES6) -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

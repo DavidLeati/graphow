@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graphow"
+version = "0.1.0"
+description = "Ambiente de grafo agêntico bilateral para alinhamento entre humanos e agentes de IA"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "david" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0"
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q --strict-markers"
+
+[project.scripts]
+graphow = "graphow.api.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"graphow.web" = ["static/**/*", "static/*", "static/styles/*", "static/js/*"]

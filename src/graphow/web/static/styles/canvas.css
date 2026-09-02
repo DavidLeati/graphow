@@ -1,0 +1,310 @@
+/* ==========================================================================
+   PRECISION SPATIAL CANVAS, CLEAN NODES & VECTOR EDGES
+   ========================================================================== */
+
+#canvas-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6000px;
+  height: 6000px;
+  transform-origin: 0 0;
+  background-color: var(--bg-canvas);
+  /* Precision Engineering Dot Grid */
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+#edges-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+#nodes-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   Clean Engineering Node Cards
+   ========================================================================== */
+
+.node-card {
+  position: absolute;
+  width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease, transform 0.15s ease;
+}
+
+.node-card:active {
+  cursor: grabbing;
+}
+
+.node-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.node-card.selected {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-card-selected);
+  z-index: 15 !important;
+}
+
+.node-card.blocked-task {
+  background-color: #1a141c;
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.3), var(--shadow-card);
+}
+
+.node-card.blocked-task .node-header {
+  background-color: #221622;
+  border-bottom-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Node Header with Semantic Solid Type Color Strip */
+.node-header {
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-main);
+  background-color: var(--bg-surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top-left-radius: calc(var(--radius-sm) - 1px);
+  border-top-right-radius: calc(var(--radius-sm) - 1px);
+  border-left: 3px solid var(--color-note);
+}
+
+.node-type-Goal { border-left-color: var(--color-goal); }
+.node-type-Task { border-left-color: var(--color-task); }
+.node-type-Decision { border-left-color: var(--color-decision); }
+.node-type-Question { border-left-color: var(--color-question); }
+.node-type-Constraint { border-left-color: var(--color-constraint); }
+.node-type-Artifact { border-left-color: var(--color-artifact); }
+.node-type-Evidence { border-left-color: var(--color-evidence); }
+.node-type-Run { border-left-color: var(--color-run); }
+.node-type-Note { border-left-color: var(--color-note); }
+.node-type-Projeto { border-left-color: var(--color-projeto); }
+.node-type-Setor { border-left-color: var(--color-setor); }
+.node-type-Sessao { border-left-color: var(--color-sessao); }
+
+.node-type-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.node-id-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.node-body {
+  padding: 8px 10px;
+}
+
+.node-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.node-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* Badges */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  padding: 1.5px 6px;
+  border-radius: var(--radius-xs);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-blocked {
+  background-color: var(--accent-red-subtle);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+.badge-locked {
+  background-color: var(--accent-amber-subtle);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+
+.badge-status {
+  background-color: var(--accent-blue-subtle);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+/* Connection Handles (Ports) — Subdued, visible on Hover or during Drag */
+.port {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--text-secondary);
+  cursor: crosshair;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.node-card:hover .port,
+.canvas-connecting-mode .port {
+  opacity: 0.85;
+}
+
+.port:hover {
+  opacity: 1 !important;
+  transform: scale(1.35);
+  background: var(--accent-blue);
+  border-color: #fff;
+}
+
+.port-out {
+  right: -5px;
+  top: 50%;
+  margin-top: -5px;
+}
+
+.port-in {
+  left: -5px;
+  top: 50%;
+  margin-top: -5px;
+}
+
+.port-top {
+  top: -5px;
+  left: 50%;
+  margin-left: -5px;
+}
+
+.port-bottom {
+  bottom: -5px;
+  left: 50%;
+  margin-left: -5px;
+}
+
+/* ==========================================================================
+   Clean Vector Edges (SVG Paths — Crisp 60fps Rendering)
+   ========================================================================== */
+
+.edge-path {
+  fill: none;
+  stroke-width: 1.5px;
+  pointer-events: stroke;
+  cursor: pointer;
+  stroke: var(--edge-default);
+  transition: stroke-width 0.15s ease, stroke 0.15s ease, opacity 0.2s ease;
+}
+
+.edge-path:hover {
+  stroke-width: 2.5px;
+  stroke: var(--accent-blue) !important;
+}
+
+.edge-path.selected {
+  stroke-width: 2.5px;
+  stroke: var(--accent-blue) !important;
+}
+
+.edge-path.edge-bloqueia {
+  stroke: var(--color-constraint);
+  stroke-dasharray: 4 3;
+}
+
+/* ==========================================================================
+   Path Highlighting & Visual Dimming for Large Graphs
+   ========================================================================== */
+
+.node-dimmed {
+  opacity: 0.2 !important;
+}
+
+.node-dimmed:hover {
+  opacity: 0.7 !important;
+  z-index: 10;
+}
+
+.edge-dimmed {
+  opacity: 0.1 !important;
+}
+
+.node-highlighted {
+  opacity: 1 !important;
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 1px var(--accent-blue), var(--shadow-card-hover) !important;
+  z-index: 10 !important;
+}
+
+.edge-highlighted {
+  opacity: 1 !important;
+  stroke-width: 2.5px !important;
+  stroke: var(--accent-blue) !important;
+  z-index: 10 !important;
+}
+
+/* ==========================================================================
+   Semantic Zoom (Level of Detail - LOD)
+   ========================================================================== */
+
+/* Macro Zoom (LOD < 45%): Compact Pills */
+.lod-macro .node-card {
+  width: 160px;
+}
+
+.lod-macro .node-body {
+  padding: 4px 8px;
+}
+
+.lod-macro .node-title {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lod-macro .node-meta,
+.lod-macro .port {
+  display: none !important;
+}
+
+.lod-macro .edge-path {
+  stroke-width: 1.2px;
+}
