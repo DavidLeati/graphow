@@ -8,7 +8,8 @@ import urllib.request
 
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
-from graphow.web.server import EnderecoServidor, GraphowWebServer, eh_desconexao_do_cliente
+from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
+from graphow.web.server import EnderecoServidor, GraphowWebServer
 
 
 def _obter_porta_livre() -> int:

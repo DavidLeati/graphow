@@ -4,6 +4,7 @@ Era exatamente esta asserção que faltava na suíte: o canal SSE existia, era t
 isoladamente e nunca recebia nada em produção. Ver auditoria F-05.
 """
 
+from collections.abc import Iterable
 import json
 import queue
 import socket
@@ -19,7 +20,7 @@ from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.composicao import montar_tempo_real
 from graphow.web.identidade_web import IdentidadeSessaoWeb
 from graphow.web.server import EnderecoServidor, GraphowWebServer
-from graphow.web.sse_controller import SSEWebController
+from graphow.web.sse_controller import NOME_EVENTO_DESCARTE, SSEWebController
 
 TEMPO_LIMITE_DE_ESPERA: float = 5.0
 SEPARADOR_DE_BLOCO_SSE: str = "\n\n"
@@ -235,3 +236,52 @@ def _bloco_de_mutacao_completo(acumulado: str) -> bool:
         return False
     posterior = acumulado.split("event: no_criado", 1)[1]
     return SEPARADOR_DE_BLOCO_SSE in posterior
+
+
+def test_assinante_descartado_recebe_o_fim_do_stream_edge_case() -> None:
+    """Caso de borda: o descarte precisa chegar como fim de resposta, e nao como silencio.
+
+    Encerrar o iterador nao bastaria sozinho: o cabecalho manda `keep-alive`, e sem
+    fechar a conexao o navegador ficaria com um `EventSource` vivo, sem evento algum
+    e sem `onerror` — logo sem nunca reconectar, que e o mesmo sintoma de nao haver
+    tempo real. E essa travessia que o teste amarra, do controlador ate o socket.
+    """
+    porta = _obter_porta_livre()
+    servidor = GraphowWebServer(WriteKernel(InMemoryEventStore()), EnderecoServidor(porta=porta))
+    servidor.iniciar(bloqueante=False)
+    time.sleep(0.1)
+    try:
+        recebido = _ler_stream_ate_o_descarte(f"http://127.0.0.1:{porta}", servidor)
+    finally:
+        servidor.parar()
+
+    assert f"event: {NOME_EVENTO_DESCARTE}" in recebido
+
+
+def _ler_stream_ate_o_descarte(base_url: str, servidor: GraphowWebServer) -> str:
+    """Assina o stream, descarta o assinante pelo controlador e le ate o fim da resposta."""
+    with urllib.request.urlopen(f"{base_url}/api/sse", timeout=TEMPO_LIMITE_DE_ESPERA) as fluxo:
+        acumulado = fluxo.readline().decode("utf-8")
+        _descartar_o_unico_assinante(servidor)
+        return acumulado + _ler_ate_a_resposta_terminar(fluxo)
+
+
+def _ler_ate_a_resposta_terminar(fluxo: Iterable[bytes]) -> str:
+    """Le o restante da resposta, desistindo se o servidor insistir em mante-la aberta.
+
+    O prazo nao e zelo excessivo: sem ele, o defeito que este teste cobre faz o
+    laco receber pings para sempre, e um teste que trava nao acusa nada.
+    """
+    limite = time.time() + TEMPO_LIMITE_DE_ESPERA
+    recebido = ""
+    for linha in fluxo:
+        recebido += linha.decode("utf-8")
+        if time.time() > limite:
+            return recebido
+    return recebido
+
+
+def _descartar_o_unico_assinante(servidor: GraphowWebServer) -> None:
+    """Faz pelo controlador o mesmo que a fila cheia faz com um cliente lento."""
+    controlador = servidor._server.sse_ctrl
+    controlador.remover_assinante(controlador._assinantes[0])

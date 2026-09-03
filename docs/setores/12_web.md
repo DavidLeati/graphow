@@ -10,12 +10,13 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-15 módulos · 1526 linhas · 30 classes
+17 módulos · 1754 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`web/composicao.py`](#webcomposicao) | 32 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
+| [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 117 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
+| [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
 | [`web/dto.py`](#webdto) | 150 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 76 | Mapeamento de cada nó do grafo à Sessão e ao Projeto que o contêm. |
@@ -25,9 +26,10 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
-| [`web/server.py`](#webserver) | 391 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
-| [`web/sse_controller.py`](#webssecontroller) | 53 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
+| [`web/server.py`](#webserver) | 398 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
+| [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
 
 ## `web/composicao.py`
 
@@ -37,6 +39,7 @@ Raiz de composição do servidor web: quem escuta os commits do kernel.
 
 - `registrar_observadores_do_servidor(kernel: WriteKernel, controlador_sse: SSEWebController, motor: MotorReativo) -> None` — Liga o canal de tempo real e o motor reativo ao gancho pós-commit do kernel.
 - `montar_tempo_real(kernel: WriteKernel, controlador_sse: SSEWebController) -> MotorReativo` — Monta o motor reativo padrão e o registra junto do canal SSE.
+- `montar_vigia_do_log(kernel: WriteKernel, controlador_sse: SSEWebController) -> VigiaDoLogExterno` — Cria o vigia que publica no canvas o que outros processos escreveram no log.
 
 ## `web/conversao_requisicoes.py`
 
@@ -59,6 +62,14 @@ Conversão pura de payloads JSON da interface nos DTOs de requisição.
 - `converter_exclusao_projeto(payload: Mapping[str, Any]) -> RequisicaoExclusaoProjeto` — Monta o pedido de exclusão em cascata de um projeto.
 - `converter_salvar_layout(payload: Mapping[str, Any]) -> RequisicaoSalvarLayout` — Monta o pedido de persistência do arranjo visual do canvas.
 - `converter_posicoes(posicoes_brutas: Any) -> tuple[PosicaoNoCanvas, ...]` — Converte a lista recebida do canvas em coordenadas tipadas.
+
+## `web/desconexao_cliente.py`
+
+Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado.
+
+### Funções do módulo
+
+- `eh_desconexao_do_cliente(erro: BaseException | None) -> bool` — Indica se a exceção é o cliente tendo ido embora, e não uma falha do servidor.
 
 ## `web/dto.py`
 
@@ -298,6 +309,7 @@ Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface d
 *serviço* — Servidor HTTP multithread contendo instâncias injetadas dos controladores.
 
 - `handle_error(request: Any, client_address: Any) -> None` — Descarta o ruído da desconexão e deixa passar todo o resto.
+- `server_close() -> None` — Encerra a varredura do log antes de fechar os sockets.
 
 ### `GraphowWebServer`
 
@@ -306,13 +318,17 @@ Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface d
 - `iniciar(bloqueante: bool) -> None` — Inicializa o servidor HTTP na porta configurada.
 - `parar() -> None` — Encerra o servidor e fecha os sockets.
 
-### Funções do módulo
-
-- `eh_desconexao_do_cliente(erro: BaseException | None) -> bool` — Indica se a exceção é o cliente tendo ido embora, e não uma falha do servidor.
-
 ## `web/sse_controller.py`
 
 Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMITE_DE_IDS_LEMBRADOS` | `int` | `2000` |
+| `LIMITE_DE_EVENTOS_EM_FILA` | `int` | `500` |
+| `NOME_EVENTO_ABERTURA` | `str` | `'conexao_aberta'` |
+| `NOME_EVENTO_DESCARTE` | `str` | `'assinante_descartado'` |
+| `MOTIVO_DO_DESCARTE` | `str` | `'fila cheia: o cliente não acompanhou o ritmo do log'` |
 
 ### `SSEWebController`
 
@@ -320,8 +336,14 @@ Controlador de Server-Sent Events para transmissão de eventos em tempo real par
 
 - `registrar_assinante() -> queue.Queue[EventoLog]` — Registra um novo ouvinte de eventos em tempo real.
 - `remover_assinante(fila: queue.Queue[EventoLog]) -> None` — Remove o ouvinte após desconexão do cliente HTTP.
-- `despachar_evento(evento: EventoLog) -> int` — Envia o evento para todas as filas ativas registradas.
-- `gerar_stream_para_fila(fila: queue.Queue[EventoLog], timeout_segundos: float) -> Iterator[str]` — Gera iterador contínuo de mensagens SSE com batimento cardíaco (ping/keep-alive).
+- `esta_registrado(fila: queue.Queue[EventoLog]) -> bool` — Informa se a fila ainda pertence a um assinante ativo.
+- `despachar_evento(evento: EventoLog) -> int` — Envia o evento para todas as filas ativas, uma única vez por identificador.
+- `gerar_stream_para_fila(fila: queue.Queue[EventoLog], timeout_segundos: float) -> Iterator[str]` — Gera mensagens SSE com batimento cardíaco até o assinante deixar de existir.
+
+### Funções do módulo
+
+- `montar_mensagem_de_abertura() -> str` — Primeiro bloco do stream, que confirma ao cliente a assinatura aberta.
+- `montar_mensagem_de_descarte() -> str` — Bloco SSE final que diz ao cliente por que o stream terminou.
 
 ## `web/static_assets_provider.py`
 
@@ -340,4 +362,25 @@ Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow
 **Campos:** `MIME_MAPA: dict[str, str]`
 
 - `obter_recurso(caminho_relativo: str) -> RecursoEstatico` — Resolve e carrega o arquivo estático com proteção estrita contra Directory Traversal.
+
+## `web/vigia_do_log.py`
+
+Vigia que leva ao canal SSE os eventos escritos por outros processos.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `INTERVALO_PADRAO_DE_VARREDURA` | `float` | `0.5` |
+| `TEMPO_LIMITE_DE_PARADA` | `float` | `2.0` |
+| `NOME_DA_THREAD` | `str` | `'graphow-vigia-do-log'` |
+| `PREFIXO_DO_AVISO` | `str` | `'AVISO [vigia-do-log]:'` |
+
+### `VigiaDoLogExterno`
+
+*serviço* — Publica no canal de tempo real os eventos que entraram no log sem passar por aqui.
+
+- `esta_ativo() -> bool` `[property]` — Informa se a varredura de segundo plano está em curso.
+- `iniciar() -> None` — Adota o log atual como já visto e passa a varrer o delta em segundo plano.
+- `parar(timeout_segundos: float) -> None` — Sinaliza a parada e espera a thread de varredura encerrar.
+- `adotar_posicao_atual() -> None` — Marca tudo que já existe como visto, para não republicar o passado.
+- `varrer() -> int` — Publica tudo que surgiu desde a última passada e devolve quantos eventos foram.
 

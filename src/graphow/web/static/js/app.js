@@ -50,7 +50,11 @@ class GraphowApp {
     this.forkDiffView = new ForkDiffView("tab-diff", this.state, (action, payload) => this.handleAction(action, payload));
     this.tokenSimView = new TokenSimulatorView("tab-tokens", this.state);
     this.patchConsoleView = new PatchConsoleView("tab-patch", this.state, (action, payload) => this.handleAction(action, payload));
-    this.sseClient = new SSEClient(this.state, (type, payload) => this.onSSEEvent(type, payload));
+    this.sseClient = new SSEClient(
+      this.state,
+      (type, payload) => this.onSSEEvent(type, payload),
+      () => this.ressincronizarAposReconexao()
+    );
     this.cachedProjects = new Map();
     this.eventosPendentes = [];
     this.sseCoalesceTimer = null;
@@ -230,6 +234,18 @@ class GraphowApp {
     this.fetchCanvas();
     this.timelineView.fetchEvents();
     this.showToast(resumirEventos(eventos), "info");
+  }
+
+  /**
+   * O stream caiu e voltou: o que passou no intervalo nao e reenviado. So a
+   * releitura do canvas e da linha do tempo devolve a pagina ao presente.
+   */
+  ressincronizarAposReconexao() {
+    this.eventosPendentes = [];
+    clearTimeout(this.sseCoalesceTimer);
+    this.fetchCanvas();
+    this.timelineView.fetchEvents();
+    this.showToast("Conexao restabelecida: canvas ressincronizado", "info");
   }
 
   onStateChange(type) {

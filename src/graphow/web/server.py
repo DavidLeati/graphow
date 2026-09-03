@@ -32,8 +32,10 @@ from graphow.web.rest_lineage_controller import LineageWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 from graphow.web.rest_timeline_controller import TimelineWebController
 from graphow.reactive.engine import MotorReativo
-from graphow.web.composicao import montar_tempo_real
+from graphow.web.composicao import montar_tempo_real, montar_vigia_do_log
+from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
 from graphow.web.sse_controller import SSEWebController
+from graphow.web.vigia_do_log import VigiaDoLogExterno
 from graphow.web.static_assets_provider import StaticAssetsProvider
 
 
@@ -254,7 +256,12 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         self._responder_json(resultado, HTTPStatus.OK if resultado["sucesso"] else HTTPStatus.BAD_REQUEST)
 
     def _tratar_sse(self) -> None:
-        """Mantém conexão de streaming SSE aberta para o cliente."""
+        """Mantém a conexão de streaming aberta enquanto o assinante existir.
+
+        O `keep-alive` do cabeçalho deixa `close_connection` falso: sem fechar no
+        fim, o servidor esperaria outra requisição no mesmo socket e o navegador
+        esperaria eventos que não viriam. Fechar é o que faz o cliente reconectar.
+        """
         fila = self.server.sse_ctrl.registrar_assinante()
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/event-stream")
@@ -269,6 +276,7 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
             pass
         finally:
             self.server.sse_ctrl.remover_assinante(fila)
+            self.close_connection = True
 
     def _tratar_static_asset(self, caminho: str) -> None:
         """Serve arquivo HTML/CSS/JS estático através do provider seguro."""
@@ -304,16 +312,6 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         pass
 
 
-def eh_desconexao_do_cliente(erro: BaseException | None) -> bool:
-    """Indica se a exceção é o cliente tendo ido embora, e não uma falha do servidor.
-
-    As três variantes existem porque o sistema operacional escolhe qual levantar:
-    Windows aborta (10053), Unix costuma resetar ou quebrar o cano. Tratar só as
-    que aparecem na máquina de quem escreveu o código é como o traceback do SSE
-    sobreviveu — o `except` já existia, faltava o irmão do Windows.
-    """
-    return isinstance(erro, ConnectionError)
-
 
 class GraphowThreadingServer(ThreadingHTTPServer):
     """Servidor HTTP multithread contendo instâncias injetadas dos controladores."""
@@ -331,6 +329,11 @@ class GraphowThreadingServer(ThreadingHTTPServer):
             return
         super().handle_error(request, client_address)
 
+    def server_close(self) -> None:
+        """Encerra a varredura do log antes de fechar os sockets."""
+        self.vigia_do_log.parar()
+        super().server_close()
+
     def __init__(
         self,
         endereco: tuple[str, int],
@@ -346,7 +349,11 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()
         self.motor_reativo: MotorReativo = montar_tempo_real(kernel, self.sse_ctrl)
+        # O gancho pós-commit só vê o que este processo escreveu; o vigia traz
+        # para o canvas o que o agente MCP escreveu de outro processo.
+        self.vigia_do_log: VigiaDoLogExterno = montar_vigia_do_log(kernel, self.sse_ctrl)
         super().__init__(endereco, GraphowHTTPHandler)
+        self.vigia_do_log.iniciar()
 
 
 @dataclass(frozen=True)

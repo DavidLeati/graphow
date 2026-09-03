@@ -9,6 +9,7 @@ from graphow.reactive.montagem import montar_motor_reativo_padrao
 from graphow.reactive.observador_reativo import ObservadorReativo
 from graphow.web.observador_sse import ObservadorSSE
 from graphow.web.sse_controller import SSEWebController
+from graphow.web.vigia_do_log import VigiaDoLogExterno
 
 
 def registrar_observadores_do_servidor(
@@ -30,3 +31,12 @@ def montar_tempo_real(kernel: WriteKernel, controlador_sse: SSEWebController) ->
     motor = montar_motor_reativo_padrao(kernel)
     registrar_observadores_do_servidor(kernel, controlador_sse, motor)
     return motor
+
+
+def montar_vigia_do_log(kernel: WriteKernel, controlador_sse: SSEWebController) -> VigiaDoLogExterno:
+    """Cria o vigia que publica no canvas o que outros processos escreveram no log.
+
+    O gancho pós-commit cobre só as escritas deste processo. O agente MCP escreve
+    de fora, no mesmo banco, e é este vigia que traz esses eventos para o canal.
+    """
+    return VigiaDoLogExterno(kernel.repositorio, controlador_sse, kernel.repositorio_ramos)
