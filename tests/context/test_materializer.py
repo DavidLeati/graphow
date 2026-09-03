@@ -8,7 +8,7 @@ from graphow.context.materializer import (
     VistaMaterializada,
 )
 from graphow.core.exceptions import ErroEntidadeNaoEncontrada, ErroOrcamentoExcedido
-from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo
+from graphow.core.models import ArestaGrafo, GrafoEstado, MetadadosTemporais, NoGrafo, OrdemNoLog
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 
@@ -72,3 +72,27 @@ def test_materializador_orcamento_estrito_comprime_ou_lanca_edge_case() -> None:
     # Orçamento impossível (1 token)
     with pytest.raises(ErroOrcamentoExcedido):
         materializador.materializar(RequisicaoVista("t1", PapelAutor.EXECUTOR, 1), view)
+
+
+def test_expandir_no_entrega_idade_e_ordem_ao_agente_nominal() -> None:
+    """A data por extenso mora aqui, no detalhe sob demanda, e não no cabeçalho.
+
+    O cabeçalho da vista é obrigatório em toda leitura, então carregar a data
+    inteira nele custaria orçamento a todo agente. Na expansão, que é pedida nó a
+    nó, ela cabe.
+    """
+    momento = "2026-09-03T10:00:00+00:00"
+    no = NoGrafo(
+        "t9",
+        TipoNo.TASK,
+        "Tarefa datada",
+        metadados=MetadadosTemporais(criado_em=momento, registrado_em=momento),
+        ordem=OrdemNoLog(seq_criacao=5, seq_atualizacao=8),
+    )
+    view = GrafoView(GrafoEstado(nos={"t9": no}))
+
+    detalhe = MaterializadorContexto().expandir_no("t9", view)
+
+    assert detalhe["criado_em"] == momento
+    assert detalhe["seq_criacao"] == 5
+    assert detalhe["seq_atualizacao"] == 8

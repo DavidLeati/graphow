@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
+from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
 from graphow.mcp.submissao import ContextoFerramentaMCP, extrair_ramo
 from graphow.projection.fila_trabalho import FilaDeTrabalho
@@ -77,7 +78,20 @@ class FerramentasLeitura:
         return {
             "sucesso": True,
             "total": len(encontrados),
-            "resultados": [{"id": no.id, "tipo": no.tipo.value, "rotulo": no.rotulo} for no in encontrados],
+            "resultados": [self._resumir(no) for no in encontrados],
+        }
+
+    def _resumir(self, no: NoGrafo) -> dict[str, Any]:
+        """Linha de resultado com a posição no log, para o agente ordenar o que achou.
+
+        Sem `seq_criacao` a busca devolvia um conjunto sem ordem alguma: nada ali
+        dizia qual nó veio antes de qual.
+        """
+        return {
+            "id": no.id,
+            "tipo": no.tipo.value,
+            "rotulo": no.rotulo,
+            "seq_criacao": no.ordem.seq_criacao,
         }
 
     def _converter_tipos(self, tipos_recebidos: object) -> list[TipoNo] | None:

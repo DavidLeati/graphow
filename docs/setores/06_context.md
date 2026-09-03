@@ -10,16 +10,16 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-11 módulos · 1124 linhas · 24 classes
+11 módulos · 1152 linhas · 24 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/corte.py`](#contextcorte) | 57 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
-| [`context/materializer.py`](#contextmaterializer) | 110 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/materializer.py`](#contextmaterializer) | 114 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/politicas.py`](#contextpoliticas) | 229 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
-| [`context/renderizacao.py`](#contextrenderizacao) | 127 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 191 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/renderizacao.py`](#contextrenderizacao) | 134 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
+| [`context/secoes.py`](#contextsecoes) | 208 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 52 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -212,8 +212,9 @@ Seções que compõem uma vista de contexto e sua ordem de descarte.
 - `filtrar_propriedades_de_dominio(propriedades: Mapping[str, Any]) -> dict[str, Any]` — Descarta as propriedades que só interessam ao layout do canvas.
 - `formatar_propriedades(propriedades: Mapping[str, Any]) -> str` — Serializa as propriedades de domínio em JSON determinístico.
 - `anotar_proveniencia(no: NoGrafo) -> str` — Sufixo com autor e papel, mais o aviso de conteúdo não confiável se couber.
-- `formatar_no_em_linha(no: NoGrafo) -> str` — Descreve um nó em uma linha compacta de lista, com a sua autoria.
-- `formatar_no_com_propriedades(no: NoGrafo) -> str` — Descreve um nó incluindo as propriedades de domínio e a sua autoria.
+- `anotar_ordem(no: NoGrafo) -> str` — Posição do nó na ordem total do log, quando ela é conhecida.
+- `formatar_no_em_linha(no: NoGrafo) -> str` — Descreve um nó em uma linha compacta de lista, com a ordem e a autoria.
+- `formatar_no_com_propriedades(no: NoGrafo) -> str` — Descreve um nó incluindo propriedades de domínio, ordem e autoria.
 - `montar_secao_de_nos(titulo: str, nos: Sequence[NoGrafo], ordens: tuple[int, PrioridadeRetencao]) -> SecaoContexto` — Constrói uma seção de lista simples a partir de um conjunto de nós.
 
 ## `context/substituicao.py`

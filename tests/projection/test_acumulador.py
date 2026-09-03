@@ -165,3 +165,67 @@ def test_propriedade_gravada_como_nula_sobrevive_edge_case() -> None:
     estado = GrafoReducer.reconstruir(eventos)
 
     assert estado.nos["n1"].propriedades == {"revisor": None}
+
+
+def test_no_carrega_a_posicao_e_a_data_do_evento_que_o_criou_nominal() -> None:
+    """A idade e a ordem do nó vêm do log, que é onde elas de fato existem."""
+    evento = _criar_no(7, "n1")
+    estado = GrafoReducer.reconstruir([evento])
+
+    no = estado.nos["n1"]
+    assert no.ordem.seq_criacao == 7
+    assert no.ordem.seq_atualizacao == 7
+    assert no.metadados.criado_em == evento.timestamp_utc
+    assert no.metadados.atualizado_em is None
+
+
+def test_atualizacao_move_o_ultimo_toque_e_preserva_o_nascimento_nominal() -> None:
+    """Quem edita um nó não muda a idade dele, só a marca de última alteração."""
+    criacao = _criar_no(7, "n1")
+    edicao = _evento(9, TipoEvento.NO_ATUALIZADO, {"id": "n1", "rotulo": "Outro titulo"})
+    estado = GrafoReducer.reconstruir([criacao, edicao])
+
+    no = estado.nos["n1"]
+    assert no.ordem.seq_criacao == 7
+    assert no.ordem.seq_atualizacao == 9
+    assert no.ordem.foi_alterado is True
+    assert no.metadados.criado_em == criacao.timestamp_utc
+    assert no.metadados.atualizado_em == edicao.timestamp_utc
+
+
+def test_ordem_do_log_decide_quem_veio_antes_edge_case() -> None:
+    """Caso de borda: dois nós criados no mesmo instante ainda têm ordem definida.
+
+    Carimbos de tempo empatam e relógios de processos distintos discordam; a
+    sequência do log é a única ordem total que o substrato promete.
+    """
+    estado = GrafoReducer.reconstruir([_criar_no(1, "primeiro"), _criar_no(2, "segundo")])
+
+    assert estado.nos["primeiro"].ordem.seq_criacao < estado.nos["segundo"].ordem.seq_criacao
+
+
+def test_run_nasce_com_a_data_do_log_e_nao_com_a_do_replay_edge_case() -> None:
+    """Caso de borda: um Run datado pelo relógio do replay envelhecia a cada leitura.
+
+    O nó de execução era o único criado com `MetadadosTemporais.agora()`: o mesmo
+    log reconstruído amanhã diria que a execução aconteceu amanhã.
+    """
+    evento = _evento(4, TipoEvento.EXECUCAO_INICIADA, {"id": "run-1", "rotulo": "Execucao"})
+
+    primeira = GrafoReducer.reconstruir([evento])
+    segunda = GrafoReducer.reconstruir([evento])
+
+    assert primeira.nos["run-1"].metadados.criado_em == evento.timestamp_utc
+    assert primeira.nos["run-1"] == segunda.nos["run-1"]
+
+
+def test_run_concluido_avanca_o_ultimo_toque_edge_case() -> None:
+    """Caso de borda: o ciclo de vida da execução também move a marca de alteração."""
+    eventos = [
+        _evento(4, TipoEvento.EXECUCAO_INICIADA, {"id": "run-1", "rotulo": "Execucao"}),
+        _evento(6, TipoEvento.EXECUCAO_CONCLUIDA, {"id": "run-1"}),
+    ]
+    estado = GrafoReducer.reconstruir(eventos)
+
+    assert estado.nos["run-1"].ordem.seq_criacao == 4
+    assert estado.nos["run-1"].ordem.seq_atualizacao == 6

@@ -43,6 +43,30 @@ class ProvenienciaNo:
 
 
 @dataclass(frozen=True)
+class OrdemNoLog:
+    """Onde o nó nasceu e onde foi tocado por último na ordem total do log.
+
+    O carimbo de tempo diz que idade o nó tem; a sequência diz quem veio antes de
+    quem. São perguntas diferentes: dois processos escrevem com relógios próprios,
+    e só a sequência do log é uma ordem total. A projeção guardava o tempo e
+    descartava a sequência, então nem a tela nem a vista do agente respondiam se
+    um nó apareceu antes ou depois do outro.
+    """
+
+    seq_criacao: int = 0
+    seq_atualizacao: int = 0
+
+    @property
+    def foi_alterado(self) -> bool:
+        """Indica que o nó recebeu ao menos uma escrita depois da que o criou."""
+        return self.seq_atualizacao > self.seq_criacao
+
+    def com_atualizacao(self, seq: int) -> "OrdemNoLog":
+        """Marca a posição do último toque, preservando a de nascimento."""
+        return OrdemNoLog(seq_criacao=self.seq_criacao, seq_atualizacao=seq)
+
+
+@dataclass(frozen=True)
 class MetadadosTemporais:
     """Estrutura bitemporal de rastreabilidade de validade e log."""
 
@@ -50,6 +74,17 @@ class MetadadosTemporais:
     registrado_em: str
     valido_de: str | None = None
     valido_ate: str | None = None
+    atualizado_em: str | None = None
+
+    def com_atualizacao(self, momento: str) -> "MetadadosTemporais":
+        """Registra quando o nó foi alterado, sem mexer em quando ele nasceu."""
+        return MetadadosTemporais(
+            criado_em=self.criado_em,
+            registrado_em=self.registrado_em,
+            valido_de=self.valido_de,
+            valido_ate=self.valido_ate,
+            atualizado_em=momento,
+        )
 
     @classmethod
     def agora(cls, valido_de: str | None = None) -> "MetadadosTemporais":
@@ -73,6 +108,7 @@ class NoGrafo:
     propriedades: Mapping[str, Any] = field(default_factory=dict)
     metadados: MetadadosTemporais = field(default_factory=MetadadosTemporais.agora)
     proveniencia: ProvenienciaNo = field(default_factory=ProvenienciaNo)
+    ordem: OrdemNoLog = field(default_factory=OrdemNoLog)
 
     def obter_propriedade(self, chave: str, padrao: Any = None) -> Any:
         """Obtém o valor de uma propriedade com valor de fallback."""
@@ -88,6 +124,19 @@ class NoGrafo:
             propriedades=propriedades_mescladas,
             metadados=self.metadados,
             proveniencia=self.proveniencia,
+            ordem=self.ordem,
+        )
+
+    def tocado_em(self, momento: str, seq: int) -> "NoGrafo":
+        """Nova instância marcando quando e em que ponto do log o nó foi alterado."""
+        return NoGrafo(
+            id=self.id,
+            tipo=self.tipo,
+            rotulo=self.rotulo,
+            propriedades=self.propriedades,
+            metadados=self.metadados.com_atualizacao(momento),
+            proveniencia=self.proveniencia,
+            ordem=self.ordem.com_atualizacao(seq),
         )
 
 

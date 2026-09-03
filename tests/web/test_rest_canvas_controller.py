@@ -148,3 +148,29 @@ def test_filtro_canvas_por_projeto_nominal() -> None:
     ids_b = {n.id for n in canvas_b.nos}
     assert ids_b == {"pb", "sb"}
 
+
+
+def test_canvas_publica_idade_e_ordem_de_cada_no_nominal() -> None:
+    """O card só consegue dizer a própria idade se a API mandar a data e a sequência."""
+    ctrl, sess_id = _criar_controller_com_sessao()
+    ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Meta", id_no="goal-1", sessao_id=sess_id))
+
+    nos = {no.id: no for no in ctrl.obter_canvas().nos}
+
+    assert nos["sess-01"].criado_em != ""
+    assert nos["sess-01"].seq_criacao > 0
+    assert nos["goal-1"].seq_criacao > nos["sess-01"].seq_criacao
+
+
+def test_edicao_move_a_marca_de_alteracao_sem_mover_a_de_criacao_nominal() -> None:
+    """Editar um nó não o rejuvenesce nem o envelhece: só marca o último toque."""
+    ctrl, _ = _criar_controller_com_sessao()
+
+    antes = {no.id: no for no in ctrl.obter_canvas().nos}["sess-01"]
+    ctrl.editar_no(RequisicaoEdicaoNo(id_no="sess-01", novas_propriedades={}, novo_rotulo="Sessao renomeada"))
+    depois = {no.id: no for no in ctrl.obter_canvas().nos}["sess-01"]
+
+    assert depois.seq_criacao == antes.seq_criacao
+    assert depois.criado_em == antes.criado_em
+    assert depois.seq_atualizacao > antes.seq_atualizacao
+    assert depois.atualizado_em is not None

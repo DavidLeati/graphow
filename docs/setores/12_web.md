@@ -10,18 +10,18 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-17 módulos · 1754 linhas · 31 classes
+17 módulos · 1768 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 117 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 150 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 160 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 76 | Mapeamento de cada nó do grafo à Sessão e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 276 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 280 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
@@ -91,7 +91,7 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 *DTO imutável* — DTO imutável para representação de um nó no Canvas.
 
-**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`
+**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`
 
 ### `PosicaoNoCanvas`
 

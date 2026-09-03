@@ -10,14 +10,14 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-7 módulos · 570 linhas · 31 classes
+7 módulos · 619 linhas · 32 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 62 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/models.py`](#coremodels) | 155 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
+| [`core/models.py`](#coremodels) | 204 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 47 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/types.py`](#coretypes) | 92 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
@@ -152,18 +152,29 @@ Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais.
 
 *DTO imutável* — Estrutura bitemporal de rastreabilidade de validade e log.
 
-**Campos:** `criado_em: str`, `registrado_em: str`, `valido_de: str | None`, `valido_ate: str | None`
+**Campos:** `criado_em: str`, `registrado_em: str`, `valido_de: str | None`, `valido_ate: str | None`, `atualizado_em: str | None`
 
+- `com_atualizacao(momento: str) -> 'MetadadosTemporais'` — Registra quando o nó foi alterado, sem mexer em quando ele nasceu.
 - `agora(valido_de: str | None) -> 'MetadadosTemporais'` — Cria metadados temporais com timestamp UTC atual.
 
 ### `NoGrafo`
 
 *DTO imutável* — Representação imutável de um nó do grafo de conhecimento.
 
-**Campos:** `id: str`, `tipo: TipoNo`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `metadados: MetadadosTemporais`, `proveniencia: ProvenienciaNo`
+**Campos:** `id: str`, `tipo: TipoNo`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `metadados: MetadadosTemporais`, `proveniencia: ProvenienciaNo`, `ordem: OrdemNoLog`
 
 - `obter_propriedade(chave: str, padrao: Any) -> Any` — Obtém o valor de uma propriedade com valor de fallback.
 - `com_propriedades(novas_propriedades: Mapping[str, Any]) -> 'NoGrafo'` — Retorna uma nova instância com propriedades mescladas de forma imutável.
+- `tocado_em(momento: str, seq: int) -> 'NoGrafo'` — Nova instância marcando quando e em que ponto do log o nó foi alterado.
+
+### `OrdemNoLog`
+
+*DTO imutável* — Onde o nó nasceu e onde foi tocado por último na ordem total do log.
+
+**Campos:** `seq_criacao: int`, `seq_atualizacao: int`
+
+- `foi_alterado() -> bool` `[property]` — Indica que o nó recebeu ao menos uma escrita depois da que o criou.
+- `com_atualizacao(seq: int) -> 'OrdemNoLog'` — Marca a posição do último toque, preservando a de nascimento.
 
 ### `ProvenienciaNo`
 

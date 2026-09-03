@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**14 alas · 123 módulos · 13130 linhas · 251 classes**
+**14 alas · 123 módulos · 13253 linhas · 252 classes**
 
 ---
 
@@ -56,18 +56,18 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
-| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 7 | 570 | 31 |
+| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 7 | 619 | 32 |
 | 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 13 | 1939 | 23 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 11 | 1326 | 31 |
-| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 6 | 632 | 9 |
+| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 6 | 650 | 9 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 8 | 471 | 10 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 11 | 1124 | 24 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 11 | 1152 | 24 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 7 | 425 | 9 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
-| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 15 | 1699 | 25 |
+| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 15 | 1713 | 25 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 829 | 10 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 17 | 1754 | 31 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 17 | 1768 | 31 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 4 | 517 | 6 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 9 | 1290 | 27 |
 

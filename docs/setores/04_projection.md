@@ -10,11 +10,11 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-6 módulos · 632 linhas · 9 classes
+6 módulos · 650 linhas · 9 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`projection/acumulador.py`](#projectionacumulador) | 170 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
+| [`projection/acumulador.py`](#projectionacumulador) | 188 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 218 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 129 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 75 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
@@ -31,6 +31,11 @@ Acumulador mutável usado para dobrar muitos eventos em uma passada só.
 - `aplicar_todos(eventos: Sequence[EventoLog]) -> None` — Dobra a sequência inteira de eventos sobre o acumulador.
 - `aplicar(evento: EventoLog) -> None` — Aplica um evento, delegando ao manipulador do seu tipo.
 - `congelar() -> GrafoEstado` — Produz o estado imutável correspondente ao acumulado até aqui.
+
+### Funções do módulo
+
+- `metadados_do_evento(evento: EventoLog) -> MetadadosTemporais` — Marca temporal do nó tirada do log, nunca do relógio de quem projeta.
+- `ordem_do_evento(evento: EventoLog) -> OrdemNoLog` — Posição de nascimento do nó na ordem total do log.
 
 ## `projection/fila_trabalho.py`
 

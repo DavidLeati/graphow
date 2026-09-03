@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from graphow.context.corte import PlanoDeCorte, montar_escada_de_corte
-from graphow.context.secoes import RecorteContexto, SecaoContexto, formatar_propriedades
+from graphow.context.secoes import RecorteContexto, SecaoContexto, anotar_ordem, formatar_propriedades
 from graphow.context.tokenizacao import ESTIMADOR_PADRAO, EstimadorTokens
 from graphow.core.exceptions import ErroOrcamentoExcedido
 
@@ -103,10 +103,17 @@ class RenderizadorContexto:
         )
 
     def _montar_cabecalho(self, recorte: RecorteContexto) -> tuple[str, ...]:
-        """Bloco de abertura com a identidade e as propriedades do nó alvo."""
+        """Bloco de abertura com a identidade e as propriedades do nó alvo.
+
+        A ordem entra como sufixo, e não como linha própria com a data por
+        extenso: o cabeçalho é obrigatório em toda vista, então tudo que se
+        acrescenta aqui sai do orçamento de todo agente. O inteiro responde a
+        ordem por poucos tokens; a data por extenso fica em `expandir_no`, que é
+        justamente o detalhe sob demanda.
+        """
         alvo = recorte.alvo
         return (
-            f"# [VISTA DE CONTEXTO] No Alvo: {alvo.rotulo} ({alvo.id})",
+            f"# [VISTA DE CONTEXTO] No Alvo: {alvo.rotulo} ({alvo.id}){anotar_ordem(alvo)}",
             f"- Tipo: {alvo.tipo.value}",
             f"- Propriedades: {formatar_propriedades(alvo.propriedades)}",
         )

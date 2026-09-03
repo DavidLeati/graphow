@@ -119,6 +119,10 @@ class CanvasWebController:
                 esta_bloqueado=bloqueado,
                 lock_ativo=lock_dono,
                 sessao_id=sessao_no,
+                criado_em=no.metadados.criado_em,
+                atualizado_em=no.metadados.atualizado_em,
+                seq_criacao=no.ordem.seq_criacao,
+                seq_atualizacao=no.ordem.seq_atualizacao,
             ))
         return nos_visuais
 

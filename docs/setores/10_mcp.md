@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-15 módulos · 1699 linhas · 25 classes
+15 módulos · 1713 linhas · 25 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/espera.py`](#mcpespera) | 85 | Relógio e política de espera do long-poll MCP, isolados para permitir teste. |
 | [`mcp/ferramentas_escalacao.py`](#mcpferramentasescalacao) | 145 | Ferramentas MCP do caminho de volta: da resposta humana até o agente. |
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
-| [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 87 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
+| [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 101 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 93 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 198 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |

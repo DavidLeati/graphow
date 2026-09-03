@@ -20,9 +20,28 @@ from graphow.core.models import (
     GrafoEstado,
     MetadadosTemporais,
     NoGrafo,
+    OrdemNoLog,
     ProvenienciaNo,
 )
 from graphow.core.types import TipoAresta, TipoNo
+
+
+def metadados_do_evento(evento: EventoLog) -> MetadadosTemporais:
+    """Marca temporal do nó tirada do log, nunca do relógio de quem projeta.
+
+    Um nó datado no momento da projeção envelhece a cada replay: o mesmo log
+    reconstruído amanhã diria que tudo nasceu amanhã.
+    """
+    return MetadadosTemporais(
+        criado_em=evento.timestamp_utc,
+        registrado_em=evento.timestamp_utc,
+        valido_de=evento.timestamp_utc,
+    )
+
+
+def ordem_do_evento(evento: EventoLog) -> OrdemNoLog:
+    """Posição de nascimento do nó na ordem total do log."""
+    return OrdemNoLog(seq_criacao=evento.seq, seq_atualizacao=evento.seq)
 
 
 class AcumuladorProjecao:
@@ -65,20 +84,16 @@ class AcumuladorProjecao:
         """Insere o nó descrito no payload do evento."""
         payload: Mapping[str, Any] = evento.payload
         id_no = str(payload["id"])
-        metadados = MetadadosTemporais(
-            criado_em=evento.timestamp_utc,
-            registrado_em=evento.timestamp_utc,
-            valido_de=evento.timestamp_utc,
-        )
         self._nos[id_no] = NoGrafo(
             id=id_no,
             tipo=TipoNo(payload["tipo"]),
             rotulo=str(payload.get("rotulo", "")),
             propriedades=dict(payload.get("propriedades", {})),
-            metadados=metadados,
+            metadados=metadados_do_evento(evento),
             proveniencia=ProvenienciaNo(
                 autor=evento.autor, papel=evento.papel.value, origem=evento.origem.value
             ),
+            ordem=ordem_do_evento(evento),
         )
 
     def _atualizar_no(self, evento: EventoLog) -> None:
@@ -93,8 +108,9 @@ class AcumuladorProjecao:
             tipo=existente.tipo,
             rotulo=str(payload.get(CAMPO_ROTULO, existente.rotulo)),
             propriedades=self._mesclar_propriedades(existente.propriedades, payload),
-            metadados=existente.metadados,
+            metadados=existente.metadados.com_atualizacao(evento.timestamp_utc),
             proveniencia=existente.proveniencia.com_atualizacao(evento.autor),
+            ordem=existente.ordem.com_atualizacao(evento.seq),
         )
 
     def _mesclar_propriedades(
@@ -155,14 +171,16 @@ class AcumuladorProjecao:
         }
         existente = self._nos.get(id_run)
         if existente is not None:
-            self._nos[id_run] = existente.com_propriedades(propriedades)
+            atualizado = existente.com_propriedades(propriedades)
+            self._nos[id_run] = atualizado.tocado_em(evento.timestamp_utc, evento.seq)
             return
         self._nos[id_run] = NoGrafo(
             id=id_run,
             tipo=TipoNo.RUN,
             rotulo=str(payload.get("rotulo", f"Run {id_run}")),
             propriedades=propriedades,
-            metadados=MetadadosTemporais.agora(),
+            metadados=metadados_do_evento(evento),
+            ordem=ordem_do_evento(evento),
         )
 
     def _apenas_avancar_versao(self, evento: EventoLog) -> None:

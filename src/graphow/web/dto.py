@@ -7,7 +7,13 @@ from typing import Any
 
 @dataclass(frozen=True)
 class DadosNoVisual:
-    """DTO imutável para representação de um nó no Canvas."""
+    """DTO imutável para representação de um nó no Canvas.
+
+    A idade e a posição no log viajam juntas de propósito: o carimbo de tempo
+    responde há quanto tempo o card existe, e a sequência responde se ele veio
+    antes ou depois de outro — o que relógios de processos diferentes não
+    conseguem decidir sozinhos.
+    """
 
     id: str
     tipo: str
@@ -16,6 +22,10 @@ class DadosNoVisual:
     esta_bloqueado: bool = False
     lock_ativo: str | None = None
     sessao_id: str | None = None
+    criado_em: str = ""
+    atualizado_em: str | None = None
+    seq_criacao: int = 0
+    seq_atualizacao: int = 0
 
 
 @dataclass(frozen=True)

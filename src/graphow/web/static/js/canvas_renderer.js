@@ -1,3 +1,7 @@
+import { descreverHistoricoDoNo, foiAlterado, formatarIdadeCurta } from "./idade.js";
+
+const INTERVALO_DO_RELOGIO_MS = 60000;
+
 /**
  * Precision Spatial Canvas Graph Renderer (Crisp SVG Edges & Clean HTML Node Cards)
  */
@@ -11,6 +15,17 @@ export class CanvasRenderer {
     this.nodeElements = new Map();
     this.hoveredNodeId = null;
     this.setupDefs();
+    // A idade e relativa: sem este relogio, um card diria "3 min" a tarde
+    // inteira, e uma idade errada e pior do que idade nenhuma.
+    this.relogioDeIdade = setInterval(() => this.atualizarIdades(), INTERVALO_DO_RELOGIO_MS);
+  }
+
+  atualizarIdades() {
+    for (const [id, el] of this.nodeElements.entries()) {
+      const node = this.state.nodes.get(id);
+      const alvo = el.querySelector(".node-age");
+      if (node && alvo) alvo.textContent = formatarIdadeCurta(node.criado_em);
+    }
   }
 
   setupDefs() {
@@ -81,6 +96,7 @@ export class CanvasRenderer {
             ${lockBadge}
             ${blockBadge}
           </div>
+          ${this.montarRodapeDeIdade(node)}
         </div>
         <div class="port port-in" data-port-in="${id}" title="Entrada"></div>
         <div class="port port-out" data-port-out="${id}" title="Saída"></div>
@@ -274,6 +290,24 @@ export class CanvasRenderer {
     } else {
       this.surface.classList.remove("lod-macro");
     }
+  }
+
+  /**
+   * Rodape que responde as duas perguntas que o card nao respondia: ha quanto
+   * tempo ele existe e se veio antes ou depois de outro. A sequencia do log e
+   * quem decide a ordem; o "ha 3 min" so diz a idade.
+   */
+  montarRodapeDeIdade(node) {
+    const seq = node.seq_criacao ?? 0;
+    if (!seq && !node.criado_em) return "";
+    const marcaDeEdicao = foiAlterado(node) ? `<span class="node-edited" title="Alterado depois de criado">editado</span>` : "";
+    return `
+      <div class="node-footer" title="${this.escapeHtml(descreverHistoricoDoNo(node))}">
+        <span class="node-seq">log #${seq}</span>
+        ${marcaDeEdicao}
+        <span class="node-age">${formatarIdadeCurta(node.criado_em)}</span>
+      </div>
+    `;
   }
 
   escapeHtml(str) {

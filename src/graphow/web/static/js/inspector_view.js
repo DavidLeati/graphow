@@ -1,3 +1,5 @@
+import { foiAlterado, formatarDataCompleta, formatarIdadeRelativa } from "./idade.js";
+
 /**
  * Contextual Inspector and Property Editor View
  */
@@ -80,6 +82,8 @@ export class InspectorView {
           ID: <strong>${node.id}</strong>
         </div>
 
+        ${this.montarBlocoDeHistorico(node)}
+
         <div class="form-group">
           <label>Título / Rótulo:</label>
           <input type="text" id="inspect-node-rotulo" class="text-input" value="${this.escapeHtml(node.rotulo)}">
@@ -106,6 +110,26 @@ export class InspectorView {
     document.getElementById("btn-delete-project-cascade")?.addEventListener("click", () => {
       this.onAction("DELETE_PROJECT_CASCADE", { id_projeto: node.id, rotulo: node.rotulo });
     });
+  }
+
+  /**
+   * Quando o no nasceu, quando mudou pela ultima vez e em que ponto do log.
+   * A sequencia esta aqui porque e ela, e nao a data, que decide a ordem entre
+   * dois nos escritos por processos com relogios diferentes.
+   */
+  montarBlocoDeHistorico(node) {
+    const seq = node.seq_criacao ?? 0;
+    if (!seq && !node.criado_em) return "";
+    const idade = formatarIdadeRelativa(node.criado_em);
+    const linhaDeEdicao = foiAlterado(node)
+      ? `<div>Alterado: <strong>${formatarDataCompleta(node.atualizado_em)}</strong> <span style="opacity:0.7;">(log #${node.seq_atualizacao})</span></div>`
+      : `<div style="opacity:0.7;">Sem alterações desde a criação</div>`;
+    return `
+      <div style="font-size:10.5px; color:var(--text-secondary); background:var(--bg-tertiary); padding:6px 8px; border-radius:var(--radius-xs); display:flex; flex-direction:column; gap:3px;">
+        <div>Criado: <strong>${formatarDataCompleta(node.criado_em)}</strong> <span style="opacity:0.7;">(log #${seq}${idade ? `, ${idade}` : ""})</span></div>
+        ${linhaDeEdicao}
+      </div>
+    `;
   }
 
   renderEdgeInspector(edge) {

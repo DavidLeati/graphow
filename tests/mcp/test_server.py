@@ -233,3 +233,13 @@ def test_mcp_excluir_em_lote_e_excluir_projeto_cascata() -> None:
     assert view.contem_no(id_projeto) is False
     assert view.contem_no(id_setor) is False
     assert view.contem_no(id_sessao) is False
+
+
+def test_buscar_devolve_a_posicao_de_cada_no_no_log_nominal() -> None:
+    """Sem a sequência, o agente recebia um conjunto sem ordem: nada dizia o que veio antes."""
+    servidor, _ = _configurar_servidor_com_dados()
+
+    resultado = servidor.executar_ferramenta("buscar", {"termo": "MCP"})
+
+    assert resultado["total"] >= 1
+    assert all(item["seq_criacao"] > 0 for item in resultado["resultados"])

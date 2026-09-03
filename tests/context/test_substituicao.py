@@ -3,10 +3,11 @@
 from graphow.context.secoes import (
     MARCA_DE_CONTEUDO_NAO_CONFIAVEL,
     PrioridadeRetencao,
+    anotar_ordem,
     formatar_no_em_linha,
 )
 from graphow.context.substituicao import identificar_substituta, montar_secao_de_decisoes
-from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo, ProvenienciaNo
+from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo, OrdemNoLog, ProvenienciaNo
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 
@@ -84,3 +85,15 @@ def test_evidencia_escrita_pelo_humano_nao_recebe_marca_edge_case() -> None:
 def test_no_sem_proveniencia_nao_ganha_sufixo_edge_case() -> None:
     """Caso de borda: nó construído fora do log não inventa autoria."""
     assert formatar_no_em_linha(NoGrafo("n1", TipoNo.NOTE, "Nota")) == "- [n1] Nota"
+
+
+def test_linha_carrega_a_posicao_do_no_no_log_nominal() -> None:
+    """O agente lia uma lista sem saber qual nó veio antes de qual."""
+    no = NoGrafo("d1", TipoNo.DECISION, "Decisao", ordem=OrdemNoLog(seq_criacao=12, seq_atualizacao=12))
+
+    assert "(log #12)" in formatar_no_em_linha(no)
+
+
+def test_no_sem_sequencia_conhecida_nao_ganha_ordem_inventada_edge_case() -> None:
+    """Caso de borda: sem posição no log, a linha cala — não estima uma."""
+    assert anotar_ordem(NoGrafo("n1", TipoNo.NOTE, "Nota")) == ""

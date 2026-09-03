@@ -138,6 +138,32 @@
   margin-top: 6px;
 }
 
+/* Rodape de idade e ordem: "log #12" responde quem veio antes, "3 min" a idade. */
+.node-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.node-seq {
+  letter-spacing: 0.02em;
+}
+
+.node-age {
+  margin-left: auto;
+}
+
+.node-edited {
+  font-style: italic;
+  opacity: 0.75;
+}
+
 /* Badges */
 .badge {
   font-family: var(--font-mono);

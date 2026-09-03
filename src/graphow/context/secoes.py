@@ -165,14 +165,31 @@ def anotar_proveniencia(no: NoGrafo) -> str:
     return (" " + " ".join(partes)) if partes else ""
 
 
+def anotar_ordem(no: NoGrafo) -> str:
+    """Posição do nó na ordem total do log, quando ela é conhecida.
+
+    Sem isto, o agente lia uma lista de nós sem qualquer noção de qual veio
+    antes: a data está no log e a vista nunca a carregava. A sequência responde
+    a ordem com um inteiro, mais barato em orçamento que uma data e confiável
+    entre processos que não compartilham relógio.
+
+    Um nó projetado sem sequência não recebe marca: inventar ordem onde ela não
+    existe é pior do que omiti-la.
+    """
+    if no.ordem.seq_criacao <= 0:
+        return ""
+    return f" (log #{no.ordem.seq_criacao})"
+
+
 def formatar_no_em_linha(no: NoGrafo) -> str:
-    """Descreve um nó em uma linha compacta de lista, com a sua autoria."""
-    return f"- [{no.id}] {no.rotulo}{anotar_proveniencia(no)}"
+    """Descreve um nó em uma linha compacta de lista, com a ordem e a autoria."""
+    return f"- [{no.id}] {no.rotulo}{anotar_ordem(no)}{anotar_proveniencia(no)}"
 
 
 def formatar_no_com_propriedades(no: NoGrafo) -> str:
-    """Descreve um nó incluindo as propriedades de domínio e a sua autoria."""
-    return f"- [{no.id}] {no.rotulo}: {formatar_propriedades(no.propriedades)}{anotar_proveniencia(no)}"
+    """Descreve um nó incluindo propriedades de domínio, ordem e autoria."""
+    corpo = f"- [{no.id}] {no.rotulo}: {formatar_propriedades(no.propriedades)}"
+    return f"{corpo}{anotar_ordem(no)}{anotar_proveniencia(no)}"
 
 
 def montar_secao_de_nos(

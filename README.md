@@ -344,6 +344,14 @@ A vista materializada carrega essa proveniência em cada linha (`por autor
 modelo marcado como **não confiável** — o mínimo que o plano pede contra injeção
 persistente.
 
+Junto dela viaja a **ordem**: cada nó carrega a sequência do evento que o criou
+(`log #N` nas linhas da vista e no rodapé do card, com a data por extenso em
+`expandir_no` e no inspetor). O carimbo de tempo diz a idade; a sequência diz
+quem veio antes de quem, e é a única resposta confiável para isso, porque a web
+e o MCP escrevem de processos distintos, cada um com o seu relógio. A sequência
+fica fora do cabeçalho da vista de propósito: ele é obrigatório em toda leitura,
+então tudo que entra ali sai do orçamento de tokens de todo agente.
+
 Cada evento também declara **em qual vocabulário foi escrito**
 (`versao_ontologia`, hoje `1.0.0`), gravado no log e devolvido na linha do tempo
 e no SSE. Sem isso, um log relido depois de um tipo mudar de nome projeta errado

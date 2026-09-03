@@ -98,6 +98,10 @@ class MaterializadorContexto:
             "id": no.id,
             "tipo": no.tipo.value,
             "rotulo": no.rotulo,
+            "criado_em": no.metadados.criado_em,
+            "atualizado_em": no.metadados.atualizado_em,
+            "seq_criacao": no.ordem.seq_criacao,
+            "seq_atualizacao": no.ordem.seq_atualizacao,
             "propriedades": filtrar_propriedades_de_dominio(no.propriedades),
             "arestas_saida": [
                 {"id": a.id, "destino": a.destino_id, "tipo": a.tipo.value}
