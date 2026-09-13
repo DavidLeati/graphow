@@ -1,0 +1,6 @@
+﻿# Graphow
+# O core e a interface web utilizam exclusivamente a biblioteca padrao do Python (>=3.11).
+
+# Desenvolvimento e Testes
+pytest>=8.0.0
+pytest-cov>=4.0.0

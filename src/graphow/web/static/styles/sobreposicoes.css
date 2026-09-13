@@ -1,0 +1,234 @@
+/* ==========================================================================
+   SOBREPOSIÇÕES DO CANVAS — controles, painel de recorte, avisos, paleta de
+   cartões e minimapa. Ficam fora do viewport, por cima dele, para que o pan e
+   o zoom nunca capturem um clique destinado a elas.
+   ========================================================================== */
+
+.canvas-controles {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(22, 26, 34, 0.92);
+  border: 1px solid var(--moldura-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+.canvas-controles button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--texto-suave);
+  background: none;
+  border: none;
+  border-radius: var(--raio-md);
+  cursor: pointer;
+}
+.canvas-controles button:hover { background: var(--moldura-hover); color: var(--texto-normal); }
+.canvas-controles button.is-ativo { color: var(--texto-acento); background: var(--acento-suave); }
+.canvas-controles-separador { height: 1px; margin: 3px 4px; background: var(--moldura-borda); }
+
+/* Painel de recorte e exibição, flutuando sobre o canvas */
+.painel-controles {
+  position: absolute;
+  top: 12px;
+  right: 58px;
+  z-index: 26;
+  width: 272px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 6px 0 8px;
+  font-size: var(--fonte-ui);
+  background: rgba(22, 26, 34, 0.97);
+  border: 1px solid var(--moldura-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-flutuante);
+  backdrop-filter: blur(10px);
+  animation: surgir 0.1s ease-out;
+}
+.controles-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px 6px 14px;
+  font-weight: 600;
+  color: var(--texto-normal);
+}
+.controles-secao { border-top: 1px solid var(--moldura-divisor); }
+.controles-secao-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px 7px;
+  font-size: var(--fonte-ui);
+  font-weight: 600;
+  color: var(--texto-suave);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.controles-secao-titulo:hover { color: var(--texto-normal); }
+.controles-secao-titulo .svg-icone { transition: transform 0.12s ease; color: var(--texto-fraco); }
+.controles-secao.is-fechada .controles-secao-titulo .svg-icone { transform: rotate(-90deg); }
+.controles-secao-corpo { display: flex; flex-direction: column; gap: 10px; padding: 2px 14px 12px; }
+.controle { display: flex; flex-direction: column; gap: 6px; }
+.controle.mod-alternador { flex-direction: row; align-items: center; justify-content: space-between; cursor: pointer; }
+.controle.mod-recuado { padding-left: 10px; border-left: 2px solid var(--moldura-borda); }
+.controle-rotulo { font-size: var(--fonte-pequena); color: var(--texto-suave); }
+.controle-rotulo strong { color: var(--texto-normal); }
+.controle .segmentado { display: flex; }
+.legenda { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
+.legenda-item { display: flex; align-items: center; gap: 7px; font-size: var(--fonte-pequena); color: var(--texto-suave); }
+.legenda-item .texto-fraco { margin-left: auto; font-variant-numeric: tabular-nums; }
+.legenda-cor { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Aviso do recorte: nunca some enquanto houver nó escondido */
+.canvas-aviso {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100% - 120px));
+  padding: 7px 12px;
+  font-size: var(--fonte-pequena);
+  line-height: 1.45;
+  color: var(--texto-suave);
+  background: rgba(22, 26, 34, 0.94);
+  border: 1px solid var(--moldura-borda);
+  border-left: 3px solid var(--acento);
+  border-radius: var(--raio-md);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+.com-painel-recorte .canvas-aviso { max-width: calc(100% - 370px); }
+.canvas-aviso .svg-icone { color: var(--texto-acento); flex-shrink: 0; }
+.canvas-aviso strong { color: var(--texto-normal); }
+.canvas-aviso em { font-style: normal; color: var(--texto-acento); }
+.canvas-aviso .link-acao { flex-shrink: 0; margin-left: 4px; }
+.aviso-orfaos { color: var(--tom-espera); cursor: help; }
+
+.canvas-viagem {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 27;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  font-size: var(--fonte-pequena);
+  color: #ffe2a8;
+  background: rgba(58, 42, 12, 0.94);
+  border: 1px solid rgba(245, 181, 71, 0.45);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+}
+.canvas-viagem strong { color: #fff3d6; }
+
+.canvas-vazio {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+.canvas-vazio-titulo { font-size: 17px; font-weight: 600; color: var(--texto-suave); }
+.canvas-vazio-acoes { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: auto; }
+.canvas-vazio-acoes .link-acao { font-size: var(--fonte-ui); }
+
+/* Paleta de cartões. Fica no
+   canto esquerdo, e não no centro: com as duas laterais abertas numa tela de
+   1366 px o canvas tem uns 700 px, e centrada ela cairia sobre o minimapa. */
+.paleta-cartoes {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(22, 26, 34, 0.92);
+  border: 1px solid var(--moldura-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+.paleta-cartoes-rotulo {
+  padding: 0 6px 0 8px;
+  font-size: var(--fonte-menor);
+  font-weight: 600;
+  color: var(--texto-fraco);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.paleta-cartoes .palette-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  color: var(--cor-tipo);
+  border-radius: var(--raio-md);
+  cursor: grab;
+  transition: background var(--transicao-rapida), transform var(--transicao-rapida);
+}
+.paleta-cartoes .palette-item:hover { background: color-mix(in srgb, var(--cor-tipo) 16%, transparent); transform: translateY(-1px); }
+.paleta-cartoes .palette-item:active { cursor: grabbing; }
+
+/* A barra de status flutua no canto da janela e avança sobre o canvas: o
+   minimapa fica acima dela, nunca por baixo. */
+#minimap-container {
+  position: absolute;
+  bottom: calc(var(--altura-barra-status) + 12px);
+  right: 14px;
+  z-index: 21;
+  width: 200px;
+  height: 130px;
+  overflow: hidden;
+  background: rgba(16, 19, 26, 0.92);
+  border: 1px solid var(--moldura-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+  user-select: none;
+}
+#minimap-container.is-oculto { display: none; }
+#minimap-canvas { display: block; width: 100%; height: 100%; }
+
+/* Canvas estreito (laterais largas ou janela pequena): a paleta tem prioridade. */
+@container (max-width: 620px) {
+  #minimap-container { display: none; }
+  .paleta-cartoes-rotulo { display: none; }
+}
+#minimap-frustum {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1.5px solid var(--acento);
+  background: rgba(59, 130, 246, 0.14);
+  border-radius: 2px;
+  cursor: grab;
+}
+#minimap-frustum:active { cursor: grabbing; }

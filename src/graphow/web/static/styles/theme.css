@@ -1,0 +1,195 @@
+/* ==========================================================================
+   GRAPHOW DESIGN SYSTEM — PRECISION ENGINEERING THEME
+   ========================================================================== */
+
+:root {
+  /* Surfaces & Backgrounds */
+  --bg-canvas: #090c13;
+  --bg-primary: #0d121c;
+  --bg-secondary: #111724;
+  --bg-tertiary: #161e2e;
+  --bg-surface: #121824;
+  --bg-surface-raised: #182030;
+  --bg-surface-hover: #1e283d;
+  --bg-surface-active: #24314a;
+  --bg-input: #0a0e16;
+  --bg-tooltip: #1a2334;
+  --bg-backdrop: rgba(5, 8, 14, 0.75);
+
+  /* Legacy compatibility aliases */
+  --bg-deep-void: var(--bg-canvas);
+  --bg-hover: var(--bg-surface-hover);
+
+  /* Borders & Dividers */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-focus: #3b82f6;
+  --border-hud: var(--border-default);
+  --border-dark: var(--border-subtle);
+
+  /* Typography Colors */
+  --text-main: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-faint: #475569;
+  --text-inverse: #0f172a;
+  --text-accent: #60a5fa;
+
+  /* Functional Accents */
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-blue-subtle: rgba(59, 130, 246, 0.12);
+  --accent-green: #10b981;
+  --accent-green-subtle: rgba(16, 185, 129, 0.12);
+  --accent-amber: #f59e0b;
+  --accent-amber-subtle: rgba(245, 158, 11, 0.12);
+  --accent-red: #ef4444;
+  --accent-red-subtle: rgba(239, 68, 68, 0.12);
+
+  /* Ontological Node Type Colors (Solid, Crisp, Semantic) */
+  --color-projeto: #3b82f6;
+  --color-setor: #6366f1;
+  --color-sessao: #a855f7;
+  --color-goal: #f43f5e;
+  --color-task: #0ea5e9;
+  --color-decision: #10b981;
+  --color-question: #f59e0b;
+  --color-constraint: #ef4444;
+  --color-artifact: #06b6d4;
+  --color-evidence: #14b8a6;
+  --color-run: #8b5cf6;
+  --color-note: #64748b;
+
+  /* Ontological Edge Colors */
+  --edge-default: rgba(148, 163, 184, 0.35);
+  --edge-contem: #3b82f6;
+  --edge-produz: #a855f7;
+  --edge-ocorreu_em: #8b5cf6;
+  --edge-decompoe: #f43f5e;
+  --edge-depende_de: #0ea5e9;
+  --edge-bloqueia: #ef4444;
+  --edge-justifica: #10b981;
+  --edge-contradiz: #f97316;
+  --edge-substitui: #eab308;
+  --edge-escopa: #ef4444;
+  --edge-deriva_de: #06b6d4;
+
+  /* Typography Stacks */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "SF Mono", monospace;
+  --font-hud: var(--font-sans);
+
+  /* Radii */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+
+  /* Shadows (Subtle, Clean & High Definition) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  --shadow-card-selected: 0 0 0 2px #3b82f6, 0 4px 16px rgba(0, 0, 0, 0.6);
+
+  /* ------------------------------------------------------------------------
+     MOLDURA. As laterais ficam um tom acima do
+     conteúdo, e a aba ativa tem a cor do conteúdo, para escorrer até o
+     canvas. As cores do canvas acima continuam sendo as do centro.
+     ------------------------------------------------------------------------ */
+  --moldura-fundo: #13161c;
+  --moldura-conteudo: #0b0e14;
+  --moldura-elevado: #1b1f27;
+  --moldura-elevado-2: #222733;
+  --moldura-borda: #252a34;
+  --moldura-divisor: #1e222a;
+  --moldura-hover: rgba(255, 255, 255, 0.055);
+  --moldura-ativo: rgba(255, 255, 255, 0.09);
+  --moldura-selecao: rgba(59, 130, 246, 0.17);
+  --moldura-guia: rgba(255, 255, 255, 0.07);
+  --moldura-campo: rgba(255, 255, 255, 0.04);
+  --moldura-campo-borda: rgba(255, 255, 255, 0.1);
+
+  --texto-normal: #d6dae1;
+  --texto-suave: #a4aab5;
+  --texto-fraco: #6c7380;
+  --texto-acento: #7fb2ff;
+  --acento: #3b82f6;
+  --acento-hover: #5a96f8;
+  --acento-suave: rgba(59, 130, 246, 0.16);
+  --tom-ok: #34c38f;
+  --tom-andamento: #60a5fa;
+  --tom-espera: #f5b547;
+  --tom-alerta: #f46b6b;
+  --tom-neutro: #8b93a1;
+
+  --fonte-ui: 13px;
+  --fonte-pequena: 12px;
+  --fonte-menor: 11px;
+  --raio-sm: 4px;
+  --raio-md: 6px;
+  --raio-lg: 8px;
+  --raio-xl: 12px;
+  --largura-faixa: 44px;
+  --altura-faixa-abas: 40px;
+  --altura-cabecalho-vista: 38px;
+  --altura-barra-status: 24px;
+  --sombra-flutuante: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --transicao-rapida: 0.12s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Precise Minimalist Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+code, kbd {
+  font-family: var(--font-mono);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

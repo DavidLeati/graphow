@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphow — Grafo Agêntico Bilateral</title>
+  <link rel="stylesheet" href="/styles/theme.css">
+  <link rel="stylesheet" href="/styles/components.css">
+  <link rel="stylesheet" href="/styles/layout.css">
+  <link rel="stylesheet" href="/styles/navegacao.css">
+  <link rel="stylesheet" href="/styles/paineis.css">
+  <link rel="stylesheet" href="/styles/canvas.css">
+  <link rel="stylesheet" href="/styles/sobreposicoes.css">
+</head>
+<body>
+  <div id="app-container" class="moldura">
+    <!-- Faixa de ícones: as ações globais -->
+    <nav class="faixa-lateral" aria-label="Ações globais">
+      <div class="faixa-grupo">
+        <button class="faixa-botao" data-comando="alternar-painel-esquerdo" data-icone="panel-left" data-icone-tamanho="18" title="Recolher ou expandir o painel esquerdo"></button>
+        <button class="faixa-botao" data-comando="busca-rapida" data-icone="search" data-icone-tamanho="18" title="Busca rápida (Ctrl+K)"></button>
+        <button class="faixa-botao" data-comando="paleta" data-icone="command" data-icone-tamanho="18" title="Paleta de comandos (Ctrl+P)"></button>
+        <button class="faixa-botao" data-comando="abrir-grafo" data-icone="grafo" data-icone-tamanho="18" title="Abrir o grafo inteiro"></button>
+        <span class="faixa-separador"></span>
+        <button class="faixa-botao" data-comando="novo-no" data-icone="square-pen" data-icone-tamanho="18" title="Novo nó (N)"></button>
+        <button class="faixa-botao" data-comando="novo-conteiner" data-icone="folder-plus" data-icone-tamanho="18" title="Novo projeto, setor ou sessão"></button>
+        <span class="faixa-separador"></span>
+        <button class="faixa-botao" data-comando="abrir-historico" data-icone="history" data-icone-tamanho="18" title="Histórico do log"></button>
+        <button class="faixa-botao" data-comando="comparar-ramos" data-icone="git-compare" data-icone-tamanho="18" title="Comparar ramos"></button>
+        <button class="faixa-botao" data-comando="terminal-patch" data-icone="terminal" data-icone-tamanho="18" title="Terminal de patch"></button>
+      </div>
+      <div class="faixa-grupo">
+        <button class="faixa-botao" data-comando="atalhos" data-icone="keyboard" data-icone-tamanho="18" title="Atalhos de teclado (?)"></button>
+      </div>
+    </nav>
+
+    <!-- Lateral esquerda: explorador, busca e marcadores -->
+    <aside id="left-sidebar" class="lateral lateral-esquerda">
+      <div class="grupo-abas" id="grupo-esquerdo">
+        <div class="grupo-cabecalho">
+          <button class="grupo-aba" data-aba="explorador" data-icone="folder-closed" title="Explorador"></button>
+          <button class="grupo-aba" data-aba="busca" data-icone="search" title="Busca no grafo (Ctrl+Shift+F)"></button>
+          <button class="grupo-aba" data-aba="marcadores" data-icone="bookmark" title="Marcadores"></button>
+          <span class="grupo-cabecalho-titulo" data-titulo-grupo></span>
+        </div>
+        <div class="grupo-conteudo">
+          <section class="painel painel-explorador" data-painel="explorador" id="painel-explorador">
+            <div class="nav-botoes">
+              <button class="clicavel-icone" data-acao-explorador="novo-no" data-icone="square-pen" title="Novo nó"></button>
+              <button class="clicavel-icone" data-acao-explorador="novo-conteiner" data-icone="folder-plus" title="Novo contêiner"></button>
+              <button class="clicavel-icone" data-acao-explorador="ordenar" data-icone="ordenar" title="Mudar a ordenação"></button>
+              <button class="clicavel-icone" data-acao-explorador="recolher" data-icone="chevrons-down-up" title="Recolher ou expandir tudo"></button>
+            </div>
+            <div class="arvore" data-arvore tabindex="0" role="tree" aria-label="Projetos, setores e sessões"></div>
+          </section>
+          <section class="painel painel-busca" data-painel="busca" id="painel-busca"></section>
+          <section class="painel painel-marcadores" data-painel="marcadores" id="painel-marcadores"></section>
+        </div>
+      </div>
+      <div class="cofre">
+        <button class="cofre-botao" data-comando="menu-ramos" title="Trocar de ramo ou criar um fork">
+          <span class="cofre-logo" data-icone="grafo" data-icone-tamanho="15"></span>
+          <span class="cofre-nome">Graphow</span>
+          <span class="cofre-ramo" data-icone="git-branch" data-icone-tamanho="12"><span data-ramo-atual>main</span></span>
+          <span class="cofre-seta" data-icone="chevrons-up-down" data-icone-tamanho="14"></span>
+        </button>
+      </div>
+    </aside>
+    <div class="alca-redimensionar" id="alca-esquerda" title="Arraste para redimensionar"></div>
+
+    <!-- Centro: abas, cabeçalho da vista e o canvas -->
+    <main class="centro" id="workspace-centro">
+      <div class="faixa-abas">
+        <div class="faixa-abas-lista" id="faixa-abas" role="tablist"></div>
+        <button class="clicavel-icone faixa-abas-nova" data-comando="nova-aba" data-icone="plus" title="Nova aba"></button>
+        <span class="espacador"></span>
+        <button class="clicavel-icone" data-comando="alternar-painel-direito" data-icone="panel-right" title="Recolher ou expandir o painel direito"></button>
+      </div>
+      <div class="vista-cabecalho">
+        <div class="vista-navegacao">
+          <button class="clicavel-icone" id="nav-voltar" data-icone="arrow-left" title="Voltar"></button>
+          <button class="clicavel-icone" id="nav-avancar" data-icone="arrow-right" title="Avançar"></button>
+        </div>
+        <div class="vista-trilha" id="vista-trilha"></div>
+        <div class="vista-acoes">
+          <button class="clicavel-icone" data-comando="alternar-recorte" data-icone="sliders" title="Recorte e exibição"></button>
+          <button class="clicavel-icone" data-comando="menu-vista" data-icone="more-vertical" title="Mais opções"></button>
+        </div>
+      </div>
+      <div class="vista-conteudo" id="vista-conteudo">
+        <section id="canvas-viewport">
+          <div id="canvas-surface">
+            <svg id="edges-layer"></svg>
+            <div id="nodes-layer"></div>
+          </div>
+        </section>
+
+        <!-- Sobreposições: irmãs do viewport, para o pan e o zoom não as capturarem -->
+        <div class="canvas-aviso" id="recorte-aviso" role="status" hidden></div>
+        <div class="canvas-viagem" id="aviso-viagem" role="status" hidden></div>
+        <div class="canvas-controles" aria-label="Controles do canvas">
+          <button data-comando="alternar-recorte" data-icone="sliders" title="Recorte e exibição"></button>
+          <span class="canvas-controles-separador"></span>
+          <button data-comando="aproximar" data-icone="zoom-in" title="Aproximar"></button>
+          <button data-comando="afastar" data-icone="zoom-out" title="Afastar"></button>
+          <button data-comando="enquadrar" data-icone="maximize" title="Enquadrar tudo (F)"></button>
+          <button data-comando="auto-layout" data-icone="workflow" title="Auto-layout"></button>
+        </div>
+        <div class="painel-controles" id="painel-recorte" hidden></div>
+        <div class="canvas-vazio" id="canvas-vazio" hidden>
+          <div class="canvas-vazio-titulo">Nada neste escopo ainda</div>
+          <div class="canvas-vazio-acoes">
+            <button class="link-acao" data-comando="recorte-tudo" data-so-com-recorte hidden>Mostrar tudo (limpar o recorte)</button>
+            <button class="link-acao" data-comando="novo-conteiner">Criar um projeto, setor ou sessão</button>
+            <button class="link-acao" data-comando="novo-no">Criar um nó</button>
+            <button class="link-acao" data-comando="abrir-grafo">Abrir o grafo inteiro</button>
+          </div>
+        </div>
+        <div class="paleta-cartoes" id="paleta-cartoes" aria-label="Novo nó: clique ou arraste para o canvas"></div>
+        <div id="minimap-container">
+          <canvas id="minimap-canvas"></canvas>
+          <div id="minimap-frustum"></div>
+        </div>
+
+        <section class="vista-ferramenta" id="ferramenta-diff" hidden></section>
+        <section class="vista-ferramenta" id="ferramenta-patch" hidden></section>
+      </div>
+    </main>
+    <div class="alca-redimensionar" id="alca-direita" title="Arraste para redimensionar"></div>
+
+    <!-- Lateral direita: o nó selecionado em cima, o histórico embaixo -->
+    <aside id="right-sidebar" class="lateral lateral-direita">
+      <div class="grupo-abas divisao" id="grupo-direito-superior">
+        <div class="grupo-cabecalho">
+          <button class="grupo-aba" data-aba="propriedades" data-icone="file-text" title="Propriedades"></button>
+          <button class="grupo-aba" data-aba="conexoes" data-icone="link" title="Conexões"></button>
+          <button class="grupo-aba" data-aba="linhagem" data-icone="route" title="Linhagem causal"></button>
+          <button class="grupo-aba" data-aba="agente" data-icone="bot" title="Vista do agente"></button>
+          <span class="grupo-cabecalho-titulo" data-titulo-grupo></span>
+        </div>
+        <div class="grupo-conteudo">
+          <section class="painel" data-painel="propriedades" id="painel-propriedades"></section>
+          <section class="painel" data-painel="conexoes" id="painel-conexoes"></section>
+          <section class="painel" data-painel="linhagem" id="painel-linhagem"></section>
+          <section class="painel" data-painel="agente" id="painel-agente"></section>
+        </div>
+      </div>
+      <div class="divisor-vertical" id="divisor-direito" title="Arraste para redimensionar; duplo clique restaura"></div>
+      <div class="grupo-abas divisao" id="grupo-direito-inferior">
+        <div class="grupo-cabecalho">
+          <button class="grupo-aba" data-aba="historico" data-icone="calendar" title="Histórico do log"></button>
+          <span class="grupo-cabecalho-titulo" data-titulo-grupo></span>
+        </div>
+        <div class="grupo-conteudo">
+          <section class="painel painel-historico" data-painel="historico" id="painel-historico"></section>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Barra de status no canto -->
+    <div class="barra-status" id="barra-status">
+      <div class="barra-status-dinamica" data-dinamica></div>
+      <span class="status-item" title="Canal de tempo real (SSE)"><span id="sse-status" class="sse-status sse-disconnected"><span class="status-dot"></span><span class="status-text">Conectando…</span></span></span>
+      <span class="status-item" data-identidade hidden title="Identidade fixada na abertura do servidor: toda escrita desta tela sai com ela"></span>
+    </div>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Banco local do desenvolvedor: nunca versionado, nunca sincronizado.
+# O caminho padrao agora e %LOCALAPPDATA%\graphow (ver storage/localizador_banco.py).
+*.db
+*.db-wal
+*.db-shm
+
+scratch/
+*.log
+run-web.cmd
