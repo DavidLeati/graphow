@@ -23,7 +23,19 @@ import {
 const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
 
 // Propriedades que o bloco do tipo já edita com um controle próprio.
-const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "resposta"], Projeto: ["nivel_autonomia"] };
+const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"] };
+
+// O mesmo teto que `abrir_questao` aplica no servidor, para o título derivado
+// aqui sair igual ao que o agente teria mandado.
+const LIMITE_DO_TITULO_DA_QUESTAO = 80;
+
+/** Reduz o corpo da pergunta ao título curto que o card exibe. */
+function resumirEmTitulo(texto) {
+  const primeiraLinha = texto.split(/\r?\n/).map((linha) => linha.trim()).find(Boolean) || "";
+  if (primeiraLinha.length <= LIMITE_DO_TITULO_DA_QUESTAO) return primeiraLinha;
+  const corte = primeiraLinha.slice(0, LIMITE_DO_TITULO_DA_QUESTAO).replace(/\s+\S*$/, "").replace(/[\s,;:.-]+$/, "");
+  return `${corte || primeiraLinha.slice(0, LIMITE_DO_TITULO_DA_QUESTAO)}…`;
+}
 
 export class InspectorView {
   constructor(raiz, { state, indice, acoes }) {
@@ -146,17 +158,66 @@ export class InspectorView {
       </div>`;
   }
 
+  /**
+   * A dúvida tem três partes: o título, que é o rótulo e o que o card mostra; o
+   * corpo, na propriedade `pergunta`; e a resposta humana. A pergunta inteira
+   * morava no rótulo, e um card com vinte linhas de texto tapava o canvas.
+   */
   montarBlocoDaQuestao(no, desabilitado) {
     const aberta = (no.propriedades?.status || "aberta") === "aberta";
     const bloqueadas = [...this.state.edges.values()].filter((a) => a.tipo === "bloqueia" && a.origem_id === no.id);
     const alvo = bloqueadas.length ? `<div class="bloco-nota">Bloqueia: ${bloqueadas.map((a) => this.montarLinkDeNo(a.destino_id)).join(" ")}</div>` : "";
     return `
       ${this.montarCampoDeStatus(no, desabilitado)}
+      ${this.montarCampoDeTexto({
+        chave: "pergunta",
+        rotulo: "Pergunta",
+        icone: "help-circle",
+        valor: no.propriedades?.pergunta || "",
+        dica: "O contexto e a ambiguidade, por extenso — o título acima é só a chamada.",
+        desabilitado,
+      })}
+      ${this.montarCampoDeTexto({
+        chave: "resposta",
+        rotulo: "Resposta humana",
+        icone: "corner-down-right",
+        valor: no.propriedades?.resposta || "",
+        dica: "Escreva a resposta que destrava a tarefa…",
+        desabilitado,
+      })}
+      ${this.montarConviteDeSeparacao(no, desabilitado)}
+      ${alvo}
+      ${aberta && !desabilitado ? '<button class="botao mod-cta mod-largo" data-acao="responder">Responder e destravar</button>' : ""}`;
+  }
+
+  /**
+   * Dúvida aberta antes da separação traz o texto inteiro no título. O convite
+   * move o corpo para `pergunta` e encurta o título, mas deixa como alteração
+   * pendente: quem confirma é a pessoa, pelo Salvar.
+   */
+  montarConviteDeSeparacao(no, desabilitado) {
+    const corpoVazio = !(no.propriedades?.pergunta || "").trim();
+    const tituloLongo = (no.rotulo || "").length > LIMITE_DO_TITULO_DA_QUESTAO;
+    if (desabilitado || !corpoVazio || !tituloLongo) return "";
+    return `<button class="link-acao" data-acao="separar-duvida">${icone("square-pen", { tamanho: 13 })} Mover o texto do título para a pergunta</button>`;
+  }
+
+  separarDuvida() {
+    const titulo = this.raiz.querySelector("[data-campo-rotulo]");
+    const corpo = this.raiz.querySelector("[data-prop=pergunta]");
+    if (!titulo || !corpo) return;
+    corpo.value = titulo.value;
+    titulo.value = resumirEmTitulo(titulo.value);
+    [titulo, corpo].forEach((campo) => ajustarAltura(campo));
+    this.aoEditar({ target: corpo });
+  }
+
+  /** Campo de texto longo de uma propriedade que o bloco do tipo já trata. */
+  montarCampoDeTexto({ chave, rotulo, icone: nomeDoIcone, valor, dica, desabilitado }) {
+    return `
       <div class="bloco-resposta">
-        <span class="bloco-campo-rotulo">${icone("corner-down-right", { tamanho: 14 })} Resposta humana</span>
-        <textarea class="entrada mod-area" data-prop="resposta" data-original="${escapeHtml(no.propriedades?.resposta || "")}" rows="2" placeholder="Escreva a resposta que destrava a tarefa…" ${desabilitado}>${escapeHtml(no.propriedades?.resposta || "")}</textarea>
-        ${alvo}
-        ${aberta && !desabilitado ? '<button class="botao mod-cta mod-largo" data-acao="responder">Responder e destravar</button>' : ""}
+        <span class="bloco-campo-rotulo">${icone(nomeDoIcone, { tamanho: 14 })} ${escapeHtml(rotulo)}</span>
+        <textarea class="entrada mod-area" data-prop="${escapeHtml(chave)}" data-original="${escapeHtml(valor)}" rows="3" placeholder="${escapeHtml(dica)}" ${desabilitado}>${escapeHtml(valor)}</textarea>
       </div>`;
   }
 
@@ -363,24 +424,37 @@ export class InspectorView {
     return { novo_rotulo: rotulo && rotulo !== original.rotulo ? rotulo : undefined, novas_propriedades: novas };
   }
 
-  async salvar() {
-    let alteracoes;
+  /** Alterações do formulário, ou null quando alguma propriedade tem JSON quebrado. */
+  lerAlteracoes() {
     try {
-      alteracoes = this.coletarAlteracoes();
+      return this.coletarAlteracoes();
     } catch (erro) {
       avisar(`JSON inválido numa propriedade: ${erro.message}`, "erro");
-      return;
+      return null;
     }
+  }
+
+  async salvar() {
+    const alteracoes = this.lerAlteracoes();
+    if (!alteracoes) return;
     await this.enviar({ id_no: this.noRenderizado.id, ...alteracoes });
   }
 
+  /**
+   * Responder leva junto o que mais estiver editado no painel — título e corpo
+   * da pergunta inclusive. Enviar só o status e a resposta descartava, em
+   * silêncio, a correção que a pessoa tinha acabado de digitar acima.
+   */
   async responder() {
     const resposta = this.raiz.querySelector("[data-prop=resposta]")?.value.trim();
     if (!resposta) {
       avisar("Escreva a resposta antes de encerrar a dúvida.", "erro");
       return;
     }
-    await this.enviar({ id_no: this.noRenderizado.id, novas_propriedades: { status: "respondida", resposta } });
+    const alteracoes = this.lerAlteracoes();
+    if (!alteracoes) return;
+    const propriedades = { ...alteracoes.novas_propriedades, status: "respondida", resposta };
+    await this.enviar({ id_no: this.noRenderizado.id, novo_rotulo: alteracoes.novo_rotulo, novas_propriedades: propriedades });
   }
 
   /** Recusa mantém o formulário como está, para a pessoa corrigir; sucesso redesenha com o grafo novo. */
@@ -427,6 +501,7 @@ export class InspectorView {
       salvar: () => this.salvar(),
       descartar: () => this.renderNo(this.state.nodes.get(this.noRenderizado.id) || this.noRenderizado),
       responder: () => this.responder(),
+      "separar-duvida": () => this.separarDuvida(),
       "nova-propriedade": () => this.revelarNovaPropriedade(alvo),
       "abrir-escopo": () => this.acoes.abrirEscopo(this.indice.escopoDe(alvo.dataset.id)),
       "novo-filho": () => this.acoes.novoFilho(this.noRenderizado),

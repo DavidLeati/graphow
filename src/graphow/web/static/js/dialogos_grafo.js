@@ -18,6 +18,28 @@ import {
 const PAI_DO_CONTEINER = { Setor: "Projeto", Sessao: "Setor" };
 const STATUS_INICIAL = { Task: "pendente", Question: "aberta" };
 
+// Numa dúvida o corpo não é uma descrição: é a pergunta, e o título é só a
+// chamada que o card mostra. Sem esta separação a pergunta inteira ia para o
+// rótulo e o cartão crescia até tapar o canvas.
+const CORPO_POR_TIPO = {
+  Question: {
+    chave: "pergunta",
+    rotulo: "Pergunta",
+    nota: "o título é só a chamada",
+    dica: "O contexto e a ambiguidade, por extenso.",
+    exemploDeTitulo: "Ex.: Qual formato de autenticação usar?",
+  },
+};
+const CORPO_PADRAO = {
+  chave: "descricao",
+  rotulo: "Descrição",
+  nota: "opcional",
+  dica: "",
+  exemploDeTitulo: "Ex.: Implementar autenticação JWT",
+};
+
+const corpoDoTipo = (tipo) => CORPO_POR_TIPO[tipo] || CORPO_PADRAO;
+
 // O id nasce aqui para a tela poder abrir o nó recém-criado: o recibo do kernel
 // devolve os eventos gerados, não o id do que foi criado.
 const novoIdDeNo = (tipo) => `${tipo.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -72,16 +94,30 @@ export class DialogosDoGrafo {
           </label>`).join("")}
         </div>
         <label class="campo"><span class="campo-rotulo">Título</span>
-          <input type="text" class="entrada" data-campo="rotulo" placeholder="Ex.: Implementar autenticação JWT"></label>
+          <input type="text" class="entrada" data-campo="rotulo"></label>
         <label class="campo"><span class="campo-rotulo">Sessão</span>
           <select class="seletor" data-campo="sessao">${this.opcoesDeSessao(sessaoId ?? this.sessaoSugerida())}</select></label>
-        <label class="campo"><span class="campo-rotulo">Descrição <span class="texto-fraco">(opcional)</span></span>
-          <textarea class="entrada mod-area" data-campo="descricao" rows="3"></textarea></label>`,
+        <label class="campo"><span class="campo-rotulo" data-rotulo-corpo></span>
+          <textarea class="entrada mod-area" data-campo="corpo" rows="3"></textarea></label>`,
       botoes: [
         { rotulo: "Cancelar" },
         { rotulo: "Criar nó", primario: true, acao: (modal) => this.enviarNovoNo(modal, { x, y }) },
       ],
+      aoAbrir: (modal) => this.ligarCorpoDoTipo(modal),
     });
+  }
+
+  /** O campo de texto longo acompanha o tipo escolhido: numa dúvida ele é a pergunta. */
+  ligarCorpoDoTipo(modal) {
+    const aplicar = () => {
+      const tipo = modal.querySelector("input[name=tipo-no]:checked")?.value || "Task";
+      const corpo = corpoDoTipo(tipo);
+      modal.querySelector("[data-rotulo-corpo]").innerHTML = `${escapeHtml(corpo.rotulo)} <span class="texto-fraco">(${escapeHtml(corpo.nota)})</span>`;
+      modal.querySelector("[data-campo=corpo]").placeholder = corpo.dica;
+      modal.querySelector("[data-campo=rotulo]").placeholder = corpo.exemploDeTitulo;
+    };
+    modal.addEventListener("change", aplicar);
+    aplicar();
   }
 
   async enviarNovoNo(modal, { x, y }) {
@@ -94,7 +130,7 @@ export class DialogosDoGrafo {
     }
     const propriedades = {};
     if (STATUS_INICIAL[tipo]) propriedades.status = STATUS_INICIAL[tipo];
-    if (campo("descricao")) propriedades.descricao = campo("descricao");
+    if (campo("corpo")) propriedades[corpoDoTipo(tipo).chave] = campo("corpo");
     const ponto = x !== null && y !== null ? { x, y } : this.centroDoCanvas?.();
     if (ponto) Object.assign(propriedades, { pos_x: Math.round(ponto.x), pos_y: Math.round(ponto.y) });
     const id = novoIdDeNo(tipo);
