@@ -30,7 +30,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "propor_patch",
-        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica.",
+        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia.",
         "inputSchema": {
             "type": "object",
             "properties": {

@@ -23,7 +23,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 **4. As arestas também têm dono.** `contem`, `escopa` e a remoção de `bloqueia` são exclusivas do humano. `decompoe`, `depende_de` e `substitui`: planejador e humano. `deriva_de`, `justifica` e `contradiz`: executor, revisor e humano. `produz` e a criação de `bloqueia` ficam abertas a qualquer papel. A matriz completa, com a coluna de remoção e o que muda sob autonomia ilimitada, está em [ontology_matrix.md](./references/ontology_matrix.md).
 
-**5. Invariantes estruturais.** As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`.
+**5. Invariantes estruturais.** Todo nó novo, exceto `Projeto`, nasce pendurado na hierarquia: o mesmo lote que o cria traz a aresta de contenção que chega nele — `produz` vinda da `Sessao` para nós de trabalho, `decompoe` vinda de um `Goal` ou `Task` para subtarefas. `deriva_de` não conta. Sem isso o lote inteiro é recusado com `no_fora_da_hierarquia`, inclusive para o humano. As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`.
 
 **6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto` e `excluir_em_lote` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: mover uma `Question` para `respondida` ou `descartada`, remover uma `Question`, remover uma aresta `bloqueia`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
 
@@ -139,6 +139,16 @@ Um executor receberia recusa do RoleGate já na criação da Task, e nenhum pape
     },
     {
       "op": "add",
+      "path": "/arestas/prod-art-jwt",
+      "value": {
+        "id": "prod-art-jwt",
+        "origem_id": "sess-01",
+        "destino_id": "art-jwt-py",
+        "tipo": "produz"
+      }
+    },
+    {
+      "op": "add",
       "path": "/arestas/deriv-art-jwt",
       "value": {
         "id": "deriv-art-jwt",
@@ -156,7 +166,7 @@ Um executor receberia recusa do RoleGate já na criação da Task, e nenhum pape
 }
 ```
 
-Este lote só passa com a posse de `task-auth-jwt`. Sem `assumir_tarefa` antes, o InvariantGate recusa a última operação e devolve o nome de quem detém a tarefa.
+Este lote só passa com a posse de `task-auth-jwt`. Sem `assumir_tarefa` antes, o InvariantGate recusa a última operação e devolve o nome de quem detém a tarefa. Sem o `produz`, o `Artifact` nasceria fora da hierarquia e o lote cairia com `no_fora_da_hierarquia`: o `deriva_de` liga o artefato à tarefa, mas não o põe dentro de sessão nenhuma.
 
 ## Referências
 

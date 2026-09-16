@@ -76,7 +76,7 @@ Não escreva `em_andamento` por patch. `assumir_tarefa(id_task)` toma a posse e 
 
 ## executor: registrar o artefato e pedir revisão
 
-Cria o `Artifact`, liga à tarefa por `deriva_de` e avança o status. Depende da posse tomada no passo anterior.
+Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_de` e avança o status. Depende da posse tomada no passo anterior. O `produz` não é opcional: todo nó novo, exceto `Projeto`, precisa de aresta de contenção no mesmo lote, e `deriva_de` não é uma — sem ela o lote cai com `no_fora_da_hierarquia`.
 
 ```json
 {
@@ -94,6 +94,16 @@ Cria o `Artifact`, liga à tarefa por `deriva_de` e avança o status. Depende da
           "linhas": 120,
           "testes_associados": "tests/test_csv_parser.py"
         }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-art-parser",
+      "value": {
+        "id": "prod-art-parser",
+        "origem_id": "sess-sprint-01",
+        "destino_id": "art-csv-parser",
+        "tipo": "produz"
       }
     },
     {
