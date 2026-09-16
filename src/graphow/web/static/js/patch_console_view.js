@@ -11,7 +11,7 @@ import { icone } from "./icones.js";
 
 const EXEMPLO = `{
   "operacoes": [
-    {"op": "add", "path": "/nos/task-exemplo", "value": {"id": "task-exemplo", "tipo": "Task", "rotulo": "Nova tarefa"}}
+    {"op": "add", "path": "/nos/task-exemplo", "value": {"id": "task-exemplo", "tipo": "Task", "rotulo": "Nova tarefa", "sessao_id": "id-da-sessao"}}
   ]
 }`;
 

@@ -72,7 +72,9 @@ export class DialogosDoGrafo {
   opcoesDeSessao(selecionada) {
     const sessoes = this.indice.listar("Sessao");
     const opcoes = sessoes.map((sessao) => `<option value="${escapeHtml(sessao.id)}" ${sessao.id === selecionada ? "selected" : ""}>${escapeHtml(sessao.caminho)}</option>`);
-    return `<option value="">(sem sessão — fica fora da hierarquia)</option>${opcoes.join("")}`;
+    // Não há opção "sem sessão": o kernel recusa o nó que nasceria fora da hierarquia.
+    const vazio = sessoes.length ? "Escolha a sessão" : "Nenhuma sessão existe ainda — crie uma antes";
+    return `<option value="" disabled ${selecionada ? "" : "selected"}>${vazio}</option>${opcoes.join("")}`;
   }
 
   sessaoSugerida() {
@@ -128,15 +130,20 @@ export class DialogosDoGrafo {
       avisar("Dê um título ao nó.", "erro");
       return false;
     }
+    const sessao = modal.querySelector("[data-campo=sessao]").value;
+    if (!sessao) {
+      avisar("Escolha a sessão do nó: sem ela ele nasceria fora da hierarquia.", "erro");
+      return false;
+    }
     const propriedades = {};
     if (STATUS_INICIAL[tipo]) propriedades.status = STATUS_INICIAL[tipo];
     if (campo("corpo")) propriedades[corpoDoTipo(tipo).chave] = campo("corpo");
     const ponto = x !== null && y !== null ? { x, y } : this.centroDoCanvas?.();
     if (ponto) Object.assign(propriedades, { pos_x: Math.round(ponto.x), pos_y: Math.round(ponto.y) });
     const id = novoIdDeNo(tipo);
-    const recibo = await api.criarNo({ id_no: id, tipo, rotulo, propriedades, sessao_id: campo("sessao") || null, ramo_id: this.ramo });
+    const recibo = await api.criarNo({ id_no: id, tipo, rotulo, propriedades, sessao_id: sessao, ramo_id: this.ramo });
     const criou = await this.concluir(recibo, `${apresentarTipo(tipo).nome} criado`);
-    if (criou) this.aoCriar?.(id, { tipo, sessao_id: campo("sessao") || null });
+    if (criou) this.aoCriar?.(id, { tipo, sessao_id: sessao });
     return criou;
   }
 
