@@ -10,7 +10,7 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-5 módulos · 745 linhas · 10 classes
+5 módulos · 747 linhas · 10 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 | [`avaliacao/escala.py`](#avaliacaoescala) | 225 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 94 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
-| [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 261 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
+| [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
 ## `avaliacao/__init__.py`
 

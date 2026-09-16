@@ -191,8 +191,10 @@ def _montar_navegacao() -> tuple[ItemPatch, ...]:
         _no(ID_GOAL, TipoNo.GOAL, "Substrato bilateral confiavel"),
         _aresta("p-goal", Ligacao(ID_SESSAO, ID_GOAL, TipoAresta.PRODUZ)),
         _no_com("const-zero-deps", TipoNo.CONSTRAINT, DescricaoDeNo("Zero dependencias externas", inviolavel)),
+        _aresta("p-const-zero-deps", Ligacao(ID_SESSAO, "const-zero-deps", TipoAresta.PRODUZ)),
         _aresta("e-const-1", Ligacao("const-zero-deps", ID_GOAL, TipoAresta.ESCOPA)),
         _no_com("const-forma", TipoNo.CONSTRAINT, DescricaoDeNo("400 linhas por arquivo, 30 por funcao", inviolavel)),
+        _aresta("p-const-forma", Ligacao(ID_SESSAO, "const-forma", TipoAresta.PRODUZ)),
         _aresta("e-const-2", Ligacao("const-forma", ID_GOAL, TipoAresta.ESCOPA)),
     )
 
