@@ -7,13 +7,21 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.web.dto import PosicaoNoCanvas, RequisicaoNovoNo, RequisicaoSalvarLayout
 from graphow.web.rest_canvas_controller import CanvasWebController
 
+ID_SESSAO: str = "sess"
+
 
 def _preparar_canvas() -> tuple[CanvasWebController, WriteKernel, str]:
-    """Cria um controlador com um nó já posicionável no canvas."""
+    """Cria um controlador com um nó já posicionável no canvas, pendurado numa Sessao."""
     kernel = montar_kernel_em_memoria()
     controlador = CanvasWebController(kernel)
-    recibo = controlador.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Tarefa", id_no="task-1"))
-    assert recibo.sucesso is True
+    requisicoes = (
+        RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"),
+        RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"),
+        RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no=ID_SESSAO, contido_em="setor"),
+        RequisicaoNovoNo(tipo="Task", rotulo="Tarefa", id_no="task-1", sessao_id=ID_SESSAO),
+    )
+    for req in requisicoes:
+        assert controlador.criar_no(req).sucesso is True
     return controlador, kernel, "task-1"
 
 
@@ -102,7 +110,7 @@ def test_reenviar_a_mesma_posicao_nao_gera_evento_edge_case() -> None:
 def test_arrastar_um_no_nao_regrava_os_vizinhos_edge_case() -> None:
     """Caso de borda: só o nó que se moveu entra no log, não o mapa inteiro."""
     controlador, kernel, id_task = _preparar_canvas()
-    assert controlador.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Outra", id_no="task-2")).sucesso
+    assert controlador.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Outra", id_no="task-2", sessao_id=ID_SESSAO)).sucesso
     inicial = (
         PosicaoNoCanvas(id_no=id_task, x=10, y=20),
         PosicaoNoCanvas(id_no="task-2", x=310, y=20),

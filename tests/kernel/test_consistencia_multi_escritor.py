@@ -16,6 +16,12 @@ from graphow.kernel.write_kernel import DependenciasKernel, WriteKernel
 from graphow.storage.lock_store import LockStoreSQLite
 from graphow.storage.sqlite_store import SQLiteEventStore
 
+ID_SESSAO: str = "sess-1"
+# Projeto, Setor, Sessao e as duas `contem`: o que o primeiro `_criar_task` grava a mais.
+EVENTOS_DA_HIERARQUIA: int = 5
+# A Task e a aresta `produz` que a pendura na Sessao.
+EVENTOS_POR_TASK: int = 2
+
 
 def _submeter(kernel: WriteKernel, operacoes: list[ItemPatch], papel: PapelAutor = PapelAutor.HUMANO):
     """Submete operações sob o papel informado e devolve o recibo."""
@@ -25,11 +31,39 @@ def _submeter(kernel: WriteKernel, operacoes: list[ItemPatch], papel: PapelAutor
     return kernel.submeter_patch(PropostaPatch.criar(dados))
 
 
+def _no(id_no: str, tipo: TipoNo) -> ItemPatch:
+    """Operação de criação de nó estrutural, sem propriedades."""
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": id_no})
+
+
+def _aresta(id_aresta: str, origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação de criação de aresta tipada."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value},
+    )
+
+
+def _operacoes_de_hierarquia(kernel: WriteKernel) -> list[ItemPatch]:
+    """Projeto, Setor e Sessao, só se a Sessao ainda não estiver no banco."""
+    if kernel.obter_view().contem_no(ID_SESSAO):
+        return []
+    return [
+        _no("proj-1", TipoNo.PROJETO),
+        _no("setor-1", TipoNo.SETOR),
+        _aresta("c-setor-1", "proj-1", "setor-1", TipoAresta.CONTEM),
+        _no(ID_SESSAO, TipoNo.SESSAO),
+        _aresta("c-sess-1", "setor-1", ID_SESSAO, TipoAresta.CONTEM),
+    ]
+
+
 def _criar_task(kernel: WriteKernel, id_task: str) -> None:
-    """Cria uma Task pendente no ramo principal."""
+    """Cria uma Task pendente no ramo principal, pendurada na Sessao."""
     _submeter(
         kernel,
         [
+            *_operacoes_de_hierarquia(kernel),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path=f"/nos/{id_task}",
@@ -39,7 +73,8 @@ def _criar_task(kernel: WriteKernel, id_task: str) -> None:
                     "rotulo": "Tarefa",
                     "propriedades": {"status": StatusTask.PENDENTE.value},
                 },
-            )
+            ),
+            _aresta(f"p-{id_task}", ID_SESSAO, id_task, TipoAresta.PRODUZ),
         ],
     )
 
@@ -59,6 +94,7 @@ def _bloquear_task(kernel: WriteKernel, id_task: str, id_questao: str) -> None:
                     "propriedades": {"status": StatusQuestion.ABERTA.value},
                 },
             ),
+            _aresta(f"p-{id_questao}", ID_SESSAO, id_questao, TipoAresta.PRODUZ),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path=f"/arestas/bloq-{id_questao}",
@@ -133,7 +169,7 @@ def test_sequencias_nunca_se_repetem_no_mesmo_ramo(tmp_path: Path) -> None:
 
         sequencias = [evento.seq for evento in repositorio_a.ler_eventos("main")]
         assert sequencias == sorted(sequencias)
-        assert len(sequencias) == len(set(sequencias)) == 10
+        assert len(sequencias) == len(set(sequencias)) == EVENTOS_DA_HIERARQUIA + 10 * EVENTOS_POR_TASK
 
 
 def test_lock_de_tarefa_e_visto_por_outro_processo(tmp_path: Path) -> None:

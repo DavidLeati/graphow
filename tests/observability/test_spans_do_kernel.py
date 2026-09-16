@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from graphow.core.events import TipoEvento
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
 from graphow.kernel.execucao import PedidoDeExecucao
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
@@ -28,18 +28,38 @@ from graphow.observability.tracer import TracerOTel
 from graphow.storage.in_memory_store import InMemoryEventStore
 
 
+def _no(id_no: str, tipo: TipoNo) -> ItemPatch:
+    """Operação de criação de nó sem propriedades."""
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": id_no})
+
+
+def _aresta(id_aresta: str, origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação de criação de aresta tipada."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value},
+    )
+
+
 def _proposta(papel: PapelAutor, tipo: TipoNo) -> PropostaPatch:
-    """Proposta mínima de criação de um nó do tipo informado."""
+    """Proposta mínima de criação de um nó do tipo informado.
+
+    O nó vem primeiro, porque é ele que o span nomeia; a cadeia Projeto → Setor
+    → Sessao segue no mesmo lote só para pendurá-lo na hierarquia.
+    """
     return PropostaPatch.criar(
         DadosPropostaPatch(
             autor="david",
             papel=papel,
             operacoes=[
-                ItemPatch(
-                    op=OperacaoPatch.ADD,
-                    path="/nos/n1",
-                    value={"id": "n1", "tipo": tipo.value, "rotulo": "N1"},
-                )
+                _no("n1", tipo),
+                _no("proj-1", TipoNo.PROJETO),
+                _no("setor-1", TipoNo.SETOR),
+                _aresta("c-setor-1", "proj-1", "setor-1", TipoAresta.CONTEM),
+                _no("sess-1", TipoNo.SESSAO),
+                _aresta("c-sess-1", "setor-1", "sess-1", TipoAresta.CONTEM),
+                _aresta("p-n1", "sess-1", "n1", TipoAresta.PRODUZ),
             ],
         )
     )

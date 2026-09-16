@@ -1,7 +1,9 @@
 """Testes da identidade web: a autoria vem da sessão, não do corpo da requisição."""
 
+from graphow.core.events import TipoEvento
 from graphow.core.types import PapelAutor
 from graphow.kernel.composicao import montar_kernel_em_memoria
+from graphow.kernel.write_kernel import WriteKernel
 from graphow.web.dto import RequisicaoNovoNo
 from graphow.web.identidade_web import (
     IdentidadeSessaoWeb,
@@ -11,14 +13,32 @@ from graphow.web.identidade_web import (
 from graphow.web.rest_canvas_controller import CanvasWebController
 
 
+def _pendurar_sessao(kernel: WriteKernel) -> str:
+    """Monta Projeto, Setor e Sessao para que a Note nasça dentro da hierarquia."""
+    controlador = CanvasWebController(kernel, IdentidadeSessaoWeb(autor="fundador"))
+    requisicoes = (
+        RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"),
+        RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"),
+        RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess", contido_em="setor"),
+    )
+    for req in requisicoes:
+        assert controlador.criar_no(req).sucesso is True
+    return "sess"
+
+
 def test_escrita_do_canvas_usa_o_autor_da_sessao_nominal() -> None:
     """O log de autoria deixava de ser confiável com a interface aberta."""
     kernel = montar_kernel_em_memoria()
+    sessao_id = _pendurar_sessao(kernel)
     controlador = CanvasWebController(kernel, IdentidadeSessaoWeb(autor="david"))
 
-    controlador.criar_no(RequisicaoNovoNo(tipo="Note", rotulo="Anotacao", id_no="n1"))
+    controlador.criar_no(RequisicaoNovoNo(tipo="Note", rotulo="Anotacao", id_no="n1", sessao_id=sessao_id))
 
-    evento = kernel.repositorio.ler_eventos("main")[-1]
+    evento = next(
+        e
+        for e in kernel.repositorio.ler_eventos("main")
+        if e.tipo_evento == TipoEvento.NO_CRIADO and e.payload["id"] == "n1"
+    )
     assert evento.autor == "david"
     assert evento.papel == PapelAutor.HUMANO
 
@@ -26,8 +46,9 @@ def test_escrita_do_canvas_usa_o_autor_da_sessao_nominal() -> None:
 def test_no_criado_pela_interface_carrega_proveniencia_humana_nominal() -> None:
     """A proveniência do nó precisa refletir quem de fato escreveu."""
     kernel = montar_kernel_em_memoria()
+    sessao_id = _pendurar_sessao(kernel)
     CanvasWebController(kernel, IdentidadeSessaoWeb(autor="david")).criar_no(
-        RequisicaoNovoNo(tipo="Note", rotulo="Anotacao", id_no="n1")
+        RequisicaoNovoNo(tipo="Note", rotulo="Anotacao", id_no="n1", sessao_id=sessao_id)
     )
 
     proveniencia = kernel.obter_view().obter_no("n1").proveniencia

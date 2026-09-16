@@ -92,27 +92,34 @@ def test_task_create_e_task_list_persistem_entre_execucoes_nominal(tmp_path: Pat
 
 def _criar_sessao_no_banco(diretorio_dados: Path) -> None:
     """Prepara uma Sessão no banco resolvido, para as tarefas terem onde nascer."""
-    from graphow.core.types import PapelAutor, TipoNo
+    from graphow.core.types import PapelAutor, TipoAresta, TipoNo
     from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
     from graphow.kernel.write_kernel import WriteKernel
+
+    nos = (
+        ("proj-1", TipoNo.PROJETO, "Projeto 1"),
+        ("setor-1", TipoNo.SETOR, "Setor 1"),
+        ("sess-1", TipoNo.SESSAO, "Sessao 1"),
+    )
+    arestas = (("contem-proj-setor", "proj-1", "setor-1"), ("contem-setor-sessao", "setor-1", "sess-1"))
+    operacoes = [
+        ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo})
+        for id_no, tipo, rotulo in nos
+    ]
+    operacoes.extend(
+        ItemPatch(
+            op=OperacaoPatch.ADD,
+            path=f"/arestas/{id_aresta}",
+            value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": TipoAresta.CONTEM.value},
+        )
+        for id_aresta, origem, destino in arestas
+    )
 
     caminho = diretorio_dados / "graphow" / "graphow.db"
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with SQLiteEventStore(str(caminho)) as store:
         WriteKernel(store).submeter_patch(
-            PropostaPatch.criar(
-                DadosPropostaPatch(
-                    "david",
-                    PapelAutor.HUMANO,
-                    [
-                        ItemPatch(
-                            op=OperacaoPatch.ADD,
-                            path="/nos/sess-1",
-                            value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao 1"},
-                        )
-                    ],
-                )
-            )
+            PropostaPatch.criar(DadosPropostaPatch("david", PapelAutor.HUMANO, operacoes))
         )
 
 

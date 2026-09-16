@@ -2,7 +2,7 @@
 
 from graphow.api.cli import GraphowCLI, descrever_localizacao_banco, main
 from graphow.api.console import EscritorConsoleEmMemoria
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
@@ -10,22 +10,35 @@ from graphow.storage.localizador_banco import LocalizacaoBanco, OrigemCaminhoBan
 from pathlib import Path
 
 
+def _operacoes_sessao_na_hierarquia(id_sessao: str) -> list[ItemPatch]:
+    """Monta Projeto → Setor → Sessão num só lote, para a Sessão não nascer órfã."""
+    nos = (
+        ("proj-1", TipoNo.PROJETO, "Projeto 1"),
+        ("setor-1", TipoNo.SETOR, "Setor 1"),
+        (id_sessao, TipoNo.SESSAO, "Sessao 1"),
+    )
+    arestas = (("contem-proj-setor", "proj-1", "setor-1"), ("contem-setor-sessao", "setor-1", id_sessao))
+    operacoes = [
+        ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo})
+        for id_no, tipo, rotulo in nos
+    ]
+    operacoes.extend(
+        ItemPatch(
+            op=OperacaoPatch.ADD,
+            path=f"/arestas/{id_aresta}",
+            value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": TipoAresta.CONTEM.value},
+        )
+        for id_aresta, origem, destino in arestas
+    )
+    return operacoes
+
+
 def _construir_cli_com_sessao() -> tuple[GraphowCLI, WriteKernel]:
     """Cria uma CLI sobre um kernel em memória com uma Sessão já registrada."""
     kernel = WriteKernel(InMemoryEventStore())
     kernel.submeter_patch(
         PropostaPatch.criar(
-            DadosPropostaPatch(
-                "david",
-                PapelAutor.HUMANO,
-                [
-                    ItemPatch(
-                        op=OperacaoPatch.ADD,
-                        path="/nos/sess-1",
-                        value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao 1"},
-                    )
-                ],
-            )
+            DadosPropostaPatch("david", PapelAutor.HUMANO, _operacoes_sessao_na_hierarquia("sess-1"))
         )
     )
     return GraphowCLI(kernel, EscritorConsoleEmMemoria()), kernel

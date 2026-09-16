@@ -6,6 +6,18 @@ from graphow.web.rest_canvas_controller import CanvasWebController
 from graphow.web.rest_fork_controller import ForkWebController
 
 
+def _pendurar_sessao(canvas_ctrl: CanvasWebController) -> str:
+    """Monta Projeto, Setor e Sessao para que o trabalho nasça dentro da hierarquia."""
+    requisicoes = (
+        RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"),
+        RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"),
+        RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess", contido_em="setor"),
+    )
+    for req in requisicoes:
+        assert canvas_ctrl.criar_no(req).sucesso is True
+    return "sess"
+
+
 def test_criar_fork_e_diff_fluxo_nominal() -> None:
     """Valida bifurcação de ramo e cálculo de diff com nós adicionados."""
     kernel = montar_kernel_em_memoria()
@@ -13,14 +25,18 @@ def test_criar_fork_e_diff_fluxo_nominal() -> None:
     fork_ctrl = ForkWebController(kernel)
 
     # Cria nó inicial no main
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Goal Base", id_no="g-base", ramo_id="main"))
+    sessao_id = _pendurar_sessao(canvas_ctrl)
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Goal Base", id_no="g-base", sessao_id=sessao_id, ramo_id="main"))
 
     # Cria fork a partir do main
     rec_fork = fork_ctrl.criar_fork(RequisicaoCriarFork(novo_ramo="fork-1", ramo_origem="main"))
     assert rec_fork.sucesso is True
 
     # Adiciona nó no fork
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Task Extra", id_no="t-fork", ramo_id="fork-1"))
+    rec_task = canvas_ctrl.criar_no(
+        RequisicaoNovoNo(tipo="Task", rotulo="Task Extra", id_no="t-fork", sessao_id=sessao_id, ramo_id="fork-1")
+    )
+    assert rec_task.sucesso is True
 
     diff = fork_ctrl.calcular_diff_ramos("main", "fork-1")
     assert "t-fork" in diff["nos_adicionados"]
@@ -33,13 +49,14 @@ def test_diff_ramos_identicos_edge_case() -> None:
     canvas_ctrl = CanvasWebController(kernel)
     fork_ctrl = ForkWebController(kernel)
 
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="G", id_no="g-1", ramo_id="main"))
+    sessao_id = _pendurar_sessao(canvas_ctrl)
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="G", id_no="g-1", sessao_id=sessao_id, ramo_id="main"))
     fork_ctrl.criar_fork(RequisicaoCriarFork(novo_ramo="fork-dup", ramo_origem="main"))
 
     diff = fork_ctrl.calcular_diff_ramos("main", "fork-dup")
     assert len(diff["nos_adicionados"]) == 0
     assert len(diff["nos_removidos"]) == 0
-    assert len(diff["nos_comuns"]) == 1
+    assert len(diff["nos_comuns"]) == 4  # Projeto, Setor, Sessao e o Goal
 
 
 def test_fork_com_evento_inexistente_edge_case() -> None:

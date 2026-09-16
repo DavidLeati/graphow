@@ -16,14 +16,18 @@ def test_motor_reativo_despacho_nominal() -> None:
     motor = MotorReativo(kernel)
     motor.registrar_comportamento(RevisorNotificadoBehavior())
 
-    # Cria a sessao e a task inicial que ela produz
+    # Cria a hierarquia ate a sessao e a task inicial que ela produz
     kernel.submeter_patch(
         PropostaPatch.criar(
             DadosPropostaPatch(
                 autor="david",
                 papel=PapelAutor.HUMANO,
                 operacoes=[
+                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/proj-1", value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"}),
+                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/setor-1", value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor"}),
+                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-setor", value={"id": "c-setor", "origem_id": "proj-1", "destino_id": "setor-1", "tipo": TipoAresta.CONTEM.value}),
                     ItemPatch(op=OperacaoPatch.ADD, path="/nos/sess-1", value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao"}),
+                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-sessao", value={"id": "c-sessao", "origem_id": "setor-1", "destino_id": "sess-1", "tipo": TipoAresta.CONTEM.value}),
                     ItemPatch(op=OperacaoPatch.ADD, path="/nos/t1", value={"id": "t1", "tipo": TipoNo.TASK.value, "rotulo": "T1"}),
                     ItemPatch(op=OperacaoPatch.ADD, path="/arestas/prod-t1", value={"id": "prod-t1", "origem_id": "sess-1", "destino_id": "t1", "tipo": TipoAresta.PRODUZ.value}),
                 ],
@@ -31,9 +35,9 @@ def test_motor_reativo_despacho_nominal() -> None:
         )
     )
 
-    # Evento de transição para pronto_para_revisao
+    # Evento de transição para pronto_para_revisao, logo após os 7 eventos do lote acima
     dados_update = DadosCriacaoEvento(
-        seq=4,
+        seq=8,
         autor="executor-1",
         papel=PapelAutor.EXECUTOR,
         tipo_evento=TipoEvento.NO_ATUALIZADO,

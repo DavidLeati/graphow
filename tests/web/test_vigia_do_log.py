@@ -11,7 +11,7 @@ import queue
 import time
 
 from graphow.core.events import EventoLog, TipoEvento
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import DependenciasKernel, WriteKernel
 from graphow.lineage.fork_manager import ForkManager, PedidoFork
@@ -22,6 +22,7 @@ from graphow.web.vigia_do_log import VigiaDoLogExterno
 
 TEMPO_LIMITE_DE_ESPERA: float = 5.0
 INTERVALO_CURTO: float = 0.05
+ID_SESSAO: str = "sess-vigia"
 
 
 def _montar_kernel(repositorios: ConjuntoRepositorios) -> WriteKernel:
@@ -42,22 +43,56 @@ def _montar_vigia(repositorios: ConjuntoRepositorios, controlador: SSEWebControl
     )
 
 
-def _criar_nota(kernel: WriteKernel, id_no: str, ramo_id: str = "main") -> None:
-    """Escreve uma Note no ramo informado, sob identidade humana."""
-    operacao = ItemPatch(
+def _operacao_de_no(id_no: str, tipo: TipoNo, rotulo: str) -> ItemPatch:
+    """Operação que adiciona um nó."""
+    return ItemPatch(
         op=OperacaoPatch.ADD,
         path=f"/nos/{id_no}",
-        value={"id": id_no, "tipo": TipoNo.NOTE.value, "rotulo": f"Nota {id_no}"},
+        value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo},
     )
+
+
+def _operacao_de_aresta(origem_id: str, destino_id: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação que adiciona uma aresta tipada, com id derivado das pontas."""
+    id_aresta = f"{tipo.value}-{destino_id}"
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem_id, "destino_id": destino_id, "tipo": tipo.value},
+    )
+
+
+def _submeter(kernel: WriteKernel, operacoes: tuple[ItemPatch, ...], justificativa: str) -> None:
+    """Submete o lote sob identidade humana, exigindo que os portões o aceitem."""
     dados = DadosPropostaPatch(
         autor="agente-de-fora",
         papel=PapelAutor.HUMANO,
-        operacoes=(operacao,),
-        justificativa="escrita externa",
-        ramo_id=ramo_id,
+        operacoes=operacoes,
+        justificativa=justificativa,
     )
     recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
     assert recibo.sucesso is True, recibo.mensagem
+
+
+def _montar_hierarquia(kernel: WriteKernel) -> None:
+    """Projeto, Setor e Sessao onde as notas vão nascer penduradas."""
+    operacoes = (
+        _operacao_de_no("proj-vigia", TipoNo.PROJETO, "Projeto vigiado"),
+        _operacao_de_no("setor-vigia", TipoNo.SETOR, "Setor vigiado"),
+        _operacao_de_aresta("proj-vigia", "setor-vigia", TipoAresta.CONTEM),
+        _operacao_de_no(ID_SESSAO, TipoNo.SESSAO, "Sessao vigiada"),
+        _operacao_de_aresta("setor-vigia", ID_SESSAO, TipoAresta.CONTEM),
+    )
+    _submeter(kernel, operacoes, "hierarquia")
+
+
+def _criar_nota(kernel: WriteKernel, id_no: str) -> None:
+    """Escreve uma Note pendurada na Sessao por `produz`: dois eventos no log."""
+    operacoes = (
+        _operacao_de_no(id_no, TipoNo.NOTE, f"Nota {id_no}"),
+        _operacao_de_aresta(ID_SESSAO, id_no, TipoAresta.PRODUZ),
+    )
+    _submeter(kernel, operacoes, "escrita externa")
 
 
 def _drenar(fila: "queue.Queue[EventoLog]") -> list[EventoLog]:
@@ -76,13 +111,14 @@ def _esperar_evento(fila: "queue.Queue[EventoLog]") -> EventoLog:
 def test_escrita_de_outro_kernel_chega_ao_assinante_nominal() -> None:
     """O evento que não passou pelo gancho pós-commit deste processo mesmo assim é publicado."""
     repositorios = montar_repositorios_em_memoria()
+    _montar_hierarquia(_montar_kernel(repositorios))
     controlador = SSEWebController()
     vigia = _montar_vigia(repositorios, controlador)
     vigia.adotar_posicao_atual()
     fila = controlador.registrar_assinante()
 
     _criar_nota(_montar_kernel(repositorios), "nota-externa")
-    assert vigia.varrer() == 1
+    assert vigia.varrer() == 2  # a Note e a aresta `produz` que a pendura
 
     evento = _esperar_evento(fila)
     assert evento.tipo_evento == TipoEvento.NO_CRIADO
@@ -98,6 +134,7 @@ def test_agente_de_outro_processo_atualiza_o_canvas_sem_f5(tmp_path: Path) -> No
     caminho_banco = tmp_path / "graphow.db"
     store_web, repositorios_web = abrir_repositorios_sqlite(caminho_banco)
     store_agente, repositorios_agente = abrir_repositorios_sqlite(caminho_banco)
+    _montar_hierarquia(_montar_kernel(repositorios_agente))
     controlador = SSEWebController()
     montar_tempo_real(_montar_kernel(repositorios_web), controlador)
     vigia = _montar_vigia(repositorios_web, controlador)
@@ -121,6 +158,7 @@ def test_evento_do_proprio_processo_nao_e_publicado_duas_vezes_edge_case() -> No
     repositorios = montar_repositorios_em_memoria()
     controlador = SSEWebController()
     kernel = _montar_kernel(repositorios)
+    _montar_hierarquia(kernel)
     montar_tempo_real(kernel, controlador)
     vigia = _montar_vigia(repositorios, controlador)
     vigia.adotar_posicao_atual()
@@ -130,13 +168,14 @@ def test_evento_do_proprio_processo_nao_e_publicado_duas_vezes_edge_case() -> No
     vigia.varrer()
 
     publicados = _drenar(fila)
-    assert [evento.payload["id"] for evento in publicados] == ["nota-local"]
+    assert [evento.payload["id"] for evento in publicados] == ["nota-local", "produz-nota-local"]
 
 
 def test_historico_anterior_ao_inicio_nao_e_republicado_edge_case() -> None:
     """Caso de borda: quem conecta agora não recebe o log inteiro como se fosse novidade."""
     repositorios = montar_repositorios_em_memoria()
     kernel = _montar_kernel(repositorios)
+    _montar_hierarquia(kernel)
     _criar_nota(kernel, "nota-antiga")
 
     controlador = SSEWebController()
@@ -152,6 +191,7 @@ def test_ramo_novo_publica_o_marco_sem_repetir_o_prefixo_herdado_edge_case() -> 
     """Caso de borda: um fork feito de fora publica só os eventos próprios do ramo."""
     repositorios = montar_repositorios_em_memoria()
     kernel = _montar_kernel(repositorios)
+    _montar_hierarquia(kernel)
     _criar_nota(kernel, "nota-base")
 
     controlador = SSEWebController()

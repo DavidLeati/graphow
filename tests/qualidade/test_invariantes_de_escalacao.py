@@ -53,12 +53,33 @@ def _submeter(
     return kernel.submeter_patch(PropostaPatch.criar(dados))
 
 
+def _aresta(id_aresta: str, origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação de criação de aresta tipada."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value},
+    )
+
+
+def _operacoes_de_hierarquia() -> list[ItemPatch]:
+    """Projeto, Setor e Sessao encadeados por `contem`, onde o trabalho se pendura."""
+    return [
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/proj-1", value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"}),
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/setor-1", value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor"}),
+        _aresta("c-setor-1", "proj-1", "setor-1", TipoAresta.CONTEM),
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/sess-1", value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao"}),
+        _aresta("c-sess-1", "setor-1", "sess-1", TipoAresta.CONTEM),
+    ]
+
+
 def _montar_tarefa_bloqueada() -> WriteKernel:
     """Cria uma Task travada por uma Question aberta, tudo escrito pelo humano."""
     kernel = montar_kernel_em_memoria()
-    _submeter(
+    recibo = _submeter(
         kernel,
         [
+            *_operacoes_de_hierarquia(),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path="/nos/task-1",
@@ -69,6 +90,7 @@ def _montar_tarefa_bloqueada() -> WriteKernel:
                     "propriedades": {"status": StatusTask.PENDENTE.value},
                 },
             ),
+            _aresta("p-task-1", "sess-1", "task-1", TipoAresta.PRODUZ),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path="/nos/quest-1",
@@ -79,6 +101,7 @@ def _montar_tarefa_bloqueada() -> WriteKernel:
                     "propriedades": {"status": StatusQuestion.ABERTA.value},
                 },
             ),
+            _aresta("p-quest-1", "sess-1", "quest-1", TipoAresta.PRODUZ),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path="/arestas/bloq-1",
@@ -91,6 +114,7 @@ def _montar_tarefa_bloqueada() -> WriteKernel:
             ),
         ],
     )
+    assert recibo.sucesso is True, recibo.mensagem
     return kernel
 
 
@@ -178,6 +202,7 @@ def test_executor_nao_reescopa_a_propria_tarefa_edge_case() -> None:
                 path="/nos/const-1",
                 value={"id": "const-1", "tipo": TipoNo.CONSTRAINT.value, "rotulo": "Zero deps"},
             ),
+            _aresta("p-const-1", "sess-1", "const-1", TipoAresta.PRODUZ),
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path="/arestas/esc-1",

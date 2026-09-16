@@ -19,8 +19,38 @@ def _montar_sessao_com_tarefa() -> WriteKernel:
                 operacoes=(
                     ItemPatch(
                         op=OperacaoPatch.ADD,
+                        path="/nos/proj-1",
+                        value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/nos/setor-1",
+                        value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Engenharia"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/arestas/contem-setor-1",
+                        value={
+                            "id": "contem-setor-1",
+                            "origem_id": "proj-1",
+                            "destino_id": "setor-1",
+                            "tipo": TipoAresta.CONTEM.value,
+                        },
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
                         path="/nos/sess-1",
                         value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sprint"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/arestas/contem-sess-1",
+                        value={
+                            "id": "contem-sess-1",
+                            "origem_id": "setor-1",
+                            "destino_id": "sess-1",
+                            "tipo": TipoAresta.CONTEM.value,
+                        },
                     ),
                     ItemPatch(
                         op=OperacaoPatch.ADD,

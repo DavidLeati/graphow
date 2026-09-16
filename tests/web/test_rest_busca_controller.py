@@ -11,10 +11,12 @@ from graphow.web.rest_canvas_controller import CanvasWebController
 
 
 def _montar_busca() -> BuscaWebController:
-    """Grafo com uma sessão, duas tarefas e uma evidência que cita a palavra no texto."""
+    """Grafo com projeto, setor, uma sessão, duas tarefas e uma evidência que cita a palavra no texto."""
     kernel = WriteKernel(InMemoryEventStore())
     canvas = CanvasWebController(kernel)
-    canvas.criar_no(RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess"))
+    canvas.criar_no(RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"))
+    canvas.criar_no(RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"))
+    canvas.criar_no(RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess", contido_em="setor"))
     canvas.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Ingestao Binance", id_no="t-1", sessao_id="sess"))
     canvas.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Backtest", id_no="t-2", sessao_id="sess"))
     canvas.criar_no(

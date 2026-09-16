@@ -24,49 +24,66 @@ from graphow.web.sse_controller import NOME_EVENTO_DESCARTE, SSEWebController
 
 TEMPO_LIMITE_DE_ESPERA: float = 5.0
 SEPARADOR_DE_BLOCO_SSE: str = "\n\n"
+ID_SESSAO: str = "sess-obs"
+
+
+def _operacao_de_no(id_no: str, tipo: TipoNo, rotulo: str, status: str | None = None) -> ItemPatch:
+    """Operação que adiciona um nó, com status opcional."""
+    valor: dict[str, object] = {"id": id_no, "tipo": tipo.value, "rotulo": rotulo}
+    if status is not None:
+        valor["propriedades"] = {"status": status}
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value=valor)
+
+
+def _operacao_de_aresta(id_aresta: str, origem_id: str, destino_id: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação que adiciona uma aresta tipada."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem_id, "destino_id": destino_id, "tipo": tipo.value},
+    )
+
+
+def _submeter_como_humano(kernel: WriteKernel, operacoes: tuple[ItemPatch, ...], justificativa: str) -> None:
+    """Submete o lote sob identidade humana, exigindo que os portões o aceitem."""
+    dados = DadosPropostaPatch(
+        autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa=justificativa
+    )
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+    assert recibo.sucesso is True, recibo.mensagem
+
+
+def _montar_hierarquia(kernel: WriteKernel) -> None:
+    """Projeto, Setor e a Sessao observada: o trabalho só nasce pendurado nela."""
+    _submeter_como_humano(
+        kernel,
+        (
+            _operacao_de_no("proj-obs", TipoNo.PROJETO, "Projeto observado"),
+            _operacao_de_no("setor-obs", TipoNo.SETOR, "Setor observado"),
+            _operacao_de_aresta("cont-setor-obs", "proj-obs", "setor-obs", TipoAresta.CONTEM),
+            _operacao_de_no(ID_SESSAO, TipoNo.SESSAO, "Sessao observada"),
+            _operacao_de_aresta("cont-sess-obs", "setor-obs", ID_SESSAO, TipoAresta.CONTEM),
+        ),
+        "hierarquia",
+    )
 
 
 def _montar_ambiente() -> tuple[WriteKernel, SSEWebController]:
-    """Monta kernel e canal SSE já ligados pelo gancho pós-commit."""
+    """Monta kernel com a hierarquia pronta e canal SSE já ligados pelo gancho pós-commit."""
     kernel = WriteKernel(InMemoryEventStore())
+    _montar_hierarquia(kernel)
     controlador = SSEWebController()
     montar_tempo_real(kernel, controlador)
     return kernel, controlador
 
 
 def _criar_task(kernel: WriteKernel, id_task: str, status: str = StatusTask.PENDENTE.value) -> None:
-    """Cria a Sessao e a Task com o status informado, ligadas por `produz`."""
+    """Cria a Task com o status informado, ligada à Sessao observada por `produz`."""
     operacoes = (
-        ItemPatch(
-            op=OperacaoPatch.ADD,
-            path="/nos/sess-obs",
-            value={"id": "sess-obs", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao observada"},
-        ),
-        ItemPatch(
-            op=OperacaoPatch.ADD,
-            path=f"/nos/{id_task}",
-            value={
-                "id": id_task,
-                "tipo": TipoNo.TASK.value,
-                "rotulo": "Tarefa observada",
-                "propriedades": {"status": status},
-            },
-        ),
-        ItemPatch(
-            op=OperacaoPatch.ADD,
-            path=f"/arestas/prod-{id_task}",
-            value={
-                "id": f"prod-{id_task}",
-                "origem_id": "sess-obs",
-                "destino_id": id_task,
-                "tipo": TipoAresta.PRODUZ.value,
-            },
-        ),
+        _operacao_de_no(id_task, TipoNo.TASK, "Tarefa observada", status),
+        _operacao_de_aresta(f"prod-{id_task}", ID_SESSAO, id_task, TipoAresta.PRODUZ),
     )
-    dados = DadosPropostaPatch(
-        autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="criacao"
-    )
-    kernel.submeter_patch(PropostaPatch.criar(dados))
+    _submeter_como_humano(kernel, operacoes, "criacao")
 
 
 def _coletar(fila: "queue.Queue[EventoLog]", total: int) -> list[EventoLog]:
@@ -84,9 +101,9 @@ def test_mutacao_aceita_chega_ao_assinante_sse_nominal() -> None:
 
     _criar_task(kernel, "task-1")
 
-    eventos = _coletar(fila, 3)
-    assert eventos[1].tipo_evento == TipoEvento.NO_CRIADO
-    assert eventos[1].payload["id"] == "task-1"
+    eventos = _coletar(fila, 2)
+    assert eventos[0].tipo_evento == TipoEvento.NO_CRIADO
+    assert eventos[0].payload["id"] == "task-1"
 
 
 def test_observadores_ficam_registrados_no_kernel_nominal() -> None:
@@ -122,20 +139,15 @@ def test_lote_multiplo_publica_todos_os_eventos_edge_case() -> None:
     kernel, controlador = _montar_ambiente()
     fila = controlador.registrar_assinante()
 
-    operacoes = tuple(
-        ItemPatch(
-            op=OperacaoPatch.ADD,
-            path=f"/nos/n{indice}",
-            value={"id": f"n{indice}", "tipo": TipoNo.NOTE.value, "rotulo": f"Nota {indice}"},
-        )
-        for indice in range(3)
+    notas = tuple(_operacao_de_no(f"n{indice}", TipoNo.NOTE, f"Nota {indice}") for indice in range(3))
+    vinculos = tuple(
+        _operacao_de_aresta(f"prod-n{indice}", ID_SESSAO, f"n{indice}", TipoAresta.PRODUZ) for indice in range(3)
     )
-    dados = DadosPropostaPatch(
-        autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="lote"
-    )
-    kernel.submeter_patch(PropostaPatch.criar(dados))
+    _submeter_como_humano(kernel, notas + vinculos, "lote")
 
-    assert [evento.payload["id"] for evento in _coletar(fila, 3)] == ["n0", "n1", "n2"]
+    assert [evento.payload["id"] for evento in _coletar(fila, 6)] == [
+        "n0", "n1", "n2", "prod-n0", "prod-n1", "prod-n2",
+    ]
 
 
 def test_patch_rejeitado_nao_publica_nada_edge_case() -> None:
@@ -168,9 +180,9 @@ def test_evento_atravessa_o_servidor_http_ate_o_stream_sse() -> None:
     """Ponta a ponta sobre HTTP: POST em /api/nodes vira mensagem no stream SSE."""
     porta = _obter_porta_livre()
     identidade = IdentidadeSessaoWeb(autor="humano-ui")
-    servidor = GraphowWebServer(
-        WriteKernel(InMemoryEventStore()), EnderecoServidor(porta=porta), identidade
-    )
+    kernel = WriteKernel(InMemoryEventStore())
+    _montar_hierarquia(kernel)
+    servidor = GraphowWebServer(kernel, EnderecoServidor(porta=porta), identidade)
     servidor.iniciar(bloqueante=False)
     time.sleep(0.1)
     try:
@@ -207,7 +219,7 @@ def _ler_stream_apos_mutacao(base_url: str) -> list[str]:
     leitor.start()
     pronto.wait(timeout=TEMPO_LIMITE_DE_ESPERA)
 
-    corpo = json.dumps({"tipo": "Task", "rotulo": "Tarefa via HTTP"}).encode("utf-8")
+    corpo = json.dumps({"tipo": "Task", "rotulo": "Tarefa via HTTP", "sessao_id": ID_SESSAO}).encode("utf-8")
     requisicao = urllib.request.Request(
         f"{base_url}/api/nodes", data=corpo, headers={"Content-Type": "application/json"}
     )

@@ -20,14 +20,18 @@ from graphow.kernel.patch_models import (
 def test_invariant_gate_aprovacao_nominal() -> None:
     """Testa aprovação de patch que não viola regras relacionais."""
     gate = InvariantGate()
+    estado = GrafoEstado(nos={"sess-1": NoGrafo("sess-1", TipoNo.SESSAO, "Sessao 1")})
     dados = DadosPropostaPatch(
         autor="david",
         papel=PapelAutor.HUMANO,
         operacoes=[
             ItemPatch(op=OperacaoPatch.ADD, path="/nos/t1", value={"id": "t1", "tipo": TipoNo.TASK.value}),
+            ItemPatch(op=OperacaoPatch.ADD, path="/arestas/e-prod-t1", value={
+                "id": "e-prod-t1", "origem_id": "sess-1", "destino_id": "t1", "tipo": TipoAresta.PRODUZ.value
+            }),
         ],
     )
-    res = gate.validar(PropostaPatch.criar(dados), GrafoEstado())
+    res = gate.validar(PropostaPatch.criar(dados), estado)
     assert res.aprovado is True
 
 

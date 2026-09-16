@@ -1,6 +1,6 @@
 """Testes do caminho de volta: listar as próprias dúvidas e esperar a resposta."""
 
-from graphow.core.types import PapelAutor, StatusQuestion, TipoNo
+from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
@@ -15,7 +15,7 @@ POLITICA_DE_TESTE: PoliticaEspera = PoliticaEspera(
 
 
 def _montar_kernel_com_questao(autor_da_questao: str = "agente-a") -> WriteKernel:
-    """Cria uma Question aberta atribuída ao autor informado."""
+    """Cria uma Question aberta atribuída ao autor informado, produzida por uma Sessão."""
     kernel = montar_kernel_em_memoria()
     kernel.submeter_patch(
         PropostaPatch.criar(
@@ -23,6 +23,7 @@ def _montar_kernel_com_questao(autor_da_questao: str = "agente-a") -> WriteKerne
                 autor="david",
                 papel=PapelAutor.HUMANO,
                 operacoes=(
+                    *_operacoes_sessao_na_hierarquia(),
                     ItemPatch(
                         op=OperacaoPatch.ADD,
                         path="/nos/quest-1",
@@ -36,12 +37,40 @@ def _montar_kernel_com_questao(autor_da_questao: str = "agente-a") -> WriteKerne
                             },
                         },
                     ),
+                    _operacao_aresta("prod-quest-1", "sess-1", "quest-1", TipoAresta.PRODUZ),
                 ),
                 justificativa="bootstrap",
             )
         )
     )
     return kernel
+
+
+def _operacao_aresta(id_aresta: str, origem_id: str, destino_id: str, tipo: TipoAresta) -> ItemPatch:
+    """Monta a criação de uma aresta tipada."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem_id, "destino_id": destino_id, "tipo": tipo.value},
+    )
+
+
+def _operacoes_sessao_na_hierarquia() -> tuple[ItemPatch, ...]:
+    """Projeto → Setor → Sessão, para a Question não nascer fora da hierarquia."""
+    nos = (
+        ("proj-1", TipoNo.PROJETO, "Projeto"),
+        ("setor-1", TipoNo.SETOR, "Engenharia"),
+        ("sess-1", TipoNo.SESSAO, "Sprint"),
+    )
+    criacoes = tuple(
+        ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo})
+        for id_no, tipo, rotulo in nos
+    )
+    return (
+        *criacoes,
+        _operacao_aresta("contem-setor-1", "proj-1", "setor-1", TipoAresta.CONTEM),
+        _operacao_aresta("contem-sess-1", "setor-1", "sess-1", TipoAresta.CONTEM),
+    )
 
 
 def _responder(kernel: WriteKernel) -> None:

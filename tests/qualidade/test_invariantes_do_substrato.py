@@ -22,6 +22,10 @@ from graphow.projection.reducer import GrafoReducer
 SEMENTES_EXAMINADAS: tuple[int, ...] = (1, 7, 13, 42, 99)
 OPERACOES_POR_SEMENTE: int = 40
 
+ID_PROJETO: str = "proj-1"
+ID_SETOR: str = "setor-1"
+ID_SESSAO: str = "sess-1"
+
 PAPEIS_DE_AGENTE: tuple[PapelAutor, ...] = (
     PapelAutor.PLANEJADOR,
     PapelAutor.EXECUTOR,
@@ -58,6 +62,37 @@ def _operacao_de_aresta(id_aresta: str, origem: str, destino: str, tipo: TipoAre
     )
 
 
+def _operacoes_de_hierarquia_ausente(kernel: WriteKernel) -> list[ItemPatch]:
+    """Recria o que faltar da cadeia Projeto → Setor → Sessao que pendura o trabalho.
+
+    A sequência arbitrária pode ter removido qualquer elo; sem Sessao nenhum nó
+    novo teria onde se pendurar e o resto da sequência deixaria de escrever.
+    """
+    view = kernel.obter_view()
+    if view.contem_no(ID_SESSAO):
+        return []
+    operacoes: list[ItemPatch] = []
+    if not view.contem_no(ID_SETOR):
+        if not view.contem_no(ID_PROJETO):
+            operacoes.append(_operacao_de_no(ID_PROJETO, TipoNo.PROJETO))
+        operacoes.append(_operacao_de_no(ID_SETOR, TipoNo.SETOR))
+        operacoes.append(_operacao_de_aresta("c-setor", ID_PROJETO, ID_SETOR, TipoAresta.CONTEM))
+    operacoes.append(_operacao_de_no(ID_SESSAO, TipoNo.SESSAO))
+    operacoes.append(_operacao_de_aresta("c-sessao", ID_SETOR, ID_SESSAO, TipoAresta.CONTEM))
+    return operacoes
+
+
+def _operacoes_de_trabalho(
+    kernel: WriteKernel, id_no: str, tipo: TipoNo, propriedades: dict[str, str] | None = None
+) -> list[ItemPatch]:
+    """Cria um nó de trabalho já pendurado na Sessao por `produz`, no mesmo lote."""
+    return [
+        *_operacoes_de_hierarquia_ausente(kernel),
+        _operacao_de_no(id_no, tipo, propriedades),
+        _operacao_de_aresta(f"p-{id_no}", ID_SESSAO, id_no, TipoAresta.PRODUZ),
+    ]
+
+
 def _executar_sequencia_arbitraria(kernel: WriteKernel, semente: int) -> None:
     """Aplica uma sequência pseudoaleatória, porém determinística, de mutações."""
     sorteador = random.Random(semente)
@@ -69,10 +104,10 @@ def _aplicar_mutacao_sorteada(kernel: WriteKernel, sorteador: random.Random, ind
     """Aplica uma mutação escolhida entre criar nó, ligar arestas ou remover."""
     escolha = sorteador.randint(0, 3)
     if escolha == 0:
-        _submeter(kernel, [_operacao_de_no(f"task-{indice}", TipoNo.TASK, {"status": "pendente"})])
+        _submeter(kernel, _operacoes_de_trabalho(kernel, f"task-{indice}", TipoNo.TASK, {"status": "pendente"}))
         return
     if escolha == 1:
-        _submeter(kernel, [_operacao_de_no(f"note-{indice}", TipoNo.NOTE)])
+        _submeter(kernel, _operacoes_de_trabalho(kernel, f"note-{indice}", TipoNo.NOTE))
         return
     if escolha == 2:
         _ligar_tarefas_existentes(kernel, sorteador, indice)
@@ -134,11 +169,11 @@ def test_nenhuma_aresta_sobrevive_sem_suas_pontas(semente: int) -> None:
 def test_nenhum_agente_fecha_tarefa_com_duvida_aberta(papel: PapelAutor) -> None:
     """Invariante de governança: vale para todo papel não humano, em qualquer ordem."""
     kernel = montar_kernel_em_memoria()
-    _submeter(kernel, [_operacao_de_no("task-1", TipoNo.TASK, {"status": StatusTask.PENDENTE.value})])
+    _submeter(kernel, _operacoes_de_trabalho(kernel, "task-1", TipoNo.TASK, {"status": StatusTask.PENDENTE.value}))
     _submeter(
         kernel,
         [
-            _operacao_de_no("quest-1", TipoNo.QUESTION, {"status": StatusQuestion.ABERTA.value}),
+            *_operacoes_de_trabalho(kernel, "quest-1", TipoNo.QUESTION, {"status": StatusQuestion.ABERTA.value}),
             _operacao_de_aresta("bloq-1", "quest-1", "task-1", TipoAresta.BLOQUEIA),
         ],
     )
@@ -181,7 +216,7 @@ def test_lote_recusado_nao_deixa_efeito_parcial() -> None:
 def test_colisao_de_sequencia_nunca_grava_metade_do_lote() -> None:
     """Invariante de durabilidade: o repositório recusa o lote inteiro na colisão."""
     kernel = montar_kernel_em_memoria()
-    _submeter(kernel, [_operacao_de_no("n1", TipoNo.NOTE)])
+    _submeter(kernel, _operacoes_de_trabalho(kernel, "n1", TipoNo.NOTE))
     eventos_existentes = kernel.repositorio.ler_eventos("main")
 
     with pytest.raises(ErroConflitoDeSequencia):
@@ -194,7 +229,7 @@ def test_ciclo_de_dependencia_nunca_entra_no_grafo() -> None:
     """Invariante estrutural: depende_de permanece acíclico sob qualquer ordem."""
     kernel = montar_kernel_em_memoria()
     for indice in range(4):
-        _submeter(kernel, [_operacao_de_no(f"t{indice}", TipoNo.TASK)])
+        _submeter(kernel, _operacoes_de_trabalho(kernel, f"t{indice}", TipoNo.TASK))
     for indice in range(3):
         _submeter(kernel, [_operacao_de_aresta(f"d{indice}", f"t{indice}", f"t{indice + 1}", TipoAresta.DEPENDE_DE)])
 

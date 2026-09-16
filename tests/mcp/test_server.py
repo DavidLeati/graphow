@@ -27,8 +27,38 @@ def _configurar_servidor_com_dados(papel: str = "humano") -> tuple[GraphowMCPSer
                 [
                     ItemPatch(
                         op=OperacaoPatch.ADD,
+                        path="/nos/proj-1",
+                        value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto 1"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/nos/setor-1",
+                        value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor 1"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/arestas/e-contem-setor",
+                        value={
+                            "id": "e-contem-setor",
+                            "origem_id": "proj-1",
+                            "destino_id": "setor-1",
+                            "tipo": TipoAresta.CONTEM.value,
+                        },
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
                         path="/nos/sess-1",
                         value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao 1"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/arestas/e-contem-sessao",
+                        value={
+                            "id": "e-contem-sessao",
+                            "origem_id": "setor-1",
+                            "destino_id": "sess-1",
+                            "tipo": TipoAresta.CONTEM.value,
+                        },
                     ),
                     ItemPatch(
                         op=OperacaoPatch.ADD,

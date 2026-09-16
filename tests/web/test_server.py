@@ -19,6 +19,24 @@ def _obter_porta_livre() -> int:
         return int(s.getsockname()[1])
 
 
+def _postar_no(base_url: str, corpo: dict[str, str]) -> dict[str, object]:
+    """Cria um nó por POST em /api/nodes e devolve o recibo, exigindo sucesso."""
+    req = urllib.request.Request(f"{base_url}/api/nodes", data=json.dumps(corpo).encode("utf-8"), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req) as resp:
+        assert resp.status == 201
+        recibo = json.loads(resp.read().decode("utf-8"))
+    assert recibo["sucesso"] is True
+    return recibo
+
+
+def _pendurar_sessao(base_url: str) -> str:
+    """Monta Projeto, Setor e Sessao pela API para que o trabalho nasça dentro da hierarquia."""
+    _postar_no(base_url, {"tipo": "Projeto", "rotulo": "Projeto HTTP", "id_no": "p-http"})
+    _postar_no(base_url, {"tipo": "Setor", "rotulo": "Setor HTTP", "id_no": "s-http", "contido_em": "p-http"})
+    _postar_no(base_url, {"tipo": "Sessao", "rotulo": "Sessao HTTP", "id_no": "sess-http", "contido_em": "s-http"})
+    return "sess-http"
+
+
 def test_servidor_http_fluxo_nominal_get_post_put() -> None:
     """Valida inicialização, requisições GET, POST, PUT e encerramento do servidor."""
     store = InMemoryEventStore()
@@ -37,12 +55,8 @@ def test_servidor_http_fluxo_nominal_get_post_put() -> None:
             assert dados["total_nos"] == 0
 
         # 2. POST /api/nodes
-        payload_post = json.dumps({"tipo": "Goal", "rotulo": "Meta Via HTTP", "id_no": "g-http"}).encode("utf-8")
-        req_post = urllib.request.Request(f"{base_url}/api/nodes", data=payload_post, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req_post) as resp:
-            assert resp.status == 201
-            recibo = json.loads(resp.read().decode("utf-8"))
-            assert recibo["sucesso"] is True
+        sessao_id = _pendurar_sessao(base_url)
+        _postar_no(base_url, {"tipo": "Goal", "rotulo": "Meta Via HTTP", "id_no": "g-http", "sessao_id": sessao_id})
 
         # 3. GET / (index.html)
         with urllib.request.urlopen(f"{base_url}/") as resp:
@@ -113,9 +127,8 @@ def test_servidor_http_delete_elementos_edge_case() -> None:
     base_url = f"http://127.0.0.1:{porta}"
     try:
         # Cria nó
-        payload_post = json.dumps({"tipo": "Task", "rotulo": "Para Deletar", "id_no": "t-del"}).encode("utf-8")
-        req_post = urllib.request.Request(f"{base_url}/api/nodes", data=payload_post, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req_post)
+        sessao_id = _pendurar_sessao(base_url)
+        _postar_no(base_url, {"tipo": "Task", "rotulo": "Para Deletar", "id_no": "t-del", "sessao_id": sessao_id})
 
         # Deleta nó via DELETE
         payload_del = json.dumps({"tipo": "nos", "id": "t-del"}).encode("utf-8")

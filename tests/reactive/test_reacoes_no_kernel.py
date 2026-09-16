@@ -35,6 +35,17 @@ def _aresta(id_aresta: str, origem: str, destino: str, tipo: TipoAresta) -> Item
     )
 
 
+def _hierarquia_da_sessao() -> list[ItemPatch]:
+    """Projeto → Setor → Sessão, para o trabalho de teste não nascer fora da hierarquia."""
+    return [
+        _no("proj-1", TipoNo.PROJETO),
+        _no("setor-1", TipoNo.SETOR),
+        _aresta("c-setor", "proj-1", "setor-1", TipoAresta.CONTEM),
+        _no("sess-1", TipoNo.SESSAO),
+        _aresta("c-sessao", "setor-1", "sess-1", TipoAresta.CONTEM),
+    ]
+
+
 def _submeter_como_humano(kernel: WriteKernel, operacoes: list[ItemPatch]) -> tuple[str, ...]:
     """Escreve no grafo pela sessão humana e devolve os eventos gerados."""
     recibo = kernel.submeter_patch(
@@ -60,10 +71,11 @@ def _kernel_com_decisao_substituida() -> tuple[WriteKernel, EventoLog]:
     _submeter_como_humano(
         kernel,
         [
-            _no("sess-1", TipoNo.SESSAO),
+            *_hierarquia_da_sessao(),
             _no("d-velha", TipoNo.DECISION),
             _no("d-nova", TipoNo.DECISION),
             _aresta("p1", "sess-1", "d-velha", TipoAresta.PRODUZ),
+            _aresta("p2", "sess-1", "d-nova", TipoAresta.PRODUZ),
         ],
     )
     gerados = _submeter_como_humano(
@@ -114,7 +126,7 @@ def test_reacao_de_revisao_chega_ao_grafo_nominal() -> None:
     kernel = WriteKernel(InMemoryEventStore())
     _submeter_como_humano(
         kernel,
-        [_no("sess-1", TipoNo.SESSAO), _no("t1", TipoNo.TASK), _aresta("p1", "sess-1", "t1", TipoAresta.PRODUZ)],
+        [*_hierarquia_da_sessao(), _no("t1", TipoNo.TASK), _aresta("p1", "sess-1", "t1", TipoAresta.PRODUZ)],
     )
     gerados = _submeter_como_humano(
         kernel,

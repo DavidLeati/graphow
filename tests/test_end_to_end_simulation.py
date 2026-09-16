@@ -35,6 +35,7 @@ def _montar_navegacao_e_goal(kernel: WriteKernel) -> bool:
         {"op": "add", "path": "/nos/goal-1", "value": {"id": "goal-1", "tipo": "Goal", "rotulo": "Substrato Bilateral"}},
         {"op": "add", "path": "/arestas/e-prod-g1", "value": {"id": "e-prod-g1", "origem_id": "sess-01", "destino_id": "goal-1", "tipo": "produz"}},
         {"op": "add", "path": "/nos/c1", "value": {"id": "c1", "tipo": "Constraint", "rotulo": "Imutabilidade Obrigatoria"}},
+        {"op": "add", "path": "/arestas/e-prod-c1", "value": {"id": "e-prod-c1", "origem_id": "sess-01", "destino_id": "c1", "tipo": "produz"}},
         {"op": "add", "path": "/arestas/e-escopa", "value": {"id": "e-escopa", "origem_id": "c1", "destino_id": "goal-1", "tipo": "escopa"}},
     ]
     return _submeter_como_humano(kernel, operacoes, "Bootstrap da navegacao e do objetivo")
@@ -83,6 +84,7 @@ def _produzir_artefato(servidor_executor: GraphowMCPServer) -> dict[str, Any]:
             "justificativa": "Artefato pronto para revisao",
             "operacoes": [
                 {"op": "add", "path": "/nos/art-1", "value": {"id": "art-1", "tipo": "Artifact", "rotulo": "models.py", "propriedades": {"linhas": 45}}},
+                {"op": "add", "path": "/arestas/e-prod-art", "value": {"id": "e-prod-art", "origem_id": "sess-01", "destino_id": "art-1", "tipo": "produz"}},
                 {"op": "add", "path": "/arestas/e-art-deriva", "value": {"id": "e-art-deriva", "origem_id": "art-1", "destino_id": "t1", "tipo": "deriva_de"}},
                 {"op": "replace", "path": "/nos/t1/propriedades/status", "value": StatusTask.PRONTO_PARA_REVISAO.value},
             ],

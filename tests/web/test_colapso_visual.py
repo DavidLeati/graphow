@@ -5,7 +5,7 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.colapso_visual import OpcoesDeRecorteVisual
 from graphow.web.conversao_requisicoes import converter_opcoes_de_recorte
-from graphow.web.dto import RequisicaoNovaAresta, RequisicaoNovoNo
+from graphow.web.dto import RequisicaoNovoNo
 from graphow.web.rest_canvas_controller import CanvasWebController
 
 
@@ -13,18 +13,18 @@ def _montar_projeto_completo() -> CanvasWebController:
     """Projeto com um setor, uma sessão e duas tarefas — uma aberta, uma fechada."""
     ctrl = CanvasWebController(WriteKernel(InMemoryEventStore()))
     ctrl.criar_no(RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"))
-    ctrl.criar_no(RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor"))
-    ctrl.criar_no(RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess"))
+    ctrl.criar_no(RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"))
+    ctrl.criar_no(RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess", contido_em="setor"))
     ctrl.criar_no(
-        RequisicaoNovoNo(tipo="Task", rotulo="Aberta", id_no="t-aberta", propriedades={"status": StatusTask.PENDENTE.value})
+        RequisicaoNovoNo(
+            tipo="Task", rotulo="Aberta", id_no="t-aberta", sessao_id="sess", propriedades={"status": StatusTask.PENDENTE.value}
+        )
     )
     ctrl.criar_no(
-        RequisicaoNovoNo(tipo="Task", rotulo="Fechada", id_no="t-fechada", propriedades={"status": StatusTask.CONCLUIDO.value})
+        RequisicaoNovoNo(
+            tipo="Task", rotulo="Fechada", id_no="t-fechada", sessao_id="sess", propriedades={"status": StatusTask.CONCLUIDO.value}
+        )
     )
-    ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="proj", destino_id="setor", tipo=TipoAresta.CONTEM.value))
-    ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="setor", destino_id="sess", tipo=TipoAresta.CONTEM.value))
-    ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="sess", destino_id="t-aberta", tipo=TipoAresta.PRODUZ.value))
-    ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="sess", destino_id="t-fechada", tipo=TipoAresta.PRODUZ.value))
     return ctrl
 
 
@@ -93,6 +93,7 @@ def test_arestas_ficam_restritas_aos_nos_que_sobraram() -> None:
 
     assert canvas.total_arestas == 1
     assert canvas.arestas[0].origem_id == "proj"
+    assert canvas.arestas[0].tipo == TipoAresta.CONTEM.value
 
 
 def test_conversao_da_query_le_os_tres_recortes() -> None:

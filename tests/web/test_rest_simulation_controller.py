@@ -7,6 +7,18 @@ from graphow.web.rest_canvas_controller import CanvasWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 
 
+def _pendurar_sessao(canvas_ctrl: CanvasWebController) -> str:
+    """Monta Projeto, Setor e Sessao para que o trabalho nasça dentro da hierarquia."""
+    requisicoes = (
+        RequisicaoNovoNo(tipo="Projeto", rotulo="Projeto", id_no="proj"),
+        RequisicaoNovoNo(tipo="Setor", rotulo="Setor", id_no="setor", contido_em="proj"),
+        RequisicaoNovoNo(tipo="Sessao", rotulo="Sessao", id_no="sess", contido_em="setor"),
+    )
+    for req in requisicoes:
+        assert canvas_ctrl.criar_no(req).sucesso is True
+    return "sess"
+
+
 def test_simular_vista_tokens_fluxo_nominal() -> None:
     """Valida materialização de vista sob orçamento para agente."""
     store = InMemoryEventStore()
@@ -14,7 +26,8 @@ def test_simular_vista_tokens_fluxo_nominal() -> None:
     canvas_ctrl = CanvasWebController(kernel)
     sim_ctrl = SimulationWebController(kernel)
 
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Implementar Token Simulator", id_no="t-sim"))
+    sessao_id = _pendurar_sessao(canvas_ctrl)
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Implementar Token Simulator", id_no="t-sim", sessao_id=sessao_id))
 
     resultado = sim_ctrl.simular_vista(RequisicaoSimularVista(id_alvo="t-sim", papel="executor", orcamento_tokens=1000))
     assert resultado["sucesso"] is True
@@ -41,7 +54,8 @@ def test_expandir_no_sob_demanda_edge_case() -> None:
     canvas_ctrl = CanvasWebController(kernel)
     sim_ctrl = SimulationWebController(kernel)
 
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Expandir Meta", id_no="g-exp"))
+    sessao_id = _pendurar_sessao(canvas_ctrl)
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Expandir Meta", id_no="g-exp", sessao_id=sessao_id))
 
     res_ok = sim_ctrl.expandir_no("g-exp")
     assert res_ok["sucesso"] is True
@@ -58,7 +72,8 @@ def test_fallback_papel_invalido_edge_case() -> None:
     canvas_ctrl = CanvasWebController(kernel)
     sim_ctrl = SimulationWebController(kernel)
 
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Fallback", id_no="t-fb"))
+    sessao_id = _pendurar_sessao(canvas_ctrl)
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Fallback", id_no="t-fb", sessao_id=sessao_id))
 
     resultado = sim_ctrl.simular_vista(RequisicaoSimularVista(id_alvo="t-fb", papel="papel_desconhecido"))
     assert resultado["sucesso"] is True

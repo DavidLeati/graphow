@@ -6,6 +6,21 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 
 
+def _operacoes_de_hierarquia() -> list[ItemPatch]:
+    """Projeto, Setor e Sessao encadeados por `contem`, onde o trabalho se pendura."""
+    return [
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/proj-1", value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto 1"}),
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/setor-1", value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor 1"}),
+        ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-setor-1", value={
+            "id": "c-setor-1", "origem_id": "proj-1", "destino_id": "setor-1", "tipo": TipoAresta.CONTEM.value
+        }),
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/sess-1", value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao 1"}),
+        ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-sess-1", value={
+            "id": "c-sess-1", "origem_id": "setor-1", "destino_id": "sess-1", "tipo": TipoAresta.CONTEM.value
+        }),
+    ]
+
+
 def test_write_kernel_submissao_nominal() -> None:
     """Testa submissão transacional nominal com criação de nó e aresta."""
     store = InMemoryEventStore()
@@ -15,7 +30,7 @@ def test_write_kernel_submissao_nominal() -> None:
         autor="david",
         papel=PapelAutor.HUMANO,
         operacoes=[
-            ItemPatch(op=OperacaoPatch.ADD, path="/nos/sess-1", value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao 1"}),
+            *_operacoes_de_hierarquia(),
             ItemPatch(op=OperacaoPatch.ADD, path="/nos/task-1", value={"id": "task-1", "tipo": TipoNo.TASK.value, "rotulo": "Task 1"}),
             ItemPatch(op=OperacaoPatch.ADD, path="/arestas/e1", value={
                 "id": "e1", "origem_id": "sess-1", "destino_id": "task-1", "tipo": TipoAresta.PRODUZ.value
@@ -26,12 +41,13 @@ def test_write_kernel_submissao_nominal() -> None:
     recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
 
     assert recibo.sucesso is True
-    assert recibo.versao_log == 3
-    assert len(recibo.eventos_gerados) == 3
+    # Projeto, Setor e as duas `contem` somam quatro eventos aos três originais.
+    assert recibo.versao_log == 7
+    assert len(recibo.eventos_gerados) == 7
 
     view = kernel.obter_view("main")
-    assert view.total_nos == 2
-    assert view.total_arestas == 1
+    assert view.total_nos == 4
+    assert view.total_arestas == 3
 
 
 def test_write_kernel_rejeicao_atomica_sem_efeitos_colaterais_edge_case() -> None:
@@ -66,7 +82,11 @@ def test_write_kernel_gestao_de_locks_edge_case() -> None:
                 autor="david",
                 papel=PapelAutor.HUMANO,
                 operacoes=[
+                    *_operacoes_de_hierarquia(),
                     ItemPatch(op=OperacaoPatch.ADD, path="/nos/t1", value={"id": "t1", "tipo": TipoNo.TASK.value}),
+                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/p-t1", value={
+                        "id": "p-t1", "origem_id": "sess-1", "destino_id": "t1", "tipo": TipoAresta.PRODUZ.value
+                    }),
                 ],
             )
         )

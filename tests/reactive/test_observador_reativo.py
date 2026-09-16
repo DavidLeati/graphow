@@ -25,7 +25,7 @@ def _submeter(kernel: WriteKernel, operacoes: list[ItemPatch]) -> None:
 
 
 def _criar_task(kernel: WriteKernel, id_task: str) -> None:
-    """Cria uma Sessao e a Task pendente que ela produz.
+    """Cria Projeto → Setor → Sessao e a Task pendente que ela produz.
 
     A nota reativa nasce presa à sessão e ao alvo: sem a sessão no grafo ela
     seria órfã, e uma nota órfã não aparece na vista de ninguém.
@@ -35,8 +35,28 @@ def _criar_task(kernel: WriteKernel, id_task: str) -> None:
         [
             ItemPatch(
                 op=OperacaoPatch.ADD,
+                path="/nos/proj-1",
+                value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"},
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/setor-1",
+                value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor"},
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/arestas/c-setor",
+                value={"id": "c-setor", "origem_id": "proj-1", "destino_id": "setor-1", "tipo": TipoAresta.CONTEM.value},
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
                 path="/nos/sess-1",
                 value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao"},
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/arestas/c-sessao",
+                value={"id": "c-sessao", "origem_id": "setor-1", "destino_id": "sess-1", "tipo": TipoAresta.CONTEM.value},
             ),
             ItemPatch(
                 op=OperacaoPatch.ADD,
