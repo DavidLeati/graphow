@@ -3,6 +3,7 @@
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
+from graphow.mcp.ferramentas_trabalho import LIMITE_DO_TITULO_DA_QUESTAO
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
 from graphow.mcp.server import GraphowMCPServer
 from graphow.storage.in_memory_store import InMemoryEventStore
@@ -156,6 +157,45 @@ def test_mcp_abrir_questao_bloqueante_edge_case() -> None:
     assert questao is not None
     assert questao.tipo == TipoNo.QUESTION
     assert questao.obter_propriedade("papel_de_quem_abriu") == "executor"
+
+
+def test_mcp_abrir_questao_separa_titulo_do_corpo_nominal() -> None:
+    """O rótulo é o título curto; a pergunta por extenso vira propriedade."""
+    servidor, kernel = _configurar_servidor_com_dados("executor")
+    resultado = servidor.executar_ferramenta(
+        "abrir_questao",
+        {
+            "titulo": "Formato de autenticacao?",
+            "pergunta": "JWT com refresh, ou sessao no servidor? O contrato do cliente nao diz.",
+            "id_no_bloqueado": "t1",
+            "id_sessao": "sess-1",
+        },
+    )
+
+    questao = kernel.obter_view("main").obter_no(resultado["id_questao"])
+    assert questao is not None
+    assert questao.rotulo == "Formato de autenticacao?"
+    assert questao.obter_propriedade("pergunta") == "JWT com refresh, ou sessao no servidor? O contrato do cliente nao diz."
+
+
+def test_mcp_abrir_questao_sem_titulo_deriva_do_corpo_edge_case() -> None:
+    """Caso de borda: sem título, o rótulo é o começo da pergunta, não ela inteira.
+
+    O rótulo é o que o card do canvas exibe. Uma dúvida escrita por extenso ia
+    inteira para lá e esticava o cartão até o tamanho da tela.
+    """
+    servidor, kernel = _configurar_servidor_com_dados("executor")
+    corpo = "Devo trocar o conector inteiro ou so a rota de leitura? " * 6
+    resultado = servidor.executar_ferramenta(
+        "abrir_questao",
+        {"pergunta": corpo, "id_no_bloqueado": "t1", "id_sessao": "sess-1"},
+    )
+
+    questao = kernel.obter_view("main").obter_no(resultado["id_questao"])
+    assert questao is not None
+    assert len(questao.rotulo) <= LIMITE_DO_TITULO_DA_QUESTAO + 1
+    assert questao.rotulo.endswith("…")
+    assert questao.obter_propriedade("pergunta") == corpo
 
 
 def test_mcp_ferramenta_desconhecida_e_erro_tratado_edge_case() -> None:

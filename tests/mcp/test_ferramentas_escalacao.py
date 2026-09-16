@@ -96,6 +96,32 @@ def test_minhas_questoes_ignora_duvidas_de_outro_agente_edge_case() -> None:
     assert ferramentas.minhas_questoes({})["total"] == 0
 
 
+def test_minhas_questoes_devolve_titulo_e_corpo_separados_nominal() -> None:
+    """A dúvida chega ao agente com o título curto e o corpo por extenso."""
+    kernel = _montar_kernel_com_questao()
+    ferramentas = _ferramentas(kernel, RelogioSimulado())
+
+    questao = ferramentas.minhas_questoes({})["questoes"][0]
+
+    assert questao["titulo"] == "TTL estrito ou LRU?"
+    assert questao["pergunta"] == "TTL estrito ou LRU?"
+
+
+def test_minhas_questoes_cai_no_rotulo_em_duvida_antiga_edge_case() -> None:
+    """Caso de borda: dúvida aberta antes da separação não tem 'pergunta'.
+
+    O corpo dela mora no rótulo, e é ele que o agente precisa ler — devolver
+    vazio esconderia a pergunta inteira de quem foi chamado para respondê-la.
+    """
+    kernel = _montar_kernel_com_questao()
+    ferramentas = _ferramentas(kernel, RelogioSimulado())
+    antiga = kernel.obter_view("main").obter_no("quest-1")
+
+    assert antiga is not None
+    assert antiga.obter_propriedade("pergunta", "") == ""
+    assert ferramentas.minhas_questoes({})["questoes"][0]["pergunta"] == antiga.rotulo
+
+
 def test_minhas_questoes_filtra_por_status_nominal() -> None:
     """O filtro separa o que ainda trava do que já foi respondido."""
     kernel = _montar_kernel_com_questao()

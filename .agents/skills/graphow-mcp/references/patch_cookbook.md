@@ -158,10 +158,13 @@ Criar o nó `Question` por `propor_patch` é tecnicamente possível e quase semp
 
 ```json
 {
-  "pergunta": "O parser deve ignorar linhas em branco silenciosamente ou lançar ParseWarning?",
+  "titulo": "Linha em branco no CSV: ignorar ou avisar?",
+  "pergunta": "O parser deve ignorar linhas em branco silenciosamente ou lançar ParseWarning? O arquivo de amostra tem 14 linhas vazias no meio, e o contrato do importador não diz nada sobre elas.",
   "id_no_bloqueado": "task-parser-csv",
   "id_sessao": "sess-sprint-01"
 }
 ```
+
+O `titulo` é o rótulo do nó, e é o que o card mostra no canvas: mande uma linha. O corpo vai em `pergunta` e pode ser tão longo quanto a dúvida exigir. Sem `titulo`, ele é derivado do começo da pergunta — e uma pergunta de vinte linhas vira um título truncado.
 
 Você abre a dúvida e espera em `aguardar_resposta`. Mover a `Question` para `respondida` ou `descartada`, removê-la ou tirar o `bloqueia` são operações de sessão humana, por qualquer caminho.

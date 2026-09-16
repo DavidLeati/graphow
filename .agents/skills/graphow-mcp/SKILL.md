@@ -59,7 +59,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 | `criar_setor` | `rotulo`, `id_projeto` | Cria o Setor e a aresta `contem`. |
 | `criar_sessao` | `rotulo`, `id_setor` | Cria a Sessao e a aresta `contem`. |
 | `criar_tarefa` | `titulo`, `id_sessao`, `descricao`, `criterio_pronto`, `id_tarefa_pai`, `depende_de` | Cria a Task com aresta `produz` e as hierarquias opcionais. |
-| `abrir_questao` | `pergunta`, `id_no_bloqueado`, `id_sessao` | Abre a Question e a aresta `bloqueia`, travando a conclusão da tarefa. |
+| `abrir_questao` | `pergunta`, `id_no_bloqueado`, `id_sessao`, `titulo` | Abre a Question e a aresta `bloqueia`, travando a conclusão da tarefa. `titulo` é a chamada de uma linha que o card exibe; `pergunta` é o corpo por extenso. Omitido o `titulo`, ele é derivado do começo da pergunta. |
 | `responder_questao` | `id_questao`, `resposta` *(só humano)* | Registra a resposta, move a Question para `respondida` e destrava a Task. |
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |
 | `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Muda a permissividade dos agentes no projeto. |

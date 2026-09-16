@@ -59,7 +59,11 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "pergunta": {"type": "string", "description": "Texto da dúvida ou ambiguidade."},
+                "titulo": {
+                    "type": "string",
+                    "description": "Título curto da dúvida, uma linha: é o que o card mostra no canvas. Omitido, é derivado do começo da pergunta.",
+                },
+                "pergunta": {"type": "string", "description": "Corpo da dúvida: o contexto e a ambiguidade, por extenso."},
                 "id_no_bloqueado": {"type": "string", "description": "ID da Task a ser bloqueada."},
                 "id_sessao": {"type": "string", "description": "ID da sessão onde a questão é criada."},
             },

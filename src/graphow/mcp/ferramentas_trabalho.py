@@ -1,4 +1,9 @@
-"""Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres."""
+"""Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres.
+
+A dúvida segue o mesmo formato da tarefa: título curto no rótulo, corpo na
+propriedade. A pergunta inteira ia para o rótulo, e o rótulo é o que o card do
+canvas mostra — uma dúvida de vinte linhas virava um cartão do tamanho da tela.
+"""
 
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -19,6 +24,25 @@ from graphow.mcp.submissao import (
     SubmissorPatchMCP,
     extrair_ramo,
 )
+
+
+# Teto do título derivado. Acima disso o card volta a crescer sem limite.
+LIMITE_DO_TITULO_DA_QUESTAO: int = 80
+
+
+def resumir_em_titulo(texto: str) -> str:
+    """Reduz o corpo da pergunta ao título curto que o card exibe."""
+    primeira_linha = next((linha.strip() for linha in texto.splitlines() if linha.strip()), "")
+    if len(primeira_linha) <= LIMITE_DO_TITULO_DA_QUESTAO:
+        return primeira_linha
+    corte = primeira_linha[:LIMITE_DO_TITULO_DA_QUESTAO].rsplit(" ", 1)[0].rstrip(" ,;:.-")
+    return f"{corte or primeira_linha[:LIMITE_DO_TITULO_DA_QUESTAO]}…"
+
+
+def titulo_da_questao(argumentos: Mapping[str, Any]) -> str:
+    """Título informado pelo agente, ou o começo do corpo quando ele omite."""
+    informado = str(argumentos.get("titulo") or "").strip()
+    return informado or resumir_em_titulo(str(argumentos.get("pergunta", "")))
 
 
 class FerramentasTrabalho:
@@ -101,11 +125,10 @@ class FerramentasTrabalho:
     def abrir_questao(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
         """Abre uma Question e a aresta 'bloqueia' que trava a tarefa até resposta humana."""
         id_questao = gerar_identificador("quest")
-        pergunta = str(argumentos["pergunta"])
-        operacoes = self._montar_operacoes_questao(id_questao, pergunta, argumentos)
+        operacoes = self._montar_operacoes_questao(id_questao, argumentos)
         pedido = PedidoSubmissaoMCP(
             operacoes=operacoes,
-            justificativa=f"Bloqueio por duvida: {pergunta}",
+            justificativa=f"Bloqueio por duvida: {titulo_da_questao(argumentos)}",
             ramo_id=extrair_ramo(dict(argumentos)),
             identificadores_criados={"id_questao": id_questao},
         )
@@ -114,7 +137,6 @@ class FerramentasTrabalho:
     def _montar_operacoes_questao(
         self,
         id_questao: str,
-        pergunta: str,
         argumentos: Mapping[str, Any],
     ) -> tuple[ItemPatch, ...]:
         """Monta a Question, o vínculo com a Sessão e o bloqueio da tarefa alvo."""
@@ -131,19 +153,20 @@ class FerramentasTrabalho:
             tipo=TipoAresta.BLOQUEIA,
         )
         return (
-            montar_operacao_criar_no(self._especificar_questao(id_questao, pergunta)),
+            montar_operacao_criar_no(self._especificar_questao(id_questao, argumentos)),
             montar_operacao_criar_aresta(producao),
             montar_operacao_criar_aresta(bloqueio),
         )
 
-    def _especificar_questao(self, id_questao: str, pergunta: str) -> EspecificacaoNo:
-        """Descreve o nó Question registrando quem o abriu e sob qual papel."""
+    def _especificar_questao(self, id_questao: str, argumentos: Mapping[str, Any]) -> EspecificacaoNo:
+        """Descreve o nó Question: título curto no rótulo, corpo em 'pergunta'."""
         return EspecificacaoNo(
             id=id_questao,
             tipo=TipoNo.QUESTION,
-            rotulo=pergunta,
+            rotulo=titulo_da_questao(argumentos),
             propriedades={
                 "status": StatusQuestion.ABERTA.value,
+                "pergunta": str(argumentos["pergunta"]),
                 "aberta_por": self._contexto.identidade.autor,
                 "papel_de_quem_abriu": self._contexto.identidade.papel.value,
             },

@@ -23,6 +23,7 @@ class DescricaoQuestao:
     """Instantâneo de uma dúvida aberta pelo agente e do que houve com ela."""
 
     id: str
+    titulo: str
     pergunta: str
     status: str
     resposta: str
@@ -30,10 +31,16 @@ class DescricaoQuestao:
 
     @classmethod
     def de_no(cls, no: NoGrafo) -> "DescricaoQuestao":
-        """Projeta o nó Question na forma que a ferramenta devolve."""
+        """Projeta o nó Question na forma que a ferramenta devolve.
+
+        Dúvidas abertas antes da separação entre título e corpo não têm a
+        propriedade `pergunta`: nelas o rótulo ainda é o texto inteiro.
+        """
+        corpo = str(no.obter_propriedade("pergunta", ""))
         return cls(
             id=no.id,
-            pergunta=no.rotulo,
+            titulo=no.rotulo,
+            pergunta=corpo or no.rotulo,
             status=str(no.obter_propriedade("status", StatusQuestion.ABERTA.value)),
             resposta=str(no.obter_propriedade("resposta", "")),
             respondida_por=str(no.obter_propriedade("respondida_por", "")),
@@ -43,6 +50,7 @@ class DescricaoQuestao:
         """Forma serializável para a resposta MCP."""
         return {
             "id": self.id,
+            "titulo": self.titulo,
             "pergunta": self.pergunta,
             "status": self.status,
             "resposta": self.resposta,
