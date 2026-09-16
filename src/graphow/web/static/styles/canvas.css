@@ -123,12 +123,20 @@
   padding: 8px 10px;
 }
 
+/* O rotulo cabe em tres linhas e o resto fica no title e no inspetor: um
+   rotulo longo — uma duvida escrita por extenso — esticava o cartao ate o
+   tamanho da tela e empurrava o arranjo inteiro. */
 .node-title {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-main);
   line-height: 1.4;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .node-meta {

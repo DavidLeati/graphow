@@ -1,3 +1,4 @@
+import { escapeHtml } from "./dom.js";
 import { descreverHistoricoDoNo, foiAlterado, formatarIdadeCurta } from "./idade.js";
 import { caminhoSvg, tracarCurva } from "./geometria_aresta.js";
 
@@ -93,7 +94,7 @@ export class CanvasRenderer {
           <span class="node-id-badge">#${id.slice(-6)}</span>
         </div>
         <div class="node-body">
-          <div class="node-title">${this.escapeHtml(node.rotulo)}</div>
+          <div class="node-title" title="${escapeHtml(node.rotulo)}">${escapeHtml(node.rotulo)}</div>
           <div class="node-meta">
             ${statusBadge}
             ${lockBadge}
@@ -294,16 +295,11 @@ export class CanvasRenderer {
     if (!seq && !node.criado_em) return "";
     const marcaDeEdicao = foiAlterado(node) ? `<span class="node-edited" title="Alterado depois de criado">editado</span>` : "";
     return `
-      <div class="node-footer" title="${this.escapeHtml(descreverHistoricoDoNo(node))}">
+      <div class="node-footer" title="${escapeHtml(descreverHistoricoDoNo(node))}">
         <span class="node-seq">log #${seq}</span>
         ${marcaDeEdicao}
         <span class="node-age">${formatarIdadeCurta(node.criado_em)}</span>
       </div>
     `;
-  }
-
-  escapeHtml(str) {
-    if (!str) return "";
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 }
