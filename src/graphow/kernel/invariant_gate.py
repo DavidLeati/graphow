@@ -6,6 +6,7 @@ from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
+from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import (
     ItemPatch,
@@ -15,6 +16,15 @@ from graphow.kernel.patch_models import (
 )
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
+
+# A aresta que pendura cada tipo, dita na recusa. Os pares valem o que o
+# SchemaGate aceita; aqui só se escolhe o que sugerir.
+VINCULO_DE_TRABALHO: str = "'produz' vinda de uma Sessao"
+VINCULO_ESPERADO: Mapping[TipoNo, str] = {
+    TipoNo.SETOR: "'contem' vinda de um Projeto",
+    TipoNo.SESSAO: "'contem' vinda de um Setor",
+    TipoNo.TASK: "'produz' vinda de uma Sessao ou 'decompoe' vinda de um Goal ou Task",
+}
 
 
 class InvariantGate:
@@ -31,6 +41,9 @@ class InvariantGate:
         resultado_lock = self._validar_locks_concorrencia(proposta, locks)
         if not resultado_lock.aprovado:
             return resultado_lock
+        resultado_hierarquia = self._validar_nos_na_hierarquia(proposta, estado)
+        if not resultado_hierarquia.aprovado:
+            return resultado_hierarquia
         resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estado)
         if not resultado_bloqueio.aprovado:
             return resultado_bloqueio
@@ -38,6 +51,68 @@ class InvariantGate:
         if not resultado_posse.aprovado:
             return resultado_posse
         return self._validar_aciclicidade_dependencias(proposta, estado)
+
+    def _validar_nos_na_hierarquia(
+        self,
+        proposta: PropostaPatch,
+        estado: GrafoEstado,
+    ) -> ResultadoValidacao:
+        """Recusa o nó que nasceria sem pai por contenção.
+
+        Um nó sem `contem`, `produz` ou `decompoe` chegando nele não aparece em
+        visão colapsada nenhuma: só a pasta "Fora da hierarquia" o mostra, e
+        ninguém a abre. O vínculo precisa vir no mesmo lote que cria o nó —
+        em dois pedidos, a falha do segundo deixava o órfão para trás. Projeto
+        é a raiz legítima e fica de fora. Vale também para o humano: a regra é
+        sobre a forma do grafo, não sobre quem escreve.
+        """
+        criados = self._nos_criados_sem_ser_raiz(proposta)
+        if not criados:
+            return ResultadoValidacao.sucesso()
+        com_pai = self._destinos_de_contencao(proposta, estado)
+        for id_no, tipo in criados.items():
+            if id_no not in com_pai:
+                return self._recusar_no_fora_da_hierarquia(id_no, tipo)
+        return ResultadoValidacao.sucesso()
+
+    def _nos_criados_sem_ser_raiz(self, proposta: PropostaPatch) -> dict[str, TipoNo]:
+        """Nós que o lote cria, exceto Projetos, na ordem em que aparecem."""
+        criados: dict[str, TipoNo] = {}
+        for item in proposta.operacoes:
+            segmentos = [seg for seg in item.path.split("/") if seg]
+            if item.op != OperacaoPatch.ADD or len(segmentos) != SEGMENTOS_DE_ELEMENTO_INTEIRO:
+                continue
+            if segmentos[0] != "nos" or not isinstance(item.value, dict):
+                continue
+            tipo = next((opcao for opcao in TipoNo if opcao.value == item.value.get("tipo")), None)
+            if tipo is not None and tipo != TipoNo.PROJETO:
+                criados[segmentos[1]] = tipo
+        return criados
+
+    def _destinos_de_contencao(self, proposta: PropostaPatch, estado: GrafoEstado) -> set[str]:
+        """Ids que recebem aresta de contenção, já no grafo ou criada neste lote."""
+        destinos = {
+            aresta.destino_id
+            for aresta in estado.arestas.values()
+            if aresta.tipo in ARESTAS_DE_CONTENCAO
+        }
+        tipos_de_contencao = {tipo.value for tipo in ARESTAS_DE_CONTENCAO}
+        for item in proposta.operacoes:
+            if item.op != OperacaoPatch.ADD or not item.path.startswith("/arestas/"):
+                continue
+            if isinstance(item.value, dict) and item.value.get("tipo") in tipos_de_contencao:
+                destinos.add(str(item.value.get("destino_id")))
+        return destinos
+
+    def _recusar_no_fora_da_hierarquia(self, id_no: str, tipo: TipoNo) -> ResultadoValidacao:
+        """Diz qual aresta falta, para o autor refazer o lote sem adivinhar."""
+        return ResultadoValidacao.falha(
+            f"No '{id_no}' ({tipo.value}) nasceria fora da hierarquia. "
+            f"Crie no mesmo lote a aresta que o pendura: {VINCULO_ESPERADO.get(tipo, VINCULO_DE_TRABALHO)}",
+            "InvariantGate",
+            {"id_no": id_no, "tipo": tipo.value},
+            modo=ModoFalhaMAST.NO_FORA_DA_HIERARQUIA,
+        )
 
     def _validar_posse_da_tarefa(
         self,

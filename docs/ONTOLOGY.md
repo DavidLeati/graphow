@@ -9,6 +9,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 1. **Separação em Duas Camadas**:
    - **Camada de Navegação**: Espinha dorsal visual e de agrupamento hierárquico (`Projeto` → `Setor` → `Sessao`). Apenas humanos criam e estruturam a navegação.
    - **Camada de Trabalho**: Nós semânticos de intenção, execução e evidência pendurados exclusivamente em instâncias de `Sessao`. Tanto humanos quanto agentes interagem com a camada de trabalho.
+   - **Nenhum nó nasce solto**: exceto `Projeto`, todo nó criado recebe no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). O `InvariantGate` recusa o lote com `no_fora_da_hierarquia` para qualquer papel, humano incluído.
 
 2. **Temporalidade Bitemporal**:
    - `criado_em` (ISO 8601 UTC): Momento em que o fato/evento ocorreu ou foi gerado.

@@ -36,6 +36,7 @@ class ModoFalhaMAST(str, Enum):
     ESTRUTURA_INCOMPLETA = "estrutura_incompleta"
     REFERENCIA_INEXISTENTE = "referencia_inexistente"
     PAR_DE_ARESTA_INVALIDO = "par_de_aresta_invalido"
+    NO_FORA_DA_HIERARQUIA = "no_fora_da_hierarquia"
     OUTRO = "outro"
 
 
@@ -52,6 +53,7 @@ CATEGORIA_POR_MODO: Mapping[ModoFalhaMAST, CategoriaFalhaMAST] = {
     ModoFalhaMAST.ESTRUTURA_INCOMPLETA: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
     ModoFalhaMAST.REFERENCIA_INEXISTENTE: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
     ModoFalhaMAST.PAR_DE_ARESTA_INVALIDO: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
+    ModoFalhaMAST.NO_FORA_DA_HIERARQUIA: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
     ModoFalhaMAST.OUTRO: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
 }
 

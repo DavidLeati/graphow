@@ -1,5 +1,6 @@
 """Testes unitários para o CanvasWebController."""
 
+from graphow.core.falhas import ModoFalhaMAST
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.dto import (
@@ -146,6 +147,17 @@ def test_filtro_canvas_por_projeto_nominal() -> None:
     canvas_b = ctrl.obter_canvas(projeto_id="pb")
     ids_b = {n.id for n in canvas_b.nos}
     assert ids_b == {"pb", "sb"}
+
+
+def test_task_sem_sessao_nem_contido_em_e_recusada_edge_case() -> None:
+    """Caso de borda: sem `sessao_id` nem `contido_em` o nó nasceria órfão, e o kernel recusa."""
+    ctrl, _ = _criar_controller_com_sessao()
+
+    recibo = ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Task Orfa", id_no="t-orfa"))
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.NO_FORA_DA_HIERARQUIA.value
+    assert all(n.id != "t-orfa" for n in ctrl.obter_canvas().nos)
 
 
 def test_canvas_publica_idade_e_ordem_de_cada_no_nominal() -> None:

@@ -10,14 +10,14 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-13 módulos · 1938 linhas · 23 classes
+13 módulos · 2013 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 129 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/execucao.py`](#kernelexecucao) | 66 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 209 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 284 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 114 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 166 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
@@ -88,6 +88,8 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `VINCULO_DE_TRABALHO` | `str` | `"'produz' vinda de uma Sessao"` |
+| `VINCULO_ESPERADO` | `Mapping[TipoNo, str]` | `{TipoNo.SETOR: "'contem' vinda de um Projeto", TipoNo.SESSAO: "'contem'…` |
 
 ### `InvariantGate`
 

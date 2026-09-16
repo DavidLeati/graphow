@@ -114,6 +114,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    sessão humana. Sem elas, um agente encerrava a própria escalação com um
    `propor_patch` e concluía a tarefa em seguida.
 3. **Portão 3 — `InvariantGate`:**
+   - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, precisa receber no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
@@ -366,7 +367,7 @@ avaliador só traduz modo em macro-categoria. Antes ele decidia por substring da
 mensagem em português — funcionava, e quebraria na primeira reescrita de texto:
 
   - `DESALINHAMENTO_DE_AGENTE` (`VIOLACAO_PERMISSAO_PAPEL`, `PROTOTYPE_POLLUTION`)
-  - `DESIGN_DO_SISTEMA` (`CICLO_DEPENDENCIA`, `ESTOURO_ORCAMENTO_TOKENS`, `TIPO_DESCONHECIDO`, `CONFLITO_CONCORRENCIA_LOCK`, `CAMINHO_INVALIDO`, `ESTRUTURA_INCOMPLETA`, `REFERENCIA_INEXISTENTE`, `PAR_DE_ARESTA_INVALIDO`)
+  - `DESIGN_DO_SISTEMA` (`CICLO_DEPENDENCIA`, `ESTOURO_ORCAMENTO_TOKENS`, `TIPO_DESCONHECIDO`, `CONFLITO_CONCORRENCIA_LOCK`, `CAMINHO_INVALIDO`, `ESTRUTURA_INCOMPLETA`, `REFERENCIA_INEXISTENTE`, `PAR_DE_ARESTA_INVALIDO`, `NO_FORA_DA_HIERARQUIA`)
   - `VERIFICACAO_DE_TAREFA` (`FECHAMENTO_COM_BLOQUEIO_PENDENTE`, `POSSE_DE_TAREFA_AUSENTE`)
 
 Um teste de AST confere que toda recusa dos três portões declara o seu modo, e
