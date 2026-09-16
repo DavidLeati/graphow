@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.harness.identidade_harness import IdentidadeHarness
 from graphow.harness.interfaces import AdaptadorDeHarness
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
@@ -23,7 +23,7 @@ class ConventionHarnessAdapter(AdaptadorDeHarness):
         id_setor: str,
         metadados: Mapping[str, Any] | None = None,
     ) -> bool:
-        """Cria o nó de Sessao no grafo caso ainda não exista."""
+        """Cria o nó de Sessao no grafo, pendurado no Setor por 'contem'."""
         props = dict(metadados or {})
         props["setor_pai"] = id_setor
         props["status"] = "iniciada_por_convencao"
@@ -32,7 +32,12 @@ class ConventionHarnessAdapter(AdaptadorDeHarness):
                 op=OperacaoPatch.ADD,
                 path=f"/nos/{id_sessao}",
                 value={"id": id_sessao, "tipo": TipoNo.SESSAO.value, "rotulo": f"Sessao {id_sessao}", "propriedades": props},
-            )
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path=f"/arestas/contem-{id_setor}-{id_sessao}",
+                value={"id": f"contem-{id_setor}-{id_sessao}", "origem_id": id_setor, "destino_id": id_sessao, "tipo": TipoAresta.CONTEM.value},
+            ),
         ]
         dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Abertura por convenção")
         recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
@@ -53,7 +58,7 @@ class ConventionHarnessAdapter(AdaptadorDeHarness):
         modelo: str,
         dados_execucao: Mapping[str, Any],
     ) -> str:
-        """Registra nó Run simplificado."""
+        """Registra nó Run simplificado, pendurado na Sessao por 'produz'."""
         id_run = f"run-conv-{id_sessao}"
         props = {"modelo": modelo, **dict(dados_execucao)}
         operacoes = [
@@ -61,7 +66,12 @@ class ConventionHarnessAdapter(AdaptadorDeHarness):
                 op=OperacaoPatch.ADD,
                 path=f"/nos/{id_run}",
                 value={"id": id_run, "tipo": TipoNo.RUN.value, "rotulo": f"Run {modelo}", "propriedades": props},
-            )
+            ),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path=f"/arestas/prod-{id_run}",
+                value={"id": f"prod-{id_run}", "origem_id": id_sessao, "destino_id": id_run, "tipo": TipoAresta.PRODUZ.value},
+            ),
         ]
         dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Run por convenção")
         self._kernel.submeter_patch(PropostaPatch.criar(dados))

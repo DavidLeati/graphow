@@ -55,11 +55,16 @@ class HookHarnessAdapter(AdaptadorDeHarness):
         modelo: str,
         dados_execucao: Mapping[str, Any],
     ) -> str:
-        """Cria nó do tipo Run e conecta à Sessao via aresta 'ocorreu_em'."""
+        """Cria nó do tipo Run, pendurado na Sessao por 'produz' e ligado a ela por 'ocorreu_em'.
+
+        Só `ocorreu_em` não basta: ela não é aresta de contenção, e o Run nascia
+        fora da hierarquia, coisa que o InvariantGate recusa.
+        """
         id_run = f"run-{uuid.uuid4()}"
         props: dict[str, Any] = {"modelo": modelo, **dict(dados_execucao)}
         operacoes = [
             ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_run}", value={"id": id_run, "tipo": TipoNo.RUN.value, "rotulo": f"Execucao {modelo}", "propriedades": props}),
+            ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/prod-{id_run}", value={"id": f"prod-{id_run}", "origem_id": id_sessao, "destino_id": id_run, "tipo": TipoAresta.PRODUZ.value}),
             ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/ocorreu-{id_run}", value={"id": f"ocorreu-{id_run}", "origem_id": id_run, "destino_id": id_sessao, "tipo": TipoAresta.OCORREU_EM.value}),
         ]
         dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Registro de telemetria de Run")

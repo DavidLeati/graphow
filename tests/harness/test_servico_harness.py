@@ -1,7 +1,7 @@
 """Testes da fiação do harness: o hook dispara e o grafo registra a execução."""
 
 from graphow.core.events import TipoEvento
-from graphow.core.types import OrigemEvento, PapelAutor, TipoNo
+from graphow.core.types import OrigemEvento, PapelAutor, TipoAresta, TipoNo
 from graphow.harness.servico_harness import (
     FaseDoHarness,
     PedidoDeCicloDeVida,
@@ -14,7 +14,7 @@ from graphow.kernel.write_kernel import WriteKernel
 
 
 def _criar_setor(kernel: WriteKernel) -> None:
-    """Cria o Setor que a sessão do harness vai habitar."""
+    """Cria o Setor, pendurado num Projeto, que a sessão do harness vai habitar."""
     kernel.submeter_patch(
         PropostaPatch.criar(
             DadosPropostaPatch(
@@ -23,8 +23,23 @@ def _criar_setor(kernel: WriteKernel) -> None:
                 operacoes=(
                     ItemPatch(
                         op=OperacaoPatch.ADD,
+                        path="/nos/proj-1",
+                        value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
                         path="/nos/setor-1",
                         value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Engenharia"},
+                    ),
+                    ItemPatch(
+                        op=OperacaoPatch.ADD,
+                        path="/arestas/contem-proj-1-setor-1",
+                        value={
+                            "id": "contem-proj-1-setor-1",
+                            "origem_id": "proj-1",
+                            "destino_id": "setor-1",
+                            "tipo": TipoAresta.CONTEM.value,
+                        },
                     ),
                 ),
                 justificativa="bootstrap",

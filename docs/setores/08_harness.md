@@ -10,13 +10,13 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-7 módulos · 425 linhas · 9 classes
+7 módulos · 440 linhas · 9 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`harness/convention_adapter.py`](#harnessconventionadapter) | 68 | Adaptador de fallback baseado em convenção de chamada explícita. |
+| [`harness/convention_adapter.py`](#harnessconventionadapter) | 78 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 86 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
-| [`harness/hook_adapter.py`](#harnesshookadapter) | 67 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
+| [`harness/hook_adapter.py`](#harnesshookadapter) | 72 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 38 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 117 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
@@ -29,9 +29,9 @@ Adaptador de fallback baseado em convenção de chamada explícita.
 
 *serviço* — Adaptador agnóstico para ambientes sem suporte a hooks de ciclo de vida nativos.
 
-- `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` — Cria o nó de Sessao no grafo caso ainda não exista.
+- `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` — Cria o nó de Sessao no grafo, pendurado no Setor por 'contem'.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` — Atualiza a sessão como concluída.
-- `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Registra nó Run simplificado.
+- `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Registra nó Run simplificado, pendurado na Sessao por 'produz'.
 
 ## `harness/entrada_hook.py`
 
@@ -68,7 +68,7 @@ Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE).
 
 - `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` — Emite patch de criação de Sessao e aresta 'contem' a partir do Setor.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` — Atualiza o status da sessão para concluída com anotação de resumo.
-- `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Cria nó do tipo Run e conecta à Sessao via aresta 'ocorreu_em'.
+- `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Cria nó do tipo Run, pendurado na Sessao por 'produz' e ligado a ela por 'ocorreu_em'.
 
 ## `harness/identidade_harness.py`
 

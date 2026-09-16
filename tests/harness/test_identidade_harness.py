@@ -3,7 +3,7 @@
 import pytest
 
 from graphow.core.exceptions import ErroPermissaoPapel
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.harness.hook_adapter import HookHarnessAdapter
 from graphow.harness.identidade_harness import IdentidadeHarness
 from graphow.kernel.composicao import montar_kernel_em_memoria
@@ -12,14 +12,31 @@ from graphow.kernel.write_kernel import WriteKernel
 
 
 def _criar_setor(kernel: WriteKernel, id_setor: str) -> None:
-    """Cria o Setor que hospedará as sessões registradas pelo harness."""
-    operacao = ItemPatch(
-        op=OperacaoPatch.ADD,
-        path=f"/nos/{id_setor}",
-        value={"id": id_setor, "tipo": TipoNo.SETOR.value, "rotulo": "Engenharia"},
+    """Cria o Setor, pendurado num Projeto, que hospedará as sessões registradas pelo harness."""
+    operacoes = (
+        ItemPatch(
+            op=OperacaoPatch.ADD,
+            path="/nos/proj-1",
+            value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"},
+        ),
+        ItemPatch(
+            op=OperacaoPatch.ADD,
+            path=f"/nos/{id_setor}",
+            value={"id": id_setor, "tipo": TipoNo.SETOR.value, "rotulo": "Engenharia"},
+        ),
+        ItemPatch(
+            op=OperacaoPatch.ADD,
+            path=f"/arestas/contem-proj-1-{id_setor}",
+            value={
+                "id": f"contem-proj-1-{id_setor}",
+                "origem_id": "proj-1",
+                "destino_id": id_setor,
+                "tipo": TipoAresta.CONTEM.value,
+            },
+        ),
     )
     dados = DadosPropostaPatch(
-        autor="david", papel=PapelAutor.HUMANO, operacoes=(operacao,), justificativa="setor"
+        autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="setor"
     )
     kernel.submeter_patch(PropostaPatch.criar(dados))
 
