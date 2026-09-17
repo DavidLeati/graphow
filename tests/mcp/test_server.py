@@ -107,6 +107,8 @@ def test_mcp_listar_ferramentas_nominal() -> None:
         "minhas_questoes",
         "aguardar_resposta",
         "encerrar_sessao",
+        "registrar_aprendizado",
+        "promover_aprendizado",
     }
     assert esperadas.issubset(nomes)
     assert esperadas == nomes

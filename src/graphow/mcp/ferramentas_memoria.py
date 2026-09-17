@@ -2,15 +2,25 @@
 
 Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
 prazo: é dele que o fechamento determinístico passa a abrir a vista e que o
-motor reativo pede a condensação. O harness já sabia fechar a Sessao pelo hook
-de fim; a superfície MCP não tinha como.
+motor reativo pede a condensação. Registrar um aprendizado é destilar o que
+sobrevive ao projeto, com a origem obrigatória. Promover é dar-lhe alcance, e
+isso fica com o humano.
 """
 
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from graphow.core.types import StatusSessao, TipoNo
-from graphow.mcp.construcao_operacoes import montar_operacao_definir_propriedade
+from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR
+from graphow.core.types import StatusSessao, TipoAresta, TipoNo
+from graphow.kernel.patch_models import ItemPatch
+from graphow.mcp.construcao_operacoes import (
+    EspecificacaoAresta,
+    EspecificacaoNo,
+    gerar_identificador,
+    montar_operacao_criar_aresta,
+    montar_operacao_criar_no,
+    montar_operacao_definir_propriedade,
+)
 from graphow.mcp.submissao import (
     ContextoFerramentaMCP,
     PedidoSubmissaoMCP,
@@ -19,6 +29,7 @@ from graphow.mcp.submissao import (
 )
 
 CAMPO_RESUMO: str = "resumo"
+CAMPO_ORIGENS: str = "origens"
 
 
 class FerramentasMemoria:
@@ -30,7 +41,11 @@ class FerramentasMemoria:
 
     def obter_manipuladores(self) -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]:
         """Mapeia os nomes das ferramentas de memória aos seus executores."""
-        return {"encerrar_sessao": self.encerrar_sessao}
+        return {
+            "encerrar_sessao": self.encerrar_sessao,
+            "registrar_aprendizado": self.registrar_aprendizado,
+            "promover_aprendizado": self.promover_aprendizado,
+        }
 
     def encerrar_sessao(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
         """Fecha a Sessao e devolve o fechamento que a vista dela passa a abrir."""
@@ -50,7 +65,7 @@ class FerramentasMemoria:
             resposta["fechamento"] = self._descrever_fechamento(id_sessao, ramo)
         return resposta
 
-    def _operacoes_de_encerramento(self, id_sessao: str, argumentos: Mapping[str, Any]) -> tuple[Any, ...]:
+    def _operacoes_de_encerramento(self, id_sessao: str, argumentos: Mapping[str, Any]) -> tuple[ItemPatch, ...]:
         """Status concluida e, quando declarado, o resumo de quem encerra."""
         operacoes = [montar_operacao_definir_propriedade(id_sessao, "status", StatusSessao.CONCLUIDA.value)]
         resumo = str(argumentos.get(CAMPO_RESUMO, "") or "").strip()
@@ -64,3 +79,95 @@ class FerramentasMemoria:
         if resumo is None:
             return {}
         return resumo.fechamento.em_dicionario()
+
+    def registrar_aprendizado(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
+        """Cria o Aprendizado pendurado na sessão e derivado de cada origem declarada."""
+        afirmacao = str(argumentos["afirmacao"]).strip()
+        origens = self._origens_declaradas(argumentos)
+        if not afirmacao or not origens:
+            return {
+                "sucesso": False,
+                "erro": "Um aprendizado precisa de 'afirmacao' e de ao menos uma origem em "
+                "'origens': os ids dos nos de onde ele saiu",
+            }
+        id_aprendizado = str(argumentos.get("id_aprendizado") or gerar_identificador("apr"))
+        pedido = PedidoSubmissaoMCP(
+            operacoes=self._operacoes_de_registro(id_aprendizado, argumentos, origens),
+            justificativa=f"Registro de aprendizado: {afirmacao}",
+            ramo_id=extrair_ramo(dict(argumentos)),
+            identificadores_criados={"id_aprendizado": id_aprendizado},
+        )
+        return self._submissor.submeter_e_relatar(pedido)
+
+    def _origens_declaradas(self, argumentos: Mapping[str, Any]) -> tuple[str, ...]:
+        """Ids de origem informados, sem vazios e sem repetição, na ordem declarada."""
+        brutas = argumentos.get(CAMPO_ORIGENS, [])
+        if not isinstance(brutas, (list, tuple)):
+            return ()
+        return tuple(dict.fromkeys(str(origem).strip() for origem in brutas if str(origem).strip()))
+
+    def _operacoes_de_registro(
+        self,
+        id_aprendizado: str,
+        argumentos: Mapping[str, Any],
+        origens: tuple[str, ...],
+    ) -> tuple[ItemPatch, ...]:
+        """O nó, o vínculo com a sessão e uma aresta de origem por nó de onde ele saiu."""
+        especificacao = EspecificacaoNo(
+            id=id_aprendizado,
+            tipo=TipoNo.APRENDIZADO,
+            rotulo=str(argumentos["afirmacao"]).strip(),
+            propriedades={CAMPO_COMO_APLICAR: str(argumentos.get(CAMPO_COMO_APLICAR, "") or "").strip()},
+        )
+        producao = EspecificacaoAresta(
+            id=f"prod-{id_aprendizado}",
+            origem_id=str(argumentos["id_sessao"]),
+            destino_id=id_aprendizado,
+            tipo=TipoAresta.PRODUZ,
+        )
+        cabeca = (montar_operacao_criar_no(especificacao), montar_operacao_criar_aresta(producao))
+        return cabeca + self._derivacoes(id_aprendizado, origens)
+
+    def _derivacoes(self, id_aprendizado: str, origens: tuple[str, ...]) -> tuple[ItemPatch, ...]:
+        """Uma aresta `deriva_de` por origem: é o que o InvariantGate exige no mesmo lote."""
+        return tuple(
+            montar_operacao_criar_aresta(
+                EspecificacaoAresta(
+                    id=f"deriv-{id_aprendizado}-{origem}",
+                    origem_id=id_aprendizado,
+                    destino_id=origem,
+                    tipo=TipoAresta.DERIVA_DE,
+                )
+            )
+            for origem in origens
+        )
+
+    def promover_aprendizado(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
+        """Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou a marca global."""
+        id_aprendizado = str(argumentos["id_aprendizado"])
+        id_alvo = str(argumentos.get("id_alvo", "") or "").strip()
+        eh_global = bool(argumentos.get("global", False))
+        if not id_alvo and not eh_global:
+            return {"sucesso": False, "erro": "Informe 'id_alvo' (um Projeto ou Setor) ou 'global': true"}
+        pedido = PedidoSubmissaoMCP(
+            operacoes=self._operacoes_de_promocao(id_aprendizado, id_alvo, eh_global),
+            justificativa=f"Promocao do aprendizado {id_aprendizado}",
+            ramo_id=extrair_ramo(dict(argumentos)),
+            identificadores_criados={"id_aprendizado": id_aprendizado},
+        )
+        return self._submissor.submeter_e_relatar(pedido)
+
+    def _operacoes_de_promocao(self, id_aprendizado: str, id_alvo: str, eh_global: bool) -> tuple[ItemPatch, ...]:
+        """A marca global como propriedade e o alcance por contêiner como aresta."""
+        operacoes: list[ItemPatch] = []
+        if eh_global:
+            operacoes.append(montar_operacao_definir_propriedade(id_aprendizado, CAMPO_ALCANCE, ALCANCE_GLOBAL))
+        if id_alvo:
+            alcance = EspecificacaoAresta(
+                id=f"vale-{id_aprendizado}-{id_alvo}",
+                origem_id=id_aprendizado,
+                destino_id=id_alvo,
+                tipo=TipoAresta.VALE_PARA,
+            )
+            operacoes.append(montar_operacao_criar_aresta(alcance))
+        return tuple(operacoes)

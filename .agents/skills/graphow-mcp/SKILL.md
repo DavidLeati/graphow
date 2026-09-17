@@ -20,18 +20,21 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 - `planejador`: cria `Task`, `Decision`, `Question`, `Note`. Não conclui tarefa.
 - `executor`: cria `Artifact`, `Evidence`, `Decision`, `Question`, `Note` e move o status da tarefa que detém. É o único papel de agente que grava `concluido`.
 - `revisor`: cria `Evidence`, `Question`, `Note` e registra o que auditou. Não produz artefato executivo nem conclui tarefa.
+- Executor e revisor também registram `Aprendizado`, porque são os donos de `deriva_de`, a origem que ele exige.
 
 **4. As arestas também têm dono.** `contem`, `escopa` e a remoção de `bloqueia` são exclusivas do humano. `decompoe`, `depende_de` e `substitui`: planejador e humano. `deriva_de`, `justifica` e `contradiz`: executor, revisor e humano. `produz` e a criação de `bloqueia` ficam abertas a qualquer papel. A matriz completa, com a coluna de remoção e o que muda sob autonomia ilimitada, está em [ontology_matrix.md](./references/ontology_matrix.md).
 
 **5. Invariantes estruturais.** Todo nó novo, exceto `Projeto`, nasce pendurado na hierarquia: o mesmo lote que o cria traz a aresta de contenção que chega nele — `produz` vinda da `Sessao` para nós de trabalho, `decompoe` vinda de um `Goal` ou `Task` para subtarefas. `deriva_de` não conta. Sem isso o lote inteiro é recusado com `no_fora_da_hierarquia`, inclusive para o humano. As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`.
 
-**6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto`, `excluir_em_lote` e `encerrar_sessao` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: mover uma `Question` para `respondida` ou `descartada`, remover uma `Question`, remover uma aresta `bloqueia`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
+**6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto`, `excluir_em_lote`, `encerrar_sessao` e `promover_aprendizado` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: mover uma `Question` para `respondida` ou `descartada`, remover uma `Question`, remover uma aresta `bloqueia`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
 
 **7. Posse antes de status.** Chame `assumir_tarefa` antes de mexer no status de uma `Task`; o kernel recusa a escrita de quem não é dono e devolve o nome de quem é. Se parar no meio, `liberar_tarefa`, para não travar a fila dos outros.
 
 **8. Ambiguidade vira questão, não chute.** Especificação vaga, dependência faltando, contrato em conflito: `abrir_questao` suspende a tarefa e chama o humano.
 
-## As 20 ferramentas do servidor
+**9. Memória diz de onde veio.** Um `Aprendizado` nasce com `deriva_de` no mesmo lote para cada nó de onde saiu; sem isso o lote cai com `aprendizado_sem_origem`. Registrar é do executor e do revisor, os donos de `deriva_de` (`registrar_aprendizado`); promover, isto é, dar alcance por `vale_para` ou pela marca `alcance: global`, é do humano (`promover_aprendizado`), e um agente que escrevesse `alcance` é recusado. Os aprendizados promovidos chegam à sua vista na seção `Aprendizados Aplicaveis`, cada um com a origem e as marcas `SUBSTITUIDO` e `CONTRADITO`: siga os vigentes e não reabra o que já foi decidido.
+
+## As 22 ferramentas do servidor
 
 ### Leitura
 
@@ -64,6 +67,8 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |
 | `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Muda a permissividade dos agentes no projeto. |
 | `encerrar_sessao` | `id_sessao`, `resumo` *(só humano)* | Encerra a Sessao: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo fechamento, e `ler_vista` numa sessão encerrada é o jeito barato de retomá-la. |
+| `registrar_aprendizado` | `afirmacao`, `como_aplicar`, `id_sessao`, `origens` | Cria o Aprendizado pendurado na sessão e ligado por `deriva_de` a cada id de `origens`. Sem origem, `aprendizado_sem_origem`. |
+| `promover_aprendizado` | `id_aprendizado`, `id_alvo` ou `global` *(só humano)* | Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou `alcance: global`. É o que o faz chegar à vista das tarefas sob esse alcance. |
 | `excluir_em_lote` | `ids_nos`, `ids_arestas`, `justificativa` *(só humano)* | Remove atomicamente uma coleção de nós e arestas. |
 | `excluir_projeto` | `id_projeto`, `cascata` (true) *(só humano)* | Remove o projeto e, em cascata, setores, sessões e tarefas. |
 | `propor_patch` | `operacoes` (RFC 6902), `justificativa`, `ramo_id` | Submete um lote atômico livre aos 4 portões. |

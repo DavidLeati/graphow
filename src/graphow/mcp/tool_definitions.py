@@ -254,6 +254,33 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "registrar_aprendizado",
+        "description": "Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "afirmacao": {"type": "string", "description": "A licao em uma linha: e o rotulo do no."},
+                "como_aplicar": {"type": "string", "default": "", "description": "O que fazer com isto na proxima vez."},
+                "id_sessao": {"type": "string", "description": "ID da Sessao que destilou o aprendizado."},
+                "origens": {"type": "array", "items": {"type": "string"}, "description": "IDs das Evidence, Decision, Note, Artifact ou Task de onde o aprendizado saiu. Ao menos um."},
+            },
+            "required": ["afirmacao", "id_sessao", "origens"],
+        },
+    },
+    {
+        "name": "promover_aprendizado",
+        "description": "Da alcance a um Aprendizado: aresta vale_para um Projeto ou Setor, ou a marca 'alcance: global' para valer em todo projeto. A partir dai ele entra na secao Aprendizados Aplicaveis da vista de qualquer tarefa sob esse alcance. Somente sessao humana.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id_aprendizado": {"type": "string", "description": "ID do Aprendizado a promover."},
+                "id_alvo": {"type": "string", "description": "ID do Projeto ou Setor onde o aprendizado passa a valer."},
+                "global": {"type": "boolean", "default": False, "description": "Vale para todo projeto, sem conteiner ficticio na hierarquia."},
+            },
+            "required": ["id_aprendizado"],
+        },
+    },
+    {
         "name": "excluir_projeto",
         "description": "Remove um projeto e opcionalmente todos os seus setores, sessões e nós em cascata.",
         "inputSchema": {

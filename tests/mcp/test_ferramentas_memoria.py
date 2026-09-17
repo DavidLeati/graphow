@@ -98,3 +98,83 @@ def test_encerrar_sessao_inexistente_e_recusa_explicada_edge_case() -> None:
 
     assert resposta["sucesso"] is False
     assert "nao existe" in resposta["erro"]
+
+
+def test_agente_registra_aprendizado_com_origens_nominal() -> None:
+    """Registrar é de todo papel: o nó nasce pendurado na sessão e derivado de cada origem."""
+    servidor, kernel = _servidor("executor")
+
+    resposta = servidor.executar_ferramenta(
+        "registrar_aprendizado",
+        {
+            "afirmacao": "Lote sem contencao e recusado inteiro",
+            "como_aplicar": "Traga o produz no mesmo lote",
+            "id_sessao": "sess",
+            "origens": ["dec-1", "art-1"],
+        },
+    )
+
+    assert resposta["sucesso"] is True, resposta
+    view = kernel.obter_view()
+    aprendizado = view.obter_no(resposta["id_aprendizado"])
+    assert aprendizado.tipo == TipoNo.APRENDIZADO
+    assert aprendizado.obter_propriedade("como_aplicar") == "Traga o produz no mesmo lote"
+    destinos = {aresta.destino_id for aresta in view.obter_arestas_saida(aprendizado.id, TipoAresta.DERIVA_DE)}
+    assert destinos == {"dec-1", "art-1"}
+
+
+def test_registrar_sem_origem_e_recusa_explicada_edge_case() -> None:
+    """Caso de borda: a ferramenta explica o que falta antes de o portão recusar."""
+    servidor, _ = _servidor("executor")
+
+    resposta = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Sem origem", "id_sessao": "sess", "origens": []}
+    )
+
+    assert resposta["sucesso"] is False
+    assert "origens" in resposta["erro"]
+
+
+def test_agente_nao_promove_aprendizado_edge_case() -> None:
+    """Caso de borda: dar alcance é decisão humana, por qualquer superfície."""
+    servidor, _ = _servidor("executor")
+    registro = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Licao", "id_sessao": "sess", "origens": ["dec-1"]}
+    )
+
+    resposta = servidor.executar_ferramenta(
+        "promover_aprendizado", {"id_aprendizado": registro["id_aprendizado"], "id_alvo": "proj"}
+    )
+
+    assert resposta["sucesso"] is False
+    assert "exige uma sessao humana" in resposta["erro"]
+
+
+def test_humano_promove_por_conteiner_e_por_marca_global_nominal() -> None:
+    """A promoção tem duas formas: o alcance por contêiner e a marca global."""
+    servidor, kernel = _servidor("humano")
+    registro = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Licao", "id_sessao": "sess", "origens": ["dec-1"]}
+    )
+    id_aprendizado = registro["id_aprendizado"]
+
+    por_conteiner = servidor.executar_ferramenta(
+        "promover_aprendizado", {"id_aprendizado": id_aprendizado, "id_alvo": "setor"}
+    )
+    global_ = servidor.executar_ferramenta("promover_aprendizado", {"id_aprendizado": id_aprendizado, "global": True})
+
+    assert por_conteiner["sucesso"] is True, por_conteiner
+    assert global_["sucesso"] is True, global_
+    view = kernel.obter_view()
+    assert view.obter_arestas_saida(id_aprendizado, TipoAresta.VALE_PARA)[0].destino_id == "setor"
+    assert view.obter_no(id_aprendizado).obter_propriedade("alcance") == "global"
+
+
+def test_promover_sem_alvo_nem_global_e_recusa_explicada_edge_case() -> None:
+    """Caso de borda: promover para lugar nenhum não é promover."""
+    servidor, _ = _servidor("humano")
+
+    resposta = servidor.executar_ferramenta("promover_aprendizado", {"id_aprendizado": "apr-x"})
+
+    assert resposta["sucesso"] is False
+    assert "id_alvo" in resposta["erro"]
