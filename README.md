@@ -461,11 +461,47 @@ nos três processos que escrevem no log: web, MCP e harness.
 
 ---
 
+## 🧠 Memória em Camadas
+
+O grafo já era memória de curto prazo: a vista sob orçamento, o rollup, o escopo
+ativo e a escada de corte entregam o que está perto do alvo. O que não existia
+era consolidação: nada era condensado, e conhecimento antigo só voltava por
+descida na hierarquia ou por busca textual. A consolidação tem três degraus,
+montados com as peças que já existiam, e cada degrau tem número em
+`graphow avaliar`:
+
+| Camada | O que é | Como nasce | Como chega ao agente |
+| :--- | :--- | :--- | :--- |
+| **Curto prazo** | A sessão viva: alvo, restrições, bloqueios, decisões, vizinhança | O trabalho de sempre | `ler_vista` sob orçamento |
+| **Médio prazo** | O fechamento da sessão encerrada: decisões vigentes, dúvidas abertas, restrições, último artefato, e a condensação em prosa | O fechamento é projeção do log, recalculada a cada commit no rollup. A prosa é uma `Note` escrita por um agente a partir da `Task` de condensação que o próprio grafo abre quando a sessão encerra | `ler_vista` numa sessão encerrada abre pelo fechamento; o panorama do Setor mostra o fechamento de cada sessão |
+| **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção pelo humano com `promover_aprendizado` | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico |
+
+Três princípios seguram o desenho. Nada derivado é gravado quando pode ser
+projetado: o fechamento é uma dobra do estado, e uma sessão reaberta atualiza
+sozinha. Memória diz de onde veio: um `Aprendizado` sem `deriva_de` no mesmo
+lote é recusado no portão, como um nó sem aresta de contenção. E memória que
+cai primeiro sob pressão de orçamento não é memória: a seção de aprendizados e
+o fechamento retêm como `MEMORIA`, e só saem da vista no degrau em que a
+navegação também sai.
+
+Esquecer é marcar, nunca apagar: `substitui` entre aprendizados deixa o antigo
+visível com `SUBSTITUIDO`, `contradiz` de uma `Evidence` nova o marca com
+`CONTRADITO`, `valido_ate` tira o vencido da vista, e remover é do humano. O
+índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
+nulo: sem configurar, não custa nada e não traz dependência.
+
+---
+
 ## 📊 Métrica Número Um: Tokens por Tarefa Bem-Sucedida
 
 `graphow avaliar` mede essa métrica sobre um
 corpus de **dez tarefas gravadas** (`src/graphow/avaliacao/`), comparando o
-recorte do grafo com o despejo integral do subgrafo da sessão:
+recorte do grafo com o despejo integral do subgrafo da sessão, e acrescenta os
+dois braços da memória: **retomar uma sessão encerrada** (a abertura da vista
+pelo fechamento e pela condensação contra expandir cada `Decision` e `Evidence`
+uma a uma) e **entre projetos** (um aprendizado do primeiro projeto chega à
+tarefa do segundo, e a que custo, contra despejar o primeiro projeto ou buscar
+às cegas):
 
 ```bash
 graphow avaliar
