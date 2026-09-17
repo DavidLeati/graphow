@@ -63,7 +63,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `contradiz` | `Evidence` → `Decision` / `Evidence` | Aponta divergência ou refutação empírica. |
 | `substitui` | `Decision` → `Decision`, `Task` → `Task` | Substituição evolutiva de definição anterior. |
 | `escopa` | `Constraint` → `Goal` / `Task` | Aplicação de restrição obrigatória. |
-| `deriva_de` | `Artifact` / `Note` → `Task` / `Artifact` / `Decision` | Proveniência de artefatos gerados e de notas reativas. |
+| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact` | Proveniência de artefatos gerados, de notas reativas e da condensação de uma sessão. |
 
 ### 3.1 Dono de Cada Aresta
 

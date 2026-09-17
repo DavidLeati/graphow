@@ -69,12 +69,16 @@ class SchemaGate:
             (TipoNo.CONSTRAINT, TipoNo.TASK),
         }),
         # Note -> Task/Decision existe para que a nota reativa aponte para algo:
-        # sem esse par ela nascia órfã e nenhum agente a encontrava.
+        # sem esse par ela nascia órfã e nenhum agente a encontrava. Note ->
+        # Evidence/Artifact existe para a condensação de uma sessão apontar para
+        # o achado e para a entrega que ela resume.
         TipoAresta.DERIVA_DE: frozenset({
             (TipoNo.ARTIFACT, TipoNo.TASK),
             (TipoNo.ARTIFACT, TipoNo.ARTIFACT),
             (TipoNo.NOTE, TipoNo.TASK),
             (TipoNo.NOTE, TipoNo.DECISION),
+            (TipoNo.NOTE, TipoNo.EVIDENCE),
+            (TipoNo.NOTE, TipoNo.ARTIFACT),
         }),
     }
 

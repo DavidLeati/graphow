@@ -35,7 +35,7 @@ Camada de trabalho:
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | só humano |
 | `justifica` | `Evidence`→`Decision` | humano, executor, revisor | humano, executor, revisor |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence` | humano, executor, revisor | humano, executor, revisor |
-| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Note`→`Task`, `Note`→`Decision` | humano, executor, revisor | humano, executor, revisor |
+| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact` | humano, executor, revisor | humano, executor, revisor |
 | `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | só humano | só humano |
 
 Num Projeto marcado com `nivel_autonomia: ilimitado`, a criação se amplia para todas as arestas menos `escopa`, e para todos os tipos de nó menos `Constraint`. A remoção nunca se amplia: retirar um `bloqueia` exige sessão humana em qualquer projeto.

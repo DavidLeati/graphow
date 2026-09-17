@@ -92,7 +92,7 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` | humano, executor, revisor | Registro de evidência conflitante. |
 | **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task` | humano, planejador | Evolução e invalidação histórica. |
 | **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
-| **`deriva_de`** | `Artifact`/`Note` $\rightarrow$ `Task` / `Artifact` / `Decision` | humano, executor, revisor | Proveniência de artefatos e de notas reativas. |
+| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact` | humano, executor, revisor | Proveniência de artefatos, de notas reativas e da condensação de uma sessão. |
 
 ---
 
