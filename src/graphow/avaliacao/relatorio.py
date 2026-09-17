@@ -9,12 +9,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from graphow.avaliacao.medicao import MedicaoDaTarefa
+from graphow.avaliacao.retomada import MedicaoDeRetomada
 from graphow.context.token_counter import ContadorTokens
 
 LIMITES_DECLARADOS: tuple[str, ...] = (
     "O braco 'sem grafo' e o despejo do subgrafo da sessao, nao a saida de outro produto.",
     "Taxa de patch rejeitado por rodada exige um agente real e nao esta medida aqui.",
     "A contagem de tokens usa o estimador calibrado do proprio Graphow, nao um tokenizador oficial.",
+    "A condensacao do braco de retomada e texto gravado; a taxa de acerto de uma condensacao "
+    "escrita por agente exige um agente real e fica fora da medicao.",
 )
 
 
@@ -25,11 +28,21 @@ class RelatorioDeAvaliacao:
     medicoes: tuple[MedicaoDaTarefa, ...]
     calibracao: str
     limites: tuple[str, ...] = LIMITES_DECLARADOS
+    retomada: MedicaoDeRetomada | None = None
 
     @classmethod
-    def a_partir_de(cls, medicoes: Sequence[MedicaoDaTarefa]) -> "RelatorioDeAvaliacao":
+    def a_partir_de(
+        cls,
+        medicoes: Sequence[MedicaoDaTarefa],
+        *,
+        retomada: MedicaoDeRetomada | None = None,
+    ) -> "RelatorioDeAvaliacao":
         """Monta o relatório registrando com que régua os tokens foram medidos."""
-        return cls(medicoes=tuple(medicoes), calibracao=ContadorTokens.calibracao_em_uso())
+        return cls(
+            medicoes=tuple(medicoes),
+            calibracao=ContadorTokens.calibracao_em_uso(),
+            retomada=retomada,
+        )
 
     @property
     def bem_sucedidas(self) -> tuple[MedicaoDaTarefa, ...]:
@@ -62,7 +75,23 @@ class RelatorioDeAvaliacao:
 
     def formatar(self) -> tuple[str, ...]:
         """Linhas legíveis do relatório, prontas para o console."""
-        return self._cabecalho() + self._linhas_de_tarefas() + self._rodape()
+        return self._cabecalho() + self._linhas_de_tarefas() + self._linhas_de_retomada() + self._rodape()
+
+    def _linhas_de_retomada(self) -> tuple[str, ...]:
+        """O braço de retomada: a vista da sessão encerrada contra a leitura nó a nó."""
+        if self.retomada is None:
+            return ()
+        medicao = self.retomada
+        cobertura = "completa" if medicao.cobertura_completa else "incompleta"
+        return (
+            "",
+            "=== RETOMADA DE SESSAO ENCERRADA ===",
+            f"Sessao: {medicao.id_sessao}",
+            f"Pela vista (fechamento + condensacao): {medicao.tokens_pela_vista} tokens",
+            f"No a no ({medicao.nos_lidos_um_a_um} Decision/Evidence por expandir_no): {medicao.tokens_no_a_no} tokens",
+            f"Reducao: {medicao.reducao * 100:.1f}% | decisoes vigentes entregues: "
+            f"{medicao.decisoes_entregues}/{medicao.decisoes_vigentes} | cobertura {cobertura}",
+        )
 
     def _cabecalho(self) -> tuple[str, ...]:
         """Resumo das médias de tokens por tarefa bem-sucedida."""

@@ -10,14 +10,16 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-5 módulos · 765 linhas · 10 classes
+7 módulos · 1044 linhas · 12 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`avaliacao/__init__.py`](#avaliacaoinit) | 30 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
+| [`avaliacao/__init__.py`](#avaliacaoinit) | 41 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
+| [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
-| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 94 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 123 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
 ## `avaliacao/__init__.py`
@@ -26,7 +28,25 @@ Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus grav
 
 ### Funções do módulo
 
-- `executar_avaliacao() -> RelatorioDeAvaliacao` — Monta o cenário gravado, mede as dez tarefas e consolida o relatório.
+- `executar_avaliacao() -> RelatorioDeAvaliacao` — Monta os cenários gravados, mede os braços e consolida o relatório.
+
+## `avaliacao/cenario_memoria.py`
+
+Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ID_NOTA_DE_CONDENSACAO` | `str` | `'nota-condensacao-sess-avaliacao'` |
+| `AUTOR_HUMANO` | `str` | `'david'` |
+| `AUTOR_REVISOR` | `str` | `'agente-revisor'` |
+| `RESUMO_DECLARADO` | `str` | `'Nove das dez tarefas do kernel fechadas; o ciclo de vida pelos hooks f…` |
+| `CORPO_DA_CONDENSACAO` | `str` | `'Decisoes vigentes: o item de patch e um dataclass frozen, porque o lot…` |
+
+### Funções do módulo
+
+- `montar_cenario_com_memoria() -> WriteKernel` — O cenário gravado, mais a sessão encerrada e a condensação escrita pelo revisor.
+- `estender_com_memoria(kernel: WriteKernel) -> WriteKernel` — Encerra a sessão do corpus e grava a condensação que um revisor escreveria.
+- `ids_de_conhecimento_do_corpus() -> tuple[str, ...]` — As decisões e evidências que o corpus gravou, na ordem das tarefas.
 
 ## `avaliacao/escala.py`
 
@@ -105,7 +125,7 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 
 *DTO imutável* — Consolidação das medições, com as médias de tokens por tarefa bem-sucedida.
 
-**Campos:** `medicoes: tuple[MedicaoDaTarefa, ...]`, `calibracao: str`, `limites: tuple[str, ...]`
+**Campos:** `medicoes: tuple[MedicaoDaTarefa, ...]`, `calibracao: str`, `limites: tuple[str, ...]`, `retomada: MedicaoDeRetomada | None`
 
 - `a_partir_de(medicoes: Sequence[MedicaoDaTarefa]) -> 'RelatorioDeAvaliacao'` — Monta o relatório registrando com que régua os tokens foram medidos.
 - `bem_sucedidas() -> tuple[MedicaoDaTarefa, ...]` `[property]` — Somente as tarefas concluídas entram na métrica número um.
@@ -114,6 +134,31 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 - `intervencoes_por_tarefa() -> float` `[property]` — Média de respostas humanas exigidas por tarefa concluída.
 - `reducao_media() -> float` `[property]` — Fração média de contexto poupada nas tarefas concluídas.
 - `formatar() -> tuple[str, ...]` — Linhas legíveis do relatório, prontas para o console.
+
+## `avaliacao/retomada.py`
+
+Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ORCAMENTO_DA_RETOMADA` | `int` | `1500` |
+| `PAPEL_DA_MEDICAO` | `PapelAutor` | `PapelAutor.PLANEJADOR` |
+| `TIPOS_DE_CONHECIMENTO` | `frozenset[TipoNo]` | `frozenset({TipoNo.DECISION, TipoNo.EVIDENCE})` |
+
+### `MedicaoDeRetomada`
+
+*DTO imutável* — Custo de retomar uma sessão encerrada, pela abertura da vista e nó a nó.
+
+**Campos:** `id_sessao: str`, `tokens_pela_vista: int`, `tokens_no_a_no: int`, `nos_lidos_um_a_um: int`, `decisoes_vigentes: int`, `decisoes_entregues: int`, `condensacao_entregue: bool`
+
+- `reducao() -> float` `[property]` — Fração do contexto poupada pela abertura da vista, entre 0 e 1.
+- `cobertura_completa() -> bool` `[property]` — A abertura só vale o que economiza se entregar toda decisão vigente e a condensação.
+
+### `MedidorDeRetomada`
+
+*serviço* — Compara a abertura da vista da sessão encerrada com a leitura nó a nó.
+
+- `medir(id_sessao: str, orcamento: int) -> MedicaoDeRetomada` — Mede os dois braços sobre a mesma projeção.
 
 ## `avaliacao/tarefas_gravadas.py`
 
