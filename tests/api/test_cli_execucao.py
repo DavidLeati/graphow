@@ -188,6 +188,59 @@ def test_fim_pelo_harness_abre_a_tarefa_de_condensacao_no_banco_nominal(tmp_path
     assert len(condensacoes) == 1
 
 
+def _registrar_aprendizado_promovido_no_banco(diretorio_dados: Path) -> None:
+    """Um aprendizado com origem e alcance no banco resolvido, para o acervo ter o que projetar."""
+    from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+    from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
+    from graphow.kernel.write_kernel import WriteKernel
+
+    def no(id_no: str, tipo: TipoNo) -> ItemPatch:
+        return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": id_no})
+
+    def aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+        id_aresta = f"{tipo.value}-{origem}-{destino}"
+        return ItemPatch(
+            op=OperacaoPatch.ADD,
+            path=f"/arestas/{id_aresta}",
+            value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value},
+        )
+
+    operacoes = [
+        no("dec-1", TipoNo.DECISION),
+        aresta("sess-1", "dec-1", TipoAresta.PRODUZ),
+        no("apr-1", TipoNo.APRENDIZADO),
+        aresta("sess-1", "apr-1", TipoAresta.PRODUZ),
+        aresta("apr-1", "dec-1", TipoAresta.DERIVA_DE),
+        aresta("apr-1", "proj-1", TipoAresta.VALE_PARA),
+    ]
+    with SQLiteEventStore(str(diretorio_dados / "graphow" / "graphow.db")) as store:
+        recibo = WriteKernel(store).submeter_patch(
+            PropostaPatch.criar(DadosPropostaPatch("david", PapelAutor.HUMANO, operacoes))
+        )
+    assert recibo.sucesso, recibo.mensagem
+
+
+def test_notas_gerar_publica_o_acervo_e_confere_a_deriva_nominal(tmp_path: Path) -> None:
+    """O acervo é projeção: gerado do grafo, conferido contra ele, e a edição à mão é deriva."""
+    _criar_sessao_no_banco(tmp_path)
+    _registrar_aprendizado_promovido_no_banco(tmp_path)
+    destino = tmp_path / "acervo"
+
+    codigo, console = _executar(["notas-gerar", "--destino", str(destino)], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("2 notas geradas" in linha for linha in console.linhas)
+    assert (destino / "apr-1.md").is_file()
+    assert (destino / "INDEX.md").is_file()
+    assert _executar(["notas-gerar", "--destino", str(destino), "--conferir"], tmp_path)[0] == CODIGO_SUCESSO
+
+    (destino / "apr-1.md").write_text("editado a mao", encoding="utf-8")
+
+    codigo_deriva, console_deriva = _executar(["notas-gerar", "--destino", str(destino), "--conferir"], tmp_path)
+    assert codigo_deriva == 1
+    assert any("apr-1.md" in linha for linha in console_deriva.linhas)
+
+
 def _popular(store: SQLiteEventStore) -> None:
     """Grava três eventos mínimos no repositório informado."""
     from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento

@@ -266,8 +266,14 @@ graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 graphow avaliar
 
 # Medir a escala do grafo que está no banco: peso do canvas por recorte,
-# custo de navegar e custo de buscar
+# custo de navegar, custo de buscar e o custo do rollup com o fechamento
 graphow medir-escala
+
+# Projetar os aprendizados promovidos num diretório de notas em Markdown
+graphow notas-gerar --destino notas
+
+# Só conferir se o acervo está em dia com o grafo (sai com código 1 se não estiver)
+graphow notas-gerar --destino notas --conferir
 ```
 
 ### 2. Uso Programático em Python
@@ -489,6 +495,15 @@ visível com `SUBSTITUIDO`, `contradiz` de uma `Evidence` nova o marca com
 `CONTRADITO`, `valido_ate` tira o vencido da vista, e remover é do humano. O
 índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
 nulo: sem configurar, não custa nada e não traz dependência.
+
+**O acervo de notas é projeção.** `graphow notas-gerar` renderiza um diretório
+de notas em Markdown a partir dos aprendizados promovidos, uma nota por
+aprendizado, no formato *afirmação, como se sabe, como aplicar*: a origem é
+derivada das arestas `deriva_de`, com o identificador e a posição no log de
+cada nó citado, e os links entre notas saem de `substitui` e `contradiz`. O
+grafo é a fonte; o acervo é leitura, regenerável do zero, e `--conferir` acusa
+qualquer nota escrita à mão. O hook de fim de sessão do ambiente escreve no
+grafo pelo harness, e é dali que o motor reativo pede a condensação.
 
 ---
 

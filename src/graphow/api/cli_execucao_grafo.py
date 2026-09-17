@@ -3,6 +3,7 @@
 import argparse
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 import sys
 
 from graphow.api.cli import GraphowCLI
@@ -42,6 +43,7 @@ class ManipuladorComandosGrafo:
             "task-list": self._executar_task_list,
             "print": self._executar_print,
             "medir-escala": self._executar_medir_escala,
+            "notas-gerar": self._executar_notas_gerar,
             "web": self._executar_web,
             "mcp": self._executar_mcp,
             "harness": self._executar_harness,
@@ -90,6 +92,34 @@ class ManipuladorComandosGrafo:
         for linha in medir_escala(self._kernel).formatar():
             self._console.escrever_linha(linha)
         return CODIGO_SUCESSO
+
+    def _executar_notas_gerar(self, argumentos: argparse.Namespace) -> int:
+        """Projeta os aprendizados promovidos num diretorio de notas, ou confere a deriva.
+
+        Mesmo principio de `docs-gerar`: o grafo e a fonte, o acervo e leitura
+        regeneravel do zero, e uma nota escrita a mao no diretorio e deriva.
+        """
+        from graphow.notas import MontadorAcervoDeNotas
+
+        destino = Path(argumentos.destino)
+        montador = MontadorAcervoDeNotas(self._kernel.obter_view(argumentos.ramo), destino)
+        if argumentos.conferir:
+            return self._conferir_acervo(montador.conferir())
+        resultado = montador.publicar()
+        self._console.escrever_linha(f"{resultado.documentos_escritos} notas geradas em {destino.resolve()}")
+        for removido in resultado.documentos_removidos:
+            self._console.escrever_linha(f"Removida (aprendizado sem promocao ou nota escrita a mao): {removido}")
+        return CODIGO_SUCESSO
+
+    def _conferir_acervo(self, deriva: tuple[str, ...]) -> int:
+        """Relata o que diverge do grafo, sem gravar nada."""
+        if not deriva:
+            self._console.escrever_linha("Acervo em dia com o grafo.")
+            return CODIGO_SUCESSO
+        self._console.escrever_linha("Acervo desatualizado. Rode 'graphow notas-gerar':")
+        for caminho in deriva:
+            self._console.escrever_linha(f"  {caminho}")
+        return CODIGO_FALHA_DOMINIO
 
     def _executar_web(self, argumentos: argparse.Namespace) -> int:
         """Inicia o servidor web bloqueante da interface visual."""
