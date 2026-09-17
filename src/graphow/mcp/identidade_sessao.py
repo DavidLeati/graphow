@@ -17,12 +17,17 @@ PAPEIS_VALIDOS_EM_SESSAO: frozenset[PapelAutor] = frozenset(
 # Ferramentas cujo efeito anula uma garantia de governança se um agente as executar:
 # responder_questao encerra a escalação ao humano; configurar_autonomia_projeto
 # desliga o RoleGate do ramo; as exclusões apagam trabalho em cascata.
+# Encerrar a sessao e promover um aprendizado sao restritas por outro motivo:
+# encerrar e o gesto de quem abriu a sessao (o humano, ou o harness pelo hook de
+# fim), e promover e o que da a um aprendizado alcance sobre projetos inteiros.
 FERRAMENTAS_EXCLUSIVAS_DO_HUMANO: frozenset[str] = frozenset(
     {
         "responder_questao",
         "configurar_autonomia_projeto",
         "excluir_projeto",
         "excluir_em_lote",
+        "encerrar_sessao",
+        "promover_aprendizado",
     }
 )
 

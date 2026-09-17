@@ -125,7 +125,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 ## 🔌 Superfície de Ferramentas MCP (Model Context Protocol)
 
-O `GraphowMCPServer` expõe 19 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
+O `GraphowMCPServer` expõe 20 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
 
 | Ferramenta | Descrição |
 | :--- | :--- |
@@ -146,14 +146,17 @@ O `GraphowMCPServer` expõe 19 ferramentas para consumo por agentes de IA. O **p
 | **`concluir_tarefa`** | Transiciona a `Task` para `concluido`, se nenhuma `Question` aberta a bloquear. |
 | **`responder_questao`** | Registra a resposta e destrava a `Task`. **Somente sessão humana.** |
 | **`configurar_autonomia_projeto`** | Ajusta a autonomia dos agentes no projeto. **Somente sessão humana.** |
+| **`encerrar_sessao`** | Encerra a `Sessao`: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo **fechamento determinístico** (decisões vigentes, dúvidas abertas, restrições, último artefato). **Somente sessão humana**; o harness encerra pelo hook de fim. |
 | **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. **Somente sessão humana.** |
 | **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. **Somente sessão humana.** |
 
-As quatro ferramentas restritas são as que anulariam uma garantia se um agente as
+Quatro das ferramentas restritas são as que anulariam uma garantia se um agente as
 executasse: `responder_questao` encerra a escalação ao humano e as demais desligam
-governança ou apagam trabalho em cascata. A recusa por nome de ferramenta é a
-primeira camada, não a única: o `RoleGate` impõe as mesmas garantias contra
-qualquer caminho, inclusive um `propor_patch` cru.
+governança ou apagam trabalho em cascata. `encerrar_sessao` é restrita por outro
+motivo: encerrar é o gesto de quem abriu a sessão, o humano ou o harness, e é ele
+que dispara a condensação. A recusa por nome de ferramenta é a primeira camada,
+não a única: o `RoleGate` impõe as mesmas garantias contra qualquer caminho,
+inclusive um `propor_patch` cru.
 
 ### O ciclo de um agente autônomo
 

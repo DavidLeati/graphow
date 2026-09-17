@@ -242,6 +242,18 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "encerrar_sessao",
+        "description": "Encerra uma Sessao: grava status 'concluida' e o resumo opcional. A partir dai a vista da sessao abre pelo fechamento deterministico (decisoes vigentes, duvidas abertas, restricoes, ultimo artefato) e o motor reativo abre a Task de condensacao. Somente sessao humana; o harness encerra pelo hook de fim.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id_sessao": {"type": "string", "description": "ID da Sessao a encerrar."},
+                "resumo": {"type": "string", "default": "", "description": "Resumo declarado por quem encerra, guardado na propriedade 'resumo'."},
+            },
+            "required": ["id_sessao"],
+        },
+    },
+    {
         "name": "excluir_projeto",
         "description": "Remove um projeto e opcionalmente todos os seus setores, sessões e nós em cascata.",
         "inputSchema": {

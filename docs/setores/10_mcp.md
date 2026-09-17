@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-15 módulos · 1778 linhas · 25 classes
+16 módulos · 1863 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,15 +19,16 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_escalacao.py`](#mcpferramentasescalacao) | 153 | Ferramentas MCP do caminho de volta: da resposta humana até o agente. |
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 127 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
+| [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 66 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 92 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 221 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 102 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
-| [`mcp/server.py`](#mcpserver) | 112 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 107 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 169 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 85 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 256 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 268 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -150,6 +151,21 @@ Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais.
 - `ler_vista(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Materializa o subgrafo focal usando a política do papel da sessão.
 - `expandir_no(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Devolve a ficha completa de um nó específico e suas arestas incidentes.
 - `buscar(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Pesquisa textual ranqueada, cortada no limite e sempre com o total.
+
+## `mcp/ferramentas_memoria.py`
+
+Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_RESUMO` | `str` | `'resumo'` |
+
+### `FerramentasMemoria`
+
+*serviço* — Operações que movem conhecimento entre as camadas de memória do grafo.
+
+- `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de memória aos seus executores.
+- `encerrar_sessao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Fecha a Sessao e devolve o fechamento que a vista dela passa a abrir.
 
 ## `mcp/ferramentas_navegacao.py`
 

@@ -25,13 +25,13 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 **5. Invariantes estruturais.** Todo nó novo, exceto `Projeto`, nasce pendurado na hierarquia: o mesmo lote que o cria traz a aresta de contenção que chega nele — `produz` vinda da `Sessao` para nós de trabalho, `decompoe` vinda de um `Goal` ou `Task` para subtarefas. `deriva_de` não conta. Sem isso o lote inteiro é recusado com `no_fora_da_hierarquia`, inclusive para o humano. As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`.
 
-**6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto` e `excluir_em_lote` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: mover uma `Question` para `respondida` ou `descartada`, remover uma `Question`, remover uma aresta `bloqueia`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
+**6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto`, `excluir_em_lote` e `encerrar_sessao` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: mover uma `Question` para `respondida` ou `descartada`, remover uma `Question`, remover uma aresta `bloqueia`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
 
 **7. Posse antes de status.** Chame `assumir_tarefa` antes de mexer no status de uma `Task`; o kernel recusa a escrita de quem não é dono e devolve o nome de quem é. Se parar no meio, `liberar_tarefa`, para não travar a fila dos outros.
 
 **8. Ambiguidade vira questão, não chute.** Especificação vaga, dependência faltando, contrato em conflito: `abrir_questao` suspende a tarefa e chama o humano.
 
-## As 19 ferramentas do servidor
+## As 20 ferramentas do servidor
 
 ### Leitura
 
@@ -63,6 +63,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 | `responder_questao` | `id_questao`, `resposta` *(só humano)* | Registra a resposta, move a Question para `respondida` e destrava a Task. |
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |
 | `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Muda a permissividade dos agentes no projeto. |
+| `encerrar_sessao` | `id_sessao`, `resumo` *(só humano)* | Encerra a Sessao: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo fechamento, e `ler_vista` numa sessão encerrada é o jeito barato de retomá-la. |
 | `excluir_em_lote` | `ids_nos`, `ids_arestas`, `justificativa` *(só humano)* | Remove atomicamente uma coleção de nós e arestas. |
 | `excluir_projeto` | `id_projeto`, `cascata` (true) *(só humano)* | Remove o projeto e, em cascata, setores, sessões e tarefas. |
 | `propor_patch` | `operacoes` (RFC 6902), `justificativa`, `ramo_id` | Submete um lote atômico livre aos 4 portões. |
