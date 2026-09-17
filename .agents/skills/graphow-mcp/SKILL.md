@@ -76,7 +76,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 ## Roteiro padrão
 
 1. **Retomar e escolher.** Comece por `minhas_questoes`, para não reabrir dúvida já respondida. Desça do Projeto pelo panorama de `ler_vista` e abra só o filho marcado com trabalho aberto; varrer todos os contêineres custa uma ordem de grandeza a mais e chega na mesma resposta. Peça a fila com `proximas_tarefas(id_sessao)` e pegue o topo com `assumir_tarefa(id_task)`.
-2. **Orientar-se na tarefa.** `ler_vista` na Task assumida e, se faltar detalhe de vizinho, `expandir_no` no nó específico.
+2. **Orientar-se na tarefa.** `ler_vista` na Task assumida e, se faltar detalhe de vizinho, `expandir_no` no nó específico. Leia primeiro `Aprendizados Aplicaveis`, quando a seção vier: é o que outras sessões e outros projetos já aprenderam sobre isto, com a origem de cada afirmação.
 3. **Checar bloqueio.** Havendo requisito vago ou impedimento, `abrir_questao` e depois `aguardar_resposta`. Se o prazo expirar, `liberar_tarefa` e encerre limpo.
 4. **Executar.** O trabalho técnico acontece fora do grafo, em código e documentos. Ao terminar, monte o lote JSON Patch.
 5. **Registrar.** Submeta `propor_patch` e confira `sucesso` no recibo; se vier recusa, leia `modo_de_falha` e corrija a proposta. Depois `concluir_tarefa` e `liberar_tarefa`.
@@ -89,8 +89,24 @@ Quando uma Sessão é encerrada, o grafo abre nela uma Task com `acao: condensar
 2. Escreva uma `Note` produzida pela sessão (`produz`), com `acao: "condensacao_de_sessao"`, `id_alvo` igual ao id da sessão e o texto em `corpo`. O corpo diz, nesta ordem: as decisões vigentes com o motivo, os achados que mudaram uma decisão, o que ficou aberto e o que não fazer de novo.
 3. Cada afirmação do corpo carrega uma aresta `deriva_de` da Note para o nó de onde saiu: `Decision`, `Evidence`, `Artifact` ou `Task`. Condensação sem `deriva_de` é opinião, não memória.
 4. O revisor move a Task para `pronto_para_revisao` e libera a posse; o executor pode `concluir_tarefa`. A partir daí `ler_vista` na sessão abre pela condensação, marcada como não confiável enquanto for de agente.
+5. Se uma frase da condensação vale além desta sessão, registre-a como `Aprendizado` (abaixo). A promoção fica com o humano.
 
 O patch pronto está no [cookbook](./references/patch_cookbook.md), em "revisor: condensar a sessão encerrada".
+
+## Registrar e promover aprendizados
+
+Um `Aprendizado` é o que sobrevive ao projeto: a lição em uma linha, como aplicá-la e de onde ela saiu. Registre com a ferramenta dedicada, não por patch; ela monta o `produz` e os `deriva_de` no mesmo lote.
+
+```json
+{
+  "afirmacao": "Lote com no novo sem aresta de contencao e recusado inteiro; deriva_de nao conta",
+  "como_aplicar": "Traga o produz ou o decompoe no mesmo lote que cria o no",
+  "id_sessao": "sess-sprint-01",
+  "origens": ["dec-hierarquia-obrigatoria", "evi-nos-orfaos-no-canvas"]
+}
+```
+
+Até ser promovido, o aprendizado vale só onde nasceu. A promoção é gesto humano: `promover_aprendizado` com `id_alvo` (um Projeto ou Setor) cria `vale_para`, e com `global: true` grava `alcance: global`. A partir daí ele entra em `Aprendizados Aplicaveis` na vista de toda tarefa sob esse alcance, por herança pela hierarquia; tarefas de outros projetos o recebem quando o texto delas casa com o dele. Um aprendizado que deixou de valer é substituído (`substitui`, planejador ou humano) ou contradito por uma `Evidence` nova (`contradiz`); ele continua visível, marcado, e só o humano o remove.
 
 ## JSON Patch (RFC 6902)
 
