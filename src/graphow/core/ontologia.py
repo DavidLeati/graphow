@@ -13,12 +13,16 @@ from graphow.core.types import (
     OrigemEvento,
     PapelAutor,
     StatusQuestion,
+    StatusSessao,
     StatusTask,
     TipoAresta,
     TipoNo,
 )
 
-VERSAO_ONTOLOGIA: str = "1.0.0"
+# 1.1.0: a Sessao ganha ciclo de vida declarado (`StatusSessao`), o tipo
+# `Aprendizado` e a aresta `vale_para` entram como memória de longo prazo, e
+# `deriva_de` passa a admitir Evidence e Artifact como origem de uma Note.
+VERSAO_ONTOLOGIA: str = "1.1.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -46,6 +50,7 @@ def calcular_assinatura_da_ontologia() -> str:
         *(f"origem:{origem.value}" for origem in OrigemEvento),
         *(f"task:{status.value}" for status in StatusTask),
         *(f"question:{status.value}" for status in StatusQuestion),
+        *(f"sessao:{status.value}" for status in StatusSessao),
         *(f"autonomia:{nivel.value}" for nivel in NivelAutonomiaProjeto),
     )
     digestao = hashlib.sha256("|".join(sorted(termos)).encode("utf-8")).hexdigest()
@@ -54,4 +59,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "df1c29b96eae"
+ASSINATURA_DECLARADA: str = "871ab7b90f7e"

@@ -8,7 +8,14 @@ pergunta aqui, e aqui a resposta sai da mesma tabela que o `SchemaGate` aplica.
 
 from typing import Any
 
-from graphow.core.types import NivelAutonomiaProjeto, StatusQuestion, StatusTask, TipoAresta, TipoNo
+from graphow.core.types import (
+    NivelAutonomiaProjeto,
+    StatusQuestion,
+    StatusSessao,
+    StatusTask,
+    TipoAresta,
+    TipoNo,
+)
 from graphow.kernel.schema_gate import SchemaGate
 
 
@@ -20,6 +27,7 @@ def montar_ontologia_publica() -> dict[str, Any]:
         "status": {
             TipoNo.TASK.value: [status.value for status in StatusTask],
             TipoNo.QUESTION.value: [status.value for status in StatusQuestion],
+            TipoNo.SESSAO.value: [status.value for status in StatusSessao],
         },
         "niveis_autonomia": [nivel.value for nivel in NivelAutonomiaProjeto],
     }

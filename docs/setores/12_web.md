@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-20 módulos · 2241 linhas · 37 classes
+20 módulos · 2249 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 89 | Mapeamento de cada nó do grafo à Sessão, ao Setor e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
-| [`web/ontologia_publica.py`](#webontologiapublica) | 31 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
+| [`web/ontologia_publica.py`](#webontologiapublica) | 39 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 105 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
 | [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 360 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |

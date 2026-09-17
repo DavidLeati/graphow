@@ -75,6 +75,19 @@ class StatusQuestion(str, Enum):
     DESCARTADA = "descartada"
 
 
+class StatusSessao(str, Enum):
+    """Estados de uma Sessao: aberta ao trabalho ou encerrada.
+
+    O harness e a interface escreviam "ativa" e "concluida" como texto solto, e
+    nada no vocabulário dizia que a Sessao tinha ciclo de vida. O fechamento
+    determinístico e a condensação partem deste status, então ele passa a ser
+    termo da ontologia.
+    """
+
+    ATIVA = "ativa"
+    CONCLUIDA = "concluida"
+
+
 class StatusExecucao(str, Enum):
     """Estados do ciclo de vida de execução de um agente (Run)."""
 

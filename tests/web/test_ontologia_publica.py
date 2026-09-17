@@ -1,6 +1,6 @@
 """Testes do vocabulário da ontologia que a interface consulta em vez de copiar."""
 
-from graphow.core.types import StatusQuestion, StatusTask, TipoAresta, TipoNo
+from graphow.core.types import StatusQuestion, StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.schema_gate import SchemaGate
 from graphow.web.ontologia_publica import montar_ontologia_publica
 
@@ -28,3 +28,4 @@ def test_status_publicados_seguem_os_enums_do_nucleo_edge_case() -> None:
 
     assert status["Task"] == [valor.value for valor in StatusTask]
     assert status["Question"] == [valor.value for valor in StatusQuestion]
+    assert status["Sessao"] == [valor.value for valor in StatusSessao]

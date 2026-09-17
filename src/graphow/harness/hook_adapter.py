@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 import uuid
 
-from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.core.types import PapelAutor, StatusSessao, TipoAresta, TipoNo
 from graphow.harness.identidade_harness import IdentidadeHarness
 from graphow.harness.interfaces import AdaptadorDeHarness
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
@@ -26,7 +26,7 @@ class HookHarnessAdapter(AdaptadorDeHarness):
     ) -> bool:
         """Emite patch de criação de Sessao e aresta 'contem' a partir do Setor."""
         props: dict[str, Any] = dict(metadados or {})
-        props["status"] = "ativa"
+        props["status"] = StatusSessao.ATIVA.value
         operacoes = [
             ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_sessao}", value={"id": id_sessao, "tipo": TipoNo.SESSAO.value, "rotulo": f"Sessao {id_sessao}", "propriedades": props}),
             ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/contem-{id_setor}-{id_sessao}", value={"id": f"contem-{id_setor}-{id_sessao}", "origem_id": id_setor, "destino_id": id_sessao, "tipo": TipoAresta.CONTEM.value}),
@@ -42,7 +42,7 @@ class HookHarnessAdapter(AdaptadorDeHarness):
     ) -> bool:
         """Atualiza o status da sessão para concluída com anotação de resumo."""
         operacoes = [
-            ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/status", value="concluida"),
+            ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/status", value=StatusSessao.CONCLUIDA.value),
             ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/resumo", value=resumo),
         ]
         dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Fechamento de sessão via Hook")
