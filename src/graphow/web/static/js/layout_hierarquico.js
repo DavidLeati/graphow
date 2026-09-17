@@ -55,7 +55,7 @@ const OCUPACAO_ESPERADA = 0.14;
 // juntos, na ordem em que o trabalho costuma andar, e depois pela criação.
 const ORDEM_DOS_TIPOS = [
   "Projeto", "Setor", "Sessao", "Goal", "Constraint", "Question",
-  "Task", "Decision", "Evidence", "Artifact", "Note", "Run",
+  "Task", "Decision", "Evidence", "Artifact", "Note", "Aprendizado", "Run",
 ];
 
 /**

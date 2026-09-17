@@ -10,7 +10,7 @@
 export const TIPOS_CONTEINER = ["Projeto", "Setor", "Sessao"];
 
 // Ordem de leitura dentro de uma sessão: intenção, trabalho, bloqueio, decisão, prova.
-export const ORDEM_DE_TRABALHO = ["Goal", "Task", "Question", "Decision", "Constraint", "Evidence", "Artifact", "Run", "Note"];
+export const ORDEM_DE_TRABALHO = ["Goal", "Task", "Question", "Decision", "Constraint", "Evidence", "Artifact", "Run", "Note", "Aprendizado"];
 
 const APRESENTACAO_DOS_TIPOS = {
   Projeto: { nome: "Projeto", plural: "Projetos", icone: "briefcase", descricao: "Raiz macro da iniciativa" },
@@ -25,6 +25,7 @@ const APRESENTACAO_DOS_TIPOS = {
   Evidence: { nome: "Evidence", plural: "Evidences", icone: "flask", descricao: "Dado empírico que justifica decisões" },
   Run: { nome: "Run", plural: "Runs", icone: "activity", descricao: "Execução e telemetria de um agente" },
   Note: { nome: "Note", plural: "Notes", icone: "sticky-note", descricao: "Anotação livre ou aviso reativo" },
+  Aprendizado: { nome: "Aprendizado", plural: "Aprendizados", icone: "lightbulb", descricao: "Memória de longo prazo: o que sobrevive ao projeto, com origem obrigatória" },
 };
 
 export function apresentarTipo(tipo) {
@@ -52,7 +53,8 @@ const LEITURA_DAS_ARESTAS = {
   contradiz: { saida: "contradiz", entrada: "contradito por", descricao: "Registro de evidência conflitante" },
   substitui: { saida: "substitui", entrada: "substituído por", descricao: "Evolução e invalidação histórica" },
   escopa: { saida: "escopa", entrada: "escopado por", descricao: "Restrição mandatória sobre a execução" },
-  deriva_de: { saida: "deriva de", entrada: "origem de", descricao: "Proveniência de artefatos e notas" },
+  deriva_de: { saida: "deriva de", entrada: "origem de", descricao: "Proveniência de artefatos, notas e aprendizados" },
+  vale_para: { saida: "vale para", entrada: "recebe o aprendizado", descricao: "Alcance de um aprendizado promovido pelo humano" },
 };
 
 export function lerAresta(tipo) {

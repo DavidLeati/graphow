@@ -60,6 +60,7 @@
   --color-evidence: #14b8a6;
   --color-run: #8b5cf6;
   --color-note: #64748b;
+  --color-aprendizado: #d97706;
 
   /* Ontological Edge Colors */
   --edge-default: rgba(148, 163, 184, 0.35);
@@ -74,6 +75,7 @@
   --edge-substitui: #eab308;
   --edge-escopa: #ef4444;
   --edge-deriva_de: #06b6d4;
+  --edge-vale_para: #d97706;
 
   /* Typography Stacks */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;

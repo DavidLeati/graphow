@@ -23,7 +23,7 @@ import {
 const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
 
 // Propriedades que o bloco do tipo já edita com um controle próprio.
-const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"], Sessao: ["status", "resumo"] };
+const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"], Sessao: ["status", "resumo"], Aprendizado: ["como_aplicar", "alcance", "valido_ate"] };
 
 // O mesmo teto que `abrir_questao` aplica no servidor, para o título derivado
 // aqui sair igual ao que o agente teria mandado.

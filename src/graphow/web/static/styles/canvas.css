@@ -103,6 +103,7 @@
 .node-type-Evidence { border-left-color: var(--color-evidence); }
 .node-type-Run { border-left-color: var(--color-run); }
 .node-type-Note { border-left-color: var(--color-note); }
+.node-type-Aprendizado { border-left-color: var(--color-aprendizado); }
 .node-type-Projeto { border-left-color: var(--color-projeto); }
 .node-type-Setor { border-left-color: var(--color-setor); }
 .node-type-Sessao { border-left-color: var(--color-sessao); }

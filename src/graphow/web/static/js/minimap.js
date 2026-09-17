@@ -139,6 +139,7 @@ export class Minimap {
       Evidence: "#14b8a6",
       Run: "#8b5cf6",
       Note: "#64748b",
+      Aprendizado: "#d97706",
       Projeto: "#3b82f6",
       Setor: "#6366f1",
       Sessao: "#a855f7",
