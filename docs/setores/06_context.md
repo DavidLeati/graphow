@@ -10,17 +10,18 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-12 módulos · 1345 linhas · 26 classes
+13 módulos · 1515 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`context/corte.py`](#contextcorte) | 57 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/corte.py`](#contextcorte) | 62 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
+| [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 131 | Motor de materialização de vistas de contexto com orçamento de tokens. |
-| [`context/panorama.py`](#contextpanorama) | 126 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 281 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
+| [`context/politicas.py`](#contextpoliticas) | 300 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 208 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/secoes.py`](#contextsecoes) | 212 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -36,7 +37,7 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 | `_APOIO` | `frozenset[PrioridadeRetencao]` | `frozenset({PrioridadeRetencao.APOIO})` |
 | `_MAIS_DECISOES` | `frozenset[PrioridadeRetencao]` | `_APOIO | {PrioridadeRetencao.DECISOES}` |
 | `_MAIS_BLOQUEIOS` | `frozenset[PrioridadeRetencao]` | `_MAIS_DECISOES | {PrioridadeRetencao.BLOQUEIOS}` |
-| `_MAIS_NAVEGACAO` | `frozenset[PrioridadeRetencao]` | `_MAIS_BLOQUEIOS | {PrioridadeRetencao.NAVEGACAO}` |
+| `_MAIS_NAVEGACAO` | `frozenset[PrioridadeRetencao]` | `_MAIS_BLOQUEIOS | {PrioridadeRetencao.NAVEGACAO, PrioridadeRetencao.MEM…` |
 | `_TUDO_MENOS_O_ALVO` | `frozenset[PrioridadeRetencao]` | `_MAIS_NAVEGACAO | {PrioridadeRetencao.RESTRICOES}` |
 
 ### `PlanoDeCorte`
@@ -75,6 +76,26 @@ Exploração limitada do subgrafo a partir de um nó alvo.
 *DTO imutável* — Parâmetros imutáveis de uma travessia a partir do nó alvo.
 
 **Campos:** `id_alvo: str`, `tipos_de_aresta: frozenset[TipoAresta]`, `direcao: DirecaoTravessia`, `saltos_maximos: int`
+
+## `context/fechamento.py`
+
+Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_FECHAMENTO` | `str` | `'Fechamento da Sessao (encerrada: leia isto antes de descer)'` |
+| `ORDEM_DE_EXIBICAO_DO_FECHAMENTO` | `int` | `0` |
+| `ACAO_DE_CONDENSACAO` | `str` | `'condensacao_de_sessao'` |
+| `CAMPO_ACAO` | `str` | `'acao'` |
+| `CAMPO_ALVO` | `str` | `'id_alvo'` |
+| `CAMPO_CORPO` | `str` | `'corpo'` |
+| `CAMPO_RESUMO` | `str` | `'resumo'` |
+
+### Funções do módulo
+
+- `esta_encerrada(no: NoGrafo) -> bool` — Uma Sessão encerrada foi fechada pelo humano, pelo harness ou pela interface.
+- `localizar_condensacao(id_sessao: str, view: GrafoView) -> NoGrafo | None` — A Note de condensação mais recente produzida pela sessão, se um agente a escreveu.
+- `montar_secao_de_fechamento(sessao: NoGrafo, view: GrafoView) -> SecaoContexto` — Abre a vista da sessão encerrada com o que ela deixou em vigor.
 
 ## `context/materializer.py`
 

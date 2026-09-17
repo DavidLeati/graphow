@@ -32,7 +32,12 @@ class PlanoDeCorte:
 _APOIO: frozenset[PrioridadeRetencao] = frozenset({PrioridadeRetencao.APOIO})
 _MAIS_DECISOES: frozenset[PrioridadeRetencao] = _APOIO | {PrioridadeRetencao.DECISOES}
 _MAIS_BLOQUEIOS: frozenset[PrioridadeRetencao] = _MAIS_DECISOES | {PrioridadeRetencao.BLOQUEIOS}
-_MAIS_NAVEGACAO: frozenset[PrioridadeRetencao] = _MAIS_BLOQUEIOS | {PrioridadeRetencao.NAVEGACAO}
+# A memória cai junto da navegação, e depois dela nada: o fechamento de uma
+# sessão e os aprendizados aplicáveis são o que impede re-decidir.
+_MAIS_NAVEGACAO: frozenset[PrioridadeRetencao] = _MAIS_BLOQUEIOS | {
+    PrioridadeRetencao.NAVEGACAO,
+    PrioridadeRetencao.MEMORIA,
+}
 _TUDO_MENOS_O_ALVO: frozenset[PrioridadeRetencao] = _MAIS_NAVEGACAO | {PrioridadeRetencao.RESTRICOES}
 
 

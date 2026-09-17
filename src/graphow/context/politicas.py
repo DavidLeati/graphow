@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
+from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (
     PrioridadeRetencao,
@@ -92,11 +93,29 @@ class PoliticaBase(PoliticaContexto):
         alvo: NoGrafo,
         ambiente: AmbienteDoRecorte,
     ) -> tuple[SecaoContexto, ...]:
-        """Restrições que escopam o alvo, dúvidas que o travam e a vizinhança."""
+        """Restrições que escopam o alvo, dúvidas que o travam, a memória e a vizinhança."""
         return (
-            self._secao_restricoes(alvo, ambiente),
-            self._secao_bloqueios(alvo, ambiente),
-        ) + self._secoes_de_vizinhanca(alvo, ambiente)
+            (
+                self._secao_restricoes(alvo, ambiente),
+                self._secao_bloqueios(alvo, ambiente),
+            )
+            + self._secoes_de_memoria(alvo, ambiente)
+            + self._secoes_de_vizinhanca(alvo, ambiente)
+        )
+
+    def _secoes_de_memoria(
+        self,
+        alvo: NoGrafo,
+        ambiente: AmbienteDoRecorte,
+    ) -> tuple[SecaoContexto, ...]:
+        """O fechamento de uma sessão encerrada abre a vista dela.
+
+        Só existe quando a sessão foi encerrada: numa sessão viva o que importa
+        é a fila de trabalho, e o fechamento ainda está mudando.
+        """
+        if not esta_encerrada(alvo):
+            return ()
+        return (montar_secao_de_fechamento(alvo, ambiente.view),)
 
     def _secao_restricoes(self, alvo: NoGrafo, ambiente: AmbienteDoRecorte) -> SecaoContexto:
         """Constraints que escopam o alvo ou algum de seus ancestrais hierárquicos.

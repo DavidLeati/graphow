@@ -29,10 +29,14 @@ class PrioridadeRetencao(IntEnum):
 
     ALVO = 0
     RESTRICOES = 1
-    NAVEGACAO = 2
-    BLOQUEIOS = 3
-    DECISOES = 4
-    APOIO = 5
+    # Memória: o fechamento de uma sessão encerrada e os aprendizados que
+    # alcançam o alvo. Cai no mesmo degrau da navegação, nunca antes dela:
+    # memória que some sob pressão de orçamento não é memória.
+    MEMORIA = 2
+    NAVEGACAO = 3
+    BLOQUEIOS = 4
+    DECISOES = 5
+    APOIO = 6
 
 
 @dataclass(frozen=True)

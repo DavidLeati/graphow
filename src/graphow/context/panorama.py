@@ -68,7 +68,19 @@ class FilhoResumido:
         if self.resumo is None:
             return f"{cabeca}{self._sufixo_de_status()}"
         marca = " <- trabalho aberto" if self.resumo.tem_trabalho_aberto else ""
-        return f"{cabeca} | {self.resumo.descrever()}{marca}"
+        return f"{cabeca} | {self.resumo.descrever()}{marca}{self._linhas_de_fechamento()}"
+
+    def _linhas_de_fechamento(self) -> str:
+        """O fechamento de uma Sessão, recuado sob a linha dela.
+
+        Vai na mesma entrada da lista, com quebras internas: a seção corta e
+        conta por entrada, e uma sessão em três entradas seria cortada ao meio.
+        Só a Sessão o carrega. Num Setor, as decisões de todas as sessões numa
+        linha só voltariam a ser a lista que o panorama existe para evitar.
+        """
+        if self.resumo is None or self.no.tipo != TipoNo.SESSAO:
+            return ""
+        return "".join(f"\n  {linha}" for linha in self.resumo.fechamento.descrever())
 
     def _sufixo_de_status(self) -> str:
         """Estado próprio do nó, quando ele tem um."""
