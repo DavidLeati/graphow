@@ -10,12 +10,12 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-5 módulos · 747 linhas · 10 classes
+5 módulos · 765 linhas · 10 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`avaliacao/__init__.py`](#avaliacaoinit) | 30 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
-| [`avaliacao/escala.py`](#avaliacaoescala) | 225 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
+| [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 94 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
@@ -61,7 +61,7 @@ Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gra
 
 *DTO imutável* — Consolidação das três medidas que decidem se o grafo ainda cabe.
 
-**Campos:** `total_nos: int`, `total_arestas: int`, `canvas: tuple[MedidaDeCanvas, ...]`, `tokens_da_varredura: int`, `tokens_do_caminho_guiado: int`, `passos_do_caminho_guiado: tuple[str, ...]`, `buscas: tuple[MedidaDeBusca, ...]`, `nos_orfaos: tuple[str, ...]`
+**Campos:** `total_nos: int`, `total_arestas: int`, `canvas: tuple[MedidaDeCanvas, ...]`, `tokens_da_varredura: int`, `tokens_do_caminho_guiado: int`, `passos_do_caminho_guiado: tuple[str, ...]`, `buscas: tuple[MedidaDeBusca, ...]`, `nos_orfaos: tuple[str, ...]`, `milissegundos_do_rollup: float`, `tokens_do_panorama_da_raiz: int`
 
 - `fator_de_reducao_da_navegacao() -> float` `[property]` — Quantas vezes o caminho guiado é mais barato que a varredura cega.
 - `formatar() -> tuple[str, ...]` — Linhas legíveis do relatório, prontas para o console.

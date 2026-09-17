@@ -12,6 +12,7 @@ custo de descobrir onde há trabalho aberto, e o custo de uma busca sem limite.
 
 from dataclasses import dataclass, field
 import json
+import time
 
 from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
 from graphow.context.token_counter import ContadorTokens
@@ -19,6 +20,7 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, TipoNo
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.ranking_busca import CriterioBusca
+from graphow.projection.rollup import IndiceDeRollup
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.web.colapso_visual import OpcoesDeRecorteVisual
 from graphow.web.conversao_requisicoes import serializar_canvas
@@ -62,6 +64,10 @@ class RelatorioDeEscala:
     passos_do_caminho_guiado: tuple[str, ...] = field(default_factory=tuple)
     buscas: tuple[MedidaDeBusca, ...] = field(default_factory=tuple)
     nos_orfaos: tuple[str, ...] = field(default_factory=tuple)
+    # O fechamento passou a viajar no rollup: estas duas medidas dizem o que ele
+    # custou por commit e quanto o panorama da raiz engordou com ele.
+    milissegundos_do_rollup: float = 0.0
+    tokens_do_panorama_da_raiz: int = 0
 
     @property
     def fator_de_reducao_da_navegacao(self) -> float:
@@ -80,6 +86,8 @@ class RelatorioDeEscala:
             "=== ESCALA DO GRAFO ABERTO ===",
             f"Nos: {self.total_nos} | Arestas: {self.total_arestas}",
             f"Nos fora de qualquer hierarquia: {len(self.nos_orfaos)}",
+            f"Rollup por commit (com fechamento): {self.milissegundos_do_rollup:.2f} ms",
+            f"Panorama da raiz a {ORCAMENTO_DA_MEDICAO} tokens: {self.tokens_do_panorama_da_raiz} tokens",
             "",
             "Payload do canvas por recorte:",
         )
@@ -124,6 +132,7 @@ class MedidorDeEscala:
         """Consolida o relatório de escala do ramo."""
         view = self._kernel.obter_view(ramo_id)
         guiado, passos = self._medir_caminho_guiado(view)
+        raiz = self._encontrar_raiz(view)
         return RelatorioDeEscala(
             total_nos=view.total_nos,
             total_arestas=view.total_arestas,
@@ -133,7 +142,16 @@ class MedidorDeEscala:
             passos_do_caminho_guiado=passos,
             buscas=self._medir_buscas(view),
             nos_orfaos=view.indice_de_rollup.nos_orfaos,
+            milissegundos_do_rollup=self._cronometrar_rollup(ramo_id),
+            tokens_do_panorama_da_raiz=self._tokens_da_vista(view, raiz) if raiz else 0,
         )
+
+    def _cronometrar_rollup(self, ramo_id: str) -> float:
+        """Quanto custa a dobra que roda a cada commit, medida sobre o estado real."""
+        estado = self._kernel.obter_estado(ramo_id)
+        inicio = time.perf_counter()
+        IndiceDeRollup.calcular(estado)
+        return (time.perf_counter() - inicio) * 1000
 
     def _medir_canvas(self, ramo_id: str) -> tuple[MedidaDeCanvas, ...]:
         """Pesa o payload do canvas sob cada recorte que a interface oferece."""
