@@ -444,6 +444,14 @@ O motor reativo escreve com origem `comportamento`, distinta de `harness` e de
 `humano`, e cada nota reativa nasce ligada à sessão e ao nó que a motivou — nota
 órfã não aparece na vista de ninguém.
 
+Quando uma `Sessao` passa a `concluida` — pelo hook de fim, por `encerrar_sessao`
+ou pela interface — o comportamento `SessaoEncerrada` abre nela uma `Task` de
+condensação (`acao: condensar_sessao`), assinada como planejador. O grafo pede a
+própria memória como trabalho: o agente que pega a tarefa lê a sessão, escreve a
+`Note` de condensação (`acao: condensacao_de_sessao`) com `deriva_de` para cada
+nó condensado, e a vista da sessão passa a abrir por ela. O motor está ligado
+nos três processos que escrevem no log: web, MCP e harness.
+
 ---
 
 ## 📊 Métrica Número Um: Tokens por Tarefa Bem-Sucedida

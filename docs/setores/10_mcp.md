@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-16 módulos · 1863 linhas · 26 classes
+16 módulos · 1870 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -26,7 +26,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 107 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 169 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
-| [`mcp/stdio_server.py`](#mcpstdioserver) | 85 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
+| [`mcp/stdio_server.py`](#mcpstdioserver) | 92 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
 | [`mcp/tool_definitions.py`](#mcptooldefinitions) | 268 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 

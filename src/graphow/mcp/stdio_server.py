@@ -15,6 +15,7 @@ from graphow.mcp.stdio_protocolo import (
     CanalJsonRpcStdio,
     DespachanteJsonRpc,
 )
+from graphow.reactive.montagem import ligar_motor_reativo_padrao
 from graphow.storage.localizador_banco import LocalizadorBancoEventos, PreparadorDiretorioBanco
 from graphow.storage.sqlite_store import SQLiteEventStore
 
@@ -45,9 +46,15 @@ def _processar_linha(texto: str, despachante: DespachanteJsonRpc, canal: CanalJs
 
 
 def iniciar_stdio_server(kernel: WriteKernel, identidade: IdentidadeSessaoMCP) -> None:
-    """Executa o loop stdio do MCP sobre um kernel e uma identidade já resolvidos."""
+    """Executa o loop stdio do MCP sobre um kernel e uma identidade já resolvidos.
+
+    O motor reativo é ligado aqui porque este processo escreve no log por conta
+    própria: sem ele, uma sessão encerrada por `encerrar_sessao` não pediria a
+    condensação, e a reação só existiria quando o canvas estivesse aberto.
+    """
     canal = CanalJsonRpcStdio()
     canal.preparar_codificacao()
+    ligar_motor_reativo_padrao(kernel)
     servidor = GraphowMCPServer(kernel, identidade)
     executar_loop_stdio(DespachanteJsonRpc(servidor, canal), canal)
 

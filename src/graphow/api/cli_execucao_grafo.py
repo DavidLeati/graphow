@@ -10,6 +10,7 @@ from graphow.api.console import EscritorConsole
 from graphow.harness.entrada_hook import MODELO_DESCONHECIDO, EntradaDeHook, ler_entrada_de_hook
 from graphow.harness.servico_harness import FaseDoHarness, PedidoDeCicloDeVida, ServicoHarness
 from graphow.kernel.write_kernel import WriteKernel
+from graphow.reactive.montagem import ligar_motor_reativo_padrao
 from graphow.storage.localizador_banco import LocalizacaoBanco
 
 CODIGO_SUCESSO: int = 0
@@ -103,6 +104,9 @@ class ManipuladorComandosGrafo:
                 "Harness sem id de sessao: o JSON do hook nao trouxe 'session_id'"
             )
             return CODIGO_FALHA_DOMINIO
+        # O hook de fim encerra a Sessao; ligado o motor, o encerramento abre a
+        # Task de condensacao no mesmo processo, sem depender do canvas aberto.
+        ligar_motor_reativo_padrao(self._kernel)
         recibo = ServicoHarness(self._kernel).registrar(pedido)
         self._console.escrever_linha(f"[{recibo.id_run}] {recibo.mensagem} (versao {recibo.versao_log})")
         return CODIGO_SUCESSO if recibo.sucesso else CODIGO_FALHA_DOMINIO

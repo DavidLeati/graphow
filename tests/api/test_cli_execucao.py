@@ -165,6 +165,29 @@ def test_harness_com_payload_ilegivel_recusa_edge_case(tmp_path: Path) -> None:
     assert codigo == 1
 
 
+def test_fim_pelo_harness_abre_a_tarefa_de_condensacao_no_banco_nominal(tmp_path: Path) -> None:
+    """O hook de fim encerra a sessão e o grafo pede a condensação, no mesmo processo.
+
+    O motor reativo só estava ligado no processo web: encerrar pelo hook não
+    pedia nada. Aqui o subcomando roda sozinho, sem canvas aberto.
+    """
+    from graphow.core.types import TipoNo
+    from graphow.kernel.write_kernel import WriteKernel
+    from graphow.reactive.condensacao import eh_tarefa_de_condensacao
+
+    _criar_sessao_no_banco(tmp_path)
+    _executar(["task-create", "--titulo", "Trabalho feito", "--sessao", "sess-1"], tmp_path)
+
+    codigo, _ = _executar(["harness", "--fase", "fim", "--sessao", "sess-1", "--resumo", "fim"], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    with SQLiteEventStore(str(tmp_path / "graphow" / "graphow.db")) as store:
+        view = WriteKernel(store).obter_view()
+    assert view.obter_no("sess-1").obter_propriedade("status") == "concluida"
+    condensacoes = [no for no in view.listar_nos_por_tipo(TipoNo.TASK) if eh_tarefa_de_condensacao(no)]
+    assert len(condensacoes) == 1
+
+
 def _popular(store: SQLiteEventStore) -> None:
     """Grava três eventos mínimos no repositório informado."""
     from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento
