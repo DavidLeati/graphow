@@ -105,4 +105,4 @@ def test_alerta_que_duplicava_a_questao_saiu_edge_case() -> None:
     nomes = {comportamento.nome for comportamento in montar_comportamentos_padrao()}
 
     assert "AlertaQuestaoPendente" not in nomes
-    assert nomes == {"RevisorNotificado", "ReavaliacaoDecisaoSubstituida"}
+    assert nomes == {"RevisorNotificado", "ReavaliacaoDecisaoSubstituida", "SessaoEncerrada"}

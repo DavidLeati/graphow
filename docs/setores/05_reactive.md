@@ -10,15 +10,16 @@ Comportamentos desacoplados que observam commits e propõem patches derivados, c
 
 ## Inventário
 
-8 módulos · 469 linhas · 10 classes
+9 módulos · 644 linhas · 11 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`reactive/builtins.py`](#reactivebuiltins) | 95 | Comportamentos reativos nativos desacoplados do Graphow. |
+| [`reactive/condensacao.py`](#reactivecondensacao) | 159 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
 | [`reactive/diagnostico.py`](#reactivediagnostico) | 57 | Registro das reações que o kernel recusou, para que nenhuma morra calada. |
 | [`reactive/engine.py`](#reactiveengine) | 104 | Motor reativo que processa eventos e orquestra comportamentos desacoplados. |
 | [`reactive/interfaces.py`](#reactiveinterfaces) | 22 | Interface abstrata para comportamentos reativos desacoplados. |
-| [`reactive/montagem.py`](#reactivemontagem) | 25 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
+| [`reactive/montagem.py`](#reactivemontagem) | 41 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
 | [`reactive/notas.py`](#reactivenotas) | 110 | Montagem das notas reativas: sempre ligadas à sessão e ao nó que as motivou. |
 | [`reactive/observador_reativo.py`](#reactiveobservadorreativo) | 41 | Adaptador que liga o motor reativo ao gancho pós-commit do kernel. |
 
@@ -39,6 +40,36 @@ Comportamentos reativos nativos desacoplados do Graphow.
 
 - `nome() -> str` `[property]` — Nome identificador do comportamento.
 - `avaliar(evento: EventoLog, view: GrafoView) -> PropostaPatch | None` — Verifica transição de status para pronto_para_revisao.
+
+## `reactive/condensacao.py`
+
+Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DE_CONDENSAR` | `str` | `'condensar_sessao'` |
+| `AUTOR_DO_CONDENSADOR` | `str` | `'comportamento-condensador'` |
+| `PREFIXO_DA_TAREFA` | `str` | `'task-condensar'` |
+| `CAMPO_ACAO` | `str` | `'acao'` |
+| `CAMPO_ALVO` | `str` | `'id_alvo'` |
+| `ROTEIRO_DA_CONDENSACAO` | `str` | `f"Leia a sessao com ler_vista e escreva uma Note produzida por ela, com…` |
+| `CRITERIO_DE_PRONTO` | `str` | `'Note de condensacao produzida pela sessao, com deriva_de para cada no …` |
+| `TIPOS_QUE_PEDEM_CONDENSACAO` | `frozenset[TipoNo]` | `frozenset({TipoNo.GOAL, TipoNo.TASK, TipoNo.DECISION, TipoNo.QUESTION, …` |
+
+### `SessaoEncerradaBehavior` (ComportamentoReativo)
+
+*serviço* — Abre a Task de condensação quando uma Sessao passa a `concluida`.
+
+- `nome() -> str` `[property]` — Nome identificador do comportamento.
+- `avaliar(evento: EventoLog, view: GrafoView) -> PropostaPatch | None` — Reage à escrita do status `concluida` numa Sessao com trabalho a condensar.
+
+### Funções do módulo
+
+- `produzidos_pela_sessao(id_sessao: str, view: GrafoView) -> tuple[NoGrafo, ...]` — Nós que a sessão produziu, na ordem estável dos identificadores.
+- `tem_trabalho_a_condensar(id_sessao: str, view: GrafoView) -> bool` — Há conhecimento na sessão além da telemetria e da própria Task de condensar.
+- `tem_condensacao_pendente(id_sessao: str, view: GrafoView) -> bool` — Uma Task de condensar ainda aberta: pedir outra seria pedir duas vezes.
+- `eh_tarefa_de_condensacao(no: NoGrafo) -> bool` — Reconhece a Task que este comportamento abre.
+- `montar_proposta_de_condensacao(sessao: NoGrafo) -> PropostaPatch` — A Task pendurada na sessão que a motivou, assinada pelo papel que cria Task.
 
 ## `reactive/diagnostico.py`
 
@@ -112,6 +143,7 @@ Montagem padrão do motor reativo com os comportamentos nativos do Graphow.
 
 - `montar_comportamentos_padrao() -> tuple[ComportamentoReativo, ...]` — Lista os comportamentos reativos que o produto ativa por padrão.
 - `montar_motor_reativo_padrao(kernel: WriteKernel) -> MotorReativo` — Constrói o motor reativo com os comportamentos nativos já registrados.
+- `ligar_motor_reativo_padrao(kernel: WriteKernel) -> MotorReativo` — Monta o motor padrão e o inscreve no gancho pós-commit do kernel.
 
 ## `reactive/notas.py`
 
