@@ -50,19 +50,29 @@ class SchemaGate:
             (TipoNo.SESSAO, TipoNo.EVIDENCE),
             (TipoNo.SESSAO, TipoNo.RUN),
             (TipoNo.SESSAO, TipoNo.NOTE),
+            (TipoNo.SESSAO, TipoNo.APRENDIZADO),
         }),
         TipoAresta.OCORREU_EM: frozenset({(TipoNo.RUN, TipoNo.SESSAO)}),
         TipoAresta.DECOMPOE: frozenset({(TipoNo.GOAL, TipoNo.TASK), (TipoNo.TASK, TipoNo.TASK)}),
         TipoAresta.DEPENDE_DE: frozenset({(TipoNo.TASK, TipoNo.TASK)}),
         TipoAresta.BLOQUEIA: frozenset({(TipoNo.QUESTION, TipoNo.TASK)}),
         TipoAresta.JUSTIFICA: frozenset({(TipoNo.EVIDENCE, TipoNo.DECISION)}),
+        # Evidence -> Aprendizado: o achado novo que sinaliza que a memória
+        # precisa de revisão. O aprendizado não é apagado; fica marcado.
         TipoAresta.CONTRADIZ: frozenset({
             (TipoNo.EVIDENCE, TipoNo.DECISION),
             (TipoNo.EVIDENCE, TipoNo.EVIDENCE),
+            (TipoNo.EVIDENCE, TipoNo.APRENDIZADO),
         }),
         TipoAresta.SUBSTITUI: frozenset({
             (TipoNo.DECISION, TipoNo.DECISION),
             (TipoNo.TASK, TipoNo.TASK),
+            (TipoNo.APRENDIZADO, TipoNo.APRENDIZADO),
+        }),
+        # Alcance de um aprendizado: onde ele passa a valer. O humano promove.
+        TipoAresta.VALE_PARA: frozenset({
+            (TipoNo.APRENDIZADO, TipoNo.PROJETO),
+            (TipoNo.APRENDIZADO, TipoNo.SETOR),
         }),
         TipoAresta.ESCOPA: frozenset({
             (TipoNo.CONSTRAINT, TipoNo.GOAL),
@@ -72,6 +82,7 @@ class SchemaGate:
         # sem esse par ela nascia órfã e nenhum agente a encontrava. Note ->
         # Evidence/Artifact existe para a condensação de uma sessão apontar para
         # o achado e para a entrega que ela resume.
+        # Aprendizado -> origem: a aresta que o InvariantGate exige no mesmo lote.
         TipoAresta.DERIVA_DE: frozenset({
             (TipoNo.ARTIFACT, TipoNo.TASK),
             (TipoNo.ARTIFACT, TipoNo.ARTIFACT),
@@ -79,6 +90,11 @@ class SchemaGate:
             (TipoNo.NOTE, TipoNo.DECISION),
             (TipoNo.NOTE, TipoNo.EVIDENCE),
             (TipoNo.NOTE, TipoNo.ARTIFACT),
+            (TipoNo.APRENDIZADO, TipoNo.EVIDENCE),
+            (TipoNo.APRENDIZADO, TipoNo.DECISION),
+            (TipoNo.APRENDIZADO, TipoNo.NOTE),
+            (TipoNo.APRENDIZADO, TipoNo.ARTIFACT),
+            (TipoNo.APRENDIZADO, TipoNo.TASK),
         }),
     }
 

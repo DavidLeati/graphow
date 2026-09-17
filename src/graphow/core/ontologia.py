@@ -59,4 +59,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "871ab7b90f7e"
+ASSINATURA_DECLARADA: str = "ba2bff187b8b"

@@ -18,8 +18,13 @@ TIPOS_EDITAVEIS_PELO_SISTEMA: frozenset[TipoNo] = frozenset({TipoNo.RUN, TipoNo.
 # Apagar a dúvida é a forma mais direta de encerrá-la sem resposta. Constraint já
 # era intocável; Question passa a ser, porque é o único canal do agente ao humano.
 TIPOS_CUJA_REMOCAO_EXIGE_HUMANO: frozenset[TipoNo] = frozenset(
-    {TipoNo.CONSTRAINT, TipoNo.QUESTION}
+    {TipoNo.CONSTRAINT, TipoNo.QUESTION, TipoNo.APRENDIZADO}
 )
+
+# Um Aprendizado é substituído ou contradito, nunca apagado em silêncio: a
+# remoção fica com o humano, como Question e Constraint. E o alcance dele é a
+# promoção: um agente que escrevesse `alcance` promoveria o próprio aprendizado.
+PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset({"alcance"})
 
 # Fechar a dúvida é prerrogativa de quem foi consultado. 'aberta' segue livre:
 # reabrir uma pergunta não anula garantia alguma.
@@ -75,15 +80,22 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     TipoAresta.SUBSTITUI: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
     TipoAresta.ESCOPA: DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO),
     TipoAresta.DERIVA_DE: DonosDeAresta(adicao=HUMANO_E_TRABALHO, remocao=HUMANO_E_TRABALHO),
+    # Promover um aprendizado a um Projeto ou Setor é dar a ele alcance sobre o
+    # trabalho de todos. Só o humano, no início: abrir ao planejador é decisão
+    # a tomar com o número do braço "entre projetos" de `graphow avaliar`.
+    TipoAresta.VALE_PARA: DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO),
 }
 
 
 # Um projeto que o humano marcou como autônomo entrega ao agente a camada que
 # estrutura o trabalho — inclusive `contem`, sem a qual um Setor criado nasceria
 # solto e a autonomia voltaria a ser inerte. O que a marcação nunca entrega é a
-# camada de governança: `escopa` amarra Constraint ao trabalho, e retirar um
-# `bloqueia` encerraria a escalação ao humano.
-ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoAresta] = frozenset({TipoAresta.ESCOPA})
+# camada de governança: `escopa` amarra Constraint ao trabalho, retirar um
+# `bloqueia` encerraria a escalação ao humano, e `vale_para` promoveria memória
+# de agente a memória de todos.
+ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoAresta] = frozenset(
+    {TipoAresta.ESCOPA, TipoAresta.VALE_PARA}
+)
 
 
 def obter_donos_sob_autonomia_ilimitada(tipo: TipoAresta) -> DonosDeAresta:

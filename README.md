@@ -71,9 +71,10 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Artifact`**: Entregável concreto de código, documento ou configuração.
 - **`Evidence`**: Dado empírico, benchmark ou prova que justifica decisões.
 - **`Run`**: Registro de execução e telemetria de um modelo de IA.
-- **`Note`**: Anotação livre, aviso reativo ou contexto efêmero.
+- **`Note`**: Anotação livre, aviso reativo ou contexto efêmero. Com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
+- **`Aprendizado`**: Memória de longo prazo, o que sobrevive ao projeto. Nasce com origem obrigatória (`deriva_de`) e só alcança outros projetos quando o humano o promove (`vale_para` ou `alcance: global`).
 
-### 3. Matriz de Arestas Permitidas (11 Tipos)
+### 3. Matriz de Arestas Permitidas (12 Tipos)
 
 Cada tipo de aresta tem **dono declarado**, e criar não é o mesmo poder que
 remover: qualquer agente abre uma escalação com `bloqueia`, e só o humano a
@@ -89,10 +90,11 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`depende_de`** | `Task` $\rightarrow$ `Task` | humano, planejador | Pré-requisito de execução (DAG acíclico estrito). |
 | **`bloqueia`** | `Question` $\rightarrow$ `Task` | todos / **humano** | Bloqueia a conclusão da tarefa até resolução humana. |
 | **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, executor, revisor | Fundamentação empírica de decisões. |
-| **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` | humano, executor, revisor | Registro de evidência conflitante. |
-| **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task` | humano, planejador | Evolução e invalidação histórica. |
+| **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
+| **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador | Evolução e invalidação histórica. O substituído segue visível, marcado. |
 | **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
-| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact` | humano, executor, revisor | Proveniência de artefatos, de notas reativas e da condensação de uma sessão. |
+| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano** | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a autonomia ilimitada a abre a agentes. |
 
 ---
 
@@ -104,17 +106,20 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito (único autorizado a criar/editar `Constraint`, encerrar uma `Question` e estruturar a camada de navegação).
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note`; decompõe e ordena; proibido de fechar tarefas.
-   - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
-   - **`revisor`**: Cria `Evidence`, `Question`, `Note`; valida artefatos.
+   - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
+   - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
    - **`sistema`**: Telemetria (`Run`) e a `Sessao` em que o harness roda. Nada do grafo de trabalho.
 
-   Três regras valem para **todo** papel não humano, e valem no kernel, não no
+   Cinco regras valem para **todo** papel não humano, e valem no kernel, não no
    nome da ferramenta: mudar o status de uma `Question` para `respondida` ou
-   `descartada`, remover uma `Question` e remover a aresta `bloqueia` exigem
-   sessão humana. Sem elas, um agente encerrava a própria escalação com um
-   `propor_patch` e concluía a tarefa em seguida.
+   `descartada`, remover uma `Question`, remover a aresta `bloqueia`, escrever
+   `alcance` num `Aprendizado` ou criar `vale_para`, e remover um `Aprendizado`
+   exigem sessão humana. Sem as três primeiras, um agente encerrava a própria
+   escalação com um `propor_patch` e concluía a tarefa em seguida; sem as duas
+   últimas, promoveria a própria memória a memória de todos.
 3. **Portão 3 — `InvariantGate`:**
    - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, precisa receber no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada.
+   - **Memória com Origem:** Todo `Aprendizado` novo precisa de ao menos uma aresta `deriva_de` partindo dele no mesmo lote; sem ela o lote cai com `aprendizado_sem_origem`. Memória sem origem é opinião com autoridade de memória.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
@@ -371,7 +376,7 @@ mensagem em português — funcionava, e quebraria na primeira reescrita de text
 
   - `DESALINHAMENTO_DE_AGENTE` (`VIOLACAO_PERMISSAO_PAPEL`, `PROTOTYPE_POLLUTION`)
   - `DESIGN_DO_SISTEMA` (`CICLO_DEPENDENCIA`, `ESTOURO_ORCAMENTO_TOKENS`, `TIPO_DESCONHECIDO`, `CONFLITO_CONCORRENCIA_LOCK`, `CAMINHO_INVALIDO`, `ESTRUTURA_INCOMPLETA`, `REFERENCIA_INEXISTENTE`, `PAR_DE_ARESTA_INVALIDO`, `NO_FORA_DA_HIERARQUIA`)
-  - `VERIFICACAO_DE_TAREFA` (`FECHAMENTO_COM_BLOQUEIO_PENDENTE`, `POSSE_DE_TAREFA_AUSENTE`)
+  - `VERIFICACAO_DE_TAREFA` (`FECHAMENTO_COM_BLOQUEIO_PENDENTE`, `POSSE_DE_TAREFA_AUSENTE`, `APRENDIZADO_SEM_ORIGEM`)
 
 Um teste de AST confere que toda recusa dos três portões declara o seu modo, e
 a escada textual sobrevive apenas como rede para vereditos montados fora deles.
@@ -403,7 +408,7 @@ fica fora do cabeçalho da vista de propósito: ele é obrigatório em toda leit
 então tudo que entra ali sai do orçamento de tokens de todo agente.
 
 Cada evento também declara **em qual vocabulário foi escrito**
-(`versao_ontologia`, hoje `1.0.0`), gravado no log e devolvido na linha do tempo
+(`versao_ontologia`, hoje `1.1.0`), gravado no log e devolvido na linha do tempo
 e no SSE. Sem isso, um log relido depois de um tipo mudar de nome projeta errado
 em silêncio. A versão não pode mentir: `core/ontologia.py` calcula uma
 assinatura dos termos em vigor, e um teste a compara com a versão declarada —

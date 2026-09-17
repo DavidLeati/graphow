@@ -44,6 +44,9 @@ class InvariantGate:
         resultado_hierarquia = self._validar_nos_na_hierarquia(proposta, estado)
         if not resultado_hierarquia.aprovado:
             return resultado_hierarquia
+        resultado_origem = self._validar_origem_de_aprendizado(proposta)
+        if not resultado_origem.aprovado:
+            return resultado_origem
         resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estado)
         if not resultado_bloqueio.aprovado:
             return resultado_bloqueio
@@ -112,6 +115,43 @@ class InvariantGate:
             "InvariantGate",
             {"id_no": id_no, "tipo": tipo.value},
             modo=ModoFalhaMAST.NO_FORA_DA_HIERARQUIA,
+        )
+
+    def _validar_origem_de_aprendizado(self, proposta: PropostaPatch) -> ResultadoValidacao:
+        """Recusa o Aprendizado que nasceria sem apontar para a própria origem.
+
+        Memória diz de onde veio. Um Aprendizado sem `deriva_de` no mesmo lote
+        é opinião com autoridade de memória, e é recusado como o nó sem aresta
+        de contenção: regra do kernel, não convenção de escrita.
+        """
+        criados = self._nos_criados_sem_ser_raiz(proposta)
+        aprendizados = [id_no for id_no, tipo in criados.items() if tipo == TipoNo.APRENDIZADO]
+        if not aprendizados:
+            return ResultadoValidacao.sucesso()
+        com_origem = self._origens_de_derivacao_no_lote(proposta)
+        for id_no in aprendizados:
+            if id_no not in com_origem:
+                return self._recusar_aprendizado_sem_origem(id_no)
+        return ResultadoValidacao.sucesso()
+
+    def _origens_de_derivacao_no_lote(self, proposta: PropostaPatch) -> set[str]:
+        """Ids de onde parte uma aresta `deriva_de` criada neste mesmo lote."""
+        origens: set[str] = set()
+        for item in proposta.operacoes:
+            if item.op != OperacaoPatch.ADD or not item.path.startswith("/arestas/"):
+                continue
+            if isinstance(item.value, dict) and item.value.get("tipo") == TipoAresta.DERIVA_DE.value:
+                origens.add(str(item.value.get("origem_id")))
+        return origens
+
+    def _recusar_aprendizado_sem_origem(self, id_no: str) -> ResultadoValidacao:
+        """Diz o que falta: ao menos uma aresta de origem no mesmo lote."""
+        return ResultadoValidacao.falha(
+            f"Aprendizado '{id_no}' nasceria sem origem. Crie no mesmo lote ao menos uma aresta "
+            "'deriva_de' partindo dele para a Evidence, Decision, Note, Artifact ou Task de onde saiu",
+            "InvariantGate",
+            {"id_no": id_no},
+            modo=ModoFalhaMAST.APRENDIZADO_SEM_ORIGEM,
         )
 
     def _validar_posse_da_tarefa(

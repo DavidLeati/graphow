@@ -13,6 +13,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.matriz_papeis import (
+    PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
     STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO,
     TIPOS_CUJA_REMOCAO_EXIGE_HUMANO,
     TIPOS_EDITAVEIS_PELO_SISTEMA,
@@ -30,6 +31,7 @@ from graphow.kernel.patch_models import (
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral, projetar_lote
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
+SEGMENTOS_DE_UMA_PROPRIEDADE: int = 4
 
 
 @dataclass(frozen=True)
@@ -65,11 +67,15 @@ class RoleGate:
 
     NOS_CRIACAO_PERMITIDOS: dict[PapelAutor, frozenset[TipoNo]] = {
         PapelAutor.HUMANO: frozenset(TipoNo),
+        # Registra Aprendizado quem detém `deriva_de`: executor e revisor. Um
+        # Aprendizado nasce apontando para a origem, e a camada de proveniência
+        # do trabalho segue fechada a quem só planeja. O que nenhum agente pode
+        # é promovê-lo.
         PapelAutor.PLANEJADOR: frozenset({TipoNo.TASK, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE}),
         PapelAutor.EXECUTOR: frozenset(
-            {TipoNo.ARTIFACT, TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE}
+            {TipoNo.ARTIFACT, TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}
         ),
-        PapelAutor.REVISOR: frozenset({TipoNo.EVIDENCE, TipoNo.QUESTION, TipoNo.NOTE}),
+        PapelAutor.REVISOR: frozenset({TipoNo.EVIDENCE, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}),
         # O harness registra a sessao em que roda e a propria telemetria; nada do
         # grafo de trabalho. Ver harness/identidade_harness.py.
         PapelAutor.SISTEMA: frozenset({TipoNo.RUN, TipoNo.SESSAO}),
@@ -214,6 +220,8 @@ class RoleGate:
                 modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
             )
         tipo_no = TipoNo(item.value["tipo"])
+        if tipo_no == TipoNo.APRENDIZADO and self._escreve_propriedade_reservada(item):
+            return self._recusar_alcance(contexto.proposta.papel)
         if tipo_no in self._tipos_permitidos_para(item, contexto):
             return ResultadoValidacao.sucesso()
         return ResultadoValidacao.falha(
@@ -267,7 +275,42 @@ class RoleGate:
         resultado_remocao = self._validar_remocao_de_no(no_existente, ctx)
         if not resultado_remocao.aprovado:
             return resultado_remocao
+        resultado_alcance = self._validar_alcance_de_aprendizado(no_existente, ctx.item, papel)
+        if not resultado_alcance.aprovado:
+            return resultado_alcance
         return self._validar_regras_especificas_papel(no_existente, ctx.item, papel)
+
+    def _validar_alcance_de_aprendizado(
+        self,
+        no: NoGrafo,
+        item: ItemPatch,
+        papel: PapelAutor,
+    ) -> ResultadoValidacao:
+        """Só o humano escreve o alcance de um Aprendizado: promover é dele."""
+        if no.tipo != TipoNo.APRENDIZADO or not self._escreve_propriedade_reservada(item):
+            return ResultadoValidacao.sucesso()
+        return self._recusar_alcance(papel)
+
+    def _escreve_propriedade_reservada(self, item: ItemPatch) -> bool:
+        """Reconhece a escrita de `alcance` na propriedade isolada ou no nó inteiro."""
+        segmentos = [seg for seg in item.path.split("/") if seg]
+        reservadas = PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO
+        if len(segmentos) == SEGMENTOS_DE_UMA_PROPRIEDADE and segmentos[-1] in reservadas:
+            return True
+        if not isinstance(item.value, dict):
+            return False
+        propriedades = item.value.get("propriedades")
+        return isinstance(propriedades, dict) and bool(reservadas & set(propriedades))
+
+    def _recusar_alcance(self, papel: PapelAutor) -> ResultadoValidacao:
+        """Explica que promover um aprendizado é prerrogativa do humano."""
+        return ResultadoValidacao.falha(
+            f"Papel '{papel.value}' nao pode escrever 'alcance' num Aprendizado. "
+            "Promover e prerrogativa do humano: use 'promover_aprendizado'",
+            "RoleGate",
+            {"propriedades_reservadas": ", ".join(sorted(PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO))},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
 
     def _validar_remocao_de_no(
         self,

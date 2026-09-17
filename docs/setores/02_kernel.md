@@ -10,20 +10,20 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-13 módulos · 2017 linhas · 23 classes
+13 módulos · 2128 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 129 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/execucao.py`](#kernelexecucao) | 66 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 284 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 114 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 324 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 126 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 166 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 350 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 279 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 393 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 295 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 255 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
@@ -105,7 +105,8 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | :--- | :--- | :--- |
 | `TIPOS_EXCLUSIVOS_DO_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT})` |
 | `TIPOS_EDITAVEIS_PELO_SISTEMA` | `frozenset[TipoNo]` | `frozenset({TipoNo.RUN, TipoNo.SESSAO})` |
-| `TIPOS_CUJA_REMOCAO_EXIGE_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.QUESTION})` |
+| `TIPOS_CUJA_REMOCAO_EXIGE_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.QUESTION, TipoNo.APRENDIZADO})` |
+| `PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'alcance'})` |
 | `STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO` | `frozenset[str]` | `frozenset({StatusQuestion.RESPONDIDA.value, StatusQuestion.DESCARTADA.v…` |
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
@@ -113,7 +114,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `TODOS_OS_PAPEIS_DE_AGENTE` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |
-| `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA})` |
+| `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA})` |
 
 ### `DonosDeAresta`
 
@@ -219,6 +220,7 @@ Portão 2: Validação de Contratos de Permissão por Papel (Role Gate).
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
 
 ### `ContextoPapel`
 

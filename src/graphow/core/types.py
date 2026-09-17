@@ -22,6 +22,11 @@ class TipoNo(str, Enum):
     RUN = "Run"
     NOTE = "Note"
 
+    # Memória de longo prazo: o que sobrevive ao projeto. Nasce na sessão que o
+    # destilou, aponta obrigatoriamente para a origem por `deriva_de` e só
+    # alcança outros projetos quando o humano o promove com `vale_para`.
+    APRENDIZADO = "Aprendizado"
+
 
 class TipoAresta(str, Enum):
     """Tipos de arestas tipadas da ontologia."""
@@ -37,6 +42,7 @@ class TipoAresta(str, Enum):
     SUBSTITUI = "substitui"
     ESCOPA = "escopa"
     DERIVA_DE = "deriva_de"
+    VALE_PARA = "vale_para"
 
 
 class PapelAutor(str, Enum):
