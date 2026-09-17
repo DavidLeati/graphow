@@ -46,8 +46,23 @@ function itensDeConteiner(app, no, viajando) {
     { rotulo: "Abrir no canvas", icone: "folder-open", acao: () => app.abrirEscopo(escopo) },
     { rotulo: "Abrir em nova aba", icone: "plus", acao: () => app.abrirEscopo(escopo, { novaAba: true }) },
     { rotulo: ROTULO_DO_FILHO[no.tipo], icone: "plus", desabilitado: viajando, acao: () => app.novoFilho(no) },
+    ...itensDeSessao(app, no, viajando),
     "-",
   ];
+}
+
+/**
+ * Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
+ * prazo: a vista dela passa a abrir pelo fechamento e o grafo pede a condensação.
+ * Reabrir segue livre, porque o fechamento é projeção e atualiza sozinho.
+ */
+function itensDeSessao(app, no, viajando) {
+  if (no.tipo !== "Sessao") return [];
+  const encerrada = no.propriedades?.status === "concluida";
+  if (encerrada) {
+    return [{ rotulo: "Reabrir sessão", icone: "folder-open", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "ativa", "Sessão reaberta") }];
+  }
+  return [{ rotulo: "Encerrar sessão", icone: "circle-check", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "concluida", "Sessão encerrada: a vista dela abre pelo fechamento") }];
 }
 
 function itensDeTrabalho(app, no) {

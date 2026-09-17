@@ -72,6 +72,7 @@ const TOM_DOS_STATUS = {
   em_andamento: "andamento",
   pronto_para_revisao: "andamento",
   iniciada: "andamento",
+  ativa: "andamento",
   bloqueado: "alerta",
   refutada: "alerta",
   falha: "alerta",
@@ -99,6 +100,7 @@ const vocabulario = {
   status: {
     Task: ["pendente", "em_andamento", "pronto_para_revisao", "concluido", "bloqueado"],
     Question: ["aberta", "respondida", "descartada"],
+    Sessao: ["ativa", "concluida"],
   },
   niveisAutonomia: ["estrito", "ilimitado"],
 };
