@@ -8,6 +8,7 @@ nunca teve medição própria; a correção não é publicar outro número sem r
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from graphow.avaliacao.entre_projetos import RelatorioEntreProjetos
 from graphow.avaliacao.medicao import MedicaoDaTarefa
 from graphow.avaliacao.retomada import MedicaoDeRetomada
 from graphow.context.token_counter import ContadorTokens
@@ -29,6 +30,7 @@ class RelatorioDeAvaliacao:
     calibracao: str
     limites: tuple[str, ...] = LIMITES_DECLARADOS
     retomada: MedicaoDeRetomada | None = None
+    entre_projetos: RelatorioEntreProjetos | None = None
 
     @classmethod
     def a_partir_de(
@@ -36,12 +38,14 @@ class RelatorioDeAvaliacao:
         medicoes: Sequence[MedicaoDaTarefa],
         *,
         retomada: MedicaoDeRetomada | None = None,
+        entre_projetos: RelatorioEntreProjetos | None = None,
     ) -> "RelatorioDeAvaliacao":
         """Monta o relatório registrando com que régua os tokens foram medidos."""
         return cls(
             medicoes=tuple(medicoes),
             calibracao=ContadorTokens.calibracao_em_uso(),
             retomada=retomada,
+            entre_projetos=entre_projetos,
         )
 
     @property
@@ -75,7 +79,19 @@ class RelatorioDeAvaliacao:
 
     def formatar(self) -> tuple[str, ...]:
         """Linhas legíveis do relatório, prontas para o console."""
-        return self._cabecalho() + self._linhas_de_tarefas() + self._linhas_de_retomada() + self._rodape()
+        return (
+            self._cabecalho()
+            + self._linhas_de_tarefas()
+            + self._linhas_de_retomada()
+            + self._linhas_entre_projetos()
+            + self._rodape()
+        )
+
+    def _linhas_entre_projetos(self) -> tuple[str, ...]:
+        """O braço entre projetos, quando foi medido."""
+        if self.entre_projetos is None:
+            return ()
+        return self.entre_projetos.formatar()
 
     def _linhas_de_retomada(self) -> tuple[str, ...]:
         """O braço de retomada: a vista da sessão encerrada contra a leitura nó a nó."""

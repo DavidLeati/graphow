@@ -10,15 +10,17 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-7 módulos · 1044 linhas · 12 classes
+9 módulos · 1421 linhas · 17 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`avaliacao/__init__.py`](#avaliacaoinit) | 41 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
+| [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
+| [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 195 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
+| [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
-| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 123 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 139 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
@@ -28,7 +30,39 @@ Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus grav
 
 ### Funções do módulo
 
-- `executar_avaliacao() -> RelatorioDeAvaliacao` — Monta os cenários gravados, mede os braços e consolida o relatório.
+- `executar_avaliacao() -> RelatorioDeAvaliacao` — Monta os cenários gravados, mede os três braços e consolida o relatório.
+
+## `avaliacao/cenario_entre_projetos.py`
+
+Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ID_PROJETO_SEGUNDO` | `str` | `'proj-segundo'` |
+| `ID_SETOR_SEGUNDO` | `str` | `'setor-segundo'` |
+| `ID_SESSAO_SEGUNDA` | `str` | `'sess-segunda'` |
+| `ID_APRENDIZADO_GLOBAL` | `str` | `'apr-corte-por-secao'` |
+| `ID_APRENDIZADO_LEXICO` | `str` | `'apr-eviccao-por-lru'` |
+| `ID_APRENDIZADO_ISOLADO` | `str` | `'apr-posse-no-portao'` |
+| `MECANISMO_NENHUM` | `str` | `'nenhum'` |
+| `TAREFAS_ENTRE_PROJETOS` | `tuple[TarefaEntreProjetos, ...]` | `(TarefaEntreProjetos(id='t2-spans', titulo='Exportar os spans do kernel…` |
+| `APRENDIZADOS_GRAVADOS` | `tuple[AprendizadoGravado, ...]` | `(AprendizadoGravado(id=ID_APRENDIZADO_GLOBAL, afirmacao='Nao corte a vi…` |
+
+### `AprendizadoGravado`
+
+*DTO imutável* — Um aprendizado do corpus: a afirmação, como aplicar, de onde saiu e onde vale.
+
+**Campos:** `id: str`, `afirmacao: str`, `como_aplicar: str`, `id_origem: str`, `vale_para: str`, `global_: bool`
+
+### `TarefaEntreProjetos`
+
+*DTO imutável* — Uma tarefa do segundo projeto e o aprendizado do primeiro de que ela depende.
+
+**Campos:** `id: str`, `titulo: str`, `descricao: str`, `id_aprendizado_esperado: str`, `mecanismo_esperado: str`
+
+### Funções do módulo
+
+- `montar_cenario_entre_projetos() -> WriteKernel` — O cenário com memória, mais os aprendizados promovidos e o segundo projeto.
 
 ## `avaliacao/cenario_memoria.py`
 
@@ -47,6 +81,37 @@ Extensão do cenário gravado com a camada de memória: a sessão encerrada e co
 - `montar_cenario_com_memoria() -> WriteKernel` — O cenário gravado, mais a sessão encerrada e a condensação escrita pelo revisor.
 - `estender_com_memoria(kernel: WriteKernel) -> WriteKernel` — Encerra a sessão do corpus e grava a condensação que um revisor escreveria.
 - `ids_de_conhecimento_do_corpus() -> tuple[str, ...]` — As decisões e evidências que o corpus gravou, na ordem das tarefas.
+
+## `avaliacao/entre_projetos.py`
+
+Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ORCAMENTO_ENTRE_PROJETOS` | `int` | `1500` |
+| `PROFUNDIDADE_MAXIMA` | `int` | `8` |
+
+### `MedicaoEntreProjetos`
+
+*DTO imutável* — Uma tarefa do segundo projeto: o aprendizado chegou, e a que custo em cada braço.
+
+**Campos:** `id_tarefa: str`, `id_aprendizado_esperado: str`, `mecanismo_esperado: str`, `chegou: bool`, `tokens_pela_vista: int`, `tokens_despejo_do_primeiro_projeto: int`, `tokens_busca_cega: int`
+
+### `MedidorEntreProjetos`
+
+*serviço* — Mede, por tarefa do segundo projeto, a vista contra o despejo e a busca cega.
+
+- `medir_todas(tarefas: Sequence[TarefaEntreProjetos]) -> RelatorioEntreProjetos` — Mede cada tarefa gravada do segundo projeto sobre a mesma projeção.
+
+### `RelatorioEntreProjetos`
+
+*DTO imutável* — As medições do braço e o índice semântico com que foram feitas.
+
+**Campos:** `medicoes: tuple[MedicaoEntreProjetos, ...]`, `indice_semantico: str`
+
+- `acertos() -> int` `[property]` — Quantas tarefas receberam o aprendizado de que dependiam.
+- `taxa_de_acerto() -> float` `[property]` — Fração de tarefas atendidas, entre 0 e 1.
+- `formatar() -> tuple[str, ...]` — Linhas legíveis do braço, prontas para o console.
 
 ## `avaliacao/escala.py`
 
@@ -125,7 +190,7 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 
 *DTO imutável* — Consolidação das medições, com as médias de tokens por tarefa bem-sucedida.
 
-**Campos:** `medicoes: tuple[MedicaoDaTarefa, ...]`, `calibracao: str`, `limites: tuple[str, ...]`, `retomada: MedicaoDeRetomada | None`
+**Campos:** `medicoes: tuple[MedicaoDaTarefa, ...]`, `calibracao: str`, `limites: tuple[str, ...]`, `retomada: MedicaoDeRetomada | None`, `entre_projetos: RelatorioEntreProjetos | None`
 
 - `a_partir_de(medicoes: Sequence[MedicaoDaTarefa]) -> 'RelatorioDeAvaliacao'` — Monta o relatório registrando com que régua os tokens foram medidos.
 - `bem_sucedidas() -> tuple[MedicaoDaTarefa, ...]` `[property]` — Somente as tarefas concluídas entram na métrica número um.
