@@ -107,6 +107,12 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         "Geração deste Catálogo",
         "Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Existe para que a documentação não seja mantida à mão.",
     ),
+    DefinicaoSetor(
+        15,
+        "notas",
+        "Acervo de Notas como Projeção",
+        "Renderiza um diretório de notas em Markdown a partir dos aprendizados promovidos, uma nota por aprendizado, com a origem derivada das arestas. O grafo é a fonte; o acervo é leitura, regenerável do zero, e a conferência acusa qualquer deriva.",
+    ),
 )
 
 

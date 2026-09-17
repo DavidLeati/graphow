@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**14 alas · 141 módulos · 17047 linhas · 290 classes**
+**15 alas · 146 módulos · 17453 linhas · 299 classes**
 
 ---
 
@@ -32,7 +32,8 @@ e o inventário das alas. O catálogo detalhado de cada ala vive em
 | Ajustar o que o agente recebe de contexto | Setor 06 — `graphow.context` |
 | Alterar ferramentas expostas ao agente | Setor 10 — `graphow.mcp` |
 | Trabalhar no canvas ou no tempo real | Setor 12 — `graphow.web` |
-| Regenerar esta documentação | Setor 13 — `graphow docs-gerar` |
+| Regenerar esta documentação | Setor 14 — `graphow docs-gerar` |
+| Gerar o acervo de notas dos aprendizados | Setor 15 — `graphow notas-gerar` |
 
 ---
 
@@ -69,7 +70,8 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 851 | 10 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 20 | 2249 | 37 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 9 | 1421 | 17 |
-| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 9 | 1289 | 27 |
+| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 9 | 1296 | 27 |
+| 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 399 | 9 |
 
 ### Missão de cada ala
 
@@ -100,4 +102,6 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 **13. Harness de Avaliação** — Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação.
 
 **14. Geração deste Catálogo** — Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Existe para que a documentação não seja mantida à mão.
+
+**15. Acervo de Notas como Projeção** — Renderiza um diretório de notas em Markdown a partir dos aprendizados promovidos, uma nota por aprendizado, com a origem derivada das arestas. O grafo é a fonte; o acervo é leitura, regenerável do zero, e a conferência acusa qualquer deriva.
 

@@ -34,7 +34,8 @@ ROTEAMENTO_POR_INTENCAO: tuple[tuple[str, str], ...] = (
     ("Ajustar o que o agente recebe de contexto", "Setor 06 — `graphow.context`"),
     ("Alterar ferramentas expostas ao agente", "Setor 10 — `graphow.mcp`"),
     ("Trabalhar no canvas ou no tempo real", "Setor 12 — `graphow.web`"),
-    ("Regenerar esta documentação", "Setor 13 — `graphow docs-gerar`"),
+    ("Regenerar esta documentação", "Setor 14 — `graphow docs-gerar`"),
+    ("Gerar o acervo de notas dos aprendizados", "Setor 15 — `graphow notas-gerar`"),
 )
 
 REGRAS_DE_ENGENHARIA: tuple[tuple[str, str], ...] = (
