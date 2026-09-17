@@ -10,18 +10,19 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-10 módulos · 1477 linhas · 20 classes
+11 módulos · 1615 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`projection/acumulador.py`](#projectionacumulador) | 188 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
+| [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 218 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 100 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 160 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
-| [`projection/rollup.py`](#projectionrollup) | 231 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
+| [`projection/rollup.py`](#projectionrollup) | 250 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
 | [`projection/working_set.py`](#projectionworkingset) | 169 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
 
 ## `projection/acumulador.py`
@@ -73,6 +74,29 @@ Caminho crítico: quem trava quem, e quanto cada gargalo destrava.
 **Campos:** `id: str`, `rotulo: str`, `tipo: str`, `status: str`, `desbloqueia_diretamente: int`, `desbloqueia_no_total: int`
 
 - `em_dicionario() -> dict[str, object]` — Forma serializável para a resposta REST e para a ferramenta MCP.
+
+## `projection/fechamento.py`
+
+Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMITE_DE_IDS_POR_LINHA` | `int` | `5` |
+
+### `FechamentoDeSubarvore`
+
+*DTO imutável* — Esqueleto determinístico do que uma subárvore deixou em vigor.
+
+**Campos:** `decisoes_vigentes: tuple[str, ...]`, `decisoes_substituidas: int`, `questoes_abertas: tuple[str, ...]`, `restricoes: tuple[str, ...]`, `ultimo_artefato: str`, `seq_ultimo_artefato: int`
+
+- `esta_vazio() -> bool` `[property]` — Sem decisão, dúvida, restrição ou artefato não há fechamento a mostrar.
+- `descrever(limite: int) -> tuple[str, ...]` — Linhas compactas do fechamento, na casa de vinte tokens cada.
+- `em_dicionario() -> dict[str, object]` — Forma serializável para o canvas e para as respostas REST.
+
+### Funções do módulo
+
+- `decisoes_substituidas(estado: GrafoEstado) -> frozenset[str]` — Decisões que receberam uma aresta `substitui`: já não vigoram.
+- `calcular_fechamento(nos: Sequence[NoGrafo], substituidas: frozenset[str]) -> FechamentoDeSubarvore` — Dobra os nós alcançados no esqueleto do fechamento, em ordem estável.
 
 ## `projection/fila_trabalho.py`
 
@@ -244,7 +268,7 @@ Resumo agregado de cada subárvore de contenção, calculado uma vez por commit.
 
 *DTO imutável* — O que existe sob um contêiner, sem precisar abri-lo.
 
-**Campos:** `id: str`, `total_nos: int`, `tarefas_por_status: Mapping[str, int]`, `questoes_abertas: int`, `seq_ultimo_toque: int`
+**Campos:** `id: str`, `total_nos: int`, `tarefas_por_status: Mapping[str, int]`, `questoes_abertas: int`, `seq_ultimo_toque: int`, `fechamento: FechamentoDeSubarvore`
 
 - `tarefas_totais() -> int` `[property]` — Quantas Tasks a subárvore contém, em qualquer estado.
 - `tarefas_concluidas() -> int` `[property]` — Quantas dessas Tasks já chegaram a um estado terminal.

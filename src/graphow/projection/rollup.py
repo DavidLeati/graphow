@@ -23,6 +23,11 @@ from dataclasses import dataclass, field
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import StatusQuestion, StatusTask, TipoNo
+from graphow.projection.fechamento import (
+    FechamentoDeSubarvore,
+    calcular_fechamento,
+    decisoes_substituidas,
+)
 
 # Uma tarefa nestes estados não pede mais nada de ninguém.
 STATUS_TERMINAIS_DE_TAREFA: frozenset[str] = frozenset({StatusTask.CONCLUIDO.value})
@@ -37,6 +42,9 @@ class ResumoDeSubarvore:
     tarefas_por_status: Mapping[str, int] = field(default_factory=dict)
     questoes_abertas: int = 0
     seq_ultimo_toque: int = 0
+    # O esqueleto do fechamento viaja com o resumo porque é derivado do mesmo
+    # conjunto alcançado: calculá-lo à parte abriria a janela em que discordam.
+    fechamento: FechamentoDeSubarvore = field(default_factory=FechamentoDeSubarvore)
 
     @property
     def tarefas_totais(self) -> int:
@@ -82,6 +90,7 @@ class ResumoDeSubarvore:
             "tarefas_por_status": dict(self.tarefas_por_status),
             "questoes_abertas": self.questoes_abertas,
             "seq_ultimo_toque": self.seq_ultimo_toque,
+            "fechamento": self.fechamento.em_dicionario(),
         }
 
 
@@ -101,8 +110,9 @@ class IndiceDeRollup:
         """Dobra o estado inteiro em um resumo por contêiner, em uma passada."""
         filhos = _mapear_filhos(estado)
         alcances = _MotorDeAlcance(estado, filhos).resolver_todos()
+        substituidas = decisoes_substituidas(estado)
         resumos = {
-            id_no: _resumir(id_no, alcances[id_no], estado)
+            id_no: _resumir(id_no, _nos_alcancados(alcances[id_no], estado), substituidas)
             for id_no in filhos
             if id_no in estado.nos
         }
@@ -153,15 +163,24 @@ def _detectar_orfaos(estado: GrafoEstado) -> tuple[str, ...]:
     )
 
 
-def _resumir(id_no: str, ids_alcancados: frozenset[str], estado: GrafoEstado) -> ResumoDeSubarvore:
+def _nos_alcancados(ids_alcancados: frozenset[str], estado: GrafoEstado) -> tuple[NoGrafo, ...]:
+    """Resolve os identificadores alcançados nos nós da projeção, em ordem estável."""
+    return tuple(estado.nos[id_no] for id_no in sorted(ids_alcancados) if id_no in estado.nos)
+
+
+def _resumir(
+    id_no: str,
+    nos: tuple[NoGrafo, ...],
+    substituidas: frozenset[str],
+) -> ResumoDeSubarvore:
     """Conta uma vez, ao final, o que o conjunto alcançado contém."""
-    nos = tuple(estado.nos[id_alcancado] for id_alcancado in ids_alcancados if id_alcancado in estado.nos)
     return ResumoDeSubarvore(
         id=id_no,
         total_nos=len(nos),
         tarefas_por_status=_contar_tarefas_por_status(nos),
         questoes_abertas=sum(1 for no in nos if _eh_questao_aberta(no)),
         seq_ultimo_toque=max((no.ordem.seq_atualizacao for no in nos), default=0),
+        fechamento=calcular_fechamento(nos, substituidas),
     )
 
 
