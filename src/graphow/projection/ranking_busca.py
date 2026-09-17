@@ -34,6 +34,17 @@ STATUS_ENCERRADOS: frozenset[str] = frozenset(
 CASOU_NO_ROTULO: str = "rotulo"
 CASOU_NAS_PROPRIEDADES: str = "propriedades"
 
+# Palavras que aparecem em qualquer título e não dizem de que ele trata.
+PALAVRAS_VAZIAS: frozenset[str] = frozenset(
+    {
+        "para", "pelo", "pela", "pelos", "pelas", "como", "mais", "menos", "sobre", "entre",
+        "este", "esta", "isto", "esse", "essa", "isso", "aquele", "aquela", "seus", "suas",
+        "onde", "qual", "quais", "quando", "porque", "ainda", "mesmo", "cada", "toda", "todo",
+        "todos", "todas", "umas", "sem", "com", "dos", "das", "nos", "nas", "por", "que",
+    }
+)
+TAMANHO_MINIMO_DE_PALAVRA: int = 4
+
 _FORMA_PALAVRA_INTEIRA: int = 0
 _FORMA_PREFIXO: int = 1
 _FORMA_SUBSTRING: int = 2
@@ -150,6 +161,21 @@ def _palavras(texto: str) -> frozenset[str]:
     """Quebra o texto em palavras, tratando tudo que não é alfanumérico como espaço."""
     separado = "".join(caractere if caractere.isalnum() else " " for caractere in texto)
     return frozenset(separado.split())
+
+
+def palavras_significativas(texto: str) -> frozenset[str]:
+    """Palavras do texto que dizem de que ele trata: sem as curtas, as vazias e os números."""
+    return frozenset(
+        palavra
+        for palavra in _palavras(texto.lower())
+        if len(palavra) >= TAMANHO_MINIMO_DE_PALAVRA and palavra not in PALAVRAS_VAZIAS and not palavra.isdigit()
+    )
+
+
+def contar_palavras_casadas(no: NoGrafo, palavras: frozenset[str]) -> int:
+    """Quantas das palavras aparecem inteiras no rótulo ou nas propriedades do nó."""
+    texto = f"{no.rotulo.lower()} {_texto_das_propriedades(no)}"
+    return len(palavras & _palavras(texto))
 
 
 def _faixa_de_status(no: NoGrafo) -> int:

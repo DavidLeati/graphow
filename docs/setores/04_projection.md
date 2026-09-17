@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-11 módulos · 1615 linhas · 21 classes
+11 módulos · 1641 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 218 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 100 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
-| [`projection/ranking_busca.py`](#projectionrankingbusca) | 160 | Ordenação e corte dos resultados de busca textual no grafo. |
+| [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
 | [`projection/rollup.py`](#projectionrollup) | 250 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
 | [`projection/working_set.py`](#projectionworkingset) | 169 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
@@ -199,6 +199,8 @@ Ordenação e corte dos resultados de busca textual no grafo.
 | `STATUS_ENCERRADOS` | `frozenset[str]` | `frozenset({StatusTask.CONCLUIDO.value, StatusQuestion.RESPONDIDA.value,…` |
 | `CASOU_NO_ROTULO` | `str` | `'rotulo'` |
 | `CASOU_NAS_PROPRIEDADES` | `str` | `'propriedades'` |
+| `PALAVRAS_VAZIAS` | `frozenset[str]` | `frozenset({'para', 'pelo', 'pela', 'pelos', 'pelas', 'como', 'mais', 'm…` |
+| `TAMANHO_MINIMO_DE_PALAVRA` | `int` | `4` |
 | `_FORMA_PALAVRA_INTEIRA` | `int` | `0` |
 | `_FORMA_PREFIXO` | `int` | `1` |
 | `_FORMA_SUBSTRING` | `int` | `2` |
@@ -233,6 +235,8 @@ Ordenação e corte dos resultados de busca textual no grafo.
 ### Funções do módulo
 
 - `ranquear(nos: Sequence[NoGrafo], criterio: CriterioBusca) -> ResultadoDaBusca` — Ordena os nós por relevância ao termo e corta no limite pedido.
+- `palavras_significativas(texto: str) -> frozenset[str]` — Palavras do texto que dizem de que ele trata: sem as curtas, as vazias e os números.
+- `contar_palavras_casadas(no: NoGrafo, palavras: frozenset[str]) -> int` — Quantas das palavras aparecem inteiras no rótulo ou nas propriedades do nó.
 
 ## `projection/reducer.py`
 

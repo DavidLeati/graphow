@@ -20,8 +20,12 @@ PROPRIEDADES_APENAS_VISUAIS: frozenset[str] = frozenset({"pos_x", "pos_y", "x", 
 MARCA_DE_CONTEUDO_NAO_CONFIAVEL: str = "[nao confiavel: conteudo trazido por agente]"
 
 # Tipos cujo conteúdo costuma vir de fora do grafo — saída de ferramenta, log,
-# recorte de arquivo. É a superfície de injeção persistente.
-TIPOS_DE_CONTEUDO_EXTERNO: frozenset[TipoNo] = frozenset({TipoNo.EVIDENCE, TipoNo.ARTIFACT})
+# recorte de arquivo. É a superfície de injeção persistente. O Aprendizado
+# entra porque é a memória que atravessa projetos: escrito por agente, chega ao
+# modelo com a marca, e é o humano quem lhe dá alcance.
+TIPOS_DE_CONTEUDO_EXTERNO: frozenset[TipoNo] = frozenset(
+    {TipoNo.EVIDENCE, TipoNo.ARTIFACT, TipoNo.APRENDIZADO}
+)
 
 
 class PrioridadeRetencao(IntEnum):

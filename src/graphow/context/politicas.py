@@ -6,12 +6,18 @@ relação alguma com a tarefa em mãos.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
 from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
+from graphow.context.memoria import (
+    IndiceSemantico,
+    IndiceSemanticoNulo,
+    PedidoDeMemoria,
+    montar_secao_de_aprendizados,
+)
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (
     PrioridadeRetencao,
@@ -38,6 +44,7 @@ class AmbienteDoRecorte:
     view: GrafoView
     explorador: ExploradorSubgrafo
     escopo: EscopoAtivo | None = None
+    indice_semantico: IndiceSemantico = field(default_factory=IndiceSemanticoNulo)
 
     def esta_no_escopo(self, id_no: str) -> bool:
         """Sem escopo declarado nada é filtrado; com escopo, vale o recorte ativo."""
@@ -55,25 +62,34 @@ class PoliticaContexto(ABC):
         id_alvo: str,
         view: GrafoView,
         escopo: EscopoAtivo | None = None,
+        *,
+        indice_semantico: IndiceSemantico | None = None,
     ) -> RecorteContexto:
         """Monta o recorte de contexto centrado no nó alvo."""
         raise NotImplementedError
 
 
 class PoliticaBase(PoliticaContexto):
-    """Peças comuns a todas as políticas: restrições, bloqueios e vizinhança."""
+    """Peças comuns a todas as políticas: restrições, bloqueios, memória e vizinhança."""
 
     def extrair_recorte(
         self,
         id_alvo: str,
         view: GrafoView,
         escopo: EscopoAtivo | None = None,
+        *,
+        indice_semantico: IndiceSemantico | None = None,
     ) -> RecorteContexto:
         """Monta o recorte combinando as seções universais com as do papel."""
         alvo = view.obter_no(id_alvo)
         if alvo is None:
             raise KeyError(id_alvo)
-        ambiente = AmbienteDoRecorte(view=view, explorador=ExploradorSubgrafo(view), escopo=escopo)
+        ambiente = AmbienteDoRecorte(
+            view=view,
+            explorador=ExploradorSubgrafo(view),
+            escopo=escopo,
+            indice_semantico=indice_semantico or IndiceSemanticoNulo(),
+        )
         return RecorteContexto(
             alvo=alvo,
             secoes=self._secoes_universais(alvo, ambiente) + self._secoes_do_papel(alvo, ambiente),
@@ -108,14 +124,19 @@ class PoliticaBase(PoliticaContexto):
         alvo: NoGrafo,
         ambiente: AmbienteDoRecorte,
     ) -> tuple[SecaoContexto, ...]:
-        """O fechamento de uma sessão encerrada abre a vista dela.
+        """A memória que alcança o alvo: o fechamento da sessão encerrada e os aprendizados.
 
-        Só existe quando a sessão foi encerrada: numa sessão viva o que importa
-        é a fila de trabalho, e o fechamento ainda está mudando.
+        O fechamento só existe quando a sessão foi encerrada: numa sessão viva o
+        que importa é a fila de trabalho, e o fechamento ainda está mudando. Os
+        aprendizados valem para qualquer alvo, e a seção some sozinha quando
+        nenhum o alcança.
         """
+        aprendizados = montar_secao_de_aprendizados(
+            PedidoDeMemoria(alvo=alvo, view=ambiente.view, indice=ambiente.indice_semantico)
+        )
         if not esta_encerrada(alvo):
-            return ()
-        return (montar_secao_de_fechamento(alvo, ambiente.view),)
+            return (aprendizados,)
+        return (montar_secao_de_fechamento(alvo, ambiente.view), aprendizados)
 
     def _secao_restricoes(self, alvo: NoGrafo, ambiente: AmbienteDoRecorte) -> SecaoContexto:
         """Constraints que escopam o alvo ou algum de seus ancestrais hierárquicos.

@@ -9,6 +9,7 @@ from graphow.context.politicas import (
     PoliticaPlanejador,
     PoliticaRevisor,
 )
+from graphow.context.memoria import IndiceSemantico, IndiceSemanticoNulo
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
 from graphow.context.secoes import filtrar_propriedades_de_dominio
 from graphow.core.exceptions import ErroEntidadeNaoEncontrada
@@ -61,8 +62,20 @@ class MaterializadorContexto:
         PapelAutor.HUMANO: PoliticaPlanejador(),
     }
 
-    def __init__(self, renderizador: RenderizadorContexto | None = None) -> None:
+    def __init__(
+        self,
+        renderizador: RenderizadorContexto | None = None,
+        indice_semantico: IndiceSemantico | None = None,
+    ) -> None:
         self._renderizador: RenderizadorContexto = renderizador or RenderizadorContexto()
+        # Injetável e nulo por padrão, como a telemetria: sem configurar, a
+        # recuperação semântica não custa nada e não traz dependência.
+        self._indice_semantico: IndiceSemantico = indice_semantico or IndiceSemanticoNulo()
+
+    @property
+    def indice_semantico(self) -> IndiceSemantico:
+        """O índice em uso, para o relatório de avaliação declarar com o que mediu."""
+        return self._indice_semantico
 
     def materializar(self, requisicao: RequisicaoVista, view: GrafoView) -> VistaMaterializada:
         """Gera a vista mais completa que couber no orçamento de tokens do pedido."""
@@ -73,7 +86,9 @@ class MaterializadorContexto:
             )
         politica = self.POLITICAS_POR_PAPEL.get(requisicao.papel, PoliticaExecutor())
         escopo = self._resolver_escopo(requisicao, view)
-        recorte = politica.extrair_recorte(requisicao.id_alvo, view, escopo)
+        recorte = politica.extrair_recorte(
+            requisicao.id_alvo, view, escopo, indice_semantico=self._indice_semantico
+        )
         texto = self._renderizador.renderizar(recorte, requisicao.orcamento_tokens)
         return self._montar_vista(requisicao, texto)
 

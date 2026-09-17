@@ -10,18 +10,19 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-13 módulos · 1515 linhas · 26 classes
+14 módulos · 1844 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/corte.py`](#contextcorte) | 62 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
-| [`context/materializer.py`](#contextmaterializer) | 131 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/memoria.py`](#contextmemoria) | 289 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 300 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/politicas.py`](#contextpoliticas) | 321 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 212 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/secoes.py`](#contextsecoes) | 216 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -112,6 +113,7 @@ Motor de materialização de vistas de contexto com orçamento de tokens.
 
 **Campos:** `POLITICAS_POR_PAPEL: dict[PapelAutor, PoliticaContexto]`
 
+- `indice_semantico() -> IndiceSemantico` `[property]` — O índice em uso, para o relatório de avaliação declarar com o que mediu.
 - `materializar(requisicao: RequisicaoVista, view: GrafoView) -> VistaMaterializada` — Gera a vista mais completa que couber no orçamento de tokens do pedido.
 - `expandir_no(id_no: str, view: GrafoView) -> dict[str, Any]` — Expansão detalhada sob demanda de um nó específico.
 
@@ -126,6 +128,66 @@ Motor de materialização de vistas de contexto com orçamento de tokens.
 *DTO imutável* — Recorte de contexto imutável materializado com orçamento estrito de tokens.
 
 **Campos:** `id_alvo: str`, `papel: PapelAutor`, `conteudo_formatado: str`, `tokens_estimados: int`, `orcamento_tokens: int`, `nos_incluidos: tuple[str, ...]`, `vizinhos_expansiveis: tuple[str, ...]`
+
+## `context/memoria.py`
+
+Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_APRENDIZADOS` | `str` | `'Aprendizados Aplicaveis'` |
+| `ORDEM_DE_EXIBICAO_DOS_APRENDIZADOS` | `int` | `2` |
+| `CAMPO_ALCANCE` | `str` | `'alcance'` |
+| `ALCANCE_GLOBAL` | `str` | `'global'` |
+| `CAMPO_COMO_APLICAR` | `str` | `'como_aplicar'` |
+| `CAMPO_VALIDO_ATE` | `str` | `'valido_ate'` |
+| `CAMPO_DESCRICAO` | `str` | `'descricao'` |
+| `PROFUNDIDADE_DA_HERANCA` | `int` | `8` |
+| `LIMITE_DE_CASAMENTOS_LEXICAIS` | `int` | `5` |
+| `MECANISMO_HERANCA` | `str` | `'heranca'` |
+| `MECANISMO_LEXICO` | `str` | `'lexico'` |
+| `MECANISMO_SEMANTICO` | `str` | `'semantico'` |
+| `MARCA_DE_SUBSTITUIDO` | `str` | `'SUBSTITUIDO'` |
+| `MARCA_DE_CONTRADITO` | `str` | `'CONTRADITO'` |
+
+### `AprendizadoAplicavel`
+
+*DTO imutável* — Um aprendizado que alcançou o alvo, com o mecanismo pelo qual chegou.
+
+**Campos:** `no: NoGrafo`, `mecanismo: str`, `alcance: str`
+
+### `IndiceSemantico` (ABC)
+
+*contrato* — Recuperação por sentido, para quando herança e léxico não atravessam projetos.
+
+- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` `[abstract]` — Identificadores dos candidatos aplicáveis ao texto, em ordem.
+- `descrever() -> str` `[abstract]` — Nome do índice em uso, para o relatório de avaliação declarar.
+
+### `IndiceSemanticoNulo` (IndiceSemantico)
+
+*serviço* — O padrão: não sugere nada e não custa nada.
+
+- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` — Nenhuma sugestão.
+- `descrever() -> str` — Nome do índice nulo.
+
+### `PedidoDeMemoria`
+
+*DTO imutável* — O que a seção precisa: o alvo, a projeção, o índice e o instante de referência.
+
+**Campos:** `alvo: NoGrafo`, `view: GrafoView`, `indice: IndiceSemantico`, `agora: str`
+
+- `instante() -> str` `[property]` — Instante ISO contra o qual `valido_ate` é comparado; o relógio, se não vier.
+- `texto_do_alvo() -> str` `[property]` — Título e descrição do alvo, que é o que o léxico e o índice comparam.
+
+### Funções do módulo
+
+- `montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto` — Monta a seção nos três passos, agrupada por mecanismo para encolher sob orçamento.
+- `aprendizados_promovidos(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]` — Aprendizados com alcance declarado e ainda válidos, em ordem estável.
+- `alcances_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]` — Onde o aprendizado vale: a marca global e os destinos de `vale_para`.
+- `origens_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]` — De onde o aprendizado saiu: os destinos das arestas `deriva_de`.
+- `identificar_substituto(id_aprendizado: str, view: GrafoView) -> str | None` — O Aprendizado vigente que substituiu o informado, se houver.
+- `identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Evidences que contradizem o aprendizado: sinal de que ele precisa de revisão.
+- `formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str` — Uma linha: a afirmação, a proveniência, como aplicar, o alcance, a origem e as marcas.
 
 ## `context/panorama.py`
 
@@ -162,13 +224,13 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 
 *DTO imutável* — O que toda seção precisa para se montar, agrupado para caber na assinatura.
 
-**Campos:** `view: GrafoView`, `explorador: ExploradorSubgrafo`, `escopo: EscopoAtivo | None`
+**Campos:** `view: GrafoView`, `explorador: ExploradorSubgrafo`, `escopo: EscopoAtivo | None`, `indice_semantico: IndiceSemantico`
 
 - `esta_no_escopo(id_no: str) -> bool` — Sem escopo declarado nada é filtrado; com escopo, vale o recorte ativo.
 
 ### `PoliticaBase` (PoliticaContexto)
 
-*contrato* — Peças comuns a todas as políticas: restrições, bloqueios e vizinhança.
+*contrato* — Peças comuns a todas as políticas: restrições, bloqueios, memória e vizinhança.
 
 - `extrair_recorte(id_alvo: str, view: GrafoView, escopo: EscopoAtivo | None) -> RecorteContexto` — Monta o recorte combinando as seções universais com as do papel.
 
@@ -224,7 +286,7 @@ Seções que compõem uma vista de contexto e sua ordem de descarte.
 | :--- | :--- | :--- |
 | `PROPRIEDADES_APENAS_VISUAIS` | `frozenset[str]` | `frozenset({'pos_x', 'pos_y', 'x', 'y'})` |
 | `MARCA_DE_CONTEUDO_NAO_CONFIAVEL` | `str` | `'[nao confiavel: conteudo trazido por agente]'` |
-| `TIPOS_DE_CONTEUDO_EXTERNO` | `frozenset[TipoNo]` | `frozenset({TipoNo.EVIDENCE, TipoNo.ARTIFACT})` |
+| `TIPOS_DE_CONTEUDO_EXTERNO` | `frozenset[TipoNo]` | `frozenset({TipoNo.EVIDENCE, TipoNo.ARTIFACT, TipoNo.APRENDIZADO})` |
 
 ### `GrupoDeLinhas`
 

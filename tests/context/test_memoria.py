@@ -1,0 +1,219 @@
+"""Testes da seção de memória: herança, léxico, índice injetável e as marcas de esquecimento."""
+
+from collections.abc import Sequence
+
+from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
+from graphow.context.memoria import (
+    TITULO_APRENDIZADOS,
+    IndiceSemantico,
+    PedidoDeMemoria,
+    montar_secao_de_aprendizados,
+)
+from graphow.context.secoes import MARCA_DE_CONTEUDO_NAO_CONFIAVEL, PrioridadeRetencao
+from graphow.core.models import NoGrafo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.kernel.composicao import montar_kernel_em_memoria
+from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
+from graphow.kernel.write_kernel import WriteKernel
+
+ORCAMENTO: int = 2000
+
+
+def _no(id_no: str, tipo: TipoNo, rotulo: str, **propriedades: str) -> ItemPatch:
+    """Operação de criação de nó com propriedades opcionais."""
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/nos/{id_no}",
+        value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo, "propriedades": dict(propriedades)},
+    )
+
+
+def _aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+    """Operação de criação de aresta com id derivado das pontas."""
+    id_aresta = f"{tipo.value}-{origem}-{destino}"
+    return ItemPatch(
+        op=OperacaoPatch.ADD,
+        path=f"/arestas/{id_aresta}",
+        value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value},
+    )
+
+
+def _submeter(kernel: WriteKernel, operacoes: list[ItemPatch], papel: PapelAutor = PapelAutor.HUMANO) -> None:
+    """Submete o lote sob o papel informado, exigindo aceitação."""
+    dados = DadosPropostaPatch(autor=f"autor-{papel.value}", papel=papel, operacoes=operacoes, justificativa="cenario")
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+    assert recibo.sucesso, recibo.mensagem
+
+
+def _hierarquia(sufixo: str, titulo_da_tarefa: str) -> list[ItemPatch]:
+    """Projeto, setor, sessão e uma tarefa, todos com o sufixo informado."""
+    return [
+        _no(f"proj-{sufixo}", TipoNo.PROJETO, f"Projeto {sufixo}"),
+        _no(f"setor-{sufixo}", TipoNo.SETOR, f"Setor {sufixo}"),
+        _aresta(f"proj-{sufixo}", f"setor-{sufixo}", TipoAresta.CONTEM),
+        _no(f"sess-{sufixo}", TipoNo.SESSAO, f"Sessao {sufixo}"),
+        _aresta(f"setor-{sufixo}", f"sess-{sufixo}", TipoAresta.CONTEM),
+        _no(f"task-{sufixo}", TipoNo.TASK, titulo_da_tarefa, status="pendente"),
+        _aresta(f"sess-{sufixo}", f"task-{sufixo}", TipoAresta.PRODUZ),
+    ]
+
+
+def _aprendizado(id_no: str, rotulo: str, origem: str = "dec-a", **propriedades: str) -> list[ItemPatch]:
+    """Aprendizado produzido pela sessão A e derivado da origem informada."""
+    return [
+        _no(id_no, TipoNo.APRENDIZADO, rotulo, **propriedades),
+        _aresta("sess-a", id_no, TipoAresta.PRODUZ),
+        _aresta(id_no, origem, TipoAresta.DERIVA_DE),
+    ]
+
+
+def _montar_kernel() -> WriteKernel:
+    """Dois projetos; a memória nasce no primeiro e é promovida de formas distintas."""
+    kernel = montar_kernel_em_memoria()
+    _submeter(
+        kernel,
+        [
+            *_hierarquia("a", "Definir a politica de eviccao do cache"),
+            _no("dec-a", TipoNo.DECISION, "Decisao A"),
+            _aresta("sess-a", "dec-a", TipoAresta.PRODUZ),
+            _no("ev-a", TipoNo.EVIDENCE, "Evidencia A"),
+            _aresta("sess-a", "ev-a", TipoAresta.PRODUZ),
+            *_hierarquia("b", "Escolher a politica de eviccao"),
+            _no("task-b2", TipoNo.TASK, "Migrar o banco antigo", status="pendente"),
+            _aresta("sess-b", "task-b2", TipoAresta.PRODUZ),
+        ],
+    )
+    _submeter(
+        kernel,
+        [
+            *_aprendizado("apr-global", "Descarte por secao, nunca linha a linha", alcance="global", como_aplicar="Desca a escada de corte"),
+            *_aprendizado("apr-proj", "Lote recusado inteiro sem contencao"),
+            _aresta("apr-proj", "proj-a", TipoAresta.VALE_PARA),
+            *_aprendizado("apr-setor", "Politica de eviccao por LRU com teto"),
+            _aresta("apr-setor", "setor-a", TipoAresta.VALE_PARA),
+            *_aprendizado("apr-velho", "Rollup incremental por aresta"),
+            _aresta("apr-velho", "proj-a", TipoAresta.VALE_PARA),
+            _aresta("apr-proj", "apr-velho", TipoAresta.SUBSTITUI),
+            *_aprendizado("apr-expirado", "Memoria vencida", alcance="global", valido_ate="2000-01-01T00:00:00+00:00"),
+            *_aprendizado("apr-contradito", "Reprocessar o log inteiro a cada commit"),
+            _aresta("apr-contradito", "proj-a", TipoAresta.VALE_PARA),
+            _aresta("ev-a", "apr-contradito", TipoAresta.CONTRADIZ),
+            *_aprendizado("apr-solto", "Nunca promovido"),
+        ],
+    )
+    _submeter(kernel, _aprendizado("apr-agente", "Escrito por agente", origem="ev-a"), PapelAutor.EXECUTOR)
+    _submeter(kernel, [_aresta("apr-agente", "proj-a", TipoAresta.VALE_PARA)])
+    return kernel
+
+
+def _vista(kernel: WriteKernel, id_alvo: str, materializador: MaterializadorContexto | None = None) -> str:
+    """Materializa a vista do planejador sobre o alvo."""
+    requisicao = RequisicaoVista(id_alvo=id_alvo, papel=PapelAutor.PLANEJADOR, orcamento_tokens=ORCAMENTO)
+    return (materializador or MaterializadorContexto()).materializar(requisicao, kernel.obter_view()).conteudo_formatado
+
+
+def _linha_de(conteudo: str, id_no: str) -> str:
+    """A linha da vista que cita o nó informado."""
+    return next(linha for linha in conteudo.splitlines() if f"[{id_no}]" in linha)
+
+
+def test_tarefa_herda_do_projeto_do_setor_e_do_global_nominal() -> None:
+    """Herança pela hierarquia resolve o mesmo projeto sem busca nenhuma."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
+    assert f"## {TITULO_APRENDIZADOS} (herdados de global, proj-a, setor-a)" in conteudo
+    for id_no in ("apr-global", "apr-proj", "apr-setor"):
+        assert f"[{id_no}]" in conteudo
+
+
+def test_substituido_e_contradito_ficam_marcados_e_nao_somem_nominal() -> None:
+    """Esquecer é marcar: o aprendizado vencido continua visível, com o aviso."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
+    assert "[SUBSTITUIDO por apr-proj: nao siga]" in _linha_de(conteudo, "apr-velho")
+    assert "[CONTRADITO por ev-a: precisa de revisao]" in _linha_de(conteudo, "apr-contradito")
+
+
+def test_expirado_e_nao_promovido_nao_aparecem_edge_case() -> None:
+    """Caso de borda: `valido_ate` vencido e ausência de alcance tiram o aprendizado da vista."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
+    assert "apr-expirado" not in conteudo
+    assert "apr-solto" not in conteudo
+
+
+def test_outro_projeto_recebe_o_global_e_o_casamento_lexical_nominal() -> None:
+    """Sem conhecer a palavra: o texto da tarefa casa com o aprendizado do outro projeto."""
+    conteudo = _vista(_montar_kernel(), "task-b")
+
+    assert "[apr-global]" in conteudo
+    assert "[apr-setor]" in conteudo
+    assert "[apr-proj]" not in conteudo
+    assert conteudo.index("[apr-global]") < conteudo.index("[apr-setor]")
+
+
+def test_sem_palavra_em_comum_so_o_global_chega_edge_case() -> None:
+    """Caso de borda: herança mais léxico não atravessam projetos sem palavra em comum."""
+    conteudo = _vista(_montar_kernel(), "task-b2")
+
+    assert "[apr-global]" in conteudo
+    assert "[apr-setor]" not in conteudo
+    assert "[apr-proj]" not in conteudo
+
+
+class _IndiceFixo(IndiceSemantico):
+    """Índice de teste que sempre sugere o mesmo aprendizado."""
+
+    def sugerir(self, texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]:
+        """Sugere o aprendizado do projeto A para qualquer texto."""
+        return ("apr-proj",)
+
+    def descrever(self) -> str:
+        """Nome do índice de teste."""
+        return "fixo"
+
+
+def test_indice_semantico_injetado_traz_o_que_lexico_nao_alcanca_nominal() -> None:
+    """O índice é o terceiro passo: só entra onde herança e léxico pararam."""
+    kernel = _montar_kernel()
+
+    conteudo = _vista(kernel, "task-b2", MaterializadorContexto(indice_semantico=_IndiceFixo()))
+
+    assert "[apr-proj]" in conteudo
+    assert MaterializadorContexto(indice_semantico=_IndiceFixo()).indice_semantico.descrever() == "fixo"
+
+
+def test_aprendizado_de_agente_chega_marcado_como_nao_confiavel_nominal() -> None:
+    """Memória escrita por agente tem a mesma defesa que Evidence e Artifact."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
+    assert MARCA_DE_CONTEUDO_NAO_CONFIAVEL in _linha_de(conteudo, "apr-agente")
+    assert MARCA_DE_CONTEUDO_NAO_CONFIAVEL not in _linha_de(conteudo, "apr-proj")
+
+
+def test_como_aplicar_origem_e_alcance_viajam_na_linha_nominal() -> None:
+    """A linha diz o que fazer, de onde veio e onde vale."""
+    linha = _linha_de(_vista(_montar_kernel(), "task-a"), "apr-global")
+
+    assert "-> como aplicar: Desca a escada de corte" in linha
+    assert "[vale_para global]" in linha
+    assert "[origem: dec-a]" in linha
+
+
+def test_secao_retem_como_memoria_e_encolhe_por_grupo_nominal() -> None:
+    """A memória cai no degrau da navegação, nunca antes, e encolhe por mecanismo."""
+    view = _montar_kernel().obter_view()
+
+    secao = montar_secao_de_aprendizados(PedidoDeMemoria(alvo=view.obter_no("task-a"), view=view))
+
+    assert secao.prioridade_retencao == PrioridadeRetencao.MEMORIA
+    assert secao.pode_encolher is True
+    assert secao.reduzida(1).ids_incluidos != secao.ids_incluidos
+
+
+def test_alvo_sem_aprendizado_algum_nao_ganha_secao_edge_case() -> None:
+    """Caso de borda: um grafo sem memória promovida não gasta um cabeçalho vazio."""
+    kernel = montar_kernel_em_memoria()
+    _submeter(kernel, _hierarquia("c", "Tarefa sem memoria"))
+
+    assert TITULO_APRENDIZADOS not in _vista(kernel, "task-c")
