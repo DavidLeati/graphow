@@ -76,6 +76,17 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 4. **Executar.** O trabalho técnico acontece fora do grafo, em código e documentos. Ao terminar, monte o lote JSON Patch.
 5. **Registrar.** Submeta `propor_patch` e confira `sucesso` no recibo; se vier recusa, leia `modo_de_falha` e corrija a proposta. Depois `concluir_tarefa` e `liberar_tarefa`.
 
+## Condensar uma sessão encerrada
+
+Quando uma Sessão é encerrada, o grafo abre nela uma Task com `acao: condensar_sessao` (autor `comportamento-condensador`). Ela aparece em `proximas_tarefas(id_sessao)` da sessão encerrada, e o panorama do Setor marca essa sessão com trabalho aberto. Quem condensa é o revisor ou o executor, os donos de `deriva_de`.
+
+1. `assumir_tarefa` na Task de condensar e `ler_vista(id_sessao)`. A vista de uma sessão encerrada abre pelo fechamento determinístico: decisões vigentes, dúvidas abertas, restrições e o último artefato, cada linha com a proveniência.
+2. Escreva uma `Note` produzida pela sessão (`produz`), com `acao: "condensacao_de_sessao"`, `id_alvo` igual ao id da sessão e o texto em `corpo`. O corpo diz, nesta ordem: as decisões vigentes com o motivo, os achados que mudaram uma decisão, o que ficou aberto e o que não fazer de novo.
+3. Cada afirmação do corpo carrega uma aresta `deriva_de` da Note para o nó de onde saiu: `Decision`, `Evidence`, `Artifact` ou `Task`. Condensação sem `deriva_de` é opinião, não memória.
+4. O revisor move a Task para `pronto_para_revisao` e libera a posse; o executor pode `concluir_tarefa`. A partir daí `ler_vista` na sessão abre pela condensação, marcada como não confiável enquanto for de agente.
+
+O patch pronto está no [cookbook](./references/patch_cookbook.md), em "revisor: condensar a sessão encerrada".
+
 ## JSON Patch (RFC 6902)
 
 Paths canônicos:

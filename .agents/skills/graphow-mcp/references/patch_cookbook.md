@@ -178,3 +178,66 @@ Criar o nó `Question` por `propor_patch` é tecnicamente possível e quase semp
 O `titulo` é o rótulo do nó, e é o que o card mostra no canvas: mande uma linha. O corpo vai em `pergunta` e pode ser tão longo quanto a dúvida exigir. Sem `titulo`, ele é derivado do começo da pergunta — e uma pergunta de vinte linhas vira um título truncado.
 
 Você abre a dúvida e espera em `aguardar_resposta`. Mover a `Question` para `respondida` ou `descartada`, removê-la ou tirar o `bloqueia` são operações de sessão humana, por qualquer caminho.
+
+## revisor: condensar a sessão encerrada
+
+A Task de condensar (`acao: condensar_sessao`) foi aberta pelo grafo quando a sessão `sess-sprint-01` encerrou. Depois de `assumir_tarefa` nela e de `ler_vista("sess-sprint-01")`, a condensação é uma `Note` produzida pela sessão, com `deriva_de` para cada nó de onde saiu uma afirmação do corpo. Sem o `produz`, a Note nasce fora da hierarquia; sem os `deriva_de`, é opinião sem origem.
+
+```json
+{
+  "justificativa": "Condensacao da sessao sess-sprint-01: decisoes vigentes, achados e o que ficou aberto",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/nota-condensacao-sprint-01",
+      "value": {
+        "id": "nota-condensacao-sprint-01",
+        "tipo": "Note",
+        "rotulo": "Condensacao da sprint 01",
+        "propriedades": {
+          "acao": "condensacao_de_sessao",
+          "id_alvo": "sess-sprint-01",
+          "corpo": "Vigora: o parser CSV ignora linhas em branco e avisa por ParseWarning, porque o contrato do importador nao as menciona e a amostra tem 14 delas. Achado que mudou a decisao: o relatorio de 14 testes aprovados com 98,5% de cobertura. Ficou aberto: a carga em lote no SQLite. Nao fazer de novo: decidir o tratamento de linhas em branco sem abrir questao ao humano."
+        }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-nota-condensacao-sprint-01",
+      "value": {
+        "id": "prod-nota-condensacao-sprint-01",
+        "origem_id": "sess-sprint-01",
+        "destino_id": "nota-condensacao-sprint-01",
+        "tipo": "produz"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-condensacao-evi",
+      "value": {
+        "id": "deriv-condensacao-evi",
+        "origem_id": "nota-condensacao-sprint-01",
+        "destino_id": "evi-test-pass",
+        "tipo": "deriva_de"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-condensacao-art",
+      "value": {
+        "id": "deriv-condensacao-art",
+        "origem_id": "nota-condensacao-sprint-01",
+        "destino_id": "art-csv-parser",
+        "tipo": "deriva_de"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/nos/task-condensar-sprint-01/propriedades/status",
+      "value": "pronto_para_revisao"
+    }
+  ]
+}
+```
+
+O revisor não grava `concluido`: ele deixa a Task em `pronto_para_revisao` e devolve a posse com `liberar_tarefa`. Um executor que condensasse poderia fechar por `concluir_tarefa`.
