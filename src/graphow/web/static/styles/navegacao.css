@@ -1,6 +1,6 @@
 /* ==========================================================================
-   NAVEGAÇÃO — explorador em árvore, busca e marcadores da lateral esquerda.
-   A árvore tem seta à esquerda,
+   NAVEGAÇÃO — explorador em árvore, busca, marcadores e memória da lateral
+   esquerda. A árvore tem seta à esquerda,
    guias de indentação e o item aberto destacado pelo fundo.
    ========================================================================== */
 
@@ -229,3 +229,99 @@
 /* Marcadores -------------------------------------------------------------- */
 .lista-marcadores { display: flex; flex-direction: column; gap: 1px; }
 .lista-marcadores .arvore-titulo { padding-left: 6px; }
+
+/* Memória ------------------------------------------------------------------
+   Aprendizados com origem, alcance e marcas; sessões com fechamento e
+   condensação. Cada item leva ao nó, e as ações ficam à direita, como na árvore. */
+.painel-memoria {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.memoria {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 8px 16px;
+}
+.memoria .secao { margin-bottom: 4px; }
+.memoria-item {
+  padding: 6px 6px 7px;
+  border-radius: var(--raio-sm);
+  cursor: pointer;
+}
+.memoria-item:hover { background: var(--moldura-hover); }
+.memoria-item.is-substituido .memoria-afirmacao { color: var(--texto-fraco); text-decoration: line-through; }
+.memoria-item-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+.memoria-item-topo .arvore-icone { margin-top: 1px; }
+.memoria-item-topo .sinal { margin-top: 2px; }
+.memoria-afirmacao {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fonte-pequena);
+  line-height: 1.4;
+  color: var(--texto-normal);
+}
+.memoria-item .arvore-acao { opacity: 0; }
+.memoria-item:hover .arvore-acao { opacity: 1; }
+.memoria-corpo {
+  display: flex;
+  gap: 4px;
+  margin: 3px 0 0 19px;
+  font-size: var(--fonte-menor);
+  line-height: 1.45;
+  color: var(--texto-suave);
+}
+.memoria-corpo .svg-icone { flex-shrink: 0; margin-top: 2px; color: var(--texto-fraco); }
+.memoria-fechamento {
+  margin: 3px 0 0 19px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--texto-fraco);
+  word-break: break-word;
+}
+.memoria-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 5px 0 0 19px;
+}
+.memoria-meta:empty { display: none; }
+.memoria-alcance,
+.memoria-origem,
+.memoria-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  border-radius: 10px;
+}
+.memoria-alcance { color: var(--texto-acento); background: var(--acento-suave); }
+.memoria-origem {
+  color: var(--texto-suave);
+  background: none;
+  border: 1px solid var(--moldura-campo-borda);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.memoria-origem .svg-icone { flex-shrink: 0; color: var(--cor-tipo); }
+.memoria-origem:hover { color: var(--texto-normal); border-color: rgba(255, 255, 255, 0.2); }
+.memoria-marca { color: var(--texto-fraco); background: var(--moldura-hover); }
+.memoria-marca.mod-alerta { color: var(--tom-alerta); background: rgba(244, 107, 107, 0.12); }
+.memoria-marca.mod-aviso,
+.memoria-marca.mod-espera { color: var(--tom-espera); background: rgba(245, 181, 71, 0.12); }
+.memoria-marca.mod-ok { color: var(--tom-ok); background: rgba(52, 195, 143, 0.12); }
+.memoria-marca.mod-neutro { color: var(--tom-neutro); }
+.memoria-marca .link-no { font-size: inherit; }

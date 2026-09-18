@@ -111,7 +111,7 @@ export class DialogosDeMemoria {
       largura: 520,
       corpo: `
         <p class="inspetor-descricao">${escapeHtml(no.rotulo || no.id)}</p>
-        <label class="campo campo-compacto"><input type="checkbox" data-campo="global"> <span>${ROTULO_DO_GLOBAL}</span></label>
+        <div class="campo"><label class="alternador-rotulado"><input type="checkbox" data-campo="global"><span class="alternador-trilho"></span><span>${ROTULO_DO_GLOBAL}</span></label></div>
         <label class="campo"><span class="campo-rotulo">Ou vale para um contêiner</span>
           <select class="seletor" data-campo="alvo"><option value="">— escolha um Projeto ou Setor —</option>${opcoes}</select></label>
         <p class="campo-nota">Promovido, o aprendizado entra em <strong>Aprendizados Aplicáveis</strong> na vista de toda tarefa sob esse alcance. É gesto humano: nenhum agente promove, nem sob autonomia ilimitada.</p>`,

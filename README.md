@@ -317,8 +317,8 @@ print(vista["conteudo"])
 
 O canvas fica no centro, com a moldura em volta dele. A faixa de ícones à esquerda guarda as ações globais. A lateral
 esquerda tem o **explorador** (a árvore Projeto → Setor → Sessão → trabalho,
-com o trabalho aberto de cada subárvore ao lado do nome), a **busca** e os
-**marcadores**. No centro, cada **aba** abre o grafo num escopo — tudo, um
+com o trabalho aberto de cada subárvore ao lado do nome), a **busca**, os
+**marcadores** e a **memória**. No centro, cada **aba** abre o grafo num escopo — tudo, um
 projeto, um setor ou uma sessão — com trilha, voltar e avançar no cabeçalho. A
 lateral direita mostra o nó selecionado em cima (**propriedades**,
 **conexões**, **linhagem** e **vista do agente**) e o **histórico** do log
@@ -333,6 +333,7 @@ identidade.
 | Paleta (`Ctrl+P`) | Lista todo comando da interface, com o atalho de cada um (`?` mostra todos) |
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
+| Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em
@@ -354,6 +355,7 @@ Quatro leituras sustentam a moldura, todas resolvidas no servidor:
 | `GET /api/busca?termo=&tipos=&limite=` | Busca ranqueada sobre o ramo, com a sessão de cada nó e o trecho onde o termo casou |
 | `GET /api/ontologia` | Tipos de nó, pares de aresta aceitos e vocabulário de status, lidos da tabela do `SchemaGate` — a tela não mantém cópia |
 | `POST /api/nodes` com `contido_em` | Cria o contêiner e a aresta `contem` até o pai no mesmo lote: se o portão recusar a aresta, o nó também não entra |
+| `GET /api/memoria` | Os aprendizados e as sessões do ramo para o painel de memória, na mesma leitura do acervo de notas. `POST /api/memoria/aprendizados` e `POST /api/memoria/promocoes` recebem do humano o registro e a promoção, sob a identidade do servidor |
 
 ---
 
@@ -507,6 +509,15 @@ visível com `SUBSTITUIDO`, `contradiz` de uma `Evidence` nova o marca com
 `CONTRADITO`, `valido_ate` tira o vencido da vista, e remover é do humano. O
 índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
 nulo: sem configurar, não custa nada e não traz dependência.
+
+**A memória tem ambiente padrão e tem lugar na tela.** O hook de início não
+precisa de um Setor criado à parte: a sessão nasce no `Projeto` com o nome do
+repositório, dentro do `Setor` `Memoria`, que o harness cria na primeira vez e
+reaproveita depois. E o canvas tem um painel de **Memória** na lateral esquerda:
+os aprendizados do ramo com origem, alcance e marcas, promovidos ou não, e as
+sessões com o fechamento e o estado da condensação. Registrar e promover ficam
+ali, no inspetor e no menu de qualquer nó de trabalho; promover continua gesto
+humano, e a tela escreve como humano.
 
 **O acervo de notas é projeção.** `graphow notas-gerar` renderiza um diretório
 de notas em Markdown a partir dos aprendizados promovidos, uma nota por

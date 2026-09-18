@@ -60,10 +60,11 @@ function itensDeConteiner(app, no, viajando) {
 function itensDeSessao(app, no, viajando) {
   if (no.tipo !== "Sessao") return [];
   const encerrada = no.propriedades?.status === "concluida";
+  const memoria = { rotulo: "Ver na memória", icone: "lightbulb", acao: () => app.mostrarPainelEsquerdo("memoria") };
   if (encerrada) {
-    return [{ rotulo: "Reabrir sessão", icone: "folder-open", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "ativa", "Sessão reaberta") }];
+    return [{ rotulo: "Reabrir sessão", icone: "folder-open", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "ativa", "Sessão reaberta") }, memoria];
   }
-  return [{ rotulo: "Encerrar sessão", icone: "circle-check", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "concluida", "Sessão encerrada: a vista dela abre pelo fechamento") }];
+  return [{ rotulo: "Encerrar sessão", icone: "circle-check", desabilitado: viajando, acao: () => app.dialogos.mudarPropriedade(no, "status", "concluida", "Sessão encerrada: a vista dela abre pelo fechamento") }, memoria];
 }
 
 function itensDeTrabalho(app, no) {

@@ -27,6 +27,7 @@ export function registrarComandos(app) {
     { id: "buscar-no-grafo", nome: "Buscar no grafo (painel de busca)", icone: "search", atalho: "ctrl+shift+f", executar: () => app.mostrarPainelEsquerdo("busca") },
     { id: "abrir-explorador", nome: "Mostrar o explorador", icone: "folder-closed", executar: () => app.mostrarPainelEsquerdo("explorador") },
     { id: "abrir-marcadores", nome: "Mostrar os marcadores", icone: "bookmark", executar: () => app.mostrarPainelEsquerdo("marcadores") },
+    { id: "abrir-memoria", nome: "Mostrar a memória: aprendizados e sessões", icone: "lightbulb", executar: () => app.mostrarPainelEsquerdo("memoria") },
     { id: "abrir-grafo", nome: "Abrir o grafo inteiro", icone: "grafo", executar: () => app.abrirEscopo(null) },
     { id: "nova-aba", nome: "Nova aba", icone: "plus", executar: () => app.abas.novaAba() },
     { id: "fechar-aba", nome: "Fechar a aba atual", icone: "x", executar: () => app.abas.fechar(app.abas.ativa.id) },

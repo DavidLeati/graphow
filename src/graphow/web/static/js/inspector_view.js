@@ -7,6 +7,7 @@
  * quatro portões e vira evento permanente no log, e um salvamento a cada tecla
  * encheria o log de rascunho. Sem seleção, o painel mostra o panorama do escopo.
  */
+import { api } from "./api.js";
 import { TIPOS_DE_ORIGEM_DE_APRENDIZADO } from "./dialogos_memoria.js";
 import { copiarTexto, escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
@@ -112,6 +113,7 @@ export class InspectorView {
         </div>
       </div>`;
     this.raiz.querySelectorAll("textarea").forEach((campo) => ajustarAltura(campo));
+    if (no.tipo === "Aprendizado") this.completarAprendizado(no);
   }
 
   montarCaminho(no) {
@@ -173,17 +175,18 @@ export class InspectorView {
       ${this.montarResumoDoConteiner(no)}`;
   }
 
-  /** Afirmação no título, como aplicar no corpo, alcance e origem lidos das arestas. */
+  /**
+   * Afirmação no título, como aplicar no corpo, alcance e origem lidos das
+   * arestas. O canvas é um recorte: o Setor promovido ou a Evidence de outra
+   * sessão podem estar fora dele, então o bloco nasce com o que está na tela e
+   * `completarAprendizado` o refaz com a ficha inteira do nó, como as conexões.
+   */
   montarBlocoDoAprendizado(no, desabilitado) {
     const arestas = [...this.state.edges.values()];
-    const alcances = arestas.filter((a) => a.tipo === "vale_para" && a.origem_id === no.id).map((a) => this.montarLinkDeNo(a.destino_id));
-    if (no.propriedades?.alcance === "global") alcances.unshift(`<strong>vale para tudo</strong>`);
-    const origens = arestas.filter((a) => a.tipo === "deriva_de" && a.origem_id === no.id).map((a) => this.montarLinkDeNo(a.destino_id));
-    const substituto = arestas.find((a) => a.tipo === "substitui" && a.destino_id === no.id);
-    const contradicoes = arestas.filter((a) => a.tipo === "contradiz" && a.destino_id === no.id);
+    const saidas = arestas.filter((a) => a.origem_id === no.id).map((a) => ({ tipo: a.tipo, vizinho: a.destino_id }));
+    const entradas = arestas.filter((a) => a.destino_id === no.id).map((a) => ({ tipo: a.tipo, vizinho: a.origem_id }));
     return `
-      ${substituto ? `<div class="chamada mod-alerta">${icone("alert-triangle", { tamanho: 14 })}<span>Substituído por ${this.montarLinkDeNo(substituto.origem_id)}: não siga esta nota.</span></div>` : ""}
-      ${contradicoes.length ? `<div class="chamada mod-aviso">${icone("flask", { tamanho: 14 })}<span>Contradito por ${contradicoes.map((a) => this.montarLinkDeNo(a.origem_id)).join(", ")}: precisa de revisão.</span></div>` : ""}
+      <div data-bloco="marcas">${this.montarMarcasDoAprendizado(entradas)}</div>
       ${this.montarCampoDeTexto({
         chave: "como_aplicar",
         rotulo: "Como aplicar",
@@ -194,14 +197,50 @@ export class InspectorView {
       })}
       <div class="bloco-campo mod-coluna">
         <span class="bloco-campo-rotulo">${icone("zap", { tamanho: 14 })} Alcance</span>
-        <div class="bloco-nota">${alcances.length ? alcances.join(", ") : "Só a sessão em que nasceu. Promover é gesto humano e dá alcance a um Projeto, um Setor ou a tudo."}</div>
+        <div class="bloco-nota" data-bloco="alcance">${this.montarAlcanceDoAprendizado(no, saidas)}</div>
         ${desabilitado ? "" : `<button class="botao" data-acao="promover">${icone("lightbulb", { tamanho: 14 })} Promover…</button>`}
       </div>
       <div class="bloco-campo mod-coluna">
         <span class="bloco-campo-rotulo">${icone("route", { tamanho: 14 })} Como se sabe</span>
-        <div class="bloco-nota">${origens.length ? origens.join(", ") : "Origem fora do canvas atual: veja as conexões do nó."}</div>
+        <div class="bloco-nota" data-bloco="origem">${this.montarOrigemDoAprendizado(saidas)}</div>
       </div>
       ${this.montarCampoCurto({ chave: "valido_ate", rotulo: "Válido até", icone: "clock", valor: no.propriedades?.valido_ate || "", dica: "Opcional, ISO 8601: vencido, sai da vista", desabilitado })}`;
+  }
+
+  montarAlcanceDoAprendizado(no, saidas) {
+    const alcances = saidas.filter((a) => a.tipo === "vale_para").map((a) => this.montarLinkDeNo(a.vizinho));
+    if (no.propriedades?.alcance === "global") alcances.unshift("<strong>vale para tudo</strong>");
+    return alcances.length ? alcances.join(", ") : "Só a sessão em que nasceu. Promover é gesto humano e dá alcance a um Projeto, um Setor ou a tudo.";
+  }
+
+  montarOrigemDoAprendizado(saidas) {
+    const origens = saidas.filter((a) => a.tipo === "deriva_de").map((a) => this.montarLinkDeNo(a.vizinho));
+    return origens.length ? origens.join(", ") : "Sem origem visível: um aprendizado sem deriva_de não passa no portão.";
+  }
+
+  montarMarcasDoAprendizado(entradas) {
+    const substituto = entradas.find((a) => a.tipo === "substitui");
+    const contradicoes = entradas.filter((a) => a.tipo === "contradiz");
+    return `
+      ${substituto ? `<div class="chamada mod-alerta">${icone("alert-triangle", { tamanho: 14 })}<span>Substituído por ${this.montarLinkDeNo(substituto.vizinho)}: não siga esta nota.</span></div>` : ""}
+      ${contradicoes.length ? `<div class="chamada mod-aviso">${icone("flask", { tamanho: 14 })}<span>Contradito por ${contradicoes.map((a) => this.montarLinkDeNo(a.vizinho)).join(", ")}: precisa de revisão.</span></div>` : ""}`;
+  }
+
+  /** A ficha do nó traz as arestas que o recorte do canvas não mostra; o bloco é refeito em silêncio. */
+  async completarAprendizado(no) {
+    const resposta = await api.expandir(no.id, this.state.currentBranch);
+    if (!resposta.sucesso || this.noRenderizado?.id !== no.id) return;
+    const saidas = (resposta.no.arestas_saida || []).map((a) => ({ tipo: a.tipo, vizinho: a.destino }));
+    const entradas = (resposta.no.arestas_entrada || []).map((a) => ({ tipo: a.tipo, vizinho: a.origem }));
+    const blocos = {
+      marcas: this.montarMarcasDoAprendizado(entradas),
+      alcance: this.montarAlcanceDoAprendizado(no, saidas),
+      origem: this.montarOrigemDoAprendizado(saidas),
+    };
+    for (const [chave, html] of Object.entries(blocos)) {
+      const alvo = this.raiz.querySelector(`[data-bloco=${chave}]`);
+      if (alvo) alvo.innerHTML = html;
+    }
   }
 
   /** Todo nó que pode ser origem de um aprendizado convida a registrá-lo dali. */
@@ -385,7 +424,7 @@ export class InspectorView {
   }
 
   montarLinkDeNo(id) {
-    const info = this.state.nodes.get(id) || this.indice.info.get(id) || { rotulo: id };
+    const info = this.state.nodes.get(id) || this.indice.no(id) || { rotulo: id };
     return `<button class="link-no" data-acao="ir-para" data-id="${escapeHtml(id)}">${escapeHtml(info.rotulo || id)}</button>`;
   }
 

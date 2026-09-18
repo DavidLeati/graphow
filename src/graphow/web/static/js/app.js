@@ -28,6 +28,7 @@ import { InspectorView } from "./inspector_view.js";
 import { DivisorVertical, GrupoDeAbas, Lateral } from "./laterais.js";
 import { LineageView } from "./lineage_view.js";
 import { MarcadoresView } from "./marcadores_view.js";
+import { MemoriaView } from "./memoria_view.js";
 import { itensDoMenuDaAresta, itensDoMenuDeRamos, itensDoMenuDoFundo, itensDoMenuDoNo } from "./menus_do_grafo.js";
 import { Minimap } from "./minimap.js";
 import { abrirModal, avisar } from "./modais.js";
@@ -106,7 +107,7 @@ class GraphowApp {
       aoMudar: () => { redesenharCanvas(); this.atualizarPaineisDaSelecao(); },
     });
     this.abasEsquerda = new GrupoDeAbas(document.getElementById("grupo-esquerdo"), {
-      chave: "esquerda", padrao: "explorador", aoMudar: (nome) => { if (nome === "marcadores") this.marcadores.render(); },
+      chave: "esquerda", padrao: "explorador", aoMudar: (nome) => this.aoMostrarPainelEsquerdo(nome),
     });
     this.abasDireita = new GrupoDeAbas(document.getElementById("grupo-direito-superior"), {
       chave: "direita", padrao: "propriedades", aoMudar: (nome) => this.aoMostrarPainelDireito(nome),
@@ -121,6 +122,7 @@ class GraphowApp {
     this.explorador = new ExploradorView(document.getElementById("painel-explorador"), dependencias);
     this.busca = new BuscaView(document.getElementById("painel-busca"), dependencias);
     this.marcadores = new MarcadoresView(document.getElementById("painel-marcadores"), dependencias);
+    this.memoria = new MemoriaView(document.getElementById("painel-memoria"), dependencias);
     this.inspector = new InspectorView(document.getElementById("painel-propriedades"), dependencias);
     this.conexoes = new ConexoesView(document.getElementById("painel-conexoes"), dependencias);
     this.linhagem = new LineageView(document.getElementById("painel-linhagem"), dependencias);
@@ -163,6 +165,7 @@ class GraphowApp {
       destacar: (id) => this.destacar(id),
       registrarAprendizado: (opcoes) => this.dialogosDeMemoria.registrar(opcoes),
       promoverAprendizado: (no) => this.dialogosDeMemoria.promover(no),
+      mudarPropriedade: (no, chave, valor, mensagem) => this.dialogos.mudarPropriedade(no, chave, valor, mensagem),
     };
   }
 
@@ -207,6 +210,8 @@ class GraphowApp {
     this.historico.carregar();
     this.forkDiffView.updateBranchOptions();
     this.marcadores.render();
+    // A aba lembrada pode ser a memória: restaurada na montagem, ela não passa por `aoMudar`.
+    if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
     this.atualizarPaineisDaSelecao();
   }
 
@@ -255,6 +260,8 @@ class GraphowApp {
     await Promise.all([this.fetchCanvas(), this.indice.recarregar(abertas), this.historico.carregar()]);
     PAINEIS_DA_SELECAO.forEach((nome) => this.paineisDaSelecao[nome].invalidar());
     this.atualizarPaineisDaSelecao();
+    this.memoria.invalidar();
+    if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
   }
 
   async aposGravar({ ramoNovo = null } = {}) {
@@ -443,6 +450,15 @@ class GraphowApp {
     return !this.lateralDireita.recolhida && this.abasDireita.mostra(nome);
   }
 
+  painelEsquerdoVisivel(nome) {
+    return !this.lateralEsquerda.recolhida && this.abasEsquerda.mostra(nome);
+  }
+
+  aoMostrarPainelEsquerdo(nome) {
+    if (nome === "marcadores") this.marcadores.render();
+    if (nome === "memoria") this.memoria.atualizar();
+  }
+
   atualizarPaineisDaSelecao() {
     for (const nome of PAINEIS_DA_SELECAO) {
       if (this.painelVisivel(nome)) this.paineisDaSelecao[nome].atualizar();
@@ -462,7 +478,9 @@ class GraphowApp {
 
   mostrarPainelEsquerdo(nome) {
     this.lateralEsquerda.expandir();
+    const jaMostrava = this.abasEsquerda.mostra(nome);
     this.abasEsquerda.ativar(nome);
+    if (jaMostrava) this.aoMostrarPainelEsquerdo(nome);
     if (nome === "busca") this.busca.focar();
   }
 
@@ -587,6 +605,8 @@ class GraphowApp {
     this.interactions.fitToView();
     this.atualizarViagem();
     this.marcadores.render();
+    this.memoria.invalidar();
+    if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
     this.forkDiffView.updateBranchOptions();
     avisar(`Ramo “${ramo}”`, "info");
   }
