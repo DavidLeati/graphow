@@ -1,6 +1,6 @@
 """Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,8 +34,10 @@ from graphow.web.rest_busca_controller import BuscaWebController
 from graphow.web.rest_canvas_controller import CanvasWebController
 from graphow.web.rest_fork_controller import ForkWebController
 from graphow.web.rest_lineage_controller import LineageWebController
+from graphow.web.rest_memoria_controller import MemoriaWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 from graphow.web.rest_timeline_controller import TimelineWebController
+from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizado, tratar_post_promocao
 from graphow.reactive.engine import MotorReativo
 from graphow.web.composicao import montar_tempo_real, montar_vigia_do_log
 from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
@@ -72,6 +74,7 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
             "/api/identity": self._tratar_get_identity,
             "/api/busca": lambda: self._responder_json(self.server.busca_ctrl.buscar(converter_busca(params)), HTTPStatus.OK),
             "/api/ontologia": lambda: self._responder_json(montar_ontologia_publica(), HTTPStatus.OK),
+            "/api/memoria": lambda: tratar_get_memoria(self, params),
         }
         handler = rotas.get(caminho)
         if handler:
@@ -80,25 +83,21 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         return False
 
     def do_POST(self) -> None:
-        """Despacha requisições POST para controladores de mutação e simulação."""
-        url_parsed = urllib.parse.urlparse(self.path)
-        caminho = url_parsed.path
-        payload = self._ler_payload_json()
-
-        if caminho == "/api/nodes":
-            self._tratar_post_node(payload)
+        """Despacha requisições POST para controladores de mutação, simulação e memória."""
+        caminho = urllib.parse.urlparse(self.path).path
+        rotas: Mapping[str, Callable[[Mapping[str, Any]], None]] = {
+            "/api/nodes": self._tratar_post_node,
+            "/api/edges": self._tratar_post_edge,
+            "/api/forks": self._tratar_post_fork,
+            "/api/simulation/view": self._tratar_post_simulation_view,
+            "/api/memoria/aprendizados": lambda payload: tratar_post_aprendizado(self, payload),
+            "/api/memoria/promocoes": lambda payload: tratar_post_promocao(self, payload),
+        }
+        handler = rotas.get(caminho)
+        if handler is None:
+            self._responder_json({"erro": "Rota POST desconhecida"}, HTTPStatus.NOT_FOUND)
             return
-        if caminho == "/api/edges":
-            self._tratar_post_edge(payload)
-            return
-        if caminho == "/api/forks":
-            self._tratar_post_fork(payload)
-            return
-        if caminho == "/api/simulation/view":
-            self._tratar_post_simulation_view(payload)
-            return
-
-        self._responder_json({"erro": "Rota POST desconhecida"}, HTTPStatus.NOT_FOUND)
+        handler(self._ler_payload_json())
 
     def do_PUT(self) -> None:
         """Despacha requisições PUT para edição de nós e persistência de layout."""
@@ -140,19 +139,18 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         """Despacha requisições DELETE para remoção de nós ou arestas."""
-        url_parsed = urllib.parse.urlparse(self.path)
-        caminho = url_parsed.path
-        payload = self._ler_payload_json()
-        if caminho == "/api/elements":
-            self._tratar_delete_element(payload)
+        caminho = urllib.parse.urlparse(self.path).path
+        rotas: Mapping[str, Callable[[Mapping[str, Any]], None]] = {
+            "/api/elements": self._tratar_delete_element,
+            "/api/elements/batch": self._tratar_delete_batch,
+            "/api/batch": self._tratar_delete_batch,
+            "/api/projects": self._tratar_delete_project,
+        }
+        handler = rotas.get(caminho)
+        if handler is None:
+            self._responder_json({"erro": "Rota DELETE desconhecida"}, HTTPStatus.NOT_FOUND)
             return
-        if caminho in ("/api/elements/batch", "/api/batch"):
-            self._tratar_delete_batch(payload)
-            return
-        if caminho == "/api/projects":
-            self._tratar_delete_project(payload)
-            return
-        self._responder_json({"erro": "Rota DELETE desconhecida"}, HTTPStatus.NOT_FOUND)
+        handler(self._ler_payload_json())
 
     def _tratar_delete_element(self, payload: Mapping[str, Any]) -> None:
         """Processa exclusão individual de elemento."""
@@ -344,6 +342,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.lineage_ctrl: LineageWebController = LineageWebController(kernel)
         self.fork_ctrl: ForkWebController = ForkWebController(kernel, self.identidade)
         self.sim_ctrl: SimulationWebController = SimulationWebController(kernel)
+        self.memoria_ctrl: MemoriaWebController = MemoriaWebController(kernel, self.identidade)
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()
         self.motor_reativo: MotorReativo = montar_tempo_real(kernel, self.sse_ctrl)

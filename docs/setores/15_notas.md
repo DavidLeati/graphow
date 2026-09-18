@@ -10,12 +10,12 @@ Renderiza um diretório de notas em Markdown a partir dos aprendizados promovido
 
 ## Inventário
 
-5 módulos · 399 linhas · 9 classes
+5 módulos · 403 linhas · 9 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`notas/__init__.py`](#notasinit) | 57 | Acervo de notas como projeção do grafo: uma nota em Markdown por aprendizado promovido. |
-| [`notas/extracao.py`](#notasextracao) | 50 | Extração das notas a partir da projeção: só o que o grafo diz, na ordem do log. |
+| [`notas/extracao.py`](#notasextracao) | 54 | Extração das notas a partir da projeção: só o que o grafo diz, na ordem do log. |
 | [`notas/modelo.py`](#notasmodelo) | 50 | Modelos imutáveis do acervo de notas: uma nota por aprendizado promovido. |
 | [`notas/publicacao.py`](#notaspublicacao) | 149 | Publicação do acervo, com escrita atrás de interface injetável e conferência de deriva. |
 | [`notas/renderizador.py`](#notasrenderizador) | 93 | Renderização das notas em Markdown, no formato "afirmação, como se sabe, como aplicar". |
@@ -44,6 +44,7 @@ Extração das notas a partir da projeção: só o que o grafo diz, na ordem do 
 ### Funções do módulo
 
 - `extrair_notas(view: GrafoView) -> tuple[NotaDeAprendizado, ...]` — Uma nota por aprendizado promovido, na ordem em que nasceram no log.
+- `montar_nota(no: NoGrafo, view: GrafoView) -> NotaDeAprendizado` — Lê do nó e das arestas tudo que a nota vai dizer.
 
 ## `notas/modelo.py`
 

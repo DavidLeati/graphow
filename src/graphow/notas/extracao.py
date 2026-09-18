@@ -22,11 +22,15 @@ TIPO_DE_NO_REMOVIDO: str = "removido"
 
 def extrair_notas(view: GrafoView) -> tuple[NotaDeAprendizado, ...]:
     """Uma nota por aprendizado promovido, na ordem em que nasceram no log."""
-    return tuple(_montar_nota(no, view) for no in aprendizados_promovidos(view, SEM_LIMITE_DE_VALIDADE))
+    return tuple(montar_nota(no, view) for no in aprendizados_promovidos(view, SEM_LIMITE_DE_VALIDADE))
 
 
-def _montar_nota(no: NoGrafo, view: GrafoView) -> NotaDeAprendizado:
-    """Lê do nó e das arestas tudo que a nota vai dizer."""
+def montar_nota(no: NoGrafo, view: GrafoView) -> NotaDeAprendizado:
+    """Lê do nó e das arestas tudo que a nota vai dizer.
+
+    É pública porque o painel de memória do canvas descreve um Aprendizado do
+    mesmo jeito que o acervo: a leitura é uma só, promovido ou não.
+    """
     return NotaDeAprendizado(
         id=no.id,
         afirmacao=no.rotulo,

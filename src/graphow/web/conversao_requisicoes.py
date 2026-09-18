@@ -6,6 +6,7 @@ de um roteador e deixa a conversão testável sem subir socket algum.
 """
 
 from collections.abc import Mapping
+from dataclasses import asdict
 from typing import Any
 
 from graphow.projection.working_set import RAIO_PADRAO
@@ -20,8 +21,11 @@ from graphow.web.dto import (
     RequisicaoExclusaoProjeto,
     RequisicaoNovaAresta,
     RequisicaoNovoNo,
+    RequisicaoPromocaoDeAprendizado,
+    RequisicaoRegistroDeAprendizado,
     RequisicaoSalvarLayout,
     RequisicaoSimularVista,
+    RespostaMemoriaWeb,
 )
 
 RAMO_PADRAO: str = "main"
@@ -174,3 +178,32 @@ def serializar_canvas(dados: DadosCanvasVisual) -> dict[str, Any]:
         "arestas": [aresta.__dict__ for aresta in dados.arestas],
         "recorte": dict(dados.recorte),
     }
+
+
+def converter_registro_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoRegistroDeAprendizado:
+    """Monta o registro de um aprendizado: origens sem vazios nem repetição, na ordem declarada."""
+    brutas = payload.get("origens", [])
+    lista = brutas if isinstance(brutas, (list, tuple)) else []
+    return RequisicaoRegistroDeAprendizado(
+        afirmacao=str(payload.get("afirmacao", "") or "").strip(),
+        id_sessao=str(payload.get("id_sessao", "") or "").strip(),
+        origens=tuple(dict.fromkeys(str(origem).strip() for origem in lista if str(origem).strip())),
+        como_aplicar=str(payload.get("como_aplicar", "") or "").strip(),
+        id_aprendizado=payload.get("id_aprendizado"),
+        ramo_id=extrair_ramo(payload),
+    )
+
+
+def converter_promocao_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoPromocaoDeAprendizado:
+    """Monta a promoção: um contêiner alvo, a marca global, ou os dois."""
+    return RequisicaoPromocaoDeAprendizado(
+        id_aprendizado=str(payload.get("id_aprendizado", "") or "").strip(),
+        id_alvo=str(payload.get("id_alvo", "") or "").strip(),
+        eh_global=bool(payload.get("global", False)),
+        ramo_id=extrair_ramo(payload),
+    )
+
+
+def serializar_memoria(resposta: RespostaMemoriaWeb) -> dict[str, Any]:
+    """Converte a resposta do painel de memória, com os nós citados, em dicionário."""
+    return asdict(resposta)

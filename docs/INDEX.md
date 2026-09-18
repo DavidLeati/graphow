@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 148 módulos · 17787 linhas · 301 classes**
+**15 alas · 150 módulos · 18164 linhas · 309 classes**
 
 ---
 
@@ -68,10 +68,10 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 16 | 2004 | 26 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 923 | 10 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 20 | 2249 | 37 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 22 | 2622 | 45 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 9 | 1421 | 17 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 9 | 1296 | 27 |
-| 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 399 | 9 |
+| 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 
 ### Missão de cada ala
 

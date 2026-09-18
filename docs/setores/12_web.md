@@ -10,15 +10,15 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-20 módulos · 2249 linhas · 37 classes
+22 módulos · 2622 linhas · 45 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
-| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 176 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
+| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 209 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 185 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 267 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 89 | Mapeamento de cada nó do grafo à Sessão, ao Setor e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
@@ -27,9 +27,11 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 360 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
+| [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 205 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
-| [`web/server.py`](#webserver) | 396 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
+| [`web/server.py`](#webserver) | 395 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
@@ -102,6 +104,9 @@ Conversão pura de payloads JSON da interface nos DTOs de requisição.
 - `converter_opcoes_de_recorte(params: Mapping[str, Any]) -> OpcoesDeRecorteVisual` — Lê da query os três recortes visuais do canvas.
 - `converter_busca(params: Mapping[str, Any]) -> RequisicaoBusca` — Lê da query o termo, os tipos separados por vírgula e o limite da busca.
 - `serializar_canvas(dados: DadosCanvasVisual) -> dict[str, Any]` — Converte o DTO do canvas no dicionário que a interface consome.
+- `converter_registro_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoRegistroDeAprendizado` — Monta o registro de um aprendizado: origens sem vazios nem repetição, na ordem declarada.
+- `converter_promocao_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoPromocaoDeAprendizado` — Monta a promoção: um contêiner alvo, a marca global, ou os dois.
+- `serializar_memoria(resposta: RespostaMemoriaWeb) -> dict[str, Any]` — Converte a resposta do painel de memória, com os nós citados, em dicionário.
 
 ## `web/desconexao_cliente.py`
 
@@ -114,6 +119,12 @@ Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado.
 ## `web/dto.py`
 
 Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow.
+
+### `AprendizadoWeb`
+
+*DTO imutável* — Um Aprendizado como o painel de memória o mostra: afirmação, origem, alcance e marcas.
+
+**Campos:** `id: str`, `afirmacao: str`, `como_aplicar: str`, `sessao_id: str | None`, `alcances: Sequence[str]`, `origens: Sequence[NoCitadoWeb]`, `contradicoes: Sequence[NoCitadoWeb]`, `substituto: str | None`, `valido_ate: str`, `promovido: bool`, `vigente: bool`, `autor: str`, `papel: str`, `seq_criacao: int`
 
 ### `DadosArestaVisual`
 
@@ -132,6 +143,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 *DTO imutável* — DTO imutável para representação de um nó no Canvas.
 
 **Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`, `resumo: Mapping[str, Any] | None`
+
+### `NoCitadoWeb`
+
+*DTO imutável* — Um nó que a memória cita: a origem de um aprendizado ou a evidência que o contradiz.
+
+**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `seq: int`
 
 ### `PosicaoNoCanvas`
 
@@ -181,6 +198,18 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `tipo: str`, `rotulo: str`, `id_no: str | None`, `sessao_id: str | None`, `propriedades: Mapping[str, Any]`, `ramo_id: str`, `contido_em: str | None`
 
+### `RequisicaoPromocaoDeAprendizado`
+
+*DTO imutável* — DTO imutável de entrada da promoção: alcance por contêiner, ou global.
+
+**Campos:** `id_aprendizado: str`, `id_alvo: str`, `eh_global: bool`, `ramo_id: str`
+
+### `RequisicaoRegistroDeAprendizado`
+
+*DTO imutável* — DTO imutável de entrada do registro de um Aprendizado pela interface.
+
+**Campos:** `afirmacao: str`, `id_sessao: str`, `origens: Sequence[str]`, `como_aplicar: str`, `id_aprendizado: str | None`, `ramo_id: str`
+
 ### `RequisicaoSalvarLayout`
 
 *DTO imutável* — DTO imutável de entrada para persistir o arranjo visual do grafo.
@@ -193,11 +222,23 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `id_alvo: str`, `papel: str`, `orcamento_tokens: int`, `ramo_id: str`
 
+### `RespostaMemoriaWeb`
+
+*DTO imutável* — DTO imutável de saída do painel de memória: os aprendizados e as sessões do ramo.
+
+**Campos:** `ramo_id: str`, `versao_log: int`, `aprendizados: Sequence[AprendizadoWeb]`, `sessoes: Sequence[SessaoDeMemoriaWeb]`, `sucesso: bool`
+
 ### `RespostaReciboWeb`
 
 *DTO imutável* — DTO imutável de saída contendo recibo padronizado de mutação.
 
 **Campos:** `sucesso: bool`, `mensagem: str`, `versao_log: int`, `eventos_gerados: Sequence[str]`, `diagnostico_mast: str | None`, `modo_de_falha: str | None`
+
+### `SessaoDeMemoriaWeb`
+
+*DTO imutável* — Uma Sessão vista pela memória: status, fechamento e o estado da condensação.
+
+**Campos:** `id: str`, `rotulo: str`, `status: str`, `resumo: str`, `setor_id: str | None`, `fechamento: Sequence[str]`, `condensacao: str`, `id_condensacao: str | None`, `seq_criacao: int`
 
 ## `web/identidade_web.py`
 
@@ -346,6 +387,34 @@ Controlador REST especializado no rastreamento de linhagem causal e proveniênci
 
 - `obter_linhagem(id_no: str, ramo_id: str) -> dict[str, Any]` — Rastreia passos causais e nós intermediários desde o nó alvo até o Goal raiz.
 
+## `web/rest_memoria_controller.py`
+
+Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CONDENSACAO_FEITA` | `str` | `'feita'` |
+| `CONDENSACAO_PENDENTE` | `str` | `'pendente'` |
+| `CONDENSACAO_NENHUMA` | `str` | `'nenhuma'` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+| `CAMPO_RESUMO` | `str` | `'resumo'` |
+| `PREFIXO_DE_APRENDIZADO` | `str` | `'apr'` |
+
+### `MemoriaWebController`
+
+*serviço* — Lê a memória do ramo para o painel e recebe do humano o registro e a promoção.
+
+- `obter_memoria(ramo_id: str) -> RespostaMemoriaWeb` — Todos os aprendizados do ramo, promovidos ou não, e as sessões mais recentes primeiro.
+- `registrar_aprendizado(req: RequisicaoRegistroDeAprendizado) -> RespostaReciboWeb` — Cria o Aprendizado pendurado na sessão e derivado de cada origem, no mesmo lote.
+- `promover_aprendizado(req: RequisicaoPromocaoDeAprendizado) -> RespostaReciboWeb` — Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou a marca global.
+
+### Funções do módulo
+
+- `descrever_aprendizado(no: NoGrafo, view: GrafoView) -> AprendizadoWeb` — A mesma leitura do acervo de notas, mais a sessão de origem e as marcas resolvidas.
+- `descrever_sessao(no: NoGrafo, view: GrafoView) -> SessaoDeMemoriaWeb` — A sessão como a memória a vê: status, fechamento do rollup e a condensação.
+- `montar_operacoes_de_registro(id_aprendizado: str, req: RequisicaoRegistroDeAprendizado) -> tuple[ItemPatch, ...]` — O nó, o `produz` da sessão e uma aresta `deriva_de` por origem, como o MCP faz.
+- `montar_operacoes_de_promocao(req: RequisicaoPromocaoDeAprendizado) -> tuple[ItemPatch, ...]` — A marca global como propriedade e o alcance por contêiner como aresta.
+
 ## `web/rest_simulation_controller.py`
 
 Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto.
@@ -368,6 +437,26 @@ Controlador REST especializado na Timeline de eventos bitemporais e Replay Tempo
 - `obter_eventos(ramo_id: str, autor: str | None, papel: str | None) -> list[dict[str, Any]]` — Recupera lista cronológica de eventos com filtros opcionais por autor e papel.
 - `obter_estado_na_versao(versao_alvo: int, ramo_id: str) -> DadosCanvasVisual` — Reconstrói o estado do grafo exatamente como existia na versão de log informada.
 
+## `web/rotas_memoria.py`
+
+As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+
+### `ManipuladorComMemoria` (Protocol)
+
+*serviço* — O que estas rotas usam do manipulador HTTP: o servidor e as duas respostas padrão.
+
+**Campos:** `server: Any`
+
+### Funções do módulo
+
+- `tratar_get_memoria(manipulador: ManipuladorComMemoria, params: Mapping[str, list[str]]) -> None` — Publica os aprendizados e as sessões do ramo para o painel de memória.
+- `tratar_post_aprendizado(manipulador: ManipuladorComMemoria, payload: Mapping[str, Any]) -> None` — Registra um aprendizado sob a identidade fixada no servidor.
+- `tratar_post_promocao(manipulador: ManipuladorComMemoria, payload: Mapping[str, Any]) -> None` — Promove um aprendizado: o gesto humano que lhe dá alcance.
+
 ## `web/server.py`
 
 Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow.
@@ -385,7 +474,7 @@ Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface d
 **Campos:** `server: 'GraphowThreadingServer'`
 
 - `do_GET() -> None` — Despacha requisições GET para os controladores específicos.
-- `do_POST() -> None` — Despacha requisições POST para controladores de mutação e simulação.
+- `do_POST() -> None` — Despacha requisições POST para controladores de mutação, simulação e memória.
 - `do_PUT() -> None` — Despacha requisições PUT para edição de nós e persistência de layout.
 - `do_DELETE() -> None` — Despacha requisições DELETE para remoção de nós ou arestas.
 - `log_message(format: str) -> None` — Silencia logs padrões do BaseHTTPRequestHandler para não poluir terminal.

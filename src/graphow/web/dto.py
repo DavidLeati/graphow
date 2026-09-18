@@ -183,3 +183,85 @@ class RequisicaoExclusaoProjeto:
     id_projeto: str
     ramo_id: str = "main"
 
+
+@dataclass(frozen=True)
+class RequisicaoRegistroDeAprendizado:
+    """DTO imutável de entrada do registro de um Aprendizado pela interface.
+
+    A origem é obrigatória por desenho: o InvariantGate recusa o lote sem
+    `deriva_de`, e a tela só monta o pedido a partir de nós que existem.
+    """
+
+    afirmacao: str
+    id_sessao: str
+    origens: Sequence[str] = field(default_factory=tuple)
+    como_aplicar: str = ""
+    id_aprendizado: str | None = None
+    ramo_id: str = "main"
+
+
+@dataclass(frozen=True)
+class RequisicaoPromocaoDeAprendizado:
+    """DTO imutável de entrada da promoção: alcance por contêiner, ou global."""
+
+    id_aprendizado: str
+    id_alvo: str = ""
+    eh_global: bool = False
+    ramo_id: str = "main"
+
+
+@dataclass(frozen=True)
+class NoCitadoWeb:
+    """Um nó que a memória cita: a origem de um aprendizado ou a evidência que o contradiz."""
+
+    id: str
+    tipo: str
+    rotulo: str
+    seq: int
+
+
+@dataclass(frozen=True)
+class AprendizadoWeb:
+    """Um Aprendizado como o painel de memória o mostra: afirmação, origem, alcance e marcas."""
+
+    id: str
+    afirmacao: str
+    como_aplicar: str
+    sessao_id: str | None
+    alcances: Sequence[str]
+    origens: Sequence[NoCitadoWeb]
+    contradicoes: Sequence[NoCitadoWeb]
+    substituto: str | None
+    valido_ate: str
+    promovido: bool
+    vigente: bool
+    autor: str
+    papel: str
+    seq_criacao: int
+
+
+@dataclass(frozen=True)
+class SessaoDeMemoriaWeb:
+    """Uma Sessão vista pela memória: status, fechamento e o estado da condensação."""
+
+    id: str
+    rotulo: str
+    status: str
+    resumo: str
+    setor_id: str | None
+    fechamento: Sequence[str]
+    condensacao: str
+    id_condensacao: str | None
+    seq_criacao: int
+
+
+@dataclass(frozen=True)
+class RespostaMemoriaWeb:
+    """DTO imutável de saída do painel de memória: os aprendizados e as sessões do ramo."""
+
+    ramo_id: str
+    versao_log: int
+    aprendizados: Sequence[AprendizadoWeb]
+    sessoes: Sequence[SessaoDeMemoriaWeb]
+    sucesso: bool = True
+
