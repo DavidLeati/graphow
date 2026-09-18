@@ -434,7 +434,9 @@ sobre eles.
 `graphow harness` é a porta pela qual os hooks de início e fim de sessão do
 ambiente escrevem no log. Cada disparo emite um evento de ciclo de vida
 (`execucao_solicitada`, `execucao_iniciada`, `execucao_concluida`), projetado no
-nó `Run` da sessão.
+nó `Run` da sessão. O evento diz em que sessão a execução ocorreu, e a projeção
+pendura o `Run` nela por `produz` e `ocorreu_em`: a execução mora dentro da
+hierarquia, como qualquer nó de trabalho, e não na pasta "Fora da hierarquia".
 
 O identificador da sessão **não vem de variável de ambiente**: o hook entrega um
 objeto JSON na entrada padrão, com `session_id` e `cwd` dentro. `--entrada-hook`

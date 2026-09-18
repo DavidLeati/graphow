@@ -5,6 +5,7 @@ from graphow.core.models import GrafoEstado
 from graphow.core.types import OrigemEvento, PapelAutor, TipoAresta, TipoNo
 from graphow.projection.acumulador import AcumuladorProjecao
 from graphow.projection.reducer import GrafoReducer
+from graphow.projection.rollup import IndiceDeRollup
 
 
 def _evento(seq: int, tipo: TipoEvento, payload: dict[str, object]) -> EventoLog:
@@ -229,3 +230,67 @@ def test_run_concluido_avanca_o_ultimo_toque_edge_case() -> None:
 
     assert estado.nos["run-1"].ordem.seq_criacao == 4
     assert estado.nos["run-1"].ordem.seq_atualizacao == 6
+
+
+def _execucao(seq: int, tipo: TipoEvento, id_run: str, *, id_sessao: str = "sess") -> EventoLog:
+    """Evento de ciclo de vida de execução, com o vínculo à sessão no payload."""
+    return _evento(seq, tipo, {"id": id_run, "id_sessao": id_sessao, "rotulo": f"Execucao {id_run}"})
+
+
+def test_execucao_pendura_o_run_na_sessao_do_payload_nominal() -> None:
+    """O evento diz em que sessão a execução ocorreu; a projeção pendura o Run nela.
+
+    O canal de execução não passa pelos portões, e o Run nascia sem aresta
+    alguma: só a pasta "Fora da hierarquia" do explorador o mostrava.
+    """
+    acumulador = AcumuladorProjecao(GrafoEstado())
+    acumulador.aplicar_todos([_criar_no(1, "sess", TipoNo.SESSAO), _execucao(2, TipoEvento.EXECUCAO_SOLICITADA, "run-1")])
+
+    estado = acumulador.congelar()
+    produz = estado.arestas["prod-run-1"]
+    ocorreu = estado.arestas["ocorreu-run-1"]
+    assert (produz.origem_id, produz.destino_id, produz.tipo) == ("sess", "run-1", TipoAresta.PRODUZ)
+    assert (ocorreu.origem_id, ocorreu.destino_id, ocorreu.tipo) == ("run-1", "sess", TipoAresta.OCORREU_EM)
+    assert "run-1" not in IndiceDeRollup.calcular(estado).nos_orfaos
+
+
+def test_as_tres_fases_mantem_uma_so_aresta_de_cada_edge_case() -> None:
+    """Caso de borda: iniciada e concluída atualizam o Run, sem recriar nem rejuvenescer as arestas."""
+    solicitada = _execucao(2, TipoEvento.EXECUCAO_SOLICITADA, "run-1")
+    acumulador = AcumuladorProjecao(GrafoEstado())
+    acumulador.aplicar_todos(
+        [
+            _criar_no(1, "sess", TipoNo.SESSAO),
+            solicitada,
+            _execucao(3, TipoEvento.EXECUCAO_INICIADA, "run-1"),
+            _execucao(4, TipoEvento.EXECUCAO_CONCLUIDA, "run-1"),
+        ]
+    )
+
+    estado = acumulador.congelar()
+    assert sorted(estado.arestas) == ["ocorreu-run-1", "prod-run-1"]
+    assert estado.arestas["prod-run-1"].metadados.criado_em == solicitada.timestamp_utc
+    assert estado.nos["run-1"].obter_propriedade("status_execucao") == TipoEvento.EXECUCAO_CONCLUIDA.value
+
+
+def test_execucao_sem_sessao_no_grafo_nao_deixa_aresta_solta_edge_case() -> None:
+    """Caso de borda: hook fora de sessão declarada registra o Run sem inventar um pai."""
+    acumulador = AcumuladorProjecao(GrafoEstado())
+    acumulador.aplicar(_execucao(1, TipoEvento.EXECUCAO_CONCLUIDA, "run-solto", id_sessao="sess-que-nao-ha"))
+
+    estado = acumulador.congelar()
+    assert estado.contem_no("run-solto") is True
+    assert not estado.arestas
+
+
+def test_fase_seguinte_pendura_o_run_quando_a_sessao_surge_depois_edge_case() -> None:
+    """Caso de borda: a sessão pode nascer entre duas fases; a segunda fecha o vínculo."""
+    conclusao = _execucao(3, TipoEvento.EXECUCAO_CONCLUIDA, "run-1")
+    acumulador = AcumuladorProjecao(GrafoEstado())
+    acumulador.aplicar_todos(
+        [_execucao(1, TipoEvento.EXECUCAO_SOLICITADA, "run-1"), _criar_no(2, "sess", TipoNo.SESSAO), conclusao]
+    )
+
+    estado = acumulador.congelar()
+    assert estado.arestas["prod-run-1"].origem_id == "sess"
+    assert estado.arestas["prod-run-1"].metadados.criado_em == conclusao.timestamp_utc

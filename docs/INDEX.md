@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 150 módulos · 18164 linhas · 309 classes**
+**15 alas · 150 módulos · 18199 linhas · 309 classes**
 
 ---
 
@@ -58,9 +58,9 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 7 | 656 | 33 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 13 | 2130 | 23 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 13 | 2134 | 23 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 11 | 1326 | 31 |
-| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 11 | 1641 | 21 |
+| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 11 | 1672 | 21 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 9 | 644 | 11 |
 | 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 14 | 1844 | 30 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |

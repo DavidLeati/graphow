@@ -44,6 +44,11 @@ def ordem_do_evento(evento: EventoLog) -> OrdemNoLog:
     return OrdemNoLog(seq_criacao=evento.seq, seq_atualizacao=evento.seq)
 
 
+def marca_da_aresta(evento: EventoLog) -> MetadadosTemporais:
+    """Marca temporal da aresta, tirada do log pelo mesmo motivo que a do nó."""
+    return MetadadosTemporais(criado_em=evento.timestamp_utc, registrado_em=evento.timestamp_utc)
+
+
 class AcumuladorProjecao:
     """Estrutura interna e mutável que aplica eventos sem recriar o estado a cada um."""
 
@@ -150,9 +155,7 @@ class AcumuladorProjecao:
             origem_id=str(payload["origem_id"]),
             destino_id=str(payload["destino_id"]),
             tipo=TipoAresta(payload["tipo"]),
-            metadados=MetadadosTemporais(
-                criado_em=evento.timestamp_utc, registrado_em=evento.timestamp_utc
-            ),
+            metadados=marca_da_aresta(evento),
         )
 
     def _remover_aresta(self, evento: EventoLog) -> None:
@@ -160,7 +163,7 @@ class AcumuladorProjecao:
         self._arestas.pop(str(evento.payload["id"]), None)
 
     def _registrar_execucao(self, evento: EventoLog) -> None:
-        """Cria ou atualiza o nó Run correspondente ao ciclo de vida da execução."""
+        """Cria ou atualiza o nó Run do ciclo de vida da execução e o pendura na sessão."""
         payload: Mapping[str, Any] = evento.payload
         id_run = str(payload.get("id", f"run-{evento.id}"))
         propriedades: dict[str, Any] = {
@@ -173,15 +176,43 @@ class AcumuladorProjecao:
         if existente is not None:
             atualizado = existente.com_propriedades(propriedades)
             self._nos[id_run] = atualizado.tocado_em(evento.timestamp_utc, evento.seq)
+        else:
+            self._nos[id_run] = NoGrafo(
+                id=id_run,
+                tipo=TipoNo.RUN,
+                rotulo=str(payload.get("rotulo", f"Run {id_run}")),
+                propriedades=propriedades,
+                metadados=metadados_do_evento(evento),
+                ordem=ordem_do_evento(evento),
+            )
+        self._pendurar_run_na_sessao(id_run, evento)
+
+    def _pendurar_run_na_sessao(self, id_run: str, evento: EventoLog) -> None:
+        """Liga o Run à sessão dita no evento: `produz` o contém, `ocorreu_em` o situa.
+
+        O evento de execução não passa pelos portões, e o InvariantGate não
+        recusa o que não vê: sem estas arestas o Run nascia fora da hierarquia,
+        e só a pasta "Fora da hierarquia" do explorador o mostrava. São as
+        mesmas arestas que o adaptador de patch cria. Sessão que o grafo não
+        tem não ganha aresta solta; a fase seguinte pendura o Run se ela surgir.
+        """
+        id_sessao = str(evento.payload.get("id_sessao", "") or "")
+        if not id_sessao or id_sessao not in self._nos:
             return
-        self._nos[id_run] = NoGrafo(
-            id=id_run,
-            tipo=TipoNo.RUN,
-            rotulo=str(payload.get("rotulo", f"Run {id_run}")),
-            propriedades=propriedades,
-            metadados=metadados_do_evento(evento),
-            ordem=ordem_do_evento(evento),
+        arestas = (
+            (f"prod-{id_run}", id_sessao, id_run, TipoAresta.PRODUZ),
+            (f"ocorreu-{id_run}", id_run, id_sessao, TipoAresta.OCORREU_EM),
         )
+        for id_aresta, origem_id, destino_id, tipo in arestas:
+            if id_aresta in self._arestas:
+                continue
+            self._arestas[id_aresta] = ArestaGrafo(
+                id=id_aresta,
+                origem_id=origem_id,
+                destino_id=destino_id,
+                tipo=tipo,
+                metadados=marca_da_aresta(evento),
+            )
 
     def _apenas_avancar_versao(self, evento: EventoLog) -> None:
         """A criação de ramo só move a versão do log, sem alterar nós ou arestas."""

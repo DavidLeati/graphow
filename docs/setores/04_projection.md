@@ -10,11 +10,11 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-11 módulos · 1641 linhas · 21 classes
+11 módulos · 1672 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`projection/acumulador.py`](#projectionacumulador) | 188 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
+| [`projection/acumulador.py`](#projectionacumulador) | 219 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 218 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
@@ -41,6 +41,7 @@ Acumulador mutável usado para dobrar muitos eventos em uma passada só.
 
 - `metadados_do_evento(evento: EventoLog) -> MetadadosTemporais` — Marca temporal do nó tirada do log, nunca do relógio de quem projeta.
 - `ordem_do_evento(evento: EventoLog) -> OrdemNoLog` — Posição de nascimento do nó na ordem total do log.
+- `marca_da_aresta(evento: EventoLog) -> MetadadosTemporais` — Marca temporal da aresta, tirada do log pelo mesmo motivo que a do nó.
 
 ## `projection/caminho_critico.py`
 

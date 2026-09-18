@@ -209,3 +209,23 @@ def test_setor_declarado_vence_o_ambiente_padrao_nominal(tmp_path: Path) -> None
     view = kernel.obter_view()
     assert view.contem_no("proj-meu-repo") is False
     assert [no.id for no in view.obter_filhos_por_contencao("setor-1")] == ["sess-hook"]
+
+
+def test_execucao_nasce_dentro_da_sessao_e_nao_fora_da_hierarquia_nominal() -> None:
+    """O Run do hook pende da sessão por `produz` e a aponta por `ocorreu_em`.
+
+    O canal de execução não passa pelo InvariantGate, e cada disparo nascia
+    órfão: o explorador o mostrava só na pasta "Fora da hierarquia".
+    """
+    kernel = montar_kernel_em_memoria()
+    _criar_setor(kernel)
+
+    ServicoHarness(kernel).registrar(
+        PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", id_setor="setor-1")
+    )
+
+    view = kernel.obter_view()
+    assert [no.id for no in view.obter_filhos_por_contencao("sess-hook")] == ["run-sess-hook"]
+    origens = [aresta.origem_id for aresta in view.obter_arestas_entrada("sess-hook", TipoAresta.OCORREU_EM)]
+    assert origens == ["run-sess-hook"]
+    assert view.indice_de_rollup.nos_orfaos == ()

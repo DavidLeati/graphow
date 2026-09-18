@@ -43,7 +43,11 @@ class PedidoDeExecucao:
         return self.tipo_evento in EVENTOS_DE_CICLO_DE_EXECUCAO
 
     def montar_payload(self) -> dict[str, Any]:
-        """Payload do evento, com o vínculo à sessão sempre presente."""
+        """Payload do evento, com o vínculo à sessão sempre presente.
+
+        É por `id_sessao` que a projeção pendura o Run na Sessao: este canal
+        não passa pelos portões, e a aresta que o hierarquiza nasce do fato.
+        """
         return {
             "id": self.id_run,
             "id_sessao": self.id_sessao,

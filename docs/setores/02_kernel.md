@@ -10,13 +10,13 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-13 módulos · 2130 linhas · 23 classes
+13 módulos · 2134 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 129 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
-| [`kernel/execucao.py`](#kernelexecucao) | 66 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
+| [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 324 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 126 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
