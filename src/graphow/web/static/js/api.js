@@ -61,4 +61,8 @@ export const api = {
   removerProjeto: (corpo) => pedir("/api/projects", comCorpo("DELETE", corpo)),
   criarFork: (corpo) => pedir("/api/forks", comCorpo("POST", corpo)),
   diff: (ramoA, ramoB) => pedir(`/api/diff?${montarQuery({ ramo_a: ramoA, ramo_b: ramoB })}`),
+  // A memória do ramo inteiro: aprendizados com origem e alcance, sessões com fechamento.
+  memoria: (ramo) => pedir(`/api/memoria?${montarQuery({ ramo })}`),
+  registrarAprendizado: (corpo) => pedir("/api/memoria/aprendizados", comCorpo("POST", corpo)),
+  promoverAprendizado: (corpo) => pedir("/api/memoria/promocoes", comCorpo("POST", corpo)),
 };

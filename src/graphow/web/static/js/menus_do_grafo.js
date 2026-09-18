@@ -3,6 +3,7 @@
  * busca, às conexões e aos marcadores — um nó tem as mesmas ações onde quer que
  * seja clicado. Enquanto a tela mostra o passado, o que escreve fica desabilitado.
  */
+import { TIPOS_DE_ORIGEM_DE_APRENDIZADO } from "./dialogos_memoria.js";
 import { copiarTexto } from "./dom.js";
 import { avisar } from "./modais.js";
 import { apresentarStatus, apresentarTipo, ehConteiner, niveisDeAutonomia, statusDoTipo } from "./ontologia_ui.js";
@@ -71,8 +72,27 @@ function itensDeTrabalho(app, no) {
     { secao: `${apresentarTipo(no.tipo).nome} · ${no.rotulo || no.id}` },
     { rotulo: "Centralizar no canvas", icone: "crosshair", acao: () => app.focarNo(no.id, no) },
     sessao ? { rotulo: `Abrir a sessão “${sessao.rotulo}”`, icone: "folder-clock", acao: () => app.abrirEscopo(sessao) } : null,
+    ...itensDeMemoria(app, no),
     "-",
   ];
+}
+
+/**
+ * Memória de longo prazo: de um nó de trabalho se registra um aprendizado; um
+ * aprendizado se promove. Promover é gesto humano, e esta tela escreve como humano.
+ */
+function itensDeMemoria(app, no) {
+  const viajando = app.state.isTimeTraveling;
+  if (no.tipo === "Aprendizado") {
+    return [{ rotulo: "Promover aprendizado…", icone: "lightbulb", desabilitado: viajando, acao: () => app.dialogosDeMemoria.promover(no) }];
+  }
+  if (!TIPOS_DE_ORIGEM_DE_APRENDIZADO.has(no.tipo)) return [];
+  return [{
+    rotulo: "Registrar aprendizado a partir daqui…",
+    icone: "lightbulb",
+    desabilitado: viajando,
+    acao: () => app.dialogosDeMemoria.registrar({ origens: [no.id], sessaoId: no.sessao_id }),
+  }];
 }
 
 function itensDeEstado(app, no, viajando) {

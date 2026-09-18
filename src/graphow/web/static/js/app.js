@@ -17,6 +17,7 @@ import { registrarComandos } from "./comandos_graphow.js";
 import { formatarAtalho, RegistroDeComandos } from "./comandos.js";
 import { ConexoesView } from "./conexoes_view.js";
 import { DialogosDoGrafo } from "./dialogos_grafo.js";
+import { DialogosDeMemoria } from "./dialogos_memoria.js";
 import { escapeHtml } from "./dom.js";
 import { ExploradorView } from "./explorador_view.js";
 import { ForkDiffView } from "./fork_diff_view.js";
@@ -77,6 +78,7 @@ class GraphowApp {
       aoCriar: (id, dica) => this.aoCriarNo(id, dica),
       centroDoCanvas: () => (this.abas?.ativa?.tipo === "grafo" ? this.interactions.centroDoMundo() : null),
     });
+    this.dialogosDeMemoria = new DialogosDeMemoria({ state: this.state, indice: this.indice, aoGravar: (opcoes) => this.aposGravar(opcoes) });
     this.identidade = null;
     this.focoPendente = null;
     this.pedidoCanvas = 0;
@@ -159,6 +161,8 @@ class GraphowApp {
       voltarAoPresente: () => this.voltarAoPresente(),
       excluirAresta: (aresta) => this.dialogos.excluirAresta(aresta),
       destacar: (id) => this.destacar(id),
+      registrarAprendizado: (opcoes) => this.dialogosDeMemoria.registrar(opcoes),
+      promoverAprendizado: (no) => this.dialogosDeMemoria.promover(no),
     };
   }
 

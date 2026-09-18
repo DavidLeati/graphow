@@ -7,6 +7,7 @@
  * quatro portões e vira evento permanente no log, e um salvamento a cada tecla
  * encheria o log de rascunho. Sem seleção, o painel mostra o panorama do escopo.
  */
+import { TIPOS_DE_ORIGEM_DE_APRENDIZADO } from "./dialogos_memoria.js";
 import { copiarTexto, escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
 import { foiAlterado, formatarDataCompleta, formatarIdadeRelativa } from "./idade.js";
@@ -137,11 +138,85 @@ export class InspectorView {
 
   montarBlocoDoTipo(no, somenteLeitura) {
     const desabilitado = somenteLeitura ? "disabled" : "";
+    return `${this.montarBlocoEspecifico(no, desabilitado)}${this.montarConviteDeAprendizado(no, desabilitado)}`;
+  }
+
+  montarBlocoEspecifico(no, desabilitado) {
     if (no.tipo === "Task") return this.montarCampoDeStatus(no, desabilitado);
     if (no.tipo === "Question") return this.montarBlocoDaQuestao(no, desabilitado);
     if (no.tipo === "Projeto") return this.montarBlocoDoProjeto(no, desabilitado);
+    if (no.tipo === "Sessao") return this.montarBlocoDaSessao(no, desabilitado);
+    if (no.tipo === "Aprendizado") return this.montarBlocoDoAprendizado(no, desabilitado);
     if (ehConteiner(no.tipo)) return this.montarResumoDoConteiner(no);
     return "";
+  }
+
+  /**
+   * Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
+   * prazo: a vista dela passa a abrir pelo fechamento e o grafo pede a
+   * condensação. Status e resumo estavam escondidos da tabela genérica sem
+   * ganhar controle próprio, e só o menu de contexto alcançava o status.
+   */
+  montarBlocoDaSessao(no, desabilitado) {
+    const encerrada = no.propriedades?.status === "concluida";
+    return `
+      ${this.montarCampoDeStatus(no, desabilitado)}
+      ${this.montarCampoDeTexto({
+        chave: "resumo",
+        rotulo: "Resumo da sessão",
+        icone: "align-left",
+        valor: no.propriedades?.resumo || "",
+        dica: "O que a sessão produziu, em uma ou duas frases…",
+        desabilitado,
+      })}
+      <div class="bloco-nota">${encerrada ? "Encerrada: a vista dela abre pelo fechamento determinístico, e o grafo pediu a condensação." : "Ao encerrar, a vista passa a abrir pelo fechamento e o grafo abre a Task de condensação."}</div>
+      ${this.montarResumoDoConteiner(no)}`;
+  }
+
+  /** Afirmação no título, como aplicar no corpo, alcance e origem lidos das arestas. */
+  montarBlocoDoAprendizado(no, desabilitado) {
+    const arestas = [...this.state.edges.values()];
+    const alcances = arestas.filter((a) => a.tipo === "vale_para" && a.origem_id === no.id).map((a) => this.montarLinkDeNo(a.destino_id));
+    if (no.propriedades?.alcance === "global") alcances.unshift(`<strong>vale para tudo</strong>`);
+    const origens = arestas.filter((a) => a.tipo === "deriva_de" && a.origem_id === no.id).map((a) => this.montarLinkDeNo(a.destino_id));
+    const substituto = arestas.find((a) => a.tipo === "substitui" && a.destino_id === no.id);
+    const contradicoes = arestas.filter((a) => a.tipo === "contradiz" && a.destino_id === no.id);
+    return `
+      ${substituto ? `<div class="chamada mod-alerta">${icone("alert-triangle", { tamanho: 14 })}<span>Substituído por ${this.montarLinkDeNo(substituto.origem_id)}: não siga esta nota.</span></div>` : ""}
+      ${contradicoes.length ? `<div class="chamada mod-aviso">${icone("flask", { tamanho: 14 })}<span>Contradito por ${contradicoes.map((a) => this.montarLinkDeNo(a.origem_id)).join(", ")}: precisa de revisão.</span></div>` : ""}
+      ${this.montarCampoDeTexto({
+        chave: "como_aplicar",
+        rotulo: "Como aplicar",
+        icone: "corner-down-right",
+        valor: no.propriedades?.como_aplicar || "",
+        dica: "O que fazer com isto na próxima vez…",
+        desabilitado,
+      })}
+      <div class="bloco-campo mod-coluna">
+        <span class="bloco-campo-rotulo">${icone("zap", { tamanho: 14 })} Alcance</span>
+        <div class="bloco-nota">${alcances.length ? alcances.join(", ") : "Só a sessão em que nasceu. Promover é gesto humano e dá alcance a um Projeto, um Setor ou a tudo."}</div>
+        ${desabilitado ? "" : `<button class="botao" data-acao="promover">${icone("lightbulb", { tamanho: 14 })} Promover…</button>`}
+      </div>
+      <div class="bloco-campo mod-coluna">
+        <span class="bloco-campo-rotulo">${icone("route", { tamanho: 14 })} Como se sabe</span>
+        <div class="bloco-nota">${origens.length ? origens.join(", ") : "Origem fora do canvas atual: veja as conexões do nó."}</div>
+      </div>
+      ${this.montarCampoCurto({ chave: "valido_ate", rotulo: "Válido até", icone: "clock", valor: no.propriedades?.valido_ate || "", dica: "Opcional, ISO 8601: vencido, sai da vista", desabilitado })}`;
+  }
+
+  /** Todo nó que pode ser origem de um aprendizado convida a registrá-lo dali. */
+  montarConviteDeAprendizado(no, desabilitado) {
+    if (desabilitado || !TIPOS_DE_ORIGEM_DE_APRENDIZADO.has(no.tipo)) return "";
+    return `<button class="link-acao" data-acao="registrar-aprendizado">${icone("lightbulb", { tamanho: 13 })} Registrar aprendizado a partir deste nó</button>`;
+  }
+
+  /** Campo de uma linha de uma propriedade que o bloco do tipo já trata. */
+  montarCampoCurto({ chave, rotulo, icone: nomeDoIcone, valor, dica, desabilitado }) {
+    return `
+      <div class="bloco-campo">
+        <span class="bloco-campo-rotulo">${icone(nomeDoIcone, { tamanho: 14 })} ${escapeHtml(rotulo)}</span>
+        <input type="text" class="entrada" data-prop="${escapeHtml(chave)}" data-original="${escapeHtml(valor)}" value="${escapeHtml(valor)}" placeholder="${escapeHtml(dica)}" ${desabilitado}>
+      </div>`;
   }
 
   montarCampoDeStatus(no, desabilitado) {
@@ -509,6 +584,8 @@ export class InspectorView {
       "ver-conexoes": () => this.acoes.mostrarPainel("conexoes"),
       viajar: () => this.acoes.viajarPara(Number(alvo.dataset.seq)),
       "remover-aresta": () => this.acoes.excluirAresta(selecao?.data),
+      promover: () => this.acoes.promoverAprendizado(this.noRenderizado),
+      "registrar-aprendizado": () => this.acoes.registrarAprendizado({ origens: [this.noRenderizado.id], sessaoId: this.noRenderizado.sessao_id }),
     };
     tratadores[acao]?.();
   }

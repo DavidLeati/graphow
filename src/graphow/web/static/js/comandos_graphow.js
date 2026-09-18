@@ -51,6 +51,10 @@ export function registrarComandos(app) {
     { id: "excluir-selecao", nome: "Excluir a seleção…", icone: "trash", disponivel: () => noPresente() && Boolean(selecionado()), executar: () => app.dialogos.excluirNo(selecionado()) },
     { id: "exclusao-lote", nome: "Exclusão em lote…", icone: "trash", disponivel: noPresente, executar: () => app.dialogos.exclusaoEmLote() },
 
+    // Memória
+    { id: "registrar-aprendizado", nome: "Registrar aprendizado a partir da seleção…", icone: "lightbulb", disponivel: () => noPresente() && Boolean(selecionado()), executar: () => app.dialogosDeMemoria.registrar({ origens: [selecionado().id], sessaoId: selecionado().sessao_id }) },
+    { id: "promover-aprendizado", nome: "Promover o aprendizado selecionado…", icone: "lightbulb", disponivel: () => noPresente() && selecionado()?.tipo === "Aprendizado", executar: () => app.dialogosDeMemoria.promover(selecionado()) },
+
     // Canvas
     { id: "enquadrar", nome: "Enquadrar tudo", icone: "maximize", atalhoExibido: "F", executar: () => app.interactions.fitToView() },
     { id: "zoom-selecao", nome: "Aproximar da seleção", icone: "crosshair", atalhoExibido: "Z", executar: () => app.interactions.zoomToSelection() },
