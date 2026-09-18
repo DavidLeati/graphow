@@ -3,6 +3,7 @@
 import argparse
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import sys
 
@@ -139,6 +140,8 @@ class ManipuladorComandosGrafo:
         ligar_motor_reativo_padrao(self._kernel)
         recibo = ServicoHarness(self._kernel).registrar(pedido)
         self._console.escrever_linha(f"[{recibo.id_run}] {recibo.mensagem} (versao {recibo.versao_log})")
+        if recibo.id_setor:
+            self._console.escrever_linha(f"Sessao {pedido.id_sessao} no setor {recibo.id_setor}")
         return CODIGO_SUCESSO if recibo.sucesso else CODIGO_FALHA_DOMINIO
 
     def _ler_payload(self, argumentos: argparse.Namespace) -> EntradaDeHook:
@@ -162,6 +165,8 @@ class ManipuladorComandosGrafo:
             id_setor=argumentos.setor,
             modelo=self._resolver_modelo(argumentos.modelo, entrada.modelo),
             resumo=argumentos.resumo or entrada.resumo,
+            # O hook diz de onde rodou; fora de um hook, vale a pasta do processo.
+            diretorio_de_trabalho=entrada.diretorio or os.getcwd(),
         )
 
     def _resolver_modelo(self, declarado: str, do_hook: str) -> str:

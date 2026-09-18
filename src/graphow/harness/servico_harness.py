@@ -4,6 +4,10 @@
 classes existiam, nenhum script as invocava, e nenhum evento de execução era
 emitido. Este serviço é o chamador que faltava, e o subcomando `graphow harness`
 é a porta pela qual os hooks o alcançam.
+
+A sessão nasce onde o hook mandar ou, sem `--setor`, no ambiente padrão do
+repositório em que ele roda: o Projeto com o nome da pasta e o Setor `Memoria`.
+Sem isso o hook sem Setor só registrava telemetria, e a memória não acontecia.
 """
 
 from collections.abc import Mapping
@@ -12,6 +16,8 @@ from enum import Enum
 from typing import Any
 
 from graphow.core.events import TipoEvento
+from graphow.core.types import TipoAresta
+from graphow.harness.ambiente_padrao import AmbientePadrao, GarantidorDeAmbientePadrao
 from graphow.harness.hook_adapter import HookHarnessAdapter
 from graphow.harness.identidade_harness import IdentidadeHarness
 from graphow.harness.interfaces import AdaptadorDeHarness
@@ -36,7 +42,11 @@ EVENTO_POR_FASE: Mapping[FaseDoHarness, TipoEvento] = {
 
 @dataclass(frozen=True)
 class PedidoDeCicloDeVida:
-    """O que o hook informa ao grafo em cada disparo."""
+    """O que o hook informa ao grafo em cada disparo.
+
+    `diretorio_de_trabalho` é de onde o hook rodou: é ele que nomeia o ambiente
+    padrão quando `id_setor` vem vazio. Vazio também, vale o diretório do processo.
+    """
 
     fase: FaseDoHarness
     id_sessao: str
@@ -45,6 +55,7 @@ class PedidoDeCicloDeVida:
     resumo: str = ""
     ramo_id: str = "main"
     metadados: Mapping[str, Any] = field(default_factory=dict)
+    diretorio_de_trabalho: str = ""
 
     @property
     def id_run(self) -> str:
@@ -60,6 +71,7 @@ class ResultadoCicloDeVida:
     id_run: str
     mensagem: str
     versao_log: int = 0
+    id_setor: str = ""
 
 
 class ServicoHarness:
@@ -70,39 +82,60 @@ class ServicoHarness:
         kernel: WriteKernel,
         identidade: IdentidadeHarness | None = None,
         adaptador: AdaptadorDeHarness | None = None,
+        *,
+        garantidor: GarantidorDeAmbientePadrao | None = None,
     ) -> None:
         self._kernel: WriteKernel = kernel
         self._identidade: IdentidadeHarness = identidade or IdentidadeHarness()
         self._adaptador: AdaptadorDeHarness = adaptador or HookHarnessAdapter(kernel, self._identidade)
+        self._garantidor: GarantidorDeAmbientePadrao = garantidor or GarantidorDeAmbientePadrao(
+            kernel, self._identidade
+        )
 
     def registrar(self, pedido: PedidoDeCicloDeVida) -> ResultadoCicloDeVida:
         """Executa o efeito da fase sobre a sessão e emite o evento de execução."""
-        self._ajustar_sessao(pedido)
+        id_setor = self._ajustar_sessao(pedido)
         recibo = self._kernel.registrar_execucao(self._montar_pedido_de_execucao(pedido))
         return ResultadoCicloDeVida(
             sucesso=recibo.sucesso,
             id_run=pedido.id_run,
             mensagem=recibo.mensagem,
             versao_log=recibo.versao_log,
+            id_setor=id_setor,
         )
 
-    def _ajustar_sessao(self, pedido: PedidoDeCicloDeVida) -> None:
+    def _ajustar_sessao(self, pedido: PedidoDeCicloDeVida) -> str:
         """Abre a Sessao no início e a fecha no fim, ignorando fases intermediárias.
 
         O evento de execução é registrado de qualquer forma: um hook que roda
-        fora de uma sessão declarada ainda produz telemetria válida.
+        fora de uma sessão declarada ainda produz telemetria válida. Devolve o
+        Setor em que a sessão está, quando a fase o conhece.
         """
-        if pedido.fase == FaseDoHarness.INICIO and pedido.id_setor:
-            self._adaptador.registrar_inicio_sessao(
-                pedido.id_sessao, pedido.id_setor, dict(pedido.metadados)
-            )
-            return
+        if pedido.fase == FaseDoHarness.INICIO:
+            return self._abrir_sessao(pedido)
         if pedido.fase == FaseDoHarness.FIM and self._sessao_existe(pedido):
             self._adaptador.registrar_fim_sessao(pedido.id_sessao, pedido.resumo)
+        return ""
+
+    def _abrir_sessao(self, pedido: PedidoDeCicloDeVida) -> str:
+        """Sessão já aberta não é reaberta; sem Setor declarado, o ambiente padrão responde."""
+        if self._sessao_existe(pedido):
+            return self._setor_da_sessao(pedido)
+        id_setor = pedido.id_setor or self._garantidor.garantir(
+            AmbientePadrao.do_diretorio(pedido.diretorio_de_trabalho), pedido.ramo_id
+        )
+        if id_setor:
+            self._adaptador.registrar_inicio_sessao(pedido.id_sessao, id_setor, dict(pedido.metadados))
+        return id_setor
 
     def _sessao_existe(self, pedido: PedidoDeCicloDeVida) -> bool:
         """Consulta se há uma Sessao no grafo para fechar."""
         return self._kernel.obter_view(pedido.ramo_id).contem_no(pedido.id_sessao)
+
+    def _setor_da_sessao(self, pedido: PedidoDeCicloDeVida) -> str:
+        """O Setor que contém a sessão já aberta, para o recibo dizer onde ela está."""
+        arestas = self._kernel.obter_view(pedido.ramo_id).obter_arestas_entrada(pedido.id_sessao, TipoAresta.CONTEM)
+        return arestas[0].origem_id if arestas else ""
 
     def _montar_pedido_de_execucao(self, pedido: PedidoDeCicloDeVida) -> PedidoDeExecucao:
         """Descreve o evento de execução correspondente à fase informada."""

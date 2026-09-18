@@ -14,6 +14,9 @@ from typing import IO, Any
 
 CHAVE_SESSAO: str = "session_id"
 CHAVE_MODELO: str = "model"
+# O diretório em que o hook rodou nomeia o ambiente padrão da memória: o
+# Projeto com o nome do repositório e o Setor `Memoria` dentro dele.
+CHAVE_DIRETORIO: str = "cwd"
 CHAVES_DE_IDENTIFICACAO_DO_MODELO: tuple[str, ...] = ("id", "display_name")
 
 # O payload de início traz `source`; o de fim traz `reason`. Nenhum dos dois é
@@ -30,6 +33,7 @@ class EntradaDeHook:
     id_sessao: str = ""
     modelo: str = MODELO_DESCONHECIDO
     resumo: str = ""
+    diretorio: str = ""
 
     @property
     def tem_sessao(self) -> bool:
@@ -46,6 +50,7 @@ def interpretar_entrada_de_hook(texto: str) -> EntradaDeHook:
         id_sessao=str(dados.get(CHAVE_SESSAO, "")).strip(),
         modelo=_extrair_modelo(dados.get(CHAVE_MODELO)),
         resumo=_extrair_resumo(dados),
+        diretorio=str(dados.get(CHAVE_DIRETORIO, "") or "").strip(),
     )
 
 

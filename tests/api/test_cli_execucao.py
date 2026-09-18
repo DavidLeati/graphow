@@ -1,6 +1,7 @@
 """Testes de integração da execução de subcomandos da linha de comando."""
 
 import io
+import json
 from pathlib import Path
 
 import pytest
@@ -144,6 +145,29 @@ def test_harness_le_a_sessao_do_payload_do_hook_nominal(tmp_path: Path) -> None:
 
     assert codigo == CODIGO_SUCESSO
     assert any("run-sess-do-hook" in linha for linha in console.linhas)
+
+
+def test_harness_sem_setor_abre_a_sessao_no_ambiente_padrao_do_repositorio_nominal(tmp_path: Path) -> None:
+    """O hook não precisa de um Setor criado à parte: o repositório em que rodou é o ambiente.
+
+    O `cwd` do payload nomeia o Projeto; o Setor `Memoria` nasce dentro dele na
+    primeira sessão. Antes, sem `--setor`, o comando só gravava telemetria.
+    """
+    from graphow.core.types import TipoNo
+    from graphow.kernel.write_kernel import WriteKernel
+
+    repositorio = tmp_path / "meu-repo"
+    (repositorio / ".git").mkdir(parents=True)
+    payload = json.dumps({"session_id": "sess-do-hook", "cwd": str(repositorio), "source": "startup"})
+
+    codigo, console = _executar_com_payload(["harness", "--fase", "inicio", "--entrada-hook"], tmp_path, payload)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("no setor setor-meu-repo-memoria" in linha for linha in console.linhas)
+    with SQLiteEventStore(str(tmp_path / "graphow" / "graphow.db")) as store:
+        view = WriteKernel(store).obter_view()
+    assert view.obter_no("proj-meu-repo").tipo == TipoNo.PROJETO
+    assert [no.id for no in view.obter_filhos_por_contencao("setor-meu-repo-memoria")] == ["sess-do-hook"]
 
 
 def test_harness_sem_sessao_no_payload_recusa_em_vez_de_estourar_edge_case(tmp_path: Path) -> None:

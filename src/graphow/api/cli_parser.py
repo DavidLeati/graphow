@@ -177,9 +177,22 @@ def _registrar_comando_harness(
         help="Momento do ciclo de vida comunicado pelo hook",
     )
     _registrar_origem_da_sessao(parser_harness)
-    parser_harness.add_argument("--setor", default="", help="ID do Setor que contem a sessao")
+    _registrar_setor_da_sessao(parser_harness)
     parser_harness.add_argument("--modelo", default="desconhecido", help="Modelo em execucao")
     parser_harness.add_argument("--resumo", default="", help="Resumo do que a sessao produziu")
+
+
+def _registrar_setor_da_sessao(parser_harness: argparse.ArgumentParser) -> None:
+    """O Setor e opcional: sem ele, o repositorio em que o hook roda e o ambiente da sessao."""
+    parser_harness.add_argument(
+        "--setor",
+        default="",
+        help=(
+            "ID do Setor que contem a sessao. Sem ele, a sessao nasce no ambiente padrao "
+            "do repositorio em que o hook roda: o Projeto com o nome da pasta e o Setor "
+            "'Memoria', criados na primeira vez"
+        ),
+    )
 
 
 def _registrar_origem_da_sessao(parser_harness: argparse.ArgumentParser) -> None:

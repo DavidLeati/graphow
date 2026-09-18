@@ -1,5 +1,7 @@
 """Testes da fiação do harness: o hook dispara e o grafo registra a execução."""
 
+from pathlib import Path
+
 from graphow.core.events import TipoEvento
 from graphow.core.types import OrigemEvento, PapelAutor, TipoAresta, TipoNo
 from graphow.harness.servico_harness import (
@@ -150,3 +152,60 @@ def test_evento_de_execucao_carrega_origem_harness_nominal() -> None:
     evento = kernel.repositorio.ler_eventos("main")[-1]
     assert evento.origem == OrigemEvento.HARNESS
     assert evento.papel == PapelAutor.SISTEMA
+
+
+def _repositorio_de_teste(tmp_path: Path, nome: str) -> str:
+    """Uma pasta com `.git`, como o repositório em que o hook roda."""
+    (tmp_path / nome / ".git").mkdir(parents=True)
+    return str(tmp_path / nome)
+
+
+def test_inicio_sem_setor_abre_a_sessao_no_ambiente_padrao_do_repositorio_nominal(tmp_path: Path) -> None:
+    """Sem `--setor`, a sessão nasce no Projeto do repositório, dentro do Setor `Memoria`."""
+    kernel = montar_kernel_em_memoria()
+    diretorio = _repositorio_de_teste(tmp_path, "meu-repo")
+
+    recibo = ServicoHarness(kernel).registrar(
+        PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", diretorio_de_trabalho=diretorio)
+    )
+
+    assert recibo.sucesso is True
+    assert recibo.id_setor == "setor-meu-repo-memoria"
+    view = kernel.obter_view()
+    assert view.obter_no("proj-meu-repo").rotulo == "meu-repo"
+    assert [no.id for no in view.obter_filhos_por_contencao("setor-meu-repo-memoria")] == ["sess-hook"]
+    assert view.obter_no("sess-hook").obter_propriedade("status") == "ativa"
+
+
+def test_inicio_repetido_nao_reabre_nem_duplica_a_sessao_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o ambiente reenvia o início da mesma sessão; nada nasce duas vezes."""
+    kernel = montar_kernel_em_memoria()
+    diretorio = _repositorio_de_teste(tmp_path, "meu-repo")
+    servico = ServicoHarness(kernel)
+    pedido = PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", diretorio_de_trabalho=diretorio)
+
+    servico.registrar(pedido)
+    recibo = servico.registrar(pedido)
+
+    assert recibo.id_setor == "setor-meu-repo-memoria"
+    view = kernel.obter_view()
+    assert len(view.listar_nos_por_tipo(TipoNo.SESSAO)) == 1
+    assert len(view.listar_nos_por_tipo(TipoNo.SETOR)) == 1
+
+
+def test_setor_declarado_vence_o_ambiente_padrao_nominal(tmp_path: Path) -> None:
+    """Quem passa `--setor` escolhe onde a sessão mora; o ambiente padrão nem é criado."""
+    kernel = montar_kernel_em_memoria()
+    _criar_setor(kernel)
+    diretorio = _repositorio_de_teste(tmp_path, "meu-repo")
+
+    recibo = ServicoHarness(kernel).registrar(
+        PedidoDeCicloDeVida(
+            fase=FaseDoHarness.INICIO, id_sessao="sess-hook", id_setor="setor-1", diretorio_de_trabalho=diretorio
+        )
+    )
+
+    assert recibo.id_setor == "setor-1"
+    view = kernel.obter_view()
+    assert view.contem_no("proj-meu-repo") is False
+    assert [no.id for no in view.obter_filhos_por_contencao("setor-1")] == ["sess-hook"]

@@ -76,15 +76,17 @@ O servidor MCP cobre o que o agente pede. Quando a sessão começou e quando ter
 O bloco pronto para colar no `settings.json` do Claude Code está em [`graphow_harness_hooks.json`](../../../hooks/graphow_harness_hooks.json). Ele usa `--entrada-hook`, que lê o JSON do hook na entrada padrão e tira dali o `session_id`:
 
 ```powershell
-graphow harness --fase inicio --entrada-hook --setor setor-engenharia
+graphow harness --fase inicio --entrada-hook
 ```
+
+Nada precisa existir no grafo antes do primeiro hook. Sem `--setor`, a sessão nasce no ambiente padrão da memória do repositório em que o hook rodou (o `cwd` do payload): o `Projeto` com o nome da pasta do repositório e o `Setor` `Memoria` dentro dele, criados na primeira sessão e reaproveitados nas seguintes. Um worktree do git conta como o repositório principal. Passe `--setor <id>` só se quiser a sessão em outro Setor.
 
 O id da sessão não chega por variável de ambiente. A primeira versão do arquivo passava `$CLAUDE_SESSION_ID`, que o ambiente nunca define: o comando chegava com a sessão vazia e terminava em erro dentro do kernel. Em harness onde você já conhece o id, declare-o:
 
 ```powershell
-graphow harness --fase inicio --sessao sess-01 --setor setor-engenharia --modelo opus-5
+graphow harness --fase inicio --sessao sess-01 --modelo opus-5
 graphow harness --fase progresso --sessao sess-01
 graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 ```
 
-`--sessao` e `--entrada-hook` são mutuamente exclusivos, e um dos dois é obrigatório. O comando roda dentro do hook, então é curto e não interativo de propósito: qualquer espera ali atrasa o agente. A identidade é a do harness, papel `sistema`, que só registra a própria `Sessao` e a telemetria `Run`.
+`--sessao` e `--entrada-hook` são mutuamente exclusivos, e um dos dois é obrigatório. O comando roda dentro do hook, então é curto e não interativo de propósito: qualquer espera ali atrasa o agente. A identidade é a do harness, papel `sistema`, que registra a própria `Sessao`, a telemetria `Run` e, na falta de um Setor configurado, o ambiente padrão; nada do grafo de trabalho.

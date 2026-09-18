@@ -258,8 +258,9 @@ graphow mcp --papel executor --autor agente-cursor
 # Regenerar o catálogo de documentação a partir do código
 graphow docs-gerar
 
-# Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente)
-graphow harness --fase inicio --sessao sess-01 --setor setor-eng --modelo opus-5
+# Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
+# Sem --setor, a sessão nasce no ambiente padrão do repositório em que o comando roda
+graphow harness --fase inicio --sessao sess-01 --modelo opus-5
 graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 
 # Medir tokens por tarefa bem-sucedida sobre o corpus gravado
@@ -434,12 +435,23 @@ ambiente escrevem no log. Cada disparo emite um evento de ciclo de vida
 nó `Run` da sessão.
 
 O identificador da sessão **não vem de variável de ambiente**: o hook entrega um
-objeto JSON na entrada padrão, com `session_id` dentro. `--entrada-hook` lê esse
-objeto no próprio subcomando, sem depender de `jq` no PATH:
+objeto JSON na entrada padrão, com `session_id` e `cwd` dentro. `--entrada-hook`
+lê esse objeto no próprio subcomando, sem depender de `jq` no PATH:
 
 ```bash
-graphow harness --fase inicio --entrada-hook --setor setor-eng
+graphow harness --fase inicio --entrada-hook
 ```
+
+**A memória tem ambiente padrão.** Nada precisa existir no grafo antes do
+primeiro hook: sem `--setor`, a sessão nasce no repositório em que o hook rodou,
+lido do `cwd` do payload. O harness garante o `Projeto` com o nome da pasta do
+repositório (um worktree do git conta como o repositório principal, para a
+memória não se partir por worktree) e o `Setor` `Memoria` dentro dele, criados na
+primeira sessão e reaproveitados nas seguintes. Um `Projeto` que o humano já
+criou com o nome do repositório é reaproveitado, e um `Setor` chamado `Memoria`
+dentro dele também. É por isso que o papel `sistema` cria `Projeto` e `Setor`:
+só o ambiente padrão, e nunca o grafo de trabalho. `--setor <id>` continua
+valendo para quem quer a sessão em outro lugar.
 
 Fora de um hook, a sessão é declarada à mão. `--sessao` e `--entrada-hook` são
 mutuamente exclusivos e um deles é obrigatório, e um identificador em branco é

@@ -66,3 +66,11 @@ def test_leitura_consome_o_fluxo_de_texto_nominal() -> None:
     entrada = ler_entrada_de_hook(io.StringIO('{"session_id": "sess-fluxo"}'))
 
     assert entrada.id_sessao == "sess-fluxo"
+
+
+def test_diretorio_de_trabalho_do_hook_vem_de_cwd_nominal() -> None:
+    """O payload diz de onde o hook rodou; é isso que nomeia o ambiente padrão da memória."""
+    entrada = interpretar_entrada_de_hook('{"session_id": "s1", "cwd": " C:/repos/graphow "}')
+
+    assert entrada.diretorio == "C:/repos/graphow"
+    assert interpretar_entrada_de_hook('{"session_id": "s1"}').diretorio == ""

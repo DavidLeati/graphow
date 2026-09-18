@@ -10,18 +10,18 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-9 módulos · 662 linhas · 11 classes
+9 módulos · 700 linhas · 11 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 78 | Adaptador de fallback baseado em convenção de chamada explícita. |
-| [`harness/entrada_hook.py`](#harnessentradahook) | 86 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
+| [`harness/entrada_hook.py`](#harnessentradahook) | 91 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 72 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 38 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
-| [`harness/servico_harness.py`](#harnessservicoharness) | 117 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
+| [`harness/servico_harness.py`](#harnessservicoharness) | 150 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -84,6 +84,7 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 | :--- | :--- | :--- |
 | `CHAVE_SESSAO` | `str` | `'session_id'` |
 | `CHAVE_MODELO` | `str` | `'model'` |
+| `CHAVE_DIRETORIO` | `str` | `'cwd'` |
 | `CHAVES_DE_IDENTIFICACAO_DO_MODELO` | `tuple[str, ...]` | `('id', 'display_name')` |
 | `CHAVES_DE_RESUMO` | `tuple[str, ...]` | `('reason', 'source', 'hook_event_name')` |
 | `MODELO_DESCONHECIDO` | `str` | `'desconhecido'` |
@@ -92,7 +93,7 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 
 *DTO imutável* — Os campos do payload do hook que o Graphow aproveita.
 
-**Campos:** `id_sessao: str`, `modelo: str`, `resumo: str`
+**Campos:** `id_sessao: str`, `modelo: str`, `resumo: str`, `diretorio: str`
 
 - `tem_sessao() -> bool` `[property]` — Informa se a entrada trouxe um identificador de sessão utilizável.
 
@@ -171,7 +172,7 @@ Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execuçã
 
 *DTO imutável* — O que o hook informa ao grafo em cada disparo.
 
-**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`
+**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`, `diretorio_de_trabalho: str`
 
 - `id_run() -> str` `[property]` — Identificador estável do Run, para as três fases atualizarem o mesmo nó.
 
@@ -179,7 +180,7 @@ Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execuçã
 
 *DTO imutável* — Recibo do que o serviço conseguiu registrar no grafo.
 
-**Campos:** `sucesso: bool`, `id_run: str`, `mensagem: str`, `versao_log: int`
+**Campos:** `sucesso: bool`, `id_run: str`, `mensagem: str`, `versao_log: int`, `id_setor: str`
 
 ### `ServicoHarness`
 
