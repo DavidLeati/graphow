@@ -108,7 +108,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note`; decompõe e ordena; proibido de fechar tarefas.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
-   - **`sistema`**: Telemetria (`Run`) e a `Sessao` em que o harness roda. Nada do grafo de trabalho.
+   - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
 
    Cinco regras valem para **todo** papel não humano, e valem no kernel, não no
    nome da ferramenta: mudar o status de uma `Question` para `respondida` ou

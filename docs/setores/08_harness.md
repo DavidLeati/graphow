@@ -10,16 +10,59 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-7 módulos · 440 linhas · 9 classes
+9 módulos · 662 linhas · 11 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 78 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 86 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 72 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 38 | Interface abstrata para adaptadores de ciclo de vida do harness. |
+| [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 117 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
+
+## `harness/ambiente_padrao.py`
+
+O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ROTULO_DO_SETOR_DE_MEMORIA` | `str` | `'Memoria'` |
+| `DESCRICAO_DO_SETOR_DE_MEMORIA` | `str` | `'Ambiente padrao da memoria: as sessoes do harness, seus fechamentos, c…` |
+| `PREFIXO_DE_PROJETO` | `str` | `'proj'` |
+| `PREFIXO_DE_SETOR` | `str` | `'setor'` |
+| `SUFIXO_DO_SETOR_DE_MEMORIA` | `str` | `'memoria'` |
+| `SLUG_RESERVA` | `str` | `'projeto'` |
+| `RAMO_PADRAO` | `str` | `'main'` |
+| `_NAO_ALFANUMERICO` | `re.Pattern[str]` | `re.compile('[^a-z0-9]+')` |
+
+### `AmbientePadrao`
+
+*DTO imutável* — Os identificadores e rótulos do ambiente padrão de um repositório.
+
+**Campos:** `nome_do_projeto: str`
+
+- `do_diretorio(diretorio: str) -> 'AmbientePadrao'` — Deriva do diretório de trabalho; vazio significa o diretório corrente do processo.
+- `slug() -> str` `[property]` — A forma do nome que entra nos identificadores.
+- `id_projeto() -> str` `[property]` — Id do Projeto criado para o repositório, quando nenhum com o nome dele existe.
+- `id_setor() -> str` `[property]` — Id do Setor de memória do repositório.
+- `rotulo_do_projeto() -> str` `[property]` — O Projeto se chama como a pasta do repositório.
+- `rotulo_do_setor() -> str` `[property]` — O Setor de memória tem o mesmo rótulo em todo repositório.
+
+### `GarantidorDeAmbientePadrao`
+
+*serviço* — Garante que o Projeto e o Setor de memória existem, criando só o que falta.
+
+- `garantir(ambiente: AmbientePadrao, ramo_id: str) -> str` — Devolve o id do Setor de memória; vazio quando o grafo recusou criá-lo.
+
+### Funções do módulo
+
+- `gerar_slug(texto: str) -> str` — Identificador estável a partir de um nome: minúsculas e hífens, sem acento nem espaço.
+- `localizar_projeto(ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O Projeto do repositório: pelo id derivado ou, na falta, pelo nome que o humano deu.
+- `localizar_setor_de_memoria(projeto: NoGrafo, ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O Setor de memória do Projeto: pelo id derivado ou pelo rótulo `Memoria`.
+- `montar_operacoes_do_ambiente(ambiente: AmbientePadrao, projeto: NoGrafo | None) -> tuple[ItemPatch, ...]` — O Projeto, se ainda não existe, e o Setor de memória pendurado nele no mesmo lote.
 
 ## `harness/convention_adapter.py`
 
@@ -95,6 +138,22 @@ Interface abstrata para adaptadores de ciclo de vida do harness.
 - `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` `[abstract]` — Registra a criação de uma nova sessão e vincula ao Setor correspondente.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` `[abstract]` — Marca a conclusão de uma sessão no grafo compartilhado.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` `[abstract]` — Registra um nó Run associado à sessão e retorna o ID gerado.
+
+## `harness/repositorio.py`
+
+Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MARCADOR_DO_GIT` | `str` | `'.git'` |
+| `PREFIXO_DO_GITDIR` | `str` | `'gitdir:'` |
+| `PASTA_DE_WORKTREES` | `str` | `'worktrees'` |
+| `NOME_DE_PROJETO_RESERVA` | `str` | `'projeto'` |
+
+### Funções do módulo
+
+- `localizar_raiz_do_repositorio(caminho: Path) -> Path` — A raiz do repositório que contém o caminho; sem git, o próprio caminho.
+- `nome_do_projeto(caminho: Path) -> str` — O nome da pasta do repositório, que é o nome natural do projeto.
 
 ## `harness/servico_harness.py`
 

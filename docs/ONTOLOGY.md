@@ -31,8 +31,8 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 
 | Tipo de Nó | Descrição | Autor Permitido |
 |---|---|---|
-| `Projeto` | Agrupador raiz de alto nível de iniciativas e repositórios. | `humano` |
-| `Setor` | Domínio de negócio ou especialidade dentro de um projeto. | `humano` |
+| `Projeto` | Agrupador raiz de alto nível de iniciativas e repositórios. | `humano`; `harness`, só o Projeto do repositório no ambiente padrão da memória |
+| `Setor` | Domínio de negócio ou especialidade dentro de um projeto. | `humano`; `harness`, só o Setor `Memoria` do ambiente padrão |
 | `Sessao` | Contexto de interação onde execuções e diálogos ocorrem. Tem ciclo de vida: `ativa` e `concluida`. | `humano`, `harness` |
 
 ### 2.2 Camada de Trabalho
@@ -110,7 +110,7 @@ tarefa.
 | `planejador` | `Task`, `Decision`, `Question`, `Note` | `titulo`, `descricao`, `criterio_pronto` de `Task` | Fechar `Task`, editar `Constraint`, encerrar `Question`, registrar ou promover `Aprendizado` |
 | `executor` | `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado` | `status` da `Task` cuja posse detém | Criar `Task`, editar `Constraint`, encerrar `Question`, mexer em `Task` de outro, promover `Aprendizado` |
 | `revisor` | `Evidence`, `Question`, `Note`, `Aprendizado` | Status de revisão da `Task` cuja posse detém | Fechar `Task` diretamente, encerrar `Question`, promover `Aprendizado` |
-| `sistema` | `Run`, `Sessao` | Métricas de execução e a própria `Sessao` | Criar ou alterar nós semânticos de trabalho |
+| `sistema` | `Run`, `Sessao`, e `Projeto` e `Setor` do ambiente padrão da memória | Métricas de execução e a própria `Sessao` | Criar ou alterar nós semânticos de trabalho |
 
 ### 4.1 O Que Nenhum Agente Faz, Por Nenhum Caminho
 

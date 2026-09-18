@@ -49,7 +49,7 @@ Num projeto de autonomia estrita:
 - `planejador`: `Task`, `Decision`, `Question`, `Note`.
 - `executor`: `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado`.
 - `revisor`: `Evidence`, `Question`, `Note`, `Aprendizado`. Registra `Aprendizado` quem detém `deriva_de`, a aresta de origem que ele exige.
-- `sistema`, a identidade do harness: `Run` e `Sessao`, nada do grafo de trabalho.
+- `sistema`, a identidade do harness: `Run`, `Sessao` e, quando o hook roda sem `--setor`, o ambiente padrão da memória (o `Projeto` com o nome do repositório e o `Setor` `Memoria`). Nada do grafo de trabalho.
 - `humano`: todos os 13.
 
 `Constraint` é o único tipo que nenhum agente cria ou altera, em projeto nenhum. Remover uma `Constraint`, uma `Question` ou um `Aprendizado` também exige sessão humana: apagar a dúvida seria a forma mais direta de encerrá-la sem resposta, e memória se substitui ou se contradiz, não se apaga.

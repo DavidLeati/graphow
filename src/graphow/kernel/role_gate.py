@@ -76,9 +76,11 @@ class RoleGate:
             {TipoNo.ARTIFACT, TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}
         ),
         PapelAutor.REVISOR: frozenset({TipoNo.EVIDENCE, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}),
-        # O harness registra a sessao em que roda e a propria telemetria; nada do
-        # grafo de trabalho. Ver harness/identidade_harness.py.
-        PapelAutor.SISTEMA: frozenset({TipoNo.RUN, TipoNo.SESSAO}),
+        # O harness registra a sessao em que roda, a propria telemetria e, quando
+        # o humano nao configurou um Setor, o ambiente padrao da memoria: o
+        # Projeto do repositorio e o Setor `Memoria`. Nada do grafo de trabalho,
+        # e nenhum papel de agente alcanca `sistema`. Ver harness/ambiente_padrao.py.
+        PapelAutor.SISTEMA: frozenset({TipoNo.RUN, TipoNo.SESSAO, TipoNo.PROJETO, TipoNo.SETOR}),
     }
 
     # Sob autonomia ilimitada o agente ganha a camada de navegação e os nós de

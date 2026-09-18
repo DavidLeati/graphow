@@ -162,3 +162,29 @@ def test_role_gate_rejeita_agente_em_projeto_estrito() -> None:
     res = gate.validar(PropostaPatch.criar(dados), estado)
     assert res.aprovado is False
 
+
+def test_role_gate_sistema_cria_o_ambiente_padrao_mas_nada_do_trabalho_nominal() -> None:
+    """O harness abre o Projeto do repositório e o Setor de memória; uma Task segue fora do alcance dele."""
+    gate = RoleGate()
+    ambiente = DadosPropostaPatch(
+        autor="harness",
+        papel=PapelAutor.SISTEMA,
+        operacoes=[
+            ItemPatch(op=OperacaoPatch.ADD, path="/nos/proj-repo", value={"id": "proj-repo", "tipo": TipoNo.PROJETO.value}),
+            ItemPatch(op=OperacaoPatch.ADD, path="/nos/setor-repo-memoria", value={"id": "setor-repo-memoria", "tipo": TipoNo.SETOR.value}),
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/arestas/contem-1",
+                value={"id": "contem-1", "origem_id": "proj-repo", "destino_id": "setor-repo-memoria", "tipo": TipoAresta.CONTEM.value},
+            ),
+        ],
+    )
+    trabalho = DadosPropostaPatch(
+        autor="harness",
+        papel=PapelAutor.SISTEMA,
+        operacoes=[ItemPatch(op=OperacaoPatch.ADD, path="/nos/t-sistema", value={"id": "t-sistema", "tipo": TipoNo.TASK.value})],
+    )
+
+    assert gate.validar(PropostaPatch.criar(ambiente), GrafoEstado()).aprovado is True
+    assert gate.validar(PropostaPatch.criar(trabalho), GrafoEstado()).aprovado is False
+
