@@ -132,6 +132,29 @@ def _registrar_comando_de_avaliacao(
     )
 
 
+def _registrar_comando_de_orquestracao(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra a medição da orquestração sobre o grafo do banco.
+
+    Ao contrário de `avaliar`, lê o banco do usuário: compara os Goals que ele
+    orquestrou, cada um sob a configuração de modelos declarada nele.
+    """
+    parser_medir = subparsers.add_parser(
+        "orquestracao-medir",
+        parents=[parser_base],
+        help="Compara Goals orquestrados: retrabalho, rejeicoes na revisao e tokens, por configuracao de modelo",
+    )
+    parser_medir.add_argument(
+        "--goal",
+        action="append",
+        default=[],
+        help="ID de um Goal a medir; repita para varios. Sem ele, todo Goal com tarefas decompostas",
+    )
+    parser_medir.add_argument("--ramo", default="main", help="Ramo do grafo lido (padrao: main)")
+
+
 def _registrar_comando_de_skill(
     subparsers: argparse._SubParsersAction,
     parser_base: argparse.ArgumentParser,
@@ -274,6 +297,7 @@ def construir_parser() -> argparse.ArgumentParser:
     _registrar_comandos_de_mutacao(subparsers, parser_base)
     _registrar_comandos_de_manutencao(subparsers, parser_base)
     _registrar_comando_de_avaliacao(subparsers, parser_base)
+    _registrar_comando_de_orquestracao(subparsers, parser_base)
     _registrar_comando_de_skill(subparsers, parser_base)
     _registrar_comando_de_notas(subparsers, parser_base)
     _registrar_comandos_de_servidor(subparsers, parser_base)

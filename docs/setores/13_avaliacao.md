@@ -10,7 +10,7 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-9 módulos · 1421 linhas · 17 classes
+11 módulos · 1694 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,9 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
+| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 208 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 139 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 65 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
@@ -178,6 +180,39 @@ Medição de tokens por tarefa, com e sem o recorte do grafo.
 
 - `medir_todas() -> tuple[MedicaoDaTarefa, ...]` — Mede cada tarefa do corpus contra o mesmo cenário gravado.
 
+## `avaliacao/orquestracao.py`
+
+Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEM_CONFIGURACAO` | `str` | `'sem configuracao'` |
+| `SEM_MODELO` | `str` | `'sem modelo'` |
+| `AGENTE_ORQUESTRADOR` | `str` | `'orquestrador'` |
+| `CAMPOS_DE_TOKENS` | `tuple[str, ...]` | `tuple(CHAVES_DE_USO.values())` |
+
+### `MedicaoDeGoal`
+
+*DTO imutável* — O que um Goal custou e rendeu sob a configuração com que foi orquestrado.
+
+**Campos:** `id_goal: str`, `rotulo: str`, `configuracao: str`, `tarefas: int`, `concluidas: int`, `concluidas_sem_retrabalho: int`, `com_retrabalho: int`, `correcoes: int`, `rejeicoes: int`, `aprovacoes: int`, `modelos_por_tarefa: Mapping[str, int]`, `tokens_por_agente: Mapping[str, int]`, `runs_sem_tokens: int`
+
+- `tokens() -> int` `[property]` — Todos os tokens atribuídos ao Goal, de todos os agentes.
+
+### `MedidorDeOrquestracao`
+
+*serviço* — Consulta pura sobre a projeção: nada é escrito, e o mesmo grafo dá sempre o mesmo número.
+
+- `medir(ids_goals: Iterable[str]) -> tuple[MedicaoDeGoal, ...]` — Uma medição por Goal pedido; sem pedido, todo Goal que tem tarefas decompostas.
+
+### `TrabalhoDoGoal`
+
+*DTO imutável* — Os nós que pertencem ao Goal: tarefas, artefatos, vereditos e as sessões que os produziram.
+
+**Campos:** `tarefas: tuple[NoGrafo, ...]`, `artefatos: frozenset[str]`, `vereditos: tuple[NoGrafo, ...]`, `sessoes: frozenset[str]`
+
+- `ids_tarefas() -> frozenset[str]` `[property]` — Os ids das tarefas do Goal, correções incluídas.
+
 ## `avaliacao/relatorio.py`
 
 Agregação e formatação do relatório de avaliação de tokens por tarefa.
@@ -199,6 +234,18 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 - `intervencoes_por_tarefa() -> float` `[property]` — Média de respostas humanas exigidas por tarefa concluída.
 - `reducao_media() -> float` `[property]` — Fração média de contexto poupada nas tarefas concluídas.
 - `formatar() -> tuple[str, ...]` — Linhas legíveis do relatório, prontas para o console.
+
+## `avaliacao/relatorio_orquestracao.py`
+
+O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEM_GOALS` | `str` | `'Nenhum Goal com tarefas decompostas: nada a medir.'` |
+
+### Funções do módulo
+
+- `formatar_relatorio(medicoes: Sequence[MedicaoDeGoal]) -> tuple[str, ...]` — As linhas do relatório: cada Goal medido e, no fim, a soma por configuração.
 
 ## `avaliacao/retomada.py`
 

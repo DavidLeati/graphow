@@ -439,3 +439,19 @@ def test_subagente_sem_transcricao_legivel_fica_sem_tokens_edge_case(tmp_path: P
     run, _ = _run(tmp_path, "run-sess-1-zz99")
     assert run.obter_propriedade("agente") == "Explore"
     assert run.obter_propriedade("tokens_entrada") is None
+
+
+def test_orquestracao_medir_sem_goal_orquestrado_diz_que_nao_ha_o_que_medir_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: banco sem Goal decomposto responde em uma linha, sem traceback."""
+    codigo, console = _executar(["orquestracao-medir"], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("nada a medir" in linha for linha in console.linhas)
+
+
+def test_orquestracao_medir_aceita_varios_goals_nominal() -> None:
+    """`--goal` se repete para comparar os Goals de uma rodada de configurações."""
+    parsed = construir_parser().parse_args(["orquestracao-medir", "--goal", "goal-a", "--goal", "goal-b"])
+
+    assert parsed.goal == ["goal-a", "goal-b"]
+    assert parsed.ramo == "main"

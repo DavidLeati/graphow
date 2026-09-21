@@ -282,6 +282,9 @@ graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 # O fim de um subagente (hook SubagentStop): um Run com os tokens, o modelo e as tarefas que ele assumiu
 graphow harness --fase subagente --entrada-hook
 
+# Comparar Goals orquestrados sob configurações de modelo: retrabalho, rejeições na revisão e tokens
+graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
+
 # Medir tokens por tarefa bem-sucedida sobre o corpus gravado
 graphow avaliar
 

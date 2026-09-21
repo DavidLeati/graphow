@@ -51,6 +51,7 @@ class ManipuladorComandosGrafo:
             "task-list": self._executar_task_list,
             "print": self._executar_print,
             "medir-escala": self._executar_medir_escala,
+            "orquestracao-medir": self._executar_orquestracao_medir,
             "notas-gerar": self._executar_notas_gerar,
             "web": self._executar_web,
             "mcp": self._executar_mcp,
@@ -98,6 +99,16 @@ class ManipuladorComandosGrafo:
         from graphow.avaliacao.escala import medir_escala
 
         for linha in medir_escala(self._kernel).formatar():
+            self._console.escrever_linha(linha)
+        return CODIGO_SUCESSO
+
+    def _executar_orquestracao_medir(self, argumentos: argparse.Namespace) -> int:
+        """Compara os Goals orquestrados pelo que o grafo e os Run do harness registraram."""
+        from graphow.avaliacao.orquestracao import MedidorDeOrquestracao
+        from graphow.avaliacao.relatorio_orquestracao import formatar_relatorio
+
+        medicoes = MedidorDeOrquestracao(self._kernel.obter_view(argumentos.ramo)).medir(argumentos.goal)
+        for linha in formatar_relatorio(medicoes):
             self._console.escrever_linha(linha)
         return CODIGO_SUCESSO
 
