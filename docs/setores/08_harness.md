@@ -10,17 +10,18 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-9 módulos · 700 linhas · 11 classes
+10 módulos · 893 linhas · 12 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 78 | Adaptador de fallback baseado em convenção de chamada explícita. |
-| [`harness/entrada_hook.py`](#harnessentradahook) | 91 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
+| [`harness/entrada_hook.py`](#harnessentradahook) | 105 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 72 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 38 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
+| [`harness/retomada.py`](#harnessretomada) | 179 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 150 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
 
 ## `harness/ambiente_padrao.py`
@@ -101,6 +102,7 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 
 - `interpretar_entrada_de_hook(texto: str) -> EntradaDeHook` — Converte o corpo do hook em DTO, tolerando entrada ausente ou malformada.
 - `ler_entrada_de_hook(fonte: IO[str]) -> EntradaDeHook` — Lê e interpreta o payload do hook a partir de um fluxo de texto.
+- `preparar_fluxos_do_hook(entrada: IO[str] | None, saida: IO[str] | None) -> None` — Põe a entrada e a saída padrão em UTF-8: o ambiente fala UTF-8, e o Windows abre os canos em cp1252.
 
 ## `harness/hook_adapter.py`
 
@@ -155,6 +157,32 @@ Do diretório de trabalho ao nome do projeto: o repositório é a unidade natura
 
 - `localizar_raiz_do_repositorio(caminho: Path) -> Path` — A raiz do repositório que contém o caminho; sem git, o próprio caminho.
 - `nome_do_projeto(caminho: Path) -> str` — O nome da pasta do repositório, que é o nome natural do projeto.
+
+## `harness/retomada.py`
+
+A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_DA_VISTA` | `str` | `'Memoria do graphow para esta sessao'` |
+| `TITULO_DOS_APRENDIZADOS` | `str` | `'### Aprendizados aplicaveis'` |
+| `TITULO_DA_SESSAO_ANTERIOR` | `str` | `'### Sessao anterior'` |
+| `TITULO_DA_SESSAO_RETOMADA` | `str` | `'### Esta sessao (retomada)'` |
+| `LIMITE_DE_APRENDIZADOS` | `int` | `12` |
+| `LIMITE_DE_CARACTERES_DA_CONDENSACAO` | `int` | `600` |
+| `SEM_APRENDIZADOS` | `str` | `'- nenhum aprendizado registrado para este projeto ainda: o que aprende…` |
+| `SEM_SESSAO_ANTERIOR` | `str` | `'- nenhuma sessao anterior neste Setor: esta e a primeira.'` |
+| `SEM_REGISTROS` | `str` | `' sem registros alem da telemetria: a sessao nao deixou Evidence, Decis…` |
+
+### `PedidoDeRetomada`
+
+*DTO imutável* — O que a vista precisa: a projeção, a sessão que abre e o Setor em que ela mora.
+
+**Campos:** `view: GrafoView`, `id_sessao: str`, `id_setor: str`
+
+### Funções do módulo
+
+- `montar_vista_de_retomada(pedido: PedidoDeRetomada) -> tuple[str, ...]` — As linhas da vista, prontas para a saída padrão do hook; vazia se o Setor não existe.
 
 ## `harness/servico_harness.py`
 

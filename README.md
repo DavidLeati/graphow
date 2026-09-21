@@ -454,6 +454,20 @@ lê esse objeto no próprio subcomando, sem depender de `jq` no PATH:
 graphow harness --fase inicio --entrada-hook
 ```
 
+**O que o hook de início imprime vira contexto do agente.** O ambiente injeta a
+saída padrão do hook de SessionStart na conversa, e é por aí que a memória
+chega sem depender de skill instalada nem de CLAUDE.md: junto do recibo sai a
+**vista de retomada** (`harness/retomada.py`): onde a sessão mora (Projeto,
+Setor e o id da sessão, que as ferramentas pedem), os aprendizados que valem
+ali (promovidos ao Projeto ou ao Setor, globais, e os nascidos no Setor ainda
+sem promoção), o que a sessão anterior deixou (balanço, fechamento
+determinístico, a condensação em prosa se um agente a escreveu, ou a `Task` de
+condensar que ficou pendente, com o id para assumir) e o protocolo de memória,
+o mesmo que o servidor MCP declara em `instructions`. Uma sessão retomada
+também se apresenta a si mesma. A entrada e a saída do hook são postas em
+UTF-8, porque o Windows abre os canos em cp1252 e um aprendizado com acento
+chegaria trocado.
+
 **A memória tem ambiente padrão.** Nada precisa existir no grafo antes do
 primeiro hook: sem `--setor`, a sessão nasce no repositório em que o hook rodou,
 lido do `cwd` do payload. O harness garante o `Projeto` com o nome da pasta do

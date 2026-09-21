@@ -10,6 +10,7 @@ no PATH nem de variáveis que o ambiente nunca definiu.
 
 from dataclasses import dataclass
 import json
+import sys
 from typing import IO, Any
 
 CHAVE_SESSAO: str = "session_id"
@@ -57,6 +58,19 @@ def interpretar_entrada_de_hook(texto: str) -> EntradaDeHook:
 def ler_entrada_de_hook(fonte: IO[str]) -> EntradaDeHook:
     """Lê e interpreta o payload do hook a partir de um fluxo de texto."""
     return interpretar_entrada_de_hook(fonte.read())
+
+
+def preparar_fluxos_do_hook(entrada: IO[str] | None = None, saida: IO[str] | None = None) -> None:
+    """Põe a entrada e a saída padrão em UTF-8: o ambiente fala UTF-8, e o Windows abre os canos em cp1252.
+
+    Sem isto um `cwd` com acento chega trocado, e a vista de retomada sai com
+    os aprendizados corrompidos no contexto do agente. Fluxos que não sabem se
+    reconfigurar, como os de teste, ficam como estão.
+    """
+    for fluxo in (entrada or sys.stdin, saida or sys.stdout):
+        reconfigurar = getattr(fluxo, "reconfigure", None)
+        if reconfigurar is not None:
+            reconfigurar(encoding="utf-8", errors="replace")
 
 
 def _carregar_objeto(texto: str) -> dict[str, Any] | None:

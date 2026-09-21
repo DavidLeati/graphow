@@ -9,7 +9,13 @@ import sys
 
 from graphow.api.cli import GraphowCLI
 from graphow.api.console import EscritorConsole
-from graphow.harness.entrada_hook import MODELO_DESCONHECIDO, EntradaDeHook, ler_entrada_de_hook
+from graphow.harness.entrada_hook import (
+    MODELO_DESCONHECIDO,
+    EntradaDeHook,
+    ler_entrada_de_hook,
+    preparar_fluxos_do_hook,
+)
+from graphow.harness.retomada import PedidoDeRetomada, montar_vista_de_retomada
 from graphow.harness.servico_harness import FaseDoHarness, PedidoDeCicloDeVida, ServicoHarness
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.reactive.montagem import ligar_motor_reativo_padrao
@@ -128,7 +134,7 @@ class ManipuladorComandosGrafo:
         return CODIGO_SUCESSO
 
     def _executar_harness(self, argumentos: argparse.Namespace) -> int:
-        """Registra o disparo do hook como evento de execução no log."""
+        """Registra o disparo do hook no log e, no início, imprime a vista de retomada."""
         pedido = self._montar_pedido_de_harness(argumentos, self._ler_payload(argumentos))
         if pedido is None:
             self._console.escrever_linha(
@@ -142,12 +148,27 @@ class ManipuladorComandosGrafo:
         self._console.escrever_linha(f"[{recibo.id_run}] {recibo.mensagem} (versao {recibo.versao_log})")
         if recibo.id_setor:
             self._console.escrever_linha(f"Sessao {pedido.id_sessao} no setor {recibo.id_setor}")
+            self._imprimir_vista_de_retomada(pedido, recibo.id_setor)
         return CODIGO_SUCESSO if recibo.sucesso else CODIGO_FALHA_DOMINIO
+
+    def _imprimir_vista_de_retomada(self, pedido: PedidoDeCicloDeVida, id_setor: str) -> None:
+        """No início, o que o hook imprime vira contexto do agente: a memória vai junto do recibo.
+
+        Eram três linhas de recibo, e a memória ficava no banco à espera de
+        alguém chamar `ler_vista`. Ver harness/retomada.py.
+        """
+        if pedido.fase != FaseDoHarness.INICIO:
+            return
+        view = self._kernel.obter_view(pedido.ramo_id)
+        retomada = PedidoDeRetomada(view=view, id_sessao=pedido.id_sessao, id_setor=id_setor)
+        for linha in montar_vista_de_retomada(retomada):
+            self._console.escrever_linha(linha)
 
     def _ler_payload(self, argumentos: argparse.Namespace) -> EntradaDeHook:
         """Consome a entrada padrão apenas quando o hook foi declarado como origem."""
         if not argumentos.entrada_hook:
             return EntradaDeHook()
+        preparar_fluxos_do_hook()
         return ler_entrada_de_hook(sys.stdin)
 
     def _montar_pedido_de_harness(

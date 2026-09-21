@@ -34,6 +34,10 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 **9. Memória diz de onde veio.** Um `Aprendizado` nasce com `deriva_de` no mesmo lote para cada nó de onde saiu; sem isso o lote cai com `aprendizado_sem_origem`. Registrar é do executor e do revisor, os donos de `deriva_de` (`registrar_aprendizado`); promover, isto é, dar alcance por `vale_para` ou pela marca `alcance: global`, é do humano (`promover_aprendizado`), e um agente que escrevesse `alcance` é recusado. Os aprendizados promovidos chegam à sua vista na seção `Aprendizados Aplicaveis`, cada um com a origem e as marcas `SUBSTITUIDO` e `CONTRADITO`: siga os vigentes e não reabra o que já foi decidido.
 
+## O que chega sem pedir
+
+Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que ela. O hook de início de sessão (`graphow harness --fase inicio --entrada-hook`) imprime a **vista de retomada**, que o ambiente injeta no contexto: onde a sessão mora (Projeto, Setor e o `id_sessao` que as ferramentas pedem), os `Aprendizados aplicaveis`, o que a sessão anterior deixou (balanço, fechamento, condensação ou a `Task` de condensar pendente, com o id para `assumir_tarefa`) e o protocolo de memória. E a resposta de `initialize` do servidor MCP traz `instructions` com esse protocolo e o que o papel da conexão pode criar. Esta skill é o detalhe: o cookbook de patches, a matriz de papéis e o roteiro completo.
+
 ## As 22 ferramentas do servidor
 
 ### Leitura

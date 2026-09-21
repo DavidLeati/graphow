@@ -283,3 +283,26 @@ def _popular(store: SQLiteEventStore) -> None:
                 )
             )
         )
+
+
+def test_harness_de_inicio_imprime_a_vista_de_retomada_nominal(tmp_path: Path) -> None:
+    """O que o hook de início imprime vira contexto do agente: a memória vai junto do recibo."""
+    repositorio = tmp_path / "meu-repo"
+    (repositorio / ".git").mkdir(parents=True)
+    payload = json.dumps({"session_id": "sess-do-hook", "cwd": str(repositorio), "source": "startup"})
+
+    codigo, console = _executar_com_payload(["harness", "--fase", "inicio", "--entrada-hook"], tmp_path, payload)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any(linha.startswith("## Memoria do graphow") for linha in console.linhas)
+    assert any("Protocolo de memoria do graphow" in linha for linha in console.linhas)
+    assert any("`ler_vista` na sessao sess-do-hook" in linha for linha in console.linhas)
+
+
+def test_harness_de_fim_nao_imprime_a_vista_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: no fim ninguém está lendo; a vista é do início."""
+    _criar_sessao_no_banco(tmp_path)
+
+    _, console = _executar(["harness", "--fase", "fim", "--sessao", "sess-1"], tmp_path)
+
+    assert not any("Protocolo de memoria" in linha for linha in console.linhas)

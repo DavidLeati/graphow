@@ -11,6 +11,7 @@ from graphow.harness.entrada_hook import (
     EntradaDeHook,
     interpretar_entrada_de_hook,
     ler_entrada_de_hook,
+    preparar_fluxos_do_hook,
 )
 
 
@@ -74,3 +75,24 @@ def test_diretorio_de_trabalho_do_hook_vem_de_cwd_nominal() -> None:
 
     assert entrada.diretorio == "C:/repos/graphow"
     assert interpretar_entrada_de_hook('{"session_id": "s1"}').diretorio == ""
+
+
+def test_preparo_dos_fluxos_poe_entrada_e_saida_em_utf8_nominal() -> None:
+    """O Windows abre os canos do hook em cp1252; o ambiente fala UTF-8 dos dois lados."""
+    entrada = io.TextIOWrapper(io.BytesIO('{"session_id": "s1", "cwd": "C:/repos/memória"}'.encode("utf-8")), encoding="cp1252")
+    saida = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+
+    preparar_fluxos_do_hook(entrada, saida)
+
+    assert entrada.encoding == "utf-8"
+    assert saida.encoding == "utf-8"
+    assert ler_entrada_de_hook(entrada).diretorio == "C:/repos/memória"
+
+
+def test_preparo_dos_fluxos_tolera_fluxo_sem_reconfiguracao_edge_case() -> None:
+    """Caso de borda: um StringIO de teste não se reconfigura, e o hook segue."""
+    entrada = io.StringIO('{"session_id": "s1"}')
+
+    preparar_fluxos_do_hook(entrada, io.StringIO())
+
+    assert ler_entrada_de_hook(entrada).id_sessao == "s1"
