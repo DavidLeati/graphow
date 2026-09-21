@@ -3,6 +3,7 @@
 import argparse
 
 from graphow.core.types import PapelAutor
+from graphow.documentacao.skill import DIRETORIO_DE_SKILLS_PADRAO
 from graphow.harness.servico_harness import FaseDoHarness
 
 DESCRICAO_PROGRAMA: str = "Graphow - Substrato de Grafo Agentico Bilateral"
@@ -131,6 +132,32 @@ def _registrar_comando_de_avaliacao(
     )
 
 
+def _registrar_comando_de_skill(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra a instalação da skill do agente no diretório de skills do ambiente.
+
+    Vive à parte da manutenção porque não toca o banco nem `docs/`: copia a
+    skill do repositório para onde todo projeto a vê, e rodar de novo atualiza.
+    """
+    parser_skill = subparsers.add_parser(
+        "skill-instalar",
+        parents=[parser_base],
+        help="Instala ou atualiza a skill graphow-mcp no diretorio de skills do ambiente",
+    )
+    parser_skill.add_argument(
+        "--destino",
+        default=DIRETORIO_DE_SKILLS_PADRAO,
+        help=f"Diretorio de skills (padrao: {DIRETORIO_DE_SKILLS_PADRAO})",
+    )
+    parser_skill.add_argument(
+        "--origem",
+        default="",
+        help="Pasta da skill a copiar (padrao: .agents/skills/graphow-mcp do repositorio em que o pacote foi instalado)",
+    )
+
+
 def _registrar_comandos_de_servidor(
     subparsers: argparse._SubParsersAction,
     parser_base: argparse.ArgumentParser,
@@ -232,6 +259,7 @@ def construir_parser() -> argparse.ArgumentParser:
     _registrar_comandos_de_mutacao(subparsers, parser_base)
     _registrar_comandos_de_manutencao(subparsers, parser_base)
     _registrar_comando_de_avaliacao(subparsers, parser_base)
+    _registrar_comando_de_skill(subparsers, parser_base)
     _registrar_comando_de_notas(subparsers, parser_base)
     _registrar_comandos_de_servidor(subparsers, parser_base)
     return parser

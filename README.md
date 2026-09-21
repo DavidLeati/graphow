@@ -266,6 +266,9 @@ graphow mcp --papel executor --autor agente-cursor
 # Regenerar o catálogo de documentação a partir do código
 graphow docs-gerar
 
+# Instalar (ou atualizar) a skill do agente em ~/.claude/skills, onde todo projeto a vê
+graphow skill-instalar
+
 # Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
 # Sem --setor, a sessão nasce no ambiente padrão do repositório em que o comando roda
 graphow harness --fase inicio --sessao sess-01 --modelo opus-5
@@ -548,6 +551,13 @@ os aprendizados do ramo com origem, alcance e marcas, promovidos ou não, e as
 sessões com o fechamento e o estado da condensação. Registrar e promover ficam
 ali, no inspetor e no menu de qualquer nó de trabalho; promover continua gesto
 humano, e a tela escreve como humano.
+
+**Os agentes ficam sabendo.** Três canais dizem ao agente o que o grafo
+espera dele, sem depender de ninguém lembrar: a vista de retomada que o hook de
+início imprime no contexto, as `instructions` do servidor MCP e a skill
+`graphow-mcp`, que `graphow skill-instalar` copia para o diretório de skills do
+ambiente (`~/.claude/skills` por padrão, `--destino` para outro) e atualiza a
+cada execução, no lugar das cópias por projeto que envelhecem.
 
 **O acervo de notas é projeção.** `graphow notas-gerar` renderiza um diretório
 de notas em Markdown a partir dos aprendizados promovidos, uma nota por

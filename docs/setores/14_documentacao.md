@@ -10,7 +10,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-9 módulos · 1296 linhas · 27 classes
+10 módulos · 1366 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,6 +22,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 | [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 142 | Renderização do índice de navegação da biblioteca de documentação. |
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
 | [`documentacao/setores.py`](#documentacaosetores) | 161 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
+| [`documentacao/skill.py`](#documentacaoskill) | 70 | Instalação da skill do agente no diretório de skills do ambiente. |
 | [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 252 | Confere os exemplos de linha de comando dos guias contra o parser real. |
 
 ## `documentacao/__init__.py`
@@ -264,6 +265,34 @@ Definição das alas temáticas da biblioteca e montagem do catálogo.
 *serviço* — Monta o catálogo completo a partir do código-fonte lido.
 
 - `montar() -> CatalogoRepositorio` — Consulta pura: percorre as definições e devolve o catálogo montado.
+
+## `documentacao/skill.py`
+
+Instalação da skill do agente no diretório de skills do ambiente.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DA_SKILL` | `str` | `'graphow-mcp'` |
+| `CAMINHO_DA_SKILL_NO_REPOSITORIO` | `Path` | `Path('.agents') / 'skills' / NOME_DA_SKILL` |
+| `DIRETORIO_DE_SKILLS_PADRAO` | `str` | `'~/.claude/skills'` |
+| `ARQUIVO_PRINCIPAL` | `str` | `'SKILL.md'` |
+| `PASTAS_IGNORADAS` | `frozenset[str]` | `frozenset({'__pycache__'})` |
+
+### `InstaladorDeSkill`
+
+*serviço* — Copia a skill inteira (SKILL.md, referências e scripts) para o diretório de skills.
+
+- `instalar() -> ResultadoDaInstalacao` — Copia arquivo por arquivo, sobrescrevendo a cópia anterior; devolve o que copiou.
+
+### `ResultadoDaInstalacao`
+
+*DTO imutável* — Onde a skill ficou e o que foi copiado, em caminhos relativos à skill.
+
+**Campos:** `destino: Path`, `arquivos_copiados: tuple[str, ...]`
+
+### `SkillNaoEncontrada` (GraphowError)
+
+*serviço* — A origem não tem a skill: o pacote foi instalado fora de um checkout do repositório.
 
 ## `documentacao/verificacao_guias.py`
 

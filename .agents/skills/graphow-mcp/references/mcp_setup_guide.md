@@ -61,6 +61,16 @@ A Arena roda sobre banco isolado, e é o único caso em que vale passar `--db`:
 ]
 ```
 
+## A skill do agente
+
+A skill `graphow-mcp` (esta pasta) é o detalhe do protocolo: cookbook de patches, matriz de papéis e roteiro. Instale-a no diretório de skills do ambiente, onde todo projeto a vê, e rode de novo depois de atualizar o graphow, porque a cópia não se atualiza sozinha:
+
+```powershell
+graphow skill-instalar
+```
+
+O padrão é `~/.claude/skills`; `--destino` aponta outro diretório, e `--origem` outra pasta de skill quando o pacote não foi instalado de um checkout do repositório. O essencial do protocolo chega ao agente mesmo sem a skill: o hook de início o imprime no contexto, e o servidor MCP o declara em `instructions`.
+
 ## Teste rápido
 
 ```powershell

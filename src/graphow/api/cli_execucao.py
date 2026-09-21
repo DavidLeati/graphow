@@ -9,6 +9,7 @@ from graphow.api.cli import GraphowCLI, descrever_localizacao_banco
 from graphow.api.console import EscritorConsole, EscritorConsolePadrao
 from graphow.documentacao import MontadorDocumentacaoDoRepositorio
 from graphow.documentacao.publicacao import DocumentoGerado
+from graphow.documentacao.skill import CAMINHO_DA_SKILL_NO_REPOSITORIO, NOME_DA_SKILL, InstaladorDeSkill
 from graphow.documentacao.verificacao_guias import VerificadorDeGuias
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.composicao import montar_kernel_sqlite
@@ -76,6 +77,7 @@ class ExecutorLinhaDeComando:
             "reparar-sequencias": self._executar_reparar_sequencias,
             "docs-gerar": self._executar_docs_gerar,
             "avaliar": self._executar_avaliar,
+            "skill-instalar": self._executar_skill_instalar,
         }
         manipulador = manipuladores_sem_banco.get(contexto.argumentos.comando)
         if manipulador is not None:
@@ -141,6 +143,21 @@ class ExecutorLinhaDeComando:
 
         for linha in executar_avaliacao().formatar():
             contexto.console.escrever_linha(linha)
+        return CODIGO_SUCESSO
+
+    def _executar_skill_instalar(self, contexto: ContextoExecucao) -> int:
+        """Copia a skill do agente para o diretorio de skills, atualizando a copia anterior.
+
+        As copias feitas a mao por projeto envelhecem: uma dizia 19 ferramentas
+        e nao sabia que Aprendizado existia. Sem --origem, a skill vem do
+        repositorio em que o pacote foi instalado.
+        """
+        argumentos = contexto.argumentos
+        origem = Path(argumentos.origem).expanduser() if argumentos.origem else RAIZ_PROJETO / CAMINHO_DA_SKILL_NO_REPOSITORIO
+        resultado = InstaladorDeSkill(origem, Path(argumentos.destino).expanduser()).instalar()
+        contexto.console.escrever_linha(
+            f"Skill {NOME_DA_SKILL} instalada em {resultado.destino} ({len(resultado.arquivos_copiados)} arquivos)"
+        )
         return CODIGO_SUCESSO
 
     def _executar_docs_gerar(self, contexto: ContextoExecucao) -> int:

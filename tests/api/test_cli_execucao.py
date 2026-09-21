@@ -306,3 +306,25 @@ def test_harness_de_fim_nao_imprime_a_vista_edge_case(tmp_path: Path) -> None:
     _, console = _executar(["harness", "--fase", "fim", "--sessao", "sess-1"], tmp_path)
 
     assert not any("Protocolo de memoria" in linha for linha in console.linhas)
+
+
+def test_skill_instalar_copia_a_skill_do_repositorio_para_o_destino_nominal(tmp_path: Path) -> None:
+    """Sem --origem, a skill vem do checkout em que o pacote foi instalado; --destino diz onde todo projeto a vê."""
+    destino = tmp_path / "skills"
+
+    codigo, console = _executar(["skill-instalar", "--destino", str(destino)], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("Skill graphow-mcp instalada em" in linha for linha in console.linhas)
+    assert (destino / "graphow-mcp" / "SKILL.md").is_file()
+    assert (destino / "graphow-mcp" / "references" / "patch_cookbook.md").is_file()
+
+
+def test_skill_instalar_com_origem_sem_skill_recusa_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: origem errada é recusa explícita com o caminho, não traceback."""
+    codigo, console = _executar(
+        ["skill-instalar", "--origem", str(tmp_path / "nada"), "--destino", str(tmp_path / "skills")], tmp_path
+    )
+
+    assert codigo == 1
+    assert any(linha.startswith("ERRO") and "--origem" in linha for linha in console.linhas)
