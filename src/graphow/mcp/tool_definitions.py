@@ -94,7 +94,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "liberar_tarefa",
-        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado.",
+        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado. Libere antes de terminar: a posse de um subagente que acabou sem liberar trava a tarefa até o humano, que devolve a posse de qualquer autor por esta mesma ferramenta.",
         "inputSchema": {
             "type": "object",
             "properties": {

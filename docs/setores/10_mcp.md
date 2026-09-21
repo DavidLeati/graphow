@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-16 módulos · 2044 linhas · 26 classes
+16 módulos · 2058 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,7 +21,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 127 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 173 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
-| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 92 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
+| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 106 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 221 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |

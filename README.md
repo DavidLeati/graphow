@@ -141,7 +141,7 @@ O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **p
 | **`buscar`** | Busca textual *case-insensitive* ranqueada por relevância, cortada em `limite` (padrão 5, teto 50) e sempre acompanhada de `total` e `truncado`. Filtra por `TipoNo` e por `escopo`. |
 | **`proximas_tarefas`** | Fila de trabalho da sessão: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. |
 | **`assumir_tarefa`** | Adquire a posse exclusiva de uma `Task` e a move para `em_andamento`. Exigido antes de qualquer mudança de status. |
-| **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. |
+| **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. Numa sessão humana, devolve a posse de qualquer autor: a de um subagente que terminou sem liberar. |
 | **`minhas_questoes`** | Lista as dúvidas abertas por esta sessão, com a resposta humana quando já houver. |
 | **`aguardar_resposta`** | Long-poll até o humano encerrar a dúvida, ou até o prazo expirar. Substitui o polling manual com `expandir_no`. |
 | **`criar_projeto`** | Cria o nó `Projeto` raiz e define o nível de autonomia dos agentes nele. |

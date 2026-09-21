@@ -54,7 +54,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 | Ferramenta | Argumentos | O que faz |
 | :--- | :--- | :--- |
 | `assumir_tarefa` | `id_task` | Toma a posse exclusiva e move a tarefa para `em_andamento`. |
-| `liberar_tarefa` | `id_task` | Devolve a posse sem tocar no status. |
+| `liberar_tarefa` | `id_task` | Devolve a posse sem tocar no status. Em sessão humana, devolve a de qualquer autor. |
 | `minhas_questoes` | `status` | Lista as dúvidas abertas por esta sessão, com a resposta humana quando já houver. |
 | `aguardar_resposta` | `id_questao`, `timeout_segundos` (30, teto 300) | Bloqueia até a pessoa encerrar a dúvida ou o prazo expirar, e diz como retomar. |
 

@@ -191,3 +191,26 @@ def test_humano_altera_status_sem_precisar_de_posse_nominal() -> None:
 
     assert kernel.obter_dono_do_lock("t1") is None
     assert recibo.sucesso is True
+
+
+def test_humano_devolve_a_posse_de_um_subagente_que_terminou_nominal() -> None:
+    """O subagente que morre sem liberar deixa a tarefa presa; o humano a solta."""
+    kernel = _montar_sessao_com_tarefa()
+    _servidor(kernel, "executor#a1b2c3").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    recibo = _servidor(kernel, "david", "humano").executar_ferramenta("liberar_tarefa", {"id_task": "t1"})
+
+    assert recibo["sucesso"] is True
+    assert "executor#a1b2c3" in recibo["mensagem"]
+    assert kernel.obter_dono_do_lock("t1") is None
+    assert kernel.obter_view().obter_no("t1").obter_propriedade("status") == StatusTask.EM_ANDAMENTO.value
+
+
+def test_humano_liberando_tarefa_sem_posse_alguma_recusa_edge_case() -> None:
+    """Caso de borda: não há o que devolver, e a recusa diz isso em vez de fingir sucesso."""
+    kernel = _montar_sessao_com_tarefa()
+
+    recibo = _servidor(kernel, "david", "humano").executar_ferramenta("liberar_tarefa", {"id_task": "t1"})
+
+    assert recibo["sucesso"] is False
+    assert recibo["dono_atual"] is None
