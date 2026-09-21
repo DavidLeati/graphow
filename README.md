@@ -74,7 +74,7 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Note`**: Anotação livre, aviso reativo ou contexto efêmero. Com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
 - **`Aprendizado`**: Memória de longo prazo, o que sobrevive ao projeto. Nasce com origem obrigatória (`deriva_de`) e só alcança outros projetos quando o humano o promove (`vale_para` ou `alcance: global`).
 
-### 3. Matriz de Arestas Permitidas (12 Tipos)
+### 3. Matriz de Arestas Permitidas (13 Tipos)
 
 Cada tipo de aresta tem **dono declarado**, e criar não é o mesmo poder que
 remover: qualquer agente abre uma escalação com `bloqueia`, e só o humano a
@@ -93,8 +93,9 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
 | **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador | Evolução e invalidação histórica. O substituído segue visível, marcado. |
 | **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
-| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Evidence` $\rightarrow$ `Artifact` / `Task`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano** | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a autonomia ilimitada a abre a agentes. |
+| **`orienta`** | `Decision` $\rightarrow$ `Task` / `Goal` | humano, planejador | A decisão que vale para a tarefa ou o objetivo, herdada pela decomposição. Chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão. O executor não a cria nem a remove: não mexe no que governa a própria tarefa. |
 
 ---
 
@@ -105,7 +106,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito (único autorizado a criar/editar `Constraint`, encerrar uma `Question` e estruturar a camada de navegação).
-   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe e ordena; proibido de fechar tarefas.
+   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
@@ -220,7 +221,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, bitemporalidade, separação Navegação vs Trabalho e matriz de 11 arestas permitidas.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, bitemporalidade, separação Navegação vs Trabalho e matriz das 13 arestas permitidas.
 
 ---
 
@@ -434,7 +435,7 @@ fica fora do cabeçalho da vista de propósito: ele é obrigatório em toda leit
 então tudo que entra ali sai do orçamento de tokens de todo agente.
 
 Cada evento também declara **em qual vocabulário foi escrito**
-(`versao_ontologia`, hoje `1.1.0`), gravado no log e devolvido na linha do tempo
+(`versao_ontologia`, hoje `1.2.0`), gravado no log e devolvido na linha do tempo
 e no SSE. Sem isso, um log relido depois de um tipo mudar de nome projeta errado
 em silêncio. A versão não pode mentir: `core/ontologia.py` calcula uma
 assinatura dos termos em vigor, e um teste a compara com a versão declarada —

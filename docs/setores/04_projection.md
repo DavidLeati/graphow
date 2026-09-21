@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-11 módulos · 1672 linhas · 21 classes
+11 módulos · 1673 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
 | [`projection/rollup.py`](#projectionrollup) | 250 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
-| [`projection/working_set.py`](#projectionworkingset) | 169 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
+| [`projection/working_set.py`](#projectionworkingset) | 170 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
 
 ## `projection/acumulador.py`
 

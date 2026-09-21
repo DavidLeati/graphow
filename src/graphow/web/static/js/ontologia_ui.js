@@ -55,6 +55,7 @@ const LEITURA_DAS_ARESTAS = {
   escopa: { saida: "escopa", entrada: "escopado por", descricao: "Restrição mandatória sobre a execução" },
   deriva_de: { saida: "deriva de", entrada: "origem de", descricao: "Proveniência de artefatos, notas e aprendizados" },
   vale_para: { saida: "vale para", entrada: "recebe o aprendizado", descricao: "Alcance de um aprendizado promovido pelo humano" },
+  orienta: { saida: "orienta", entrada: "orientado por", descricao: "Decisão que vale para a tarefa ou o objetivo" },
 };
 
 export function lerAresta(tipo) {

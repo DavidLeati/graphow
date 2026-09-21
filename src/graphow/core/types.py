@@ -43,6 +43,10 @@ class TipoAresta(str, Enum):
     ESCOPA = "escopa"
     DERIVA_DE = "deriva_de"
     VALE_PARA = "vale_para"
+    # A decisão que vale para uma Task ou um Goal. Sem ela, a Decision tomada
+    # numa sessão posterior à da Task não chegava à vista de quem a executa,
+    # e o revisor não subia da Task às decisões que a escopam.
+    ORIENTA = "orienta"
 
 
 class PapelAutor(str, Enum):

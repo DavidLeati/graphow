@@ -87,6 +87,11 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     # trabalho de todos. Só o humano, no início: abrir ao planejador é decisão
     # a tomar com o número do braço "entre projetos" de `graphow avaliar`.
     TipoAresta.VALE_PARA: DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO),
+    # Dizer em que trabalho uma decisão vale é estruturar o trabalho, como
+    # decompor. Aberta ao executor, ela deixava quem executa tirar da própria
+    # tarefa a decisão que a governa, ou pendurar a sua no Goal inteiro. O
+    # executor devolve a decisão que tomou; o planejador julga se ela governa.
+    TipoAresta.ORIENTA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
 }
 
 

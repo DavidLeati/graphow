@@ -72,7 +72,7 @@ Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O
 
 ## planejador: registrar o trecho lido e a decisão que ele sustenta
 
-O planejador decide em cima do código que leu, e o que leu entra como `Evidence` com o ponteiro inteiro: `arquivo`, `linhas` e o `trecho` literal dessas linhas. Sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai.
+O planejador decide em cima do código que leu, e o que leu entra como `Evidence` com o ponteiro inteiro: `arquivo`, `linhas` e o `trecho` literal dessas linhas. Sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai. A `Decision` diz onde vale por `orienta`, e é por essa aresta que ela chega à vista de quem executa a tarefa, mesmo que a tarefa tenha nascido noutra sessão.
 
 ```json
 {
@@ -117,6 +117,11 @@ O planejador decide em cima do código que leu, e o que leu entra como `Evidence
       "op": "add",
       "path": "/arestas/just-base-252",
       "value": { "id": "just-base-252", "origem_id": "evi-fator-base-252", "destino_id": "dec-manter-base-252", "tipo": "justifica" }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/orienta-base-252",
+      "value": { "id": "orienta-base-252", "origem_id": "dec-manter-base-252", "destino_id": "task-parser-csv", "tipo": "orienta" }
     }
   ]
 }

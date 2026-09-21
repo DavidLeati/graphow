@@ -22,7 +22,11 @@ from graphow.core.types import (
 # 1.1.0: a Sessao ganha ciclo de vida declarado (`StatusSessao`), o tipo
 # `Aprendizado` e a aresta `vale_para` entram como memória de longo prazo, e
 # `deriva_de` passa a admitir Evidence e Artifact como origem de uma Note.
-VERSAO_ONTOLOGIA: str = "1.1.0"
+# 1.2.0: a aresta `orienta` liga a Decision à Task ou ao Goal em que ela vale,
+# `deriva_de` passa a admitir a Evidence que avalia um Artifact ou uma Task, o
+# planejador registra Evidence de leitura de código, e a Evidence que declara
+# localização (`arquivo`, `linhas`, `trecho`) precisa declará-la inteira.
+VERSAO_ONTOLOGIA: str = "1.2.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -59,4 +63,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "ba2bff187b8b"
+ASSINATURA_DECLARADA: str = "52c2da57e585"

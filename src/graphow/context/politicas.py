@@ -18,6 +18,7 @@ from graphow.context.memoria import (
     PedidoDeMemoria,
     montar_secao_de_aprendizados,
 )
+from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (
     PrioridadeRetencao,
@@ -26,7 +27,6 @@ from graphow.context.secoes import (
     formatar_no_com_propriedades,
     montar_secao_de_nos,
 )
-from graphow.context.substituicao import montar_secao_de_decisoes
 from graphow.context.vizinhanca import montar_secao_de_vizinhos
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.working_set import EscopoAtivo
@@ -35,6 +35,15 @@ ARESTAS_DE_HIERARQUIA: frozenset[TipoAresta] = frozenset({TipoAresta.DECOMPOE, T
 ARESTAS_DE_PROVENIENCIA: frozenset[TipoAresta] = frozenset(
     {TipoAresta.DERIVA_DE, TipoAresta.SUBSTITUI, TipoAresta.JUSTIFICA}
 )
+# A decisão que vale para a Task: a um salto dela, e a Evidence que justifica a
+# decisão a dois. É o que o executor que nunca viu a conversa precisa ler.
+ARESTAS_DE_ORIENTACAO: frozenset[TipoAresta] = frozenset({TipoAresta.ORIENTA})
+# O trabalho em volta da tarefa, sem a sessão: `produz` trazia tudo o que a
+# sessão do orquestrador registrou, inclusive o que vale para outras tarefas.
+ARESTAS_DO_TRABALHO: frozenset[TipoAresta] = (
+    ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | frozenset({TipoAresta.DECOMPOE})
+)
+ARESTAS_DA_SESSAO: frozenset[TipoAresta] = frozenset({TipoAresta.PRODUZ})
 
 
 @dataclass(frozen=True)
@@ -209,6 +218,12 @@ class PoliticaBase(PoliticaContexto):
             montar_secao_de_vizinhos(restantes),
         )
 
+    def _coletar(self, alvo: NoGrafo, ambiente: AmbienteDoRecorte, tipos: frozenset[TipoAresta]) -> tuple[NoGrafo, ...]:
+        """Dois saltos a partir do alvo pelas arestas dadas, nas duas direções."""
+        return ambiente.explorador.coletar_alcancaveis(
+            PedidoExploracao(id_alvo=alvo.id, tipos_de_aresta=tipos, direcao=DirecaoTravessia.AMBAS, saltos_maximos=2)
+        )
+
     def _sem_repeticao(self, nos: list[NoGrafo]) -> tuple[NoGrafo, ...]:
         """Remove duplicatas preservando a ordem de descoberta."""
         vistos: dict[str, NoGrafo] = {}
@@ -222,34 +237,28 @@ class PoliticaBase(PoliticaContexto):
 
 
 class PoliticaExecutor(PoliticaBase):
-    """Executor: a tarefa em mãos, as decisões que a governam e as evidências delas."""
+    """Executor: a tarefa em mãos, as decisões que a governam e as evidências do trabalho.
+
+    O que a mesma sessão registrou sem ligar à tarefa continua à vista, numa
+    seção à parte que diz que não governa, e é a primeira a cair no orçamento.
+    """
 
     def _secoes_do_papel(
         self,
         alvo: NoGrafo,
         ambiente: AmbienteDoRecorte,
     ) -> tuple[SecaoContexto, ...]:
-        """Decisões e evidências alcançáveis pela proveniência do alvo."""
-        vizinhanca = ambiente.explorador.coletar_alcancaveis(
-            PedidoExploracao(
-                id_alvo=alvo.id,
-                tipos_de_aresta=ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_HIERARQUIA,
-                direcao=DirecaoTravessia.AMBAS,
-                saltos_maximos=2,
-            )
-        )
-        return (
-            montar_secao_de_decisoes(
-                self._filtrar_por_tipo(vizinhanca, TipoNo.DECISION),
-                ambiente.view,
-                (3, PrioridadeRetencao.DECISOES),
-            ),
-            montar_secao_de_nos(
-                "Evidencias Relacionadas",
-                self._filtrar_por_tipo(vizinhanca, TipoNo.EVIDENCE),
-                (4, PrioridadeRetencao.APOIO),
-            ),
-        )
+        """As decisões que governam, as evidências do trabalho e o contexto que só está perto."""
+        trabalho = self._coletar(alvo, ambiente, ARESTAS_DO_TRABALHO)
+        evidencias = self._filtrar_por_tipo(trabalho, TipoNo.EVIDENCE)
+        citadas = {no.id for no in evidencias}
+        proximos = [
+            no
+            for no in (*trabalho, *self._coletar(alvo, ambiente, ARESTAS_DA_SESSAO))
+            if no.tipo == TipoNo.DECISION or (no.tipo == TipoNo.EVIDENCE and no.id not in citadas)
+        ]
+        governam, contexto = montar_secoes_de_decisoes(alvo, proximos, ambiente.view, ordens=(3, 5))
+        return (governam, montar_secao_de_nos("Evidencias Relacionadas", evidencias, (4, PrioridadeRetencao.APOIO)), contexto)
 
 
 class PoliticaPlanejador(PoliticaBase):
@@ -291,21 +300,22 @@ class PoliticaPlanejador(PoliticaBase):
 
 
 class PoliticaRevisor(PoliticaBase):
-    """Revisor: os artefatos derivados do alvo e as evidências que os sustentam."""
+    """Revisor: os artefatos derivados do alvo, as evidências e as decisões que os escopam.
+
+    O revisor chega pelo Artifact, sobe por `deriva_de` até a Task e dali às
+    decisões que a orientam. Sem a seção de decisões ele revisava contra o
+    gosto, e não contra o que ficou decidido.
+    """
 
     def _secoes_do_papel(
         self,
         alvo: NoGrafo,
         ambiente: AmbienteDoRecorte,
     ) -> tuple[SecaoContexto, ...]:
-        """Artefatos e evidências ligados ao alvo por proveniência."""
-        vizinhanca = ambiente.explorador.coletar_alcancaveis(
-            PedidoExploracao(
-                id_alvo=alvo.id,
-                tipos_de_aresta=ARESTAS_DE_PROVENIENCIA | frozenset({TipoAresta.CONTRADIZ}),
-                direcao=DirecaoTravessia.AMBAS,
-                saltos_maximos=2,
-            )
+        """Artefatos, evidências e decisões ligados ao alvo por proveniência e orientação."""
+        vizinhanca = self._coletar(alvo, ambiente, ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | {TipoAresta.CONTRADIZ})
+        governam, contexto = montar_secoes_de_decisoes(
+            alvo, self._filtrar_por_tipo(vizinhanca, TipoNo.DECISION), ambiente.view, ordens=(5, 6)
         )
         return (
             montar_secao_de_nos(
@@ -318,4 +328,6 @@ class PoliticaRevisor(PoliticaBase):
                 self._filtrar_por_tipo(vizinhanca, TipoNo.EVIDENCE),
                 (4, PrioridadeRetencao.APOIO),
             ),
+            governam,
+            contexto,
         )

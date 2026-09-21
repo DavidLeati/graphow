@@ -41,6 +41,10 @@ class PrioridadeRetencao(IntEnum):
     BLOQUEIOS = 4
     DECISOES = 5
     APOIO = 6
+    # O que está perto do alvo sem governá-lo: decisões e evidências da mesma
+    # sessão que nada liga à tarefa. Cai antes de tudo, para nunca empurrar
+    # para fora do orçamento as decisões que valem para ela.
+    CONTEXTO = 7
 
 
 @dataclass(frozen=True)

@@ -18,12 +18,12 @@ Camada de trabalho:
 - `Question`: dúvida que bloqueia tarefa até a resposta humana.
 - `Constraint`: restrição obrigatória de técnica, segurança ou escopo.
 - `Artifact`: entregável concreto, de código a especificação.
-- `Evidence`: dado empírico, benchmark, telemetria, prova ou trecho de código lido. Quando cita `linhas` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro: `arquivo`, `linhas` e `trecho`.
+- `Evidence`: dado empírico, benchmark, telemetria, prova ou trecho de código lido. Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. Quando cita `linhas` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro: `arquivo`, `linhas` e `trecho`.
 - `Run`: registro de execução e telemetria de invocação de modelo.
 - `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
 - `Aprendizado`: memória de longo prazo, o que sobrevive ao projeto. O rótulo é a afirmação; `como_aplicar` diz o que fazer com ela. Nasce com `deriva_de` obrigatório e só alcança outros projetos quando o humano o promove.
 
-## As 12 arestas: pares válidos e donos
+## As 13 arestas: pares válidos e donos
 
 | Aresta | Origem para destino | Cria | Remove |
 | :--- | :--- | :--- | :--- |
@@ -36,9 +36,10 @@ Camada de trabalho:
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | só humano |
 | `justifica` | `Evidence`→`Decision` | humano, planejador, executor, revisor | humano, planejador, executor, revisor |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence`, `Evidence`→`Aprendizado` | humano, executor, revisor | humano, executor, revisor |
-| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
+| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Evidence`→`Artifact`, `Evidence`→`Task`, `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
 | `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | só humano | só humano |
 | `vale_para` | `Aprendizado`→`Projeto`, `Aprendizado`→`Setor` | só humano | só humano |
+| `orienta` | `Decision`→`Task`, `Decision`→`Goal` | humano, planejador | humano, planejador |
 
 Num Projeto marcado com `nivel_autonomia: ilimitado`, a criação se amplia para todas as arestas menos `escopa` e `vale_para`, e para todos os tipos de nó menos `Constraint`. A remoção nunca se amplia: retirar um `bloqueia` exige sessão humana em qualquer projeto.
 

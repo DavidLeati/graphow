@@ -78,14 +78,24 @@ class SchemaGate:
             (TipoNo.CONSTRAINT, TipoNo.GOAL),
             (TipoNo.CONSTRAINT, TipoNo.TASK),
         }),
+        # A decisão aponta o trabalho em que vale. No Goal, alcança as Tasks
+        # que o decompõem; na Task, chega à vista de quem a executa e revisa.
+        TipoAresta.ORIENTA: frozenset({
+            (TipoNo.DECISION, TipoNo.TASK),
+            (TipoNo.DECISION, TipoNo.GOAL),
+        }),
         # Note -> Task/Decision existe para que a nota reativa aponte para algo:
         # sem esse par ela nascia órfã e nenhum agente a encontrava. Note ->
         # Evidence/Artifact existe para a condensação de uma sessão apontar para
         # o achado e para a entrega que ela resume.
         # Aprendizado -> origem: a aresta que o InvariantGate exige no mesmo lote.
+        # Evidence -> Artifact/Task: o teste do executor e o veredito do revisor
+        # apontam para o trabalho que avaliam, em vez de ficarem presos à sessão.
         TipoAresta.DERIVA_DE: frozenset({
             (TipoNo.ARTIFACT, TipoNo.TASK),
             (TipoNo.ARTIFACT, TipoNo.ARTIFACT),
+            (TipoNo.EVIDENCE, TipoNo.ARTIFACT),
+            (TipoNo.EVIDENCE, TipoNo.TASK),
             (TipoNo.NOTE, TipoNo.TASK),
             (TipoNo.NOTE, TipoNo.DECISION),
             (TipoNo.NOTE, TipoNo.EVIDENCE),

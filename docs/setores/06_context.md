@@ -10,20 +10,21 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-15 módulos · 1930 linhas · 30 classes
+16 módulos · 2031 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`context/corte.py`](#contextcorte) | 62 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/corte.py`](#contextcorte) | 64 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 289 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 321 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/protocolo.py`](#contextprotocolo) | 86 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 216 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/secoes.py`](#contextsecoes) | 220 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -36,7 +37,8 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LIMITES_DE_VIZINHOS_POR_TIPO` | `tuple[int, ...]` | `(8, 4, 2, 1)` |
-| `_APOIO` | `frozenset[PrioridadeRetencao]` | `frozenset({PrioridadeRetencao.APOIO})` |
+| `_CONTEXTO` | `frozenset[PrioridadeRetencao]` | `frozenset({PrioridadeRetencao.CONTEXTO})` |
+| `_APOIO` | `frozenset[PrioridadeRetencao]` | `_CONTEXTO | {PrioridadeRetencao.APOIO}` |
 | `_MAIS_DECISOES` | `frozenset[PrioridadeRetencao]` | `_APOIO | {PrioridadeRetencao.DECISOES}` |
 | `_MAIS_BLOQUEIOS` | `frozenset[PrioridadeRetencao]` | `_MAIS_DECISOES | {PrioridadeRetencao.BLOQUEIOS}` |
 | `_MAIS_NAVEGACAO` | `frozenset[PrioridadeRetencao]` | `_MAIS_BLOQUEIOS | {PrioridadeRetencao.NAVEGACAO, PrioridadeRetencao.MEM…` |
@@ -190,6 +192,20 @@ Seção de memória: os aprendizados que alcançam o alvo, por herança, por lé
 - `identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Evidences que contradizem o aprendizado: sinal de que ele precisa de revisão.
 - `formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str` — Uma linha: a afirmação, a proveniência, como aplicar, o alcance, a origem e as marcas.
 
+## `context/orientacao.py`
+
+As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ARESTAS_DE_HERANCA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DECOMPOE})` |
+| `TITULO_DO_CONTEXTO` | `str` | `'Perto Desta Tarefa, Sem Governa-la (mesma sessao ou so relacionado)'` |
+
+### Funções do módulo
+
+- `montar_secoes_de_decisoes(alvo: NoGrafo, proximos: Iterable[NoGrafo], view: GrafoView) -> tuple[SecaoContexto, SecaoContexto]` — As decisões que governam o alvo e, noutra seção, o que só está perto dele.
+- `coletar_decisoes_que_orientam(alvo: NoGrafo, view: GrafoView) -> tuple[NoGrafo, ...]` — As Decision ligadas por `orienta` ao trabalho do alvo ou a um ancestral dele, sem repetição.
+
 ## `context/panorama.py`
 
 Seção de panorama: os filhos de um contêiner resumidos, em vez de listados.
@@ -220,6 +236,9 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 | :--- | :--- | :--- |
 | `ARESTAS_DE_HIERARQUIA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DECOMPOE, TipoAresta.PRODUZ})` |
 | `ARESTAS_DE_PROVENIENCIA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DERIVA_DE, TipoAresta.SUBSTITUI, TipoAresta.JUSTI…` |
+| `ARESTAS_DE_ORIENTACAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ORIENTA})` |
+| `ARESTAS_DO_TRABALHO` | `frozenset[TipoAresta]` | `ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | frozenset({TipoAresta…` |
+| `ARESTAS_DA_SESSAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.PRODUZ})` |
 
 ### `AmbienteDoRecorte`
 
@@ -243,7 +262,7 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 
 ### `PoliticaExecutor` (PoliticaBase)
 
-*serviço* — Executor: a tarefa em mãos, as decisões que a governam e as evidências delas.
+*serviço* — Executor: a tarefa em mãos, as decisões que a governam e as evidências do trabalho.
 
 ### `PoliticaPlanejador` (PoliticaBase)
 
@@ -251,7 +270,7 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 
 ### `PoliticaRevisor` (PoliticaBase)
 
-*serviço* — Revisor: os artefatos derivados do alvo e as evidências que os sustentam.
+*serviço* — Revisor: os artefatos derivados do alvo, as evidências e as decisões que os escopam.
 
 ## `context/protocolo.py`
 

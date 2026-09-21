@@ -22,7 +22,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 - `revisor`: cria `Evidence`, `Question`, `Note` e registra o que auditou. Não produz artefato executivo nem conclui tarefa.
 - Executor e revisor também registram `Aprendizado`, porque são os donos de `deriva_de`, a origem que ele exige.
 
-**4. As arestas também têm dono.** `contem`, `escopa` e a remoção de `bloqueia` são exclusivas do humano. `decompoe`, `depende_de` e `substitui`: planejador e humano. `justifica`: planejador, executor, revisor e humano. `deriva_de` e `contradiz`: executor, revisor e humano. `produz` e a criação de `bloqueia` ficam abertas a qualquer papel. A matriz completa, com a coluna de remoção e o que muda sob autonomia ilimitada, está em [ontology_matrix.md](./references/ontology_matrix.md).
+**4. As arestas também têm dono.** `contem`, `escopa` e a remoção de `bloqueia` são exclusivas do humano. `decompoe`, `depende_de` e `substitui`: planejador e humano. `orienta` (a `Decision` que vale para uma `Task` ou um `Goal`, herdada pela decomposição): planejador e humano. `justifica`: planejador, executor, revisor e humano. `deriva_de` e `contradiz`: executor, revisor e humano. `produz` e a criação de `bloqueia` ficam abertas a qualquer papel. A matriz completa, com a coluna de remoção e o que muda sob autonomia ilimitada, está em [ontology_matrix.md](./references/ontology_matrix.md).
 
 **5. Invariantes estruturais.** Todo nó novo, exceto `Projeto`, nasce pendurado na hierarquia: o mesmo lote que o cria traz a aresta de contenção que chega nele — `produz` vinda da `Sessao` para nós de trabalho, `decompoe` vinda de um `Goal` ou `Task` para subtarefas. `deriva_de` não conta. Sem isso o lote inteiro é recusado com `no_fora_da_hierarquia`, inclusive para o humano. As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`. A `Evidence` do planejador, e toda `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa; sem isso, na criação ou na edição, o lote cai com `evidencia_sem_localizacao`.
 
@@ -80,7 +80,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 ## Roteiro padrão
 
 1. **Retomar e escolher.** Comece por `minhas_questoes`, para não reabrir dúvida já respondida. Desça do Projeto pelo panorama de `ler_vista` e abra só o filho marcado com trabalho aberto; varrer todos os contêineres custa uma ordem de grandeza a mais e chega na mesma resposta. Peça a fila com `proximas_tarefas(id_sessao)` e pegue o topo com `assumir_tarefa(id_task)`.
-2. **Orientar-se na tarefa.** `ler_vista` na Task assumida e, se faltar detalhe de vizinho, `expandir_no` no nó específico. Leia primeiro `Aprendizados Aplicaveis`, quando a seção vier: é o que outras sessões e outros projetos já aprenderam sobre isto, com a origem de cada afirmação.
+2. **Orientar-se na tarefa.** `ler_vista` na Task assumida e, se faltar detalhe de vizinho, `expandir_no` no nó específico. Leia primeiro `Aprendizados Aplicaveis`, quando a seção vier: é o que outras sessões e outros projetos já aprenderam sobre isto, com a origem de cada afirmação. `Decisoes Que Governam Esta Tarefa` traz as decisões ligadas por `orienta` à tarefa ou a quem a contém; `Perto Desta Tarefa, Sem Governa-la` é o que a sessão registrou para outras tarefas, e é contexto, não instrução.
 3. **Checar bloqueio.** Havendo requisito vago ou impedimento, `abrir_questao` e depois `aguardar_resposta`. Se o prazo expirar, `liberar_tarefa` e encerre limpo.
 4. **Executar.** O trabalho técnico acontece fora do grafo, em código e documentos. Ao terminar, monte o lote JSON Patch.
 5. **Registrar.** Submeta `propor_patch` e confira `sucesso` no recibo; se vier recusa, leia `modo_de_falha` e corrija a proposta. Depois `concluir_tarefa` e `liberar_tarefa`.
@@ -207,6 +207,6 @@ Este lote só passa com a posse de `task-auth-jwt`. Sem `assumir_tarefa` antes, 
 
 ## Referências
 
-- [Matriz ontológica e regras de aresta](./references/ontology_matrix.md): as 11 arestas, os pares de tipo válidos e a sanitização de dados.
+- [Matriz ontológica e regras de aresta](./references/ontology_matrix.md): as 13 arestas, os pares de tipo válidos e a sanitização de dados.
 - [Cookbook de JSON Patch](./references/patch_cookbook.md): patches prontos por papel e finalidade.
 - [Guia de conexão MCP](./references/mcp_setup_guide.md): como configurar e testar o servidor stdio em Antigravity, Cursor, Claude Desktop e Arena.

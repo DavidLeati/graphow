@@ -29,7 +29,8 @@ class PlanoDeCorte:
         return bool(self.prioridades_descartadas) or self.limite_de_vizinhos is not None
 
 
-_APOIO: frozenset[PrioridadeRetencao] = frozenset({PrioridadeRetencao.APOIO})
+_CONTEXTO: frozenset[PrioridadeRetencao] = frozenset({PrioridadeRetencao.CONTEXTO})
+_APOIO: frozenset[PrioridadeRetencao] = _CONTEXTO | {PrioridadeRetencao.APOIO}
 _MAIS_DECISOES: frozenset[PrioridadeRetencao] = _APOIO | {PrioridadeRetencao.DECISOES}
 _MAIS_BLOQUEIOS: frozenset[PrioridadeRetencao] = _MAIS_DECISOES | {PrioridadeRetencao.BLOQUEIOS}
 # A memória cai junto da navegação, e depois dela nada: o fechamento de uma
@@ -45,6 +46,7 @@ def montar_escada_de_corte() -> tuple[PlanoDeCorte, ...]:
     """Consulta pura: os degraus, do texto mais completo ao mais enxuto."""
     degraus_por_descarte = (
         PlanoDeCorte(),
+        PlanoDeCorte(prioridades_descartadas=_CONTEXTO),
         PlanoDeCorte(prioridades_descartadas=_APOIO),
         PlanoDeCorte(prioridades_descartadas=_MAIS_DECISOES),
         PlanoDeCorte(prioridades_descartadas=_MAIS_BLOQUEIOS),

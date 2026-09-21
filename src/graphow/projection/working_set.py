@@ -40,6 +40,7 @@ ARESTAS_DE_TRABALHO: frozenset[TipoAresta] = frozenset(
         TipoAresta.SUBSTITUI,
         TipoAresta.ESCOPA,
         TipoAresta.DERIVA_DE,
+        TipoAresta.ORIENTA,
     }
 )
 

@@ -22,7 +22,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 3. **Imutabilidade e Evolução**:
    - Nenhum nó ou aresta é destruído fisicamente; modificações geram novos eventos de patch.
    - Informações obsoletas são conectadas via arestas `substitui` ou `contradiz`.
-   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.1.0`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
+   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.2.0`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
 
 ---
 
@@ -46,7 +46,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Question` | Ponto de dúvida ou ambiguidade que requer resposta humana. | `planejador`, `executor`, `revisor` |
 | `Constraint` | Restrição ou regra mandatória de negócio/código. | `humano` |
 | `Artifact` | Entregável produzido (código, documento, patch, arquivo). | `executor` |
-| `Evidence` | Fato observado no mundo (saída de teste, log, retorno de busca, trecho de código lido). | `planejador` (só leitura de código, localizada), `executor`, `revisor` |
+| `Evidence` | Fato observado no mundo (saída de teste, log, retorno de busca, trecho de código lido). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. | `planejador` (só leitura de código, localizada), `executor`, `revisor` |
 | `Run` | Registro de uma execução de agente (modelo, tokens, latência). | `sistema` |
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
@@ -64,10 +64,11 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `depende_de` | `Task` → `Task` | Pré-requisito de execução (acíclico obrigatório). |
 | `bloqueia` | `Question` → `Task` | Trava o avanço da tarefa até resolução. |
 | `justifica` | `Evidence` → `Decision` | Base empírica que sustenta uma decisão. |
+| `orienta` | `Decision` → `Task` / `Goal` | A decisão que vale para a tarefa ou o objetivo. Como as restrições, desce pela decomposição em qualquer profundidade: a do `Goal` vale para toda tarefa dele, e a tarefa de correção herda as da tarefa que corrige. Chega à vista de quem executa e de quem revisa, mesmo tomada noutra sessão. |
 | `contradiz` | `Evidence` → `Decision` / `Evidence` / `Aprendizado` | Aponta divergência ou refutação empírica; num `Aprendizado`, sinaliza que ele precisa de revisão. |
 | `substitui` | `Decision` → `Decision`, `Task` → `Task`, `Aprendizado` → `Aprendizado` | Substituição evolutiva de definição anterior. O substituído segue visível, marcado. |
 | `escopa` | `Constraint` → `Goal` / `Task` | Aplicação de restrição obrigatória. |
-| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | Proveniência de artefatos, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Evidence` → `Artifact` / `Task`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | `vale_para` | `Aprendizado` → `Projeto` / `Setor` | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. |
 
 ### 3.1 Dono de Cada Aresta
@@ -90,6 +91,7 @@ só o humano a retira.
 | `escopa` | `humano` | `humano` |
 | `deriva_de` | `humano`, `executor`, `revisor` | `humano`, `executor`, `revisor` |
 | `vale_para` | `humano` | `humano` |
+| `orienta` | `humano`, `planejador` | `humano`, `planejador` |
 
 Nem a autonomia ilimitada de um projeto abre `escopa` ou `vale_para` a um agente:
 a primeira amarra a restrição ao trabalho, a segunda promove memória de agente a
