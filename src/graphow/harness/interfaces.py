@@ -28,6 +28,11 @@ class AdaptadorDeHarness(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def registrar_reabertura_sessao(self, id_sessao: str) -> bool:
+        """Devolve a `ativa` uma sessão que o fim já encerrou e o ambiente retomou."""
+        raise NotImplementedError
+
+    @abstractmethod
     def registrar_execucao_run(
         self,
         id_sessao: str,

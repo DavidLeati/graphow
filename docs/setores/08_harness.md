@@ -10,19 +10,19 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-10 módulos · 893 linhas · 12 classes
+10 módulos · 938 linhas · 12 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
-| [`harness/convention_adapter.py`](#harnessconventionadapter) | 78 | Adaptador de fallback baseado em convenção de chamada explícita. |
-| [`harness/entrada_hook.py`](#harnessentradahook) | 105 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
-| [`harness/hook_adapter.py`](#harnesshookadapter) | 72 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
+| [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
+| [`harness/entrada_hook.py`](#harnessentradahook) | 106 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
+| [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
-| [`harness/interfaces.py`](#harnessinterfaces) | 38 | Interface abstrata para adaptadores de ciclo de vida do harness. |
+| [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 179 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
-| [`harness/servico_harness.py`](#harnessservicoharness) | 150 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
+| [`harness/servico_harness.py`](#harnessservicoharness) | 165 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -75,6 +75,7 @@ Adaptador de fallback baseado em convenção de chamada explícita.
 
 - `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` — Cria o nó de Sessao no grafo, pendurado no Setor por 'contem'.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` — Atualiza a sessão como concluída.
+- `registrar_reabertura_sessao(id_sessao: str) -> bool` — Devolve a sessão a `ativa` quando o ambiente a retoma depois de concluída.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Registra nó Run simplificado, pendurado na Sessao por 'produz'.
 
 ## `harness/entrada_hook.py`
@@ -87,14 +88,14 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 | `CHAVE_MODELO` | `str` | `'model'` |
 | `CHAVE_DIRETORIO` | `str` | `'cwd'` |
 | `CHAVES_DE_IDENTIFICACAO_DO_MODELO` | `tuple[str, ...]` | `('id', 'display_name')` |
-| `CHAVES_DE_RESUMO` | `tuple[str, ...]` | `('reason', 'source', 'hook_event_name')` |
+| `CHAVES_DE_MOTIVO` | `tuple[str, ...]` | `('reason', 'source', 'hook_event_name')` |
 | `MODELO_DESCONHECIDO` | `str` | `'desconhecido'` |
 
 ### `EntradaDeHook`
 
 *DTO imutável* — Os campos do payload do hook que o Graphow aproveita.
 
-**Campos:** `id_sessao: str`, `modelo: str`, `resumo: str`, `diretorio: str`
+**Campos:** `id_sessao: str`, `modelo: str`, `motivo: str`, `diretorio: str`
 
 - `tem_sessao() -> bool` `[property]` — Informa se a entrada trouxe um identificador de sessão utilizável.
 
@@ -113,7 +114,8 @@ Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE).
 *serviço* — Captura eventos de lifecycle automáticos via hooks e traduz para patches no kernel.
 
 - `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` — Emite patch de criação de Sessao e aresta 'contem' a partir do Setor.
-- `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` — Atualiza o status da sessão para concluída com anotação de resumo.
+- `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` — Conclui a sessão e, só quando alguém o declarou, grava o resumo.
+- `registrar_reabertura_sessao(id_sessao: str) -> bool` — Devolve a sessão a `ativa`: o ambiente retoma sessões que o fim já encerrou.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` — Cria nó do tipo Run, pendurado na Sessao por 'produz' e ligado a ela por 'ocorreu_em'.
 
 ## `harness/identidade_harness.py`
@@ -140,6 +142,7 @@ Interface abstrata para adaptadores de ciclo de vida do harness.
 
 - `registrar_inicio_sessao(id_sessao: str, id_setor: str, metadados: Mapping[str, Any] | None) -> bool` `[abstract]` — Registra a criação de uma nova sessão e vincula ao Setor correspondente.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` `[abstract]` — Marca a conclusão de uma sessão no grafo compartilhado.
+- `registrar_reabertura_sessao(id_sessao: str) -> bool` `[abstract]` — Devolve a `ativa` uma sessão que o fim já encerrou e o ambiente retomou.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` `[abstract]` — Registra um nó Run associado à sessão e retorna o ID gerado.
 
 ## `harness/repositorio.py`
@@ -200,7 +203,7 @@ Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execuçã
 
 *DTO imutável* — O que o hook informa ao grafo em cada disparo.
 
-**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`, `diretorio_de_trabalho: str`
+**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`, `diretorio_de_trabalho: str`, `motivo: str`
 
 - `id_run() -> str` `[property]` — Identificador estável do Run, para as três fases atualizarem o mesmo nó.
 

@@ -15,13 +15,13 @@ from graphow.harness.entrada_hook import (
 )
 
 
-def test_entrada_traz_sessao_modelo_e_resumo_nominal() -> None:
+def test_entrada_traz_sessao_modelo_e_motivo_nominal() -> None:
     """O payload completo preenche os três campos que o harness aproveita."""
     entrada = interpretar_entrada_de_hook(
         '{"session_id": "sess-abc", "model": "claude-opus-5", "source": "startup"}'
     )
 
-    assert entrada == EntradaDeHook(id_sessao="sess-abc", modelo="claude-opus-5", resumo="startup")
+    assert entrada == EntradaDeHook(id_sessao="sess-abc", modelo="claude-opus-5", motivo="startup")
     assert entrada.tem_sessao
 
 
@@ -34,11 +34,11 @@ def test_modelo_como_objeto_e_reduzido_ao_identificador_nominal() -> None:
     assert entrada.modelo == "claude-opus-5"
 
 
-def test_motivo_de_encerramento_vira_resumo_nominal() -> None:
-    """No fim da sessão o payload traz `reason`, e ele descreve a fase."""
+def test_motivo_de_encerramento_e_lido_de_reason_nominal() -> None:
+    """No fim da sessão o payload traz `reason`: é o motivo do disparo, não um resumo."""
     entrada = interpretar_entrada_de_hook('{"session_id": "s1", "reason": "logout"}')
 
-    assert entrada.resumo == "logout"
+    assert entrada.motivo == "logout"
 
 
 def test_entrada_vazia_nao_inventa_sessao_edge_case() -> None:

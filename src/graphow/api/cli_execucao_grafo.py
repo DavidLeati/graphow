@@ -185,7 +185,8 @@ class ManipuladorComandosGrafo:
             id_sessao=id_sessao,
             id_setor=argumentos.setor,
             modelo=self._resolver_modelo(argumentos.modelo, entrada.modelo),
-            resumo=argumentos.resumo or entrada.resumo,
+            resumo=argumentos.resumo,
+            motivo=entrada.motivo,
             # O hook diz de onde rodou; fora de um hook, vale a pasta do processo.
             diretorio_de_trabalho=entrada.diretorio or os.getcwd(),
         )

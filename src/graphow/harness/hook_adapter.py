@@ -40,12 +40,27 @@ class HookHarnessAdapter(AdaptadorDeHarness):
         id_sessao: str,
         resumo: str = "",
     ) -> bool:
-        """Atualiza o status da sessão para concluída com anotação de resumo."""
+        """Conclui a sessão e, só quando alguém o declarou, grava o resumo.
+
+        O hook de fim não traz resumo algum: gravar o vazio apagava o que o
+        humano tinha escrito no painel, e gravar o `reason` do payload deixou
+        dezesseis sessões resumidas como `other`.
+        """
         operacoes = [
             ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/status", value=StatusSessao.CONCLUIDA.value),
-            ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/resumo", value=resumo),
         ]
+        if resumo:
+            operacoes.append(ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/resumo", value=resumo))
         dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Fechamento de sessão via Hook")
+        recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
+        return recibo.sucesso
+
+    def registrar_reabertura_sessao(self, id_sessao: str) -> bool:
+        """Devolve a sessão a `ativa`: o ambiente retoma sessões que o fim já encerrou."""
+        operacoes = [
+            ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/status", value=StatusSessao.ATIVA.value),
+        ]
+        dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Retomada de sessão via Hook")
         recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
         return recibo.sucesso
 

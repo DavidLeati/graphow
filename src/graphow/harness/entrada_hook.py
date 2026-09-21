@@ -20,9 +20,10 @@ CHAVE_MODELO: str = "model"
 CHAVE_DIRETORIO: str = "cwd"
 CHAVES_DE_IDENTIFICACAO_DO_MODELO: tuple[str, ...] = ("id", "display_name")
 
-# O payload de início traz `source`; o de fim traz `reason`. Nenhum dos dois é
-# garantido, e a ausência não impede o registro da execução.
-CHAVES_DE_RESUMO: tuple[str, ...] = ("reason", "source", "hook_event_name")
+# O payload de início traz `source`; o de fim traz `reason`. É o motivo do
+# disparo: vai para o Run, e nunca para o resumo da sessão, que é o que alguém
+# declara. Nenhum dos dois é garantido, e a ausência não impede o registro.
+CHAVES_DE_MOTIVO: tuple[str, ...] = ("reason", "source", "hook_event_name")
 
 MODELO_DESCONHECIDO: str = "desconhecido"
 
@@ -33,7 +34,7 @@ class EntradaDeHook:
 
     id_sessao: str = ""
     modelo: str = MODELO_DESCONHECIDO
-    resumo: str = ""
+    motivo: str = ""
     diretorio: str = ""
 
     @property
@@ -50,7 +51,7 @@ def interpretar_entrada_de_hook(texto: str) -> EntradaDeHook:
     return EntradaDeHook(
         id_sessao=str(dados.get(CHAVE_SESSAO, "")).strip(),
         modelo=_extrair_modelo(dados.get(CHAVE_MODELO)),
-        resumo=_extrair_resumo(dados),
+        motivo=_extrair_motivo(dados),
         diretorio=str(dados.get(CHAVE_DIRETORIO, "") or "").strip(),
     )
 
@@ -93,9 +94,9 @@ def _extrair_modelo(valor: object) -> str:
     return _primeiro_texto(valor, CHAVES_DE_IDENTIFICACAO_DO_MODELO) or MODELO_DESCONHECIDO
 
 
-def _extrair_resumo(dados: dict[str, Any]) -> str:
-    """Usa o motivo, a origem ou o nome do evento como resumo da fase."""
-    return _primeiro_texto(dados, CHAVES_DE_RESUMO)
+def _extrair_motivo(dados: dict[str, Any]) -> str:
+    """O motivo do disparo: a razão do fim, a origem do início ou o nome do evento."""
+    return _primeiro_texto(dados, CHAVES_DE_MOTIVO)
 
 
 def _primeiro_texto(dados: dict[str, Any], chaves: tuple[str, ...]) -> str:

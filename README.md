@@ -479,6 +479,12 @@ dentro dele também. É por isso que o papel `sistema` cria `Projeto` e `Setor`:
 só o ambiente padrão, e nunca o grafo de trabalho. `--setor <id>` continua
 valendo para quem quer a sessão em outro lugar.
 
+Uma sessão que o hook de fim já encerrou e o ambiente retoma volta a `ativa`,
+para o painel não a mostrar fechada enquanto o agente trabalha nela. O `source`
+do início e o `reason` do fim vão para o `Run` como `motivo`; o `resumo` da
+sessão só muda quando alguém o declara, por `--resumo`, por `encerrar_sessao`
+ou pelo painel, e o hook de fim nunca o apaga.
+
 Fora de um hook, a sessão é declarada à mão. `--sessao` e `--entrada-hook` são
 mutuamente exclusivos e um deles é obrigatório, e um identificador em branco é
 recusado pelo analisador — antes era escrito como caminho vazio no patch:

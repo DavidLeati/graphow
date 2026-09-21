@@ -10,13 +10,13 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-7 módulos · 944 linhas · 10 classes
+7 módulos · 945 linhas · 10 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 246 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
-| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 206 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
+| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 207 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_parser.py`](#apicliparser) | 237 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
 | [`api/sse_transport.py`](#apissetransport) | 36 | Transporte de eventos para visualizadores de Canvas via SSE / AG-UI Protocol. |

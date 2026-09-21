@@ -229,3 +229,49 @@ def test_execucao_nasce_dentro_da_sessao_e_nao_fora_da_hierarquia_nominal() -> N
     origens = [aresta.origem_id for aresta in view.obter_arestas_entrada("sess-hook", TipoAresta.OCORREU_EM)]
     assert origens == ["run-sess-hook"]
     assert view.indice_de_rollup.nos_orfaos == ()
+
+
+def test_inicio_reabre_a_sessao_que_o_fim_ja_encerrou_nominal() -> None:
+    """O ambiente retoma sessões encerradas; a sessão volta a `ativa` em vez de mentir `concluida`."""
+    kernel = montar_kernel_em_memoria()
+    _criar_setor(kernel)
+    servico = ServicoHarness(kernel)
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", id_setor="setor-1"))
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.FIM, id_sessao="sess-hook"))
+
+    recibo = servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", motivo="resume"))
+
+    assert recibo.id_setor == "setor-1"
+    view = kernel.obter_view()
+    assert view.obter_no("sess-hook").obter_propriedade("status") == "ativa"
+    assert len(view.listar_nos_por_tipo(TipoNo.SESSAO)) == 1
+
+
+def test_motivo_do_hook_vai_para_o_run_e_nao_para_o_resumo_da_sessao_nominal() -> None:
+    """`reason: other` estava gravado como resumo de dezesseis sessões; resumo é o que alguém declara."""
+    kernel = montar_kernel_em_memoria()
+    _criar_setor(kernel)
+    servico = ServicoHarness(kernel)
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", id_setor="setor-1", motivo="startup"))
+
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.FIM, id_sessao="sess-hook", motivo="other"))
+
+    view = kernel.obter_view()
+    assert view.obter_no("run-sess-hook").obter_propriedade("motivo") == "other"
+    assert not view.obter_no("sess-hook").obter_propriedade("resumo")
+
+
+def test_fim_sem_resumo_preserva_o_resumo_ja_declarado_edge_case() -> None:
+    """Caso de borda: o humano escreveu o resumo no painel; o hook de fim não o apaga."""
+    kernel = montar_kernel_em_memoria()
+    _criar_setor(kernel)
+    servico = ServicoHarness(kernel)
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.INICIO, id_sessao="sess-hook", id_setor="setor-1"))
+    declaracao = ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/sess-hook/propriedades/resumo", value="Resumo do humano")
+    kernel.submeter_patch(
+        PropostaPatch.criar(DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=(declaracao,), justificativa="resumo"))
+    )
+
+    servico.registrar(PedidoDeCicloDeVida(fase=FaseDoHarness.FIM, id_sessao="sess-hook", motivo="other"))
+
+    assert kernel.obter_view().obter_no("sess-hook").obter_propriedade("resumo") == "Resumo do humano"

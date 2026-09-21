@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any
 
 from graphow.core.events import TipoEvento
-from graphow.core.types import TipoAresta
+from graphow.core.types import StatusSessao, TipoAresta
 from graphow.harness.ambiente_padrao import AmbientePadrao, GarantidorDeAmbientePadrao
 from graphow.harness.hook_adapter import HookHarnessAdapter
 from graphow.harness.identidade_harness import IdentidadeHarness
@@ -46,6 +46,8 @@ class PedidoDeCicloDeVida:
 
     `diretorio_de_trabalho` é de onde o hook rodou: é ele que nomeia o ambiente
     padrão quando `id_setor` vem vazio. Vazio também, vale o diretório do processo.
+    `resumo` é o que alguém declara sobre a sessão; `motivo` é o que o ambiente
+    diz do disparo (`source` no início, `reason` no fim) e vai para o Run.
     """
 
     fase: FaseDoHarness
@@ -56,6 +58,7 @@ class PedidoDeCicloDeVida:
     ramo_id: str = "main"
     metadados: Mapping[str, Any] = field(default_factory=dict)
     diretorio_de_trabalho: str = ""
+    motivo: str = ""
 
     @property
     def id_run(self) -> str:
@@ -118,8 +121,9 @@ class ServicoHarness:
         return ""
 
     def _abrir_sessao(self, pedido: PedidoDeCicloDeVida) -> str:
-        """Sessão já aberta não é reaberta; sem Setor declarado, o ambiente padrão responde."""
+        """Sessão existente é retomada, reaberta se o fim já a encerrou; sem Setor, o ambiente padrão responde."""
         if self._sessao_existe(pedido):
+            self._reabrir_se_encerrada(pedido)
             return self._setor_da_sessao(pedido)
         id_setor = pedido.id_setor or self._garantidor.garantir(
             AmbientePadrao.do_diretorio(pedido.diretorio_de_trabalho), pedido.ramo_id
@@ -127,6 +131,17 @@ class ServicoHarness:
         if id_setor:
             self._adaptador.registrar_inicio_sessao(pedido.id_sessao, id_setor, dict(pedido.metadados))
         return id_setor
+
+    def _reabrir_se_encerrada(self, pedido: PedidoDeCicloDeVida) -> None:
+        """O ambiente retoma sessões que o hook de fim já encerrou; o status volta a dizer a verdade.
+
+        Sem isto a sessão retomada seguia `concluida` enquanto o agente
+        trabalhava nela, e o painel a mostrava fechada com o fechamento parado.
+        """
+        sessao = self._kernel.obter_view(pedido.ramo_id).obter_no(pedido.id_sessao)
+        if sessao is None or str(sessao.obter_propriedade("status")) != StatusSessao.CONCLUIDA.value:
+            return
+        self._adaptador.registrar_reabertura_sessao(pedido.id_sessao)
 
     def _sessao_existe(self, pedido: PedidoDeCicloDeVida) -> bool:
         """Consulta se há uma Sessao no grafo para fechar."""
@@ -146,5 +161,5 @@ class ServicoHarness:
             autor=self._identidade.autor,
             papel=self._identidade.papel,
             ramo_id=pedido.ramo_id,
-            dados={"modelo": pedido.modelo, "resumo": pedido.resumo, **dict(pedido.metadados)},
+            dados={"modelo": pedido.modelo, "resumo": pedido.resumo, "motivo": pedido.motivo, **dict(pedido.metadados)},
         )

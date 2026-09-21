@@ -52,6 +52,15 @@ class ConventionHarnessAdapter(AdaptadorDeHarness):
         recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
         return recibo.sucesso
 
+    def registrar_reabertura_sessao(self, id_sessao: str) -> bool:
+        """Devolve a sessão a `ativa` quando o ambiente a retoma depois de concluída."""
+        operacoes = [
+            ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_sessao}/propriedades/status", value="ativa"),
+        ]
+        dados = DadosPropostaPatch(autor=self._identidade.autor, papel=self._identidade.papel, operacoes=tuple(operacoes), justificativa="Reabertura por convenção")
+        recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
+        return recibo.sucesso
+
     def registrar_execucao_run(
         self,
         id_sessao: str,

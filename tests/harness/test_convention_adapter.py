@@ -58,3 +58,15 @@ def test_convention_adapter_multiplas_sessões_edge_case() -> None:
     # Projeto e Setor que hospedam as três sessões
     assert view.total_nos == 5
     assert all(view.contem_no(f"s-{i}") for i in range(1, 4))
+
+
+def test_reabertura_por_convencao_devolve_a_sessao_a_ativa_nominal() -> None:
+    """O adaptador por convenção reabre o que fechou, como o de hooks."""
+    kernel = WriteKernel(InMemoryEventStore())
+    adapter = ConventionHarnessAdapter(kernel)
+    _criar_setor_no_projeto(kernel, "setor-default")
+    adapter.registrar_inicio_sessao("sess-conv-1", "setor-default")
+    adapter.registrar_fim_sessao("sess-conv-1")
+
+    assert adapter.registrar_reabertura_sessao("sess-conv-1") is True
+    assert kernel.obter_view("main").obter_no("sess-conv-1").obter_propriedade("status") == "ativa"

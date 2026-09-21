@@ -63,3 +63,25 @@ def test_hook_adapter_setor_inexistente_edge_case() -> None:
     _, adapter = _criar_ambiente_com_setor()
     sucesso = adapter.registrar_inicio_sessao("sess-err", "setor-fantasma")
     assert sucesso is False
+
+
+def test_reabertura_devolve_a_sessao_a_ativa_nominal() -> None:
+    """O ambiente retoma sessões que o fim já encerrou; o adaptador as reabre."""
+    kernel, adapter = _criar_ambiente_com_setor()
+    adapter.registrar_inicio_sessao("sess-100", "setor-1")
+    adapter.registrar_fim_sessao("sess-100")
+
+    assert adapter.registrar_reabertura_sessao("sess-100") is True
+    assert kernel.obter_view("main").obter_no("sess-100").obter_propriedade("status") == "ativa"
+
+
+def test_fim_sem_resumo_nao_escreve_resumo_vazio_edge_case() -> None:
+    """Caso de borda: sem resumo declarado, a propriedade nem nasce; gravar o vazio apagava o do humano."""
+    kernel, adapter = _criar_ambiente_com_setor()
+    adapter.registrar_inicio_sessao("sess-100", "setor-1")
+
+    adapter.registrar_fim_sessao("sess-100")
+
+    sessao = kernel.obter_view("main").obter_no("sess-100")
+    assert sessao.obter_propriedade("status") == "concluida"
+    assert sessao.obter_propriedade("resumo") is None
