@@ -10,19 +10,21 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-10 módulos · 938 linhas · 12 classes
+12 módulos · 1162 linhas · 14 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
+| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 39 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
-| [`harness/entrada_hook.py`](#harnessentradahook) | 106 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
+| [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 179 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
-| [`harness/servico_harness.py`](#harnessservicoharness) | 165 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
+| [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
+| [`harness/transcricao.py`](#harnesstranscricao) | 150 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -65,6 +67,19 @@ O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` de
 - `localizar_setor_de_memoria(projeto: NoGrafo, ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O Setor de memória do Projeto: pelo id derivado ou pelo rótulo `Memoria`.
 - `montar_operacoes_do_ambiente(ambiente: AmbientePadrao, projeto: NoGrafo | None) -> tuple[ItemPatch, ...]` — O Projeto, se ainda não existe, e o Setor de memória pendurado nele no mesmo lote.
 
+## `harness/consumo_do_disparo.py`
+
+O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TIPO_DE_AGENTE_DESCONHECIDO` | `str` | `'subagente'` |
+
+### Funções do módulo
+
+- `ler_consumo_do_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> ConsumoDaTranscricao | None` — No fim da sessão, a transcrição dela; no fim de um subagente, a dele; nas outras fases, nada.
+- `descrever_disparo(fase: FaseDoHarness, entrada: EntradaDeHook, consumo: ConsumoDaTranscricao | None) -> dict[str, Any]` — As propriedades extras do Run; sem transcrição legível, o Run fica sem tokens, não com zero.
+
 ## `harness/convention_adapter.py`
 
 Adaptador de fallback baseado em convenção de chamada explícita.
@@ -89,15 +104,20 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 | `CHAVE_DIRETORIO` | `str` | `'cwd'` |
 | `CHAVES_DE_IDENTIFICACAO_DO_MODELO` | `tuple[str, ...]` | `('id', 'display_name')` |
 | `CHAVES_DE_MOTIVO` | `tuple[str, ...]` | `('reason', 'source', 'hook_event_name')` |
+| `CHAVE_TRANSCRICAO` | `str` | `'transcript_path'` |
+| `CHAVE_TRANSCRICAO_DO_AGENTE` | `str` | `'agent_transcript_path'` |
+| `CHAVE_ID_AGENTE` | `str` | `'agent_id'` |
+| `CHAVE_TIPO_AGENTE` | `str` | `'agent_type'` |
 | `MODELO_DESCONHECIDO` | `str` | `'desconhecido'` |
 
 ### `EntradaDeHook`
 
 *DTO imutável* — Os campos do payload do hook que o Graphow aproveita.
 
-**Campos:** `id_sessao: str`, `modelo: str`, `motivo: str`, `diretorio: str`
+**Campos:** `id_sessao: str`, `modelo: str`, `motivo: str`, `diretorio: str`, `transcricao: str`, `transcricao_do_agente: str`, `id_agente: str`, `tipo_agente: str`
 
 - `tem_sessao() -> bool` `[property]` — Informa se a entrada trouxe um identificador de sessão utilizável.
+- `caminhos_de_transcricao() -> dict[str, str]` — Os caminhos como o ambiente os nomeia, para quem procura a transcrição de um subagente.
 
 ### Funções do módulo
 
@@ -203,9 +223,9 @@ Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execuçã
 
 *DTO imutável* — O que o hook informa ao grafo em cada disparo.
 
-**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`, `diretorio_de_trabalho: str`, `motivo: str`
+**Campos:** `fase: FaseDoHarness`, `id_sessao: str`, `id_setor: str`, `modelo: str`, `resumo: str`, `ramo_id: str`, `metadados: Mapping[str, Any]`, `diretorio_de_trabalho: str`, `motivo: str`, `id_agente: str`
 
-- `id_run() -> str` `[property]` — Identificador estável do Run, para as três fases atualizarem o mesmo nó.
+- `id_run() -> str` `[property]` — Identificador estável do Run: um por sessão, para as fases dela; um por subagente despachado.
 
 ### `ResultadoCicloDeVida`
 
@@ -218,4 +238,36 @@ Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execuçã
 *serviço* — Traduz cada disparo do hook em escrita no grafo, sob identidade fixada.
 
 - `registrar(pedido: PedidoDeCicloDeVida) -> ResultadoCicloDeVida` — Executa o efeito da fase sobre a sessão e emite o evento de execução.
+
+## `harness/transcricao.py`
+
+O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CHAVES_DE_USO` | `Mapping[str, str]` | `{'input_tokens': 'tokens_entrada', 'output_tokens': 'tokens_saida', 'ca…` |
+| `MODELO_SINTETICO` | `str` | `'<synthetic>'` |
+| `SUFIXO_DE_ASSUMIR_TAREFA` | `str` | `'__assumir_tarefa'` |
+| `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA)` |
+
+### `AcumuladorDeConsumo`
+
+*serviço* — Soma a transcrição entrada por entrada, contando cada mensagem do modelo uma vez só.
+
+- `acrescentar(entrada: Mapping[str, Any]) -> None` — Registra o uso, o modelo e as tarefas assumidas de uma entrada de resposta do modelo.
+- `consolidar() -> ConsumoDaTranscricao` — Os totais do que foi acrescentado.
+
+### `ConsumoDaTranscricao`
+
+*DTO imutável* — O que uma execução gastou e em que trabalhou, pronto para virar propriedades do Run.
+
+**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`
+
+- `modelo_principal() -> str` `[property]` — O modelo que mais respondeu; vazio quando nenhum respondeu.
+- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos e as tarefas assumidas.
+
+### Funções do módulo
+
+- `ler_consumo(caminho: Path) -> ConsumoDaTranscricao | None` — O consumo da transcrição no caminho; None quando o arquivo não existe ou não se lê.
+- `localizar_transcricao_do_subagente(caminhos: Mapping[str, str], id_agente: str) -> Path | None` — A transcrição do subagente: a que o hook indicar, ou a pasta `subagents` da sessão.
 

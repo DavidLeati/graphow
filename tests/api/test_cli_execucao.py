@@ -355,3 +355,87 @@ def test_console_injetado_vale_ate_para_o_comando_mcp_edge_case() -> None:
     injetado = EscritorConsoleEmMemoria()
 
     assert escolher_console("mcp", injetado) is injetado
+
+
+def _transcricao(caminho: Path, id_task: str = "") -> None:
+    """Duas respostas do modelo, a primeira repetida por bloco; a segunda assume a tarefa se houver."""
+    uso = {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100, "cache_creation_input_tokens": 1}
+    chamada = [{"type": "tool_use", "name": "mcp__graphow-executor__assumir_tarefa", "input": {"id_task": id_task}}]
+    linhas = [
+        {"type": "assistant", "message": {"id": "m1", "model": "claude-sonnet-5", "usage": uso, "content": []}},
+        {"type": "assistant", "message": {"id": "m1", "model": "claude-sonnet-5", "usage": uso, "content": []}},
+        {"type": "assistant", "message": {"id": "m2", "model": "claude-sonnet-5", "usage": uso, "content": chamada if id_task else []}},
+    ]
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text("\n".join(json.dumps(linha) for linha in linhas) + "\n", encoding="utf-8")
+
+
+def _run(tmp_path: Path, id_run: str):  # type: ignore[no-untyped-def]
+    """O nó Run gravado no banco do teste, com as arestas que o penduram."""
+    from graphow.kernel.write_kernel import WriteKernel
+
+    with SQLiteEventStore(str(tmp_path / "graphow" / "graphow.db")) as store:
+        view = WriteKernel(store).obter_view()
+    return view.obter_no(id_run), view
+
+
+def test_fim_grava_no_run_os_tokens_da_transcricao_da_sessao_nominal(tmp_path: Path) -> None:
+    """O Run da sessão passa a dizer quanto o orquestrador gastou e que modelo de fato respondeu."""
+    repositorio = tmp_path / "repo"
+    (repositorio / ".git").mkdir(parents=True)
+    transcricao = tmp_path / "projetos" / "sess-1.jsonl"
+    _transcricao(transcricao)
+    inicio = json.dumps({"session_id": "sess-1", "cwd": str(repositorio), "model": "claude-opus-5"})
+    fim = json.dumps({"session_id": "sess-1", "cwd": str(repositorio), "transcript_path": str(transcricao), "reason": "clear"})
+
+    _executar_com_payload(["harness", "--fase", "inicio", "--entrada-hook"], tmp_path, inicio)
+    codigo, _ = _executar_com_payload(["harness", "--fase", "fim", "--entrada-hook"], tmp_path, fim)
+
+    assert codigo == CODIGO_SUCESSO
+    run, _ = _run(tmp_path, "run-sess-1")
+    assert run.obter_propriedade("tokens_entrada") == 20
+    assert run.obter_propriedade("tokens_cache_leitura") == 200
+    assert run.obter_propriedade("mensagens_de_modelo") == 2
+    assert run.obter_propriedade("modelo") == "claude-sonnet-5"
+    assert run.obter_propriedade("modelos_usados") == ["claude-sonnet-5"]
+
+
+def test_subagente_vira_run_proprio_pendurado_na_sessao_nominal(tmp_path: Path) -> None:
+    """O fim de um subagente grava o que ele gastou e a tarefa que assumiu, na sessão que o despachou."""
+    from graphow.core.types import TipoAresta
+
+    repositorio = tmp_path / "repo"
+    (repositorio / ".git").mkdir(parents=True)
+    principal = tmp_path / "projetos" / "sess-1.jsonl"
+    _transcricao(tmp_path / "projetos" / "sess-1" / "subagents" / "agent-ab12.jsonl", id_task="task-7")
+    inicio = json.dumps({"session_id": "sess-1", "cwd": str(repositorio)})
+    parada = json.dumps({
+        "session_id": "sess-1", "cwd": str(repositorio), "transcript_path": str(principal),
+        "agent_id": "ab12", "agent_type": "graphow-executor", "hook_event_name": "SubagentStop",
+    })
+
+    _executar_com_payload(["harness", "--fase", "inicio", "--entrada-hook"], tmp_path, inicio)
+    codigo, console = _executar_com_payload(["harness", "--fase", "subagente", "--entrada-hook"], tmp_path, parada)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("run-sess-1-ab12" in linha for linha in console.linhas)
+    run, view = _run(tmp_path, "run-sess-1-ab12")
+    assert run.rotulo == "Subagente graphow-executor"
+    assert run.obter_propriedade("agente") == "graphow-executor"
+    assert run.obter_propriedade("modelo") == "claude-sonnet-5"
+    assert run.obter_propriedade("tarefas") == ["task-7"]
+    assert run.obter_propriedade("tokens_saida") == 10
+    assert [a.origem_id for a in view.obter_arestas_entrada("run-sess-1-ab12", TipoAresta.PRODUZ)] == ["sess-1"]
+    assert view.obter_no("sess-1").obter_propriedade("status") == "ativa"
+
+
+def test_subagente_sem_transcricao_legivel_fica_sem_tokens_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: sem a transcrição, o Run nasce com quem foi o subagente e sem número inventado."""
+    parada = json.dumps({"session_id": "sess-1", "agent_id": "zz99", "agent_type": "Explore"})
+
+    codigo, _ = _executar_com_payload(["harness", "--fase", "subagente", "--entrada-hook"], tmp_path, parada)
+
+    assert codigo == CODIGO_SUCESSO
+    run, _ = _run(tmp_path, "run-sess-1-zz99")
+    assert run.obter_propriedade("agente") == "Explore"
+    assert run.obter_propriedade("tokens_entrada") is None

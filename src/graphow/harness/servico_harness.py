@@ -26,17 +26,23 @@ from graphow.kernel.write_kernel import WriteKernel
 
 
 class FaseDoHarness(str, Enum):
-    """Momentos do ciclo de vida que o ambiente comunica ao grafo."""
+    """Momentos do ciclo de vida que o ambiente comunica ao grafo.
+
+    `subagente` é o fim de um subagente despachado pela sessão: vira um Run
+    próprio, pendurado na sessão que o despachou, sem abrir nem fechar sessão.
+    """
 
     INICIO = "inicio"
     PROGRESSO = "progresso"
     FIM = "fim"
+    SUBAGENTE = "subagente"
 
 
 EVENTO_POR_FASE: Mapping[FaseDoHarness, TipoEvento] = {
     FaseDoHarness.INICIO: TipoEvento.EXECUCAO_SOLICITADA,
     FaseDoHarness.PROGRESSO: TipoEvento.EXECUCAO_INICIADA,
     FaseDoHarness.FIM: TipoEvento.EXECUCAO_CONCLUIDA,
+    FaseDoHarness.SUBAGENTE: TipoEvento.EXECUCAO_CONCLUIDA,
 }
 
 
@@ -59,10 +65,13 @@ class PedidoDeCicloDeVida:
     metadados: Mapping[str, Any] = field(default_factory=dict)
     diretorio_de_trabalho: str = ""
     motivo: str = ""
+    id_agente: str = ""
 
     @property
     def id_run(self) -> str:
-        """Identificador estável do Run, para as três fases atualizarem o mesmo nó."""
+        """Identificador estável do Run: um por sessão, para as fases dela; um por subagente despachado."""
+        if self.id_agente:
+            return f"run-{self.id_sessao}-{self.id_agente}"
         return f"run-{self.id_sessao}"
 
 
@@ -116,6 +125,8 @@ class ServicoHarness:
         """
         if pedido.fase == FaseDoHarness.INICIO:
             return self._abrir_sessao(pedido)
+        if pedido.fase == FaseDoHarness.SUBAGENTE:
+            return ""
         if pedido.fase == FaseDoHarness.FIM and self._sessao_existe(pedido):
             self._adaptador.registrar_fim_sessao(pedido.id_sessao, pedido.resumo)
         return ""

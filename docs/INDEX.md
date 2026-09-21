@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 157 módulos · 19252 linhas · 315 classes**
+**15 alas · 159 módulos · 19487 linhas · 317 classes**
 
 ---
 
@@ -64,10 +64,10 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 9 | 644 | 11 |
 | 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 16 | 2031 | 30 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |
-| 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 10 | 938 | 12 |
+| 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 12 | 1162 | 14 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2171 | 26 |
-| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 1022 | 10 |
+| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 1033 | 10 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 22 | 2622 | 45 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 9 | 1421 | 17 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 10 | 1377 | 30 |

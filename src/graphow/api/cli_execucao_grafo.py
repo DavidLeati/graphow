@@ -9,6 +9,7 @@ import sys
 
 from graphow.api.cli import GraphowCLI
 from graphow.api.console import EscritorConsole
+from graphow.harness.consumo_do_disparo import descrever_disparo, ler_consumo_do_disparo
 from graphow.harness.entrada_hook import (
     MODELO_DESCONHECIDO,
     EntradaDeHook,
@@ -176,26 +177,36 @@ class ManipuladorComandosGrafo:
         argumentos: argparse.Namespace,
         entrada: EntradaDeHook,
     ) -> PedidoDeCicloDeVida | None:
-        """Funde argumento e payload, recusando o disparo sem sessão identificada."""
+        """Funde argumento, payload e transcrição, recusando o disparo sem sessão identificada."""
         id_sessao = argumentos.sessao or entrada.id_sessao
         if not id_sessao:
             return None
+        fase = FaseDoHarness(argumentos.fase)
+        consumo = ler_consumo_do_disparo(fase, entrada)
+        lido = consumo.modelo_principal if consumo is not None else ""
         return PedidoDeCicloDeVida(
-            fase=FaseDoHarness(argumentos.fase),
+            fase=fase,
             id_sessao=id_sessao,
             id_setor=argumentos.setor,
-            modelo=self._resolver_modelo(argumentos.modelo, entrada.modelo),
+            modelo=self._resolver_modelo(argumentos.modelo, entrada.modelo, lido),
             resumo=argumentos.resumo,
             motivo=entrada.motivo,
+            metadados=descrever_disparo(fase, entrada, consumo),
             # O hook diz de onde rodou; fora de um hook, vale a pasta do processo.
             diretorio_de_trabalho=entrada.diretorio or os.getcwd(),
+            id_agente=entrada.id_agente if fase == FaseDoHarness.SUBAGENTE else "",
         )
 
-    def _resolver_modelo(self, declarado: str, do_hook: str) -> str:
-        """O modelo escrito na linha de comando vence; o payload preenche a lacuna."""
-        if declarado and declarado != MODELO_DESCONHECIDO:
-            return declarado
-        return do_hook
+    def _resolver_modelo(self, declarado: str, do_hook: str, lido: str) -> str:
+        """A linha de comando vence; depois o payload; depois o modelo que a transcrição mostra.
+
+        O payload do fim não traz o modelo, e o Run gravava "desconhecido" por
+        cima do que o início tinha registrado.
+        """
+        for candidato in (declarado, do_hook, lido):
+            if candidato and candidato != MODELO_DESCONHECIDO:
+                return candidato
+        return MODELO_DESCONHECIDO
 
     def _executar_mcp(self, argumentos: argparse.Namespace) -> int:
         """Inicia o servidor MCP com a identidade fixada no momento da abertura."""

@@ -279,6 +279,9 @@ graphow skill-instalar
 graphow harness --fase inicio --sessao sess-01 --modelo opus-5
 graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 
+# O fim de um subagente (hook SubagentStop): um Run com os tokens, o modelo e as tarefas que ele assumiu
+graphow harness --fase subagente --entrada-hook
+
 # Medir tokens por tarefa bem-sucedida sobre o corpus gravado
 graphow avaliar
 

@@ -25,6 +25,13 @@ CHAVES_DE_IDENTIFICACAO_DO_MODELO: tuple[str, ...] = ("id", "display_name")
 # declara. Nenhum dos dois é garantido, e a ausência não impede o registro.
 CHAVES_DE_MOTIVO: tuple[str, ...] = ("reason", "source", "hook_event_name")
 
+# A transcrição é de onde o harness lê os tokens da execução. No SubagentStop o
+# payload diz também qual subagente terminou, e às vezes onde está a transcrição dele.
+CHAVE_TRANSCRICAO: str = "transcript_path"
+CHAVE_TRANSCRICAO_DO_AGENTE: str = "agent_transcript_path"
+CHAVE_ID_AGENTE: str = "agent_id"
+CHAVE_TIPO_AGENTE: str = "agent_type"
+
 MODELO_DESCONHECIDO: str = "desconhecido"
 
 
@@ -36,11 +43,19 @@ class EntradaDeHook:
     modelo: str = MODELO_DESCONHECIDO
     motivo: str = ""
     diretorio: str = ""
+    transcricao: str = ""
+    transcricao_do_agente: str = ""
+    id_agente: str = ""
+    tipo_agente: str = ""
 
     @property
     def tem_sessao(self) -> bool:
         """Informa se a entrada trouxe um identificador de sessão utilizável."""
         return bool(self.id_sessao)
+
+    def caminhos_de_transcricao(self) -> dict[str, str]:
+        """Os caminhos como o ambiente os nomeia, para quem procura a transcrição de um subagente."""
+        return {CHAVE_TRANSCRICAO: self.transcricao, CHAVE_TRANSCRICAO_DO_AGENTE: self.transcricao_do_agente}
 
 
 def interpretar_entrada_de_hook(texto: str) -> EntradaDeHook:
@@ -52,8 +67,17 @@ def interpretar_entrada_de_hook(texto: str) -> EntradaDeHook:
         id_sessao=str(dados.get(CHAVE_SESSAO, "")).strip(),
         modelo=_extrair_modelo(dados.get(CHAVE_MODELO)),
         motivo=_extrair_motivo(dados),
-        diretorio=str(dados.get(CHAVE_DIRETORIO, "") or "").strip(),
+        diretorio=_texto(dados, CHAVE_DIRETORIO),
+        transcricao=_texto(dados, CHAVE_TRANSCRICAO),
+        transcricao_do_agente=_texto(dados, CHAVE_TRANSCRICAO_DO_AGENTE),
+        id_agente=_texto(dados, CHAVE_ID_AGENTE),
+        tipo_agente=_texto(dados, CHAVE_TIPO_AGENTE),
     )
+
+
+def _texto(dados: dict[str, Any], chave: str) -> str:
+    """O valor da chave como texto sem espaços nas pontas; vazio quando ausente."""
+    return str(dados.get(chave, "") or "").strip()
 
 
 def ler_entrada_de_hook(fonte: IO[str]) -> EntradaDeHook:

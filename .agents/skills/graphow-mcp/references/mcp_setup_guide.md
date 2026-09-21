@@ -101,4 +101,12 @@ graphow harness --fase progresso --sessao sess-01
 graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 ```
 
+O `SessionEnd` também lê a transcrição da sessão (`transcript_path`) e grava no `Run` os tokens por categoria (entrada, saída, leitura e criação de cache), o modelo que de fato respondeu e quantas mensagens o modelo mandou, cada uma contada uma vez. O `SubagentStop` chama a fase `subagente`, que grava um `Run` por subagente, pendurado na sessão que o despachou, com os tokens, o modelo e as tarefas que ele assumiu:
+
+```powershell
+graphow harness --fase subagente --entrada-hook
+```
+
+Sem transcrição legível o `Run` fica sem tokens, em vez de ficar com zero inventado.
+
 `--sessao` e `--entrada-hook` são mutuamente exclusivos, e um dos dois é obrigatório. O comando roda dentro do hook, então é curto e não interativo de propósito: qualquer espera ali atrasa o agente. A identidade é a do harness, papel `sistema`, que registra a própria `Sessao`, a telemetria `Run` e, na falta de um Setor configurado, o ambiente padrão; nada do grafo de trabalho.

@@ -17,7 +17,12 @@
     "A versao anterior passava $CLAUDE_SESSION_ID e $CLAUDE_MODEL, variaveis que o",
     "ambiente nao define: o id da sessao e o diretorio chegam no JSON da entrada",
     "padrao. Com a variavel vazia o comando terminava em IndexError. '--entrada-hook'",
-    "le esse JSON no proprio subcomando, sem depender de 'jq' no PATH."
+    "le esse JSON no proprio subcomando, sem depender de 'jq' no PATH.",
+    "SessionEnd tambem le a transcricao da sessao (transcript_path) e grava no Run os",
+    "tokens por categoria, o modelo que de fato respondeu e as mensagens do modelo,",
+    "cada mensagem contada uma vez. SubagentStop grava um Run por subagente, pendurado",
+    "na sessao que o despachou, com os tokens, o modelo e as tarefas que ele assumiu:",
+    "e com esses Run que 'graphow orquestracao-medir' compara configuracoes de modelo."
   ],
   "hooks": {
     "SessionStart": [
@@ -37,6 +42,17 @@
           {
             "type": "command",
             "command": "graphow harness --fase fim --entrada-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphow harness --fase subagente --entrada-hook",
             "timeout": 10
           }
         ]
