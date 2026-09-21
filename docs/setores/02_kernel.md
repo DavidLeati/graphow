@@ -10,19 +10,20 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-13 módulos · 2134 linhas · 23 classes
+14 módulos · 2327 linhas · 25 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 129 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 324 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 126 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 352 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 129 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 166 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 395 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 400 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 295 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 255 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
@@ -97,6 +98,41 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 
 - `validar(proposta: PropostaPatch, estado: GrafoEstado, locks_ativos: Mapping[str, str] | None) -> ResultadoValidacao` — Executa validação de invariantes de ciclo, questões bloqueantes e locks.
 
+## `kernel/localizacao.py`
+
+Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_ARQUIVO` | `str` | `'arquivo'` |
+| `CAMPO_LINHAS` | `str` | `'linhas'` |
+| `CAMPO_TRECHO` | `str` | `'trecho'` |
+| `CAMPOS_QUE_DECLARAM_PONTEIRO` | `tuple[str, ...]` | `(CAMPO_LINHAS, CAMPO_TRECHO)` |
+| `PADRAO_DE_FAIXA` | `re.Pattern[str]` | `re.compile('^\\s*(\\d+)\\s*(?:[-–]\\s*(\\d+)\\s*)?$')` |
+
+### `EvidenciaNoLote`
+
+*DTO imutável* — Uma Evidence que o lote cria ou edita, como ela ficará gravada depois dele.
+
+**Campos:** `id: str`, `papel_de_quem_criou: str`, `propriedades: Mapping[str, Any]`
+
+- `exige_localizacao() -> bool` `[property]` — Do planejador, sempre; de qualquer papel, quando cita linhas ou trecho.
+
+### `FaixaDeLinhas`
+
+*DTO imutável* — Linhas de início e fim, as duas inclusivas e contadas a partir de 1.
+
+**Campos:** `inicio: int`, `fim: int`
+
+- `total() -> int` `[property]` — Quantas linhas a faixa cobre.
+
+### Funções do módulo
+
+- `interpretar_faixa(valor: object) -> FaixaDeLinhas | None` — Lê `linhas` como faixa; None quando a forma não descreve linhas de arquivo.
+- `contar_linhas(trecho: str) -> int` — Linhas como o editor as conta: só quebra de linha separa, e a quebra final não abre linha nova.
+- `diagnosticar_localizacao(propriedades: Mapping[str, Any]) -> str | None` — O que falta ou está errado no ponteiro; None quando ele está inteiro.
+- `projetar_evidencias_do_lote(proposta: PropostaPatch, estado: GrafoEstado) -> tuple[EvidenciaNoLote, ...]` — As Evidence que o lote toca, depois de convertidas e aplicadas como o kernel as gravaria.
+
 ## `kernel/matriz_papeis.py`
 
 Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
@@ -111,6 +147,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
 | `HUMANO_E_TRABALHO` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}` |
+| `QUEM_JUSTIFICA` | `frozenset[PapelAutor]` | `HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR}` |
 | `TODOS_OS_PAPEIS_DE_AGENTE` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |

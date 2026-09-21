@@ -35,6 +35,9 @@ STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO: frozenset[str] = frozenset(
 SO_HUMANO: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO})
 HUMANO_E_PLANEJADOR: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.PLANEJADOR}
 HUMANO_E_TRABALHO: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}
+# Justificar é ligar a Evidence à Decision que ela sustenta. Quem registra os
+# dois lados justifica: o planejador decide sobre o trecho que leu.
+QUEM_JUSTIFICA: frozenset[PapelAutor] = HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR}
 TODOS_OS_PAPEIS_DE_AGENTE: frozenset[PapelAutor] = frozenset(
     {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
 )
@@ -75,7 +78,7 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     TipoAresta.DECOMPOE: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
     TipoAresta.DEPENDE_DE: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
     TipoAresta.BLOQUEIA: DonosDeAresta(adicao=HUMANO_E_AGENTES, remocao=SO_HUMANO),
-    TipoAresta.JUSTIFICA: DonosDeAresta(adicao=HUMANO_E_TRABALHO, remocao=HUMANO_E_TRABALHO),
+    TipoAresta.JUSTIFICA: DonosDeAresta(adicao=QUEM_JUSTIFICA, remocao=QUEM_JUSTIFICA),
     TipoAresta.CONTRADIZ: DonosDeAresta(adicao=HUMANO_E_TRABALHO, remocao=HUMANO_E_TRABALHO),
     TipoAresta.SUBSTITUI: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
     TipoAresta.ESCOPA: DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO),

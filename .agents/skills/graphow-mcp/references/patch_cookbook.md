@@ -70,6 +70,58 @@ Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O
 }
 ```
 
+## planejador: registrar o trecho lido e a decisão que ele sustenta
+
+O planejador decide em cima do código que leu, e o que leu entra como `Evidence` com o ponteiro inteiro: `arquivo`, `linhas` e o `trecho` literal dessas linhas. Sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai.
+
+```json
+{
+  "justificativa": "Base de dias do fator de desconto confirmada no codigo",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/evi-fator-base-252",
+      "value": {
+        "id": "evi-fator-base-252",
+        "tipo": "Evidence",
+        "rotulo": "O fator de desconto usa base 252 dias uteis",
+        "propriedades": {
+          "arquivo": "src/precos/fator.py",
+          "linhas": "40-42",
+          "trecho": "def taxa_para_fator(taxa: float, dias: int) -> float:\n    \"\"\"Desconto.\"\"\"\n    return (1 + taxa) ** (-dias / 252)",
+          "relevancia": "e onde a taxa de compra vira fator de desconto"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-evi-fator-base-252",
+      "value": { "id": "prod-evi-fator-base-252", "origem_id": "sess-sprint-01", "destino_id": "evi-fator-base-252", "tipo": "produz" }
+    },
+    {
+      "op": "add",
+      "path": "/nos/dec-manter-base-252",
+      "value": {
+        "id": "dec-manter-base-252",
+        "tipo": "Decision",
+        "rotulo": "O novo calculo reusa taxa_para_fator em vez de repetir a formula",
+        "propriedades": { "motivo": "a base 252 ja esta la; duas formulas divergiriam na primeira mudanca de convencao" }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-dec-manter-base-252",
+      "value": { "id": "prod-dec-manter-base-252", "origem_id": "sess-sprint-01", "destino_id": "dec-manter-base-252", "tipo": "produz" }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/just-base-252",
+      "value": { "id": "just-base-252", "origem_id": "evi-fator-base-252", "destino_id": "dec-manter-base-252", "tipo": "justifica" }
+    }
+  ]
+}
+```
+
 ## executor: começar o trabalho
 
 Não escreva `em_andamento` por patch. `assumir_tarefa(id_task)` toma a posse e move o status na mesma operação, e sem essa posse o InvariantGate recusa qualquer mudança de status sua com `posse_de_tarefa_ausente`.

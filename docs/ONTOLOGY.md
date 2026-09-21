@@ -11,6 +11,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
    - **Camada de Trabalho**: Nós semânticos de intenção, execução e evidência pendurados exclusivamente em instâncias de `Sessao`. Tanto humanos quanto agentes interagem com a camada de trabalho.
    - **Nenhum nó nasce solto**: exceto `Projeto`, todo nó criado recebe no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). O `InvariantGate` recusa o lote com `no_fora_da_hierarquia` para qualquer papel, humano incluído.
    - **Memória diz de onde veio**: o `Aprendizado` é o único nó de trabalho que atravessa a hierarquia, e por isso é o único que nasce apontando obrigatoriamente para a origem. Sem uma aresta `deriva_de` no mesmo lote, o `InvariantGate` recusa com `aprendizado_sem_origem`. O alcance dele (`vale_para` um `Projeto` ou `Setor`, ou a propriedade `alcance: global`) é escrito só pelo humano.
+   - **Leitura de código diz onde leu**: a `Evidence` do planejador é o que ele leu no código para decidir, e nasce com o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Toda `Evidence` que cite `linhas` ou `trecho`, de qualquer papel, cita os três. O `InvariantGate` recusa na criação e na edição com `evidencia_sem_localizacao`; o portão não lê o disco, para o replay dar o mesmo veredito anos depois, e garante a forma que torna a conferência possível.
    - **A Sessão tem ciclo de vida** (`ativa`, `concluida`). Encerrada, a vista dela abre pelo fechamento determinístico (decisões vigentes, dúvidas abertas, restrições, último artefato), que é projeção do log e nunca é gravado, e o motor reativo abre nela a `Task` de condensação.
 
 2. **Temporalidade Bitemporal**:
@@ -45,7 +46,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Question` | Ponto de dúvida ou ambiguidade que requer resposta humana. | `planejador`, `executor`, `revisor` |
 | `Constraint` | Restrição ou regra mandatória de negócio/código. | `humano` |
 | `Artifact` | Entregável produzido (código, documento, patch, arquivo). | `executor` |
-| `Evidence` | Fato observado no mundo (saída de teste, log, retorno de busca). | `executor`, `revisor` |
+| `Evidence` | Fato observado no mundo (saída de teste, log, retorno de busca, trecho de código lido). | `planejador` (só leitura de código, localizada), `executor`, `revisor` |
 | `Run` | Registro de uma execução de agente (modelo, tokens, latência). | `sistema` |
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
@@ -83,7 +84,7 @@ só o humano a retira.
 | `decompoe` | `humano`, `planejador` | `humano`, `planejador` |
 | `depende_de` | `humano`, `planejador` | `humano`, `planejador` |
 | `bloqueia` | `humano`, `planejador`, `executor`, `revisor` | `humano` |
-| `justifica` | `humano`, `executor`, `revisor` | `humano`, `executor`, `revisor` |
+| `justifica` | `humano`, `planejador`, `executor`, `revisor` | `humano`, `planejador`, `executor`, `revisor` |
 | `contradiz` | `humano`, `executor`, `revisor` | `humano`, `executor`, `revisor` |
 | `substitui` | `humano`, `planejador` | `humano`, `planejador` |
 | `escopa` | `humano` | `humano` |
@@ -107,7 +108,7 @@ tarefa.
 | Papel | Nós que pode criar | Campos que pode editar | Ações proibidas |
 |---|---|---|---|
 | `humano` | Todos | Todos | Nenhuma |
-| `planejador` | `Task`, `Decision`, `Question`, `Note` | `titulo`, `descricao`, `criterio_pronto` de `Task` | Fechar `Task`, editar `Constraint`, encerrar `Question`, registrar ou promover `Aprendizado` |
+| `planejador` | `Task`, `Decision`, `Question`, `Note`, `Evidence` localizada | `titulo`, `descricao`, `criterio_pronto` de `Task` | Fechar `Task`, editar `Constraint`, encerrar `Question`, registrar ou promover `Aprendizado` |
 | `executor` | `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado` | `status` da `Task` cuja posse detém | Criar `Task`, editar `Constraint`, encerrar `Question`, mexer em `Task` de outro, promover `Aprendizado` |
 | `revisor` | `Evidence`, `Question`, `Note`, `Aprendizado` | Status de revisão da `Task` cuja posse detém | Fechar `Task` diretamente, encerrar `Question`, promover `Aprendizado` |
 | `sistema` | `Run`, `Sessao`, e `Projeto` e `Setor` do ambiente padrão da memória | Métricas de execução e a própria `Sessao` | Criar ou alterar nós semânticos de trabalho |

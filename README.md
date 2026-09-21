@@ -89,7 +89,7 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`decompoe`** | `Goal` $\rightarrow$ `Task`, `Task` $\rightarrow$ `Task` | humano, planejador | Decomposição hierárquica de tarefas. |
 | **`depende_de`** | `Task` $\rightarrow$ `Task` | humano, planejador | Pré-requisito de execução (DAG acíclico estrito). |
 | **`bloqueia`** | `Question` $\rightarrow$ `Task` | todos / **humano** | Bloqueia a conclusão da tarefa até resolução humana. |
-| **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, executor, revisor | Fundamentação empírica de decisões. |
+| **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, planejador, executor, revisor | Fundamentação empírica de decisões. |
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
 | **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador | Evolução e invalidação histórica. O substituído segue visível, marcado. |
 | **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
@@ -105,7 +105,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito (único autorizado a criar/editar `Constraint`, encerrar uma `Question` e estruturar a camada de navegação).
-   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note`; decompõe e ordena; proibido de fechar tarefas.
+   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe e ordena; proibido de fechar tarefas.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
@@ -120,6 +120,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 3. **Portão 3 — `InvariantGate`:**
    - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, precisa receber no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada.
    - **Memória com Origem:** Todo `Aprendizado` novo precisa de ao menos uma aresta `deriva_de` partindo dele no mesmo lote; sem ela o lote cai com `aprendizado_sem_origem`. Memória sem origem é opinião com autoridade de memória.
+   - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.

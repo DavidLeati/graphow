@@ -71,7 +71,12 @@ class RoleGate:
         # Aprendizado nasce apontando para a origem, e a camada de proveniência
         # do trabalho segue fechada a quem só planeja. O que nenhum agente pode
         # é promovê-lo.
-        PapelAutor.PLANEJADOR: frozenset({TipoNo.TASK, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE}),
+        # A Evidence do planejador é o que ele leu no código para decidir: o
+        # explorador só aponta trechos, e o julgamento fica com quem planeja. O
+        # InvariantGate exige dela arquivo, linhas e trecho (kernel/localizacao.py).
+        PapelAutor.PLANEJADOR: frozenset(
+            {TipoNo.TASK, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.EVIDENCE}
+        ),
         PapelAutor.EXECUTOR: frozenset(
             {TipoNo.ARTIFACT, TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}
         ),

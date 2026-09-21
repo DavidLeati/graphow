@@ -8,6 +8,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
+from graphow.kernel.localizacao import EvidenciaNoLote, diagnosticar_localizacao, projetar_evidencias_do_lote
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -47,6 +48,9 @@ class InvariantGate:
         resultado_origem = self._validar_origem_de_aprendizado(proposta)
         if not resultado_origem.aprovado:
             return resultado_origem
+        resultado_localizacao = self._validar_localizacao_de_evidencia(proposta, estado)
+        if not resultado_localizacao.aprovado:
+            return resultado_localizacao
         resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estado)
         if not resultado_bloqueio.aprovado:
             return resultado_bloqueio
@@ -152,6 +156,30 @@ class InvariantGate:
             "InvariantGate",
             {"id_no": id_no},
             modo=ModoFalhaMAST.APRENDIZADO_SEM_ORIGEM,
+        )
+
+    def _validar_localizacao_de_evidencia(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
+        """Recusa a Evidence que ficaria sem o ponteiro inteiro quando precisa dele.
+
+        A do planejador é leitura de código e nasce com `arquivo`, `linhas` e
+        `trecho`; a de qualquer papel que cite `linhas` ou `trecho` cita os três.
+        Vale na criação e na edição: sem isso a Evidence nasceria inteira e
+        perderia o trecho no lote seguinte. Ver kernel/localizacao.py.
+        """
+        for evidencia in projetar_evidencias_do_lote(proposta, estado):
+            problema = diagnosticar_localizacao(evidencia.propriedades) if evidencia.exige_localizacao else None
+            if problema is not None:
+                return self._recusar_evidencia_sem_localizacao(evidencia, problema)
+        return ResultadoValidacao.sucesso()
+
+    def _recusar_evidencia_sem_localizacao(self, evidencia: EvidenciaNoLote, problema: str) -> ResultadoValidacao:
+        """Diz o que falta no ponteiro, para o autor refazer o lote sem adivinhar."""
+        return ResultadoValidacao.falha(
+            f"Evidence '{evidencia.id}' sem localizacao inteira: {problema}. Evidence de leitura de codigo "
+            "carrega 'arquivo', 'linhas' ('120' ou '120-135') e 'trecho' (o texto literal dessas linhas)",
+            "InvariantGate",
+            {"id_no": evidencia.id, "papel_de_quem_criou": evidencia.papel_de_quem_criou},
+            modo=ModoFalhaMAST.EVIDENCIA_SEM_LOCALIZACAO,
         )
 
     def _validar_posse_da_tarefa(

@@ -25,15 +25,18 @@ def test_protocolo_cita_a_sessao_quando_o_hook_a_conhece_nominal() -> None:
 
 
 def test_linha_do_papel_sai_do_role_gate_nominal() -> None:
-    """O planejador não cria Evidence nem registra Aprendizado, e o texto diz isso antes do portão."""
+    """O planejador cria Evidence localizada e não registra Aprendizado, e o texto diz isso antes do portão."""
     executor = montar_protocolo(papel=PapelAutor.EXECUTOR)[-1]
     planejador = montar_protocolo(papel=PapelAutor.PLANEJADOR)[-1]
 
     assert "`executor`" in executor
     assert "Evidence" in executor
     assert "registra Aprendizado" in executor
+    assert "evidencia_sem_localizacao" not in executor
     assert "`planejador`" in planejador
-    assert "Evidence" not in planejador
+    assert "cria Evidence" in planejador
+    assert "`trecho`" in planejador
+    assert "evidencia_sem_localizacao" in planejador
     assert "nao registra Aprendizado" in planejador
 
 

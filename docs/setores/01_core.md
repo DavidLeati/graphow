@@ -10,13 +10,13 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-7 módulos · 656 linhas · 33 classes
+7 módulos · 659 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
-| [`core/falhas.py`](#corefalhas) | 66 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
+| [`core/falhas.py`](#corefalhas) | 69 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/models.py`](#coremodels) | 203 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 62 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/types.py`](#coretypes) | 111 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |

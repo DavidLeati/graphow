@@ -38,6 +38,7 @@ class ModoFalhaMAST(str, Enum):
     PAR_DE_ARESTA_INVALIDO = "par_de_aresta_invalido"
     NO_FORA_DA_HIERARQUIA = "no_fora_da_hierarquia"
     APRENDIZADO_SEM_ORIGEM = "aprendizado_sem_origem"
+    EVIDENCIA_SEM_LOCALIZACAO = "evidencia_sem_localizacao"
     OUTRO = "outro"
 
 
@@ -57,6 +58,8 @@ CATEGORIA_POR_MODO: Mapping[ModoFalhaMAST, CategoriaFalhaMAST] = {
     ModoFalhaMAST.NO_FORA_DA_HIERARQUIA: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
     # Memória sem origem é conhecimento que ninguém verificou: falha de verificação.
     ModoFalhaMAST.APRENDIZADO_SEM_ORIGEM: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
+    # Leitura de código sem o ponteiro que a torna conferível: mesma família.
+    ModoFalhaMAST.EVIDENCIA_SEM_LOCALIZACAO: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
     ModoFalhaMAST.OUTRO: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
 }
 

@@ -18,7 +18,7 @@ Camada de trabalho:
 - `Question`: dúvida que bloqueia tarefa até a resposta humana.
 - `Constraint`: restrição obrigatória de técnica, segurança ou escopo.
 - `Artifact`: entregável concreto, de código a especificação.
-- `Evidence`: dado empírico, benchmark, telemetria ou prova.
+- `Evidence`: dado empírico, benchmark, telemetria, prova ou trecho de código lido. Quando cita `linhas` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro: `arquivo`, `linhas` e `trecho`.
 - `Run`: registro de execução e telemetria de invocação de modelo.
 - `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
 - `Aprendizado`: memória de longo prazo, o que sobrevive ao projeto. O rótulo é a afirmação; `como_aplicar` diz o que fazer com ela. Nasce com `deriva_de` obrigatório e só alcança outros projetos quando o humano o promove.
@@ -34,7 +34,7 @@ Camada de trabalho:
 | `depende_de` | `Task`→`Task` | humano, planejador | humano, planejador |
 | `substitui` | `Decision`→`Decision`, `Task`→`Task`, `Aprendizado`→`Aprendizado` | humano, planejador | humano, planejador |
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | só humano |
-| `justifica` | `Evidence`→`Decision` | humano, executor, revisor | humano, executor, revisor |
+| `justifica` | `Evidence`→`Decision` | humano, planejador, executor, revisor | humano, planejador, executor, revisor |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence`, `Evidence`→`Aprendizado` | humano, executor, revisor | humano, executor, revisor |
 | `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
 | `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | só humano | só humano |
@@ -46,7 +46,7 @@ Num Projeto marcado com `nivel_autonomia: ilimitado`, a criação se amplia para
 
 Num projeto de autonomia estrita:
 
-- `planejador`: `Task`, `Decision`, `Question`, `Note`.
+- `planejador`: `Task`, `Decision`, `Question`, `Note`, `Evidence`. A `Evidence` do planejador é o que ele leu no código e nasce com `arquivo`, `linhas` e `trecho` (`evidencia_sem_localizacao` na falta de um deles).
 - `executor`: `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado`.
 - `revisor`: `Evidence`, `Question`, `Note`, `Aprendizado`. Registra `Aprendizado` quem detém `deriva_de`, a aresta de origem que ele exige.
 - `sistema`, a identidade do harness: `Run`, `Sessao` e, quando o hook roda sem `--setor`, o ambiente padrão da memória (o `Projeto` com o nome do repositório e o `Setor` `Memoria`). Nada do grafo de trabalho.

@@ -11,6 +11,8 @@ fonte só, para as duas superfícies dizerem a mesma coisa. O texto é ASCII
 porque atravessa canos cuja codificação ninguém controla.
 """
 
+from collections.abc import Mapping
+
 from graphow.core.types import PapelAutor, TipoNo
 from graphow.kernel.role_gate import RoleGate
 
@@ -28,6 +30,14 @@ TIPOS_DE_REGISTRO: tuple[TipoNo, ...] = (
     TipoNo.TASK,
     TipoNo.QUESTION,
 )
+
+# O que o portão exige a mais de um papel, dito antes da primeira recusa.
+EXIGENCIAS_DO_PAPEL: Mapping[PapelAutor, str] = {
+    PapelAutor.PLANEJADOR: (
+        "Sua Evidence e leitura de codigo: nasce com `arquivo`, `linhas` ('120-135') e o `trecho` literal "
+        "dessas linhas, ou o InvariantGate recusa com evidencia_sem_localizacao."
+    ),
+}
 
 PASSOS_DO_PROTOCOLO: tuple[str, ...] = (
     "Durante o trabalho, registre no grafo o que descobriu e decidiu, produzido pela sessao "
@@ -72,4 +82,5 @@ def _linha_do_papel(papel: PapelAutor | None) -> tuple[str, ...]:
         aprendizado = "registra Aprendizado"
     else:
         aprendizado = "nao registra Aprendizado: peca ao executor ou ao revisor"
-    return (f"Seu papel nesta conexao e `{papel.value}`: cria {tipos}; {aprendizado}.",)
+    exigencia = f" {EXIGENCIAS_DO_PAPEL[papel]}" if papel in EXIGENCIAS_DO_PAPEL else ""
+    return (f"Seu papel nesta conexao e `{papel.value}`: cria {tipos}; {aprendizado}.{exigencia}",)
