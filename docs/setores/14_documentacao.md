@@ -10,7 +10,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-10 módulos · 1366 linhas · 30 classes
+10 módulos · 1377 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
 | [`documentacao/setores.py`](#documentacaosetores) | 161 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
 | [`documentacao/skill.py`](#documentacaoskill) | 70 | Instalação da skill do agente no diretório de skills do ambiente. |
-| [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 252 | Confere os exemplos de linha de comando dos guias contra o parser real. |
+| [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 263 | Confere os exemplos de linha de comando dos guias contra o parser real. |
 
 ## `documentacao/__init__.py`
 
@@ -303,6 +303,7 @@ Confere os exemplos de linha de comando dos guias contra o parser real.
 | `PADRAO_INVOCACAO_CLI` | `re.Pattern[str]` | `re.compile('^\\s*(?:\\$\\s*)?graphow\\s+(?P<argumentos>\\S.*)$')` |
 | `PADRAO_INVOCACAO_STDIO` | `re.Pattern[str]` | `re.compile('^\\s*(?:\\$\\s*)?(?:python|py)\\s+-m\\s+graphow\\.mcp\\.std…` |
 | `PADRAO_ARGS_JSON` | `re.Pattern[str]` | `re.compile('"args"\\s*:\\s*(?P<lista>\\[[^\\]]*\\])', re.DOTALL)` |
+| `SUBCOMANDOS_DO_EXECUTAVEL` | `frozenset[str]` | `frozenset({'mcp', 'harness'})` |
 | `PADRAO_COMANDO_JSON` | `re.Pattern[str]` | `re.compile('"command"\\s*:\\s*"(?P<comando>(?:[^"\\\\]|\\\\.)*)"')` |
 | `PADRAO_VARIAVEL_DE_AMBIENTE` | `re.Pattern[str]` | `re.compile('\\$\\{?\\w+\\}?|%\\w+%')` |
 | `MODULO_STDIO` | `str` | `'graphow.mcp.stdio_server'` |

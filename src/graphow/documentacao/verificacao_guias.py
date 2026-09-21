@@ -23,6 +23,9 @@ PADRAO_INVOCACAO_STDIO: re.Pattern[str] = re.compile(
     r"^\s*(?:\$\s*)?(?:python|py)\s+-m\s+graphow\.mcp\.stdio_server\s*(?P<argumentos>.*)$"
 )
 PADRAO_ARGS_JSON: re.Pattern[str] = re.compile(r'"args"\s*:\s*(?P<lista>\[[^\]]*\])', re.DOTALL)
+# Uma lista `args` que começa por um destes subcomandos é o executável `graphow`,
+# e passa pelo parser da CLI como a linha de comando equivalente.
+SUBCOMANDOS_DO_EXECUTAVEL: frozenset[str] = frozenset({"mcp", "harness"})
 # A aspa escapada dentro do comando faz parte do valor: sem tratar a barra, o
 # casamento parava em `--sessao "` e escondia justamente a variavel ofensora.
 PADRAO_COMANDO_JSON: re.Pattern[str] = re.compile(
@@ -151,11 +154,19 @@ def _extrair_de_blocos_json(conteudo: str, relativo: str) -> Iterator[InvocacaoD
     """Lê os arrays `args` das configurações de harness publicadas nos guias."""
     for correspondencia in PADRAO_ARGS_JSON.finditer(conteudo):
         argumentos = _interpretar_lista_json(correspondencia.group("lista"))
-        if argumentos is None or MODULO_STDIO not in argumentos:
-            continue
-        linha = _numero_da_linha(conteudo, correspondencia.start())
+        invocacao = _invocacao_da_lista(argumentos or [], relativo, _numero_da_linha(conteudo, correspondencia.start()))
+        if invocacao is not None:
+            yield invocacao
+
+
+def _invocacao_da_lista(argumentos: list[str], relativo: str, linha: int) -> InvocacaoDocumentada | None:
+    """O módulo stdio pelo nome, ou o executável pelo subcomando com que a lista começa."""
+    if MODULO_STDIO in argumentos:
         posteriores = argumentos[argumentos.index(MODULO_STDIO) + 1 :]
-        yield InvocacaoDocumentada(relativo, linha, AlvoDeParser.STDIO, tuple(posteriores))
+        return InvocacaoDocumentada(relativo, linha, AlvoDeParser.STDIO, tuple(posteriores))
+    if argumentos and argumentos[0] in SUBCOMANDOS_DO_EXECUTAVEL:
+        return InvocacaoDocumentada(relativo, linha, AlvoDeParser.CLI, tuple(argumentos))
+    return None
 
 
 def _interpretar_lista_json(texto: str) -> list[str] | None:

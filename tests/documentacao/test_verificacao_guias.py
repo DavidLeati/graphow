@@ -66,3 +66,24 @@ def test_json_sem_comando_algum_nao_gera_problema_edge_case(tmp_path: Path) -> N
     (destino / "config.json").write_text('{"tema": "escuro"}', encoding="utf-8")
 
     assert VerificadorDeGuias(tmp_path).verificar() == ()
+
+
+def test_configuracao_que_chama_o_executavel_passa_pelo_parser_da_cli_nominal(tmp_path: Path) -> None:
+    """O bloco que chama `graphow` com `args` começando no subcomando é validado como a linha de comando."""
+    destino = tmp_path / ".agents"
+    destino.mkdir(parents=True)
+    bloco = '```json\n{"command": "graphow", "args": ["mcp", "--papel", "executor", "--autor", "agente-x"]}\n```\n'
+    (destino / "ok.md").write_text(bloco, encoding="utf-8")
+    (destino / "quebrado.md").write_text(bloco.replace('"--autor", "agente-x"', '"--posse-propria"'), encoding="utf-8")
+
+    problemas = VerificadorDeGuias(tmp_path).verificar()
+
+    assert [problema.arquivo for problema in problemas] == [".agents/quebrado.md"]
+    assert "--posse-propria" in problemas[0].motivo
+
+
+def test_todo_guia_publicado_passa_pelo_parser_real_nominal() -> None:
+    """Skills, fiação de hooks e README: nenhum exemplo que o parser recusaria."""
+    problemas = [problema.descrever() for problema in VerificadorDeGuias(RAIZ_PROJETO).verificar()]
+
+    assert not problemas, problemas
