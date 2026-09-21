@@ -581,6 +581,42 @@ grafo pelo harness, e é dali que o motor reativo pede a condensação.
 
 ---
 
+## 🎼 Orquestração: um Goal, vários agentes, o estado no grafo
+
+O Graphow sustenta uma orquestração em que o estado mora no grafo, e não na
+conversa. Um orquestrador no papel `planejador` decompõe o `Goal` em `Task`,
+registra as decisões e despacha agentes, cada um com o próprio servidor MCP,
+porque o papel é fixado na abertura da conexão: executores no papel `executor`,
+revisores no papel `revisor`. Nenhum deles precisa de especificação em prosa: o
+despacho pode ser só o id da tarefa, e a vista dela traz o resto. É o que deixa
+o orquestrador encerrar a sessão a cada tarefa fechada e voltar pela vista de
+retomada.
+
+O kernel sustenta cinco peças desse arranjo:
+
+| Peça | Onde |
+| :--- | :--- |
+| O planejador registra a `Evidence` do que leu no código, sempre com `arquivo`, `linhas` e `trecho`; sem o ponteiro inteiro, `evidencia_sem_localizacao` | `kernel/localizacao.py`, `InvariantGate` |
+| A `Decision` diz onde vale por `orienta`, e chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão | ontologia 1.2.0 |
+| `ler_vista(..., perspectiva="executor")` é o teste do executor frio, feito antes de todo despacho | `mcp/ferramentas_leitura.py` |
+| `criar_tarefa` grava `modelo` (com motivo), `arquivos_alvo`, `corrige` e as decisões; `proximas_tarefas` os devolve para o despacho e o paralelismo | `core/orquestracao.py` |
+| Cada subagente tem posse própria (`--autor-por-conexao`), e o harness grava um `Run` por subagente, com tokens, modelo e as tarefas que ele assumiu | `harness/transcricao.py` |
+
+Para decidir a divisão de modelos por número, e não por palpite, o mesmo
+conjunto de tarefas roda sob configurações diferentes (a propriedade
+`configuracao` do Goal), e a medição compara:
+
+```bash
+graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao
+```
+
+O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as
+rejeições na revisão e os tokens por tarefa concluída. Os `Run` dos agentes
+despachados vêm do hook `SubagentStop`, que está na fiação de
+[`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
+
+---
+
 ## 📊 Métrica Número Um: Tokens por Tarefa Bem-Sucedida
 
 `graphow avaliar` mede essa métrica sobre um
