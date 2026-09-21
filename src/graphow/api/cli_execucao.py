@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 from graphow.api.cli import GraphowCLI, descrever_localizacao_banco
 from graphow.api.console import EscritorConsole, EscritorConsolePadrao
@@ -37,6 +38,20 @@ RAIZ_PROJETO: Path = Path(__file__).resolve().parents[3]
 RAIZ_CODIGO_FONTE: Path = RAIZ_PROJETO / "src" / "graphow"
 RAIZ_DOCUMENTACAO: Path = RAIZ_PROJETO / "docs"
 
+# O servidor MCP fala JSON-RPC pela saída padrão. A linha "Banco: ..." e o aviso
+# de pasta sincronizada chegavam ao cliente antes do aperto de mão, como
+# mensagem malformada; nesses comandos o diagnóstico vai para a saída de erro.
+COMANDOS_COM_PROTOCOLO_NA_SAIDA_PADRAO: frozenset[str] = frozenset({"mcp"})
+
+
+def escolher_console(comando: str | None, injetado: EscritorConsole | None) -> EscritorConsole:
+    """O console injetado vale sempre; sem ele, o comando de protocolo escreve na saída de erro."""
+    if injetado is not None:
+        return injetado
+    if comando in COMANDOS_COM_PROTOCOLO_NA_SAIDA_PADRAO:
+        return EscritorConsolePadrao(sys.stderr)
+    return EscritorConsolePadrao()
+
 
 @dataclass(frozen=True)
 class ContextoExecucao:
@@ -55,18 +70,19 @@ class ExecutorLinhaDeComando:
         console: EscritorConsole | None = None,
         localizador: LocalizadorBancoEventos | None = None,
     ) -> None:
-        self._console: EscritorConsole = console or EscritorConsolePadrao()
+        self._console_injetado: EscritorConsole | None = console
         self._localizador: LocalizadorBancoEventos = localizador or LocalizadorBancoEventos()
         self._preparador: PreparadorDiretorioBanco = PreparadorDiretorioBanco()
 
     def executar(self, argumentos: argparse.Namespace) -> int:
         """Executa o subcomando e devolve o código de saída do processo."""
         localizacao = self._localizador.resolver(getattr(argumentos, "db", None))
-        contexto = ContextoExecucao(argumentos=argumentos, localizacao_banco=localizacao, console=self._console)
+        console = escolher_console(getattr(argumentos, "comando", None), self._console_injetado)
+        contexto = ContextoExecucao(argumentos=argumentos, localizacao_banco=localizacao, console=console)
         try:
             return self._despachar(contexto)
         except GraphowError as erro:
-            self._console.escrever_linha(erro.formatar_para_llm())
+            console.escrever_linha(erro.formatar_para_llm())
             return CODIGO_FALHA_DOMINIO
 
     def _despachar(self, contexto: ContextoExecucao) -> int:
@@ -230,7 +246,7 @@ class ExecutorLinhaDeComando:
     def _executar_com_banco_aberto(self, contexto: ContextoExecucao) -> int:
         """Abre o repositório de eventos, executa o comando e garante o fechamento."""
         self._preparador.garantir_diretorio(contexto.localizacao_banco)
-        self._avisar_sobre_pasta_sincronizada(contexto.localizacao_banco)
+        self._avisar_sobre_pasta_sincronizada(contexto)
         tracer = self._montar_tracer(contexto.argumentos)
         with SQLiteEventStore(contexto.localizacao_banco.caminho_absoluto_texto) as repositorio:
             kernel = montar_kernel_sqlite(repositorio, tracer)
@@ -243,11 +259,11 @@ class ExecutorLinhaDeComando:
             return None
         return TracerArquivoNDJSON(caminho)
 
-    def _avisar_sobre_pasta_sincronizada(self, localizacao: LocalizacaoBanco) -> None:
+    def _avisar_sobre_pasta_sincronizada(self, contexto: ContextoExecucao) -> None:
         """Emite o alerta de risco quando o banco reside em pasta de nuvem."""
-        if not localizacao.esta_em_pasta_sincronizada:
+        if not contexto.localizacao_banco.esta_em_pasta_sincronizada:
             return
-        self._console.escrever_linha(
+        contexto.console.escrever_linha(
             "AVISO: o banco esta em pasta sincronizada por nuvem. Rode 'graphow banco-info'."
         )
 

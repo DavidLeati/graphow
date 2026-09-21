@@ -328,3 +328,30 @@ def test_skill_instalar_com_origem_sem_skill_recusa_edge_case(tmp_path: Path) ->
 
     assert codigo == 1
     assert any(linha.startswith("ERRO") and "--origem" in linha for linha in console.linhas)
+
+
+def test_comando_mcp_sem_console_injetado_escreve_diagnostico_na_saida_de_erro_nominal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A saída padrão do `graphow mcp` é o canal JSON-RPC: "Banco: ..." ali quebrava o aperto de mão."""
+    from graphow.api.cli_execucao import escolher_console
+
+    saida, erro = io.StringIO(), io.StringIO()
+    monkeypatch.setattr("sys.stdout", saida)
+    monkeypatch.setattr("sys.stderr", erro)
+
+    escolher_console("mcp", None).escrever_linha("Banco: x.db")
+    escolher_console("banco-info", None).escrever_linha("Banco de eventos: x.db")
+
+    assert "Banco: x.db" in erro.getvalue()
+    assert "Banco: x.db" not in saida.getvalue()
+    assert "Banco de eventos: x.db" in saida.getvalue()
+
+
+def test_console_injetado_vale_ate_para_o_comando_mcp_edge_case() -> None:
+    """Caso de borda: o teste que injeta o console continua lendo o que o comando escreveu."""
+    from graphow.api.cli_execucao import escolher_console
+
+    injetado = EscritorConsoleEmMemoria()
+
+    assert escolher_console("mcp", injetado) is injetado

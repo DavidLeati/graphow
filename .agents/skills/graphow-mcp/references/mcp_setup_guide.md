@@ -45,6 +45,8 @@ Rodando direto do código-fonte, sem instalar, troque o comando pelo módulo e a
 
 Mude `--autor` por harness: é o identificador que vai para o log de eventos e o que aparece quando o kernel recusa a escrita de quem não detém a posse da tarefa.
 
+A saída padrão do `graphow mcp` é só o canal JSON-RPC: o diagnóstico (`Banco: ...`) vai para a saída de erro.
+
 | Harness | Arquivo de configuração |
 | :--- | :--- |
 | Antigravity | `~/.gemini/config/mcp_config.json` |

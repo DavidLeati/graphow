@@ -10,12 +10,12 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-7 módulos · 990 linhas · 10 classes
+7 módulos · 1006 linhas · 10 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_execucao.py`](#apicliexecucao) | 263 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
+| [`api/cli_execucao.py`](#apicliexecucao) | 279 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 207 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_parser.py`](#apicliparser) | 265 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
@@ -57,6 +57,7 @@ Despacho e execução dos subcomandos da linha de comando do Graphow.
 | `RAIZ_PROJETO` | `Path` | `Path(__file__).resolve().parents[3]` |
 | `RAIZ_CODIGO_FONTE` | `Path` | `RAIZ_PROJETO / 'src' / 'graphow'` |
 | `RAIZ_DOCUMENTACAO` | `Path` | `RAIZ_PROJETO / 'docs'` |
+| `COMANDOS_COM_PROTOCOLO_NA_SAIDA_PADRAO` | `frozenset[str]` | `frozenset({'mcp'})` |
 
 ### `ContextoExecucao`
 
@@ -69,6 +70,10 @@ Despacho e execução dos subcomandos da linha de comando do Graphow.
 *serviço* — Resolve dependências de infraestrutura e executa o subcomando solicitado.
 
 - `executar(argumentos: argparse.Namespace) -> int` — Executa o subcomando e devolve o código de saída do processo.
+
+### Funções do módulo
+
+- `escolher_console(comando: str | None, injetado: EscritorConsole | None) -> EscritorConsole` — O console injetado vale sempre; sem ele, o comando de protocolo escreve na saída de erro.
 
 ## `api/cli_execucao_grafo.py`
 
