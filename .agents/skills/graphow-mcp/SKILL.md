@@ -47,7 +47,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 | `ler_vista` | `id_alvo`, `orcamento_tokens` (1500), `escopo` (`tudo`\|`ativo`), `raio_do_escopo`, `ramo_id` | Devolve o subgrafo focal em Markdown dentro do orçamento. Em contêiner (Projeto, Setor, Sessao) devolve o panorama dos filhos, quantas tarefas fecharam, quantas seguem abertas, quantas dúvidas esperam, em vez da subárvore. |
 | `expandir_no` | `id_no`, `ramo_id` | Propriedades e arestas incidentes de um nó, sem corte. |
 | `buscar` | `termo`, `tipos_no`, `limite` (5, teto 50), `escopo`, `ramo_id` | Busca ranqueada: rótulo vence propriedade, palavra inteira vence prefixo, aberto vence encerrado. Se voltar `truncado`, refine o termo em vez de subir o `limite`. |
-| `proximas_tarefas` | `id_sessao`, `ramo_id` | Fila ordenada por urgência com o que está livre para pegar. Traz também `impedidas`, com o motivo de cada exclusão (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`, `concluida`), que é o que dizer quando a fila volta vazia. |
+| `proximas_tarefas` | `id_sessao` (ou o id de um Goal), `ramo_id` | Fila ordenada por urgência com o que está livre para pegar, com `modelo` e `arquivos_alvo` de cada tarefa. Traz também `impedidas`, com o motivo de cada exclusão (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`, `concluida`), que é o que dizer quando a fila volta vazia. |
 
 ### Posse e escalação
 
@@ -65,7 +65,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 | `criar_projeto` | `rotulo`, `nivel_autonomia`, `descricao` | Cria o Projeto raiz e define a autonomia dos agentes nele. |
 | `criar_setor` | `rotulo`, `id_projeto` | Cria o Setor e a aresta `contem`. |
 | `criar_sessao` | `rotulo`, `id_setor` | Cria a Sessao e a aresta `contem`. |
-| `criar_tarefa` | `titulo`, `id_sessao`, `descricao`, `criterio_pronto`, `id_tarefa_pai`, `depende_de` | Cria a Task com aresta `produz` e as hierarquias opcionais. |
+| `criar_tarefa` | `titulo`, `id_sessao`, `descricao`, `criterio_pronto`, `id_tarefa_pai`, `depende_de`, `modelo`, `motivo_modelo`, `arquivos_alvo`, `decisoes`, `corrige` | Cria a Task com aresta `produz` e as hierarquias opcionais. `modelo` exige `motivo_modelo`; cada id de `decisoes` vira aresta `orienta` para a tarefa; com `corrige` e `id_tarefa_pai`, a tarefa corrigida passa a depender da correção. |
 | `abrir_questao` | `pergunta`, `id_no_bloqueado`, `id_sessao`, `titulo` | Abre a Question e a aresta `bloqueia`, travando a conclusão da tarefa. `titulo` é a chamada de uma linha que o card exibe; `pergunta` é o corpo por extenso. Omitido o `titulo`, ele é derivado do começo da pergunta. |
 | `responder_questao` | `id_questao`, `resposta` *(só humano)* | Registra a resposta, move a Question para `respondida` e destrava a Task. |
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |

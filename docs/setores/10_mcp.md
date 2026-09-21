@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-16 módulos · 2058 linhas · 26 classes
+17 módulos · 2152 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,13 +22,14 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 173 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 106 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
-| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 221 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
+| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 232 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 78 | O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões. |
 | [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 178 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 104 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 295 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 300 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -219,7 +220,7 @@ Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres.
 *serviço* — Operações do agente sobre o grafo de intenção e execução.
 
 - `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de trabalho aos seus executores.
-- `criar_tarefa(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria uma Task com aresta 'produz' e hierarquias opcionais.
+- `criar_tarefa(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria uma Task com aresta 'produz', hierarquias opcionais e o que a orquestração declara.
 - `abrir_questao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Abre uma Question e a aresta 'bloqueia' que trava a tarefa até resposta humana.
 - `responder_questao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Registra a resposta humana e destrava a tarefa. Restrito a sessões humanas.
 - `concluir_tarefa(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Transiciona a Task para concluído, se nenhuma Question aberta a bloquear.
@@ -268,6 +269,22 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 ### Funções do módulo
 
 - `autor_da_conexao(autor: str) -> str` — O autor declarado, com um sufixo único quando cada conexão precisa de posse própria.
+
+## `mcp/orquestracao_tarefa.py`
+
+O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_DECISOES` | `str` | `'decisoes'` |
+| `CAMPO_TAREFA_PAI` | `str` | `'id_tarefa_pai'` |
+
+### Funções do módulo
+
+- `recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None` — A recusa quando o modelo vem sem o motivo; None quando os dois vêm juntos ou nenhum vem.
+- `propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma.
+- `arestas_de_orientacao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — Uma aresta `orienta` de cada Decision declarada para a Task nova.
+- `aresta_de_espera_da_correcao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — A tarefa corrigida passa a depender da correção.
 
 ## `mcp/server.py`
 

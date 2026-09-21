@@ -184,7 +184,7 @@ Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_d
 
 ## revisor: anexar a evidência da auditoria
 
-O revisor registra o que verificou e para por aí. Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico.
+O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deriva_de` o artefato que avaliou e a tarefa, e o `veredito` diz se passou (`aprovado`) ou não (`rejeitado`, com o trecho que o prova). Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico.
 
 ```json
 {
@@ -198,6 +198,7 @@ O revisor registra o que verificou e para por aí. Acrescentar `"value": "conclu
         "tipo": "Evidence",
         "rotulo": "Relatório de testes pytest: 14 aprovados",
         "propriedades": {
+          "veredito": "aprovado",
           "cobertura": "98.5%",
           "tempo_execucao_ms": 340
         }
@@ -211,6 +212,26 @@ O revisor registra o que verificou e para por aí. Acrescentar `"value": "conclu
         "origem_id": "sess-sprint-01",
         "destino_id": "evi-test-pass",
         "tipo": "produz"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-evi-art",
+      "value": {
+        "id": "deriv-evi-art",
+        "origem_id": "evi-test-pass",
+        "destino_id": "art-csv-parser",
+        "tipo": "deriva_de"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-evi-task",
+      "value": {
+        "id": "deriv-evi-task",
+        "origem_id": "evi-test-pass",
+        "destino_id": "task-parser-csv",
+        "tipo": "deriva_de"
       }
     }
   ]

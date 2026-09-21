@@ -72,11 +72,11 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "proximas_tarefas",
-        "description": "Lista as tarefas executáveis de uma sessão (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão.",
+        "description": "Lista as tarefas executáveis de uma sessão ou de um Goal (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão. Cada tarefa traz modelo, arquivos_alvo e criterio_pronto: só rodam em paralelo tarefas com arquivos_alvo disjuntos.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "id_sessao": {"type": "string", "description": "ID da Sessão cuja fila de trabalho será consultada."},
+                "id_sessao": {"type": "string", "description": "ID da Sessão, ou do Goal, cuja fila de trabalho será consultada. Num Goal, a fila percorre a decomposição dele, de qualquer sessão."},
             },
             "required": ["id_sessao"],
         },
@@ -179,16 +179,21 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "criar_tarefa",
-        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência.",
+        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), os arquivos que ela toca e as decisões que a orientam.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "titulo": {"type": "string", "description": "Título da tarefa."},
                 "id_sessao": {"type": "string", "description": "ID da Sessão onde a tarefa é criada."},
                 "descricao": {"type": "string", "default": "", "description": "Descrição detalhada da tarefa."},
-                "criterio_pronto": {"type": "string", "default": "", "description": "Critério de aceitação/pronto."},
-                "id_tarefa_pai": {"type": "string", "description": "ID de Task pai caso seja uma sub-tarefa (decompoe)."},
+                "criterio_pronto": {"type": "string", "default": "", "description": "Critério de aceitação/pronto: é contra ele que o revisor julga."},
+                "id_tarefa_pai": {"type": "string", "description": "ID de Task pai caso seja uma sub-tarefa (decompoe). Na tarefa de correção, a tarefa que a revisão rejeitou."},
                 "depende_de": {"type": "string", "description": "ID de Task pré-requisito (depende_de)."},
+                "modelo": {"type": "string", "description": "Modelo que deve executar a tarefa, como 'sonnet' ou 'opus'. Exige motivo_modelo: a escolha fica auditável no log."},
+                "motivo_modelo": {"type": "string", "description": "Por que este modelo: lógica de domínio, mudança em vários módulos, tarefa que já falhou uma revisão."},
+                "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do repositório. Só rodam em paralelo tarefas com arquivos_alvo disjuntos."},
+                "decisoes": {"type": "array", "items": {"type": "string"}, "description": "IDs das Decision que valem para esta tarefa. Cada uma ganha a aresta orienta, que é por onde o executor as encontra."},
+                "corrige": {"type": "string", "description": "Na tarefa de correção, o id da Evidence de revisão rejeitada que a motivou. Com id_tarefa_pai, a tarefa rejeitada passa a depender da correção e sai da fila até ela fechar."},
             },
             "required": ["titulo", "id_sessao"],
         },

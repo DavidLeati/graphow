@@ -18,6 +18,12 @@ from graphow.mcp.construcao_operacoes import (
     montar_operacao_criar_no,
     montar_operacao_definir_propriedade,
 )
+from graphow.mcp.orquestracao_tarefa import (
+    aresta_de_espera_da_correcao,
+    arestas_de_orientacao,
+    propriedades_de_orquestracao,
+    recusar_modelo_sem_motivo,
+)
 from graphow.mcp.submissao import (
     ContextoFerramentaMCP,
     PedidoSubmissaoMCP,
@@ -63,7 +69,10 @@ class FerramentasTrabalho:
         }
 
     def criar_tarefa(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Cria uma Task com aresta 'produz' e hierarquias opcionais."""
+        """Cria uma Task com aresta 'produz', hierarquias opcionais e o que a orquestração declara."""
+        recusa = recusar_modelo_sem_motivo(argumentos)
+        if recusa is not None:
+            return recusa
         id_task = str(argumentos.get("id_task") or gerar_identificador("task"))
         titulo = str(argumentos["titulo"])
         operacoes = self._montar_operacoes_tarefa(id_task, titulo, argumentos)
@@ -90,6 +99,7 @@ class FerramentasTrabalho:
                 "status": StatusTask.PENDENTE.value,
                 "descricao": str(argumentos.get("descricao", "")),
                 "criterio_pronto": str(argumentos.get("criterio_pronto", "")),
+                **propriedades_de_orquestracao(argumentos),
             },
         )
         producao = EspecificacaoAresta(
@@ -106,8 +116,9 @@ class FerramentasTrabalho:
         id_task: str,
         argumentos: Mapping[str, Any],
     ) -> tuple[ItemPatch, ...]:
-        """Monta as arestas de decomposição e dependência quando solicitadas."""
-        operacoes: list[ItemPatch] = []
+        """Monta as arestas de decomposição, dependência e orientação quando solicitadas."""
+        declaradas = arestas_de_orientacao(id_task, argumentos) + aresta_de_espera_da_correcao(id_task, argumentos)
+        operacoes: list[ItemPatch] = [montar_operacao_criar_aresta(aresta) for aresta in declaradas]
         id_pai = argumentos.get("id_tarefa_pai")
         if id_pai:
             decomposicao = EspecificacaoAresta(

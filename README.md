@@ -141,7 +141,7 @@ O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **p
 | **`propor_patch`** | Submete propostas de alteração via operações JSON Patch com validação atômica. |
 | **`abrir_questao`** | Cria um nó `Question` e uma aresta `bloqueia` sobre uma `Task`, sinalizando dúvida ao humano. Aceita `titulo` curto — é o que o card mostra no canvas — e guarda o corpo da dúvida na propriedade `pergunta`; sem `titulo`, ele sai do começo da pergunta. |
 | **`buscar`** | Busca textual *case-insensitive* ranqueada por relevância, cortada em `limite` (padrão 5, teto 50) e sempre acompanhada de `total` e `truncado`. Filtra por `TipoNo` e por `escopo`. |
-| **`proximas_tarefas`** | Fila de trabalho da sessão: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. |
+| **`proximas_tarefas`** | Fila de trabalho da sessão ou do `Goal`: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. Cada tarefa traz `modelo` e `arquivos_alvo`, com que o orquestrador escolhe o executor e o que roda em paralelo. |
 | **`assumir_tarefa`** | Adquire a posse exclusiva de uma `Task` e a move para `em_andamento`. Exigido antes de qualquer mudança de status. |
 | **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. Numa sessão humana, devolve a posse de qualquer autor: a de um subagente que terminou sem liberar. |
 | **`minhas_questoes`** | Lista as dúvidas abertas por esta sessão, com a resposta humana quando já houver. |
@@ -149,7 +149,7 @@ O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **p
 | **`criar_projeto`** | Cria o nó `Projeto` raiz e define o nível de autonomia dos agentes nele. |
 | **`criar_setor`** | Cria o `Setor` e a aresta `contem` que o liga ao `Projeto`. |
 | **`criar_sessao`** | Cria a `Sessao` e a aresta `contem` que a liga ao `Setor`. |
-| **`criar_tarefa`** | Cria uma `Task` com aresta `produz` e hierarquias opcionais. |
+| **`criar_tarefa`** | Cria uma `Task` com aresta `produz` e hierarquias opcionais. Para a orquestração, grava `modelo` (recusado sem `motivo_modelo`), `arquivos_alvo` e `corrige`, e liga à tarefa por `orienta` cada `Decision` listada em `decisoes`. |
 | **`concluir_tarefa`** | Transiciona a `Task` para `concluido`, se nenhuma `Question` aberta a bloquear. |
 | **`responder_questao`** | Registra a resposta e destrava a `Task`. **Somente sessão humana.** |
 | **`configurar_autonomia_projeto`** | Ajusta a autonomia dos agentes no projeto. **Somente sessão humana.** |

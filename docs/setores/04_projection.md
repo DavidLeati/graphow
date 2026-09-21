@@ -10,14 +10,14 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-11 módulos · 1673 linhas · 21 classes
+11 módulos · 1695 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`projection/acumulador.py`](#projectionacumulador) | 219 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
-| [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 218 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
+| [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 240 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 100 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
@@ -126,7 +126,7 @@ Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora
 
 *DTO imutável* — Tarefa liberada para trabalho, com o que o agente precisa para decidir.
 
-**Campos:** `id: str`, `rotulo: str`, `status: str`, `criterio_pronto: str`, `depende_de: tuple[str, ...]`
+**Campos:** `id: str`, `rotulo: str`, `status: str`, `criterio_pronto: str`, `depende_de: tuple[str, ...]`, `modelo: str`, `arquivos_alvo: tuple[str, ...]`, `corrige: str`
 
 - `em_dicionario() -> dict[str, object]` — Forma serializável para a resposta da ferramenta MCP.
 

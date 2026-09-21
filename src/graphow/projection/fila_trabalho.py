@@ -11,6 +11,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from graphow.core.models import NoGrafo
+from graphow.core.orquestracao import (
+    CAMPO_ARQUIVOS_ALVO,
+    CAMPO_CORRIGE,
+    CAMPO_CRITERIO_PRONTO,
+    CAMPO_MODELO,
+    ler_texto,
+    ler_textos,
+)
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 
@@ -69,13 +77,21 @@ class TarefaImpedida:
 
 @dataclass(frozen=True)
 class TarefaExecutavel:
-    """Tarefa liberada para trabalho, com o que o agente precisa para decidir."""
+    """Tarefa liberada para trabalho, com o que o agente precisa para decidir.
+
+    Modelo e arquivos-alvo vêm junto porque é com eles que o orquestrador
+    despacha: qual executor chamar, e o que pode rodar em paralelo sem dois
+    agentes editando o mesmo arquivo.
+    """
 
     id: str
     rotulo: str
     status: str
     criterio_pronto: str = ""
     depende_de: tuple[str, ...] = field(default_factory=tuple)
+    modelo: str = ""
+    arquivos_alvo: tuple[str, ...] = field(default_factory=tuple)
+    corrige: str = ""
 
     def em_dicionario(self) -> dict[str, object]:
         """Forma serializável para a resposta da ferramenta MCP."""
@@ -85,6 +101,9 @@ class TarefaExecutavel:
             "status": self.status,
             "criterio_pronto": self.criterio_pronto,
             "depende_de": list(self.depende_de),
+            "modelo": self.modelo,
+            "arquivos_alvo": list(self.arquivos_alvo),
+            "corrige": self.corrige,
         }
 
 
@@ -140,8 +159,11 @@ class FilaDeTrabalho:
             id=no.id,
             rotulo=no.rotulo,
             status=str(no.obter_propriedade("status", StatusTask.PENDENTE.value)),
-            criterio_pronto=str(no.obter_propriedade("criterio_pronto", "")),
+            criterio_pronto=ler_texto(no.propriedades, CAMPO_CRITERIO_PRONTO),
             depende_de=self._identificadores_de_dependencia(no.id),
+            modelo=ler_texto(no.propriedades, CAMPO_MODELO),
+            arquivos_alvo=ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO)),
+            corrige=ler_texto(no.propriedades, CAMPO_CORRIGE),
         )
 
     def _coletar_tarefas_da_sessao(self, id_sessao: str) -> tuple[NoGrafo, ...]:

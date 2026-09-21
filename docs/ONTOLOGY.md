@@ -51,6 +51,19 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
 
+### 2.3 Propriedades da Orquestração
+
+Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó novo e não valida propriedades, e a assinatura da versão cobre tipos, arestas, papéis, origens e status, não propriedades: nenhuma delas exigiu subir a versão. São a convenção que o orquestrador grava por `criar_tarefa`, que `proximas_tarefas` devolve e que a medição lê, declarada em `core/orquestracao.py`.
+
+| Onde | Propriedade | O que diz |
+|---|---|---|
+| `Task` | `criterio_pronto` | O critério de aceite, contra o qual o revisor julga. Já existia; a orquestração não criou outro nome para ele. |
+| `Task` | `modelo`, `motivo_modelo` | O modelo que deve executar a tarefa e por quê. `criar_tarefa` recusa o modelo sem o motivo, para a escolha ficar auditável no log. |
+| `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca. Só rodam em paralelo tarefas com arquivos-alvo disjuntos. |
+| `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
+| `Goal` | `configuracao` | O rótulo do arranjo de modelos com que o Goal foi orquestrado, para comparar configurações. |
+| `Evidence` | `veredito` | O que o revisor concluiu contra os critérios da tarefa: `aprovado` ou `rejeitado`. |
+
 ---
 
 ## 3. Tipos de Arestas
