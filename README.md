@@ -165,6 +165,14 @@ que dispara a condensação. A recusa por nome de ferramenta é a primeira camad
 não a única: o `RoleGate` impõe as mesmas garantias contra qualquer caminho,
 inclusive um `propor_patch` cru.
 
+**O servidor se apresenta.** A resposta de `initialize` traz `instructions` com
+o protocolo de memória (`graphow.context.protocolo`): comece por `ler_vista`,
+registre `Evidence` e `Decision` enquanto trabalha, destile `Aprendizado` antes
+de terminar, condense a sessão anterior se a `Task` ficou pendente, e o que o
+papel da conexão pode criar, lido do `RoleGate`. As descrições das ferramentas
+dizem quando usá-las, não só o quê: é o que um agente que nunca leu a skill
+recebe junto das ferramentas.
+
 ### O ciclo de um agente autônomo
 
 As ferramentas acima fecham as três decisões que um agente sem supervisão

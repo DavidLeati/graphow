@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-14 módulos · 1844 linhas · 30 classes
+15 módulos · 1919 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,6 +21,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/memoria.py`](#contextmemoria) | 289 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 321 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/protocolo.py`](#contextprotocolo) | 75 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
 | [`context/secoes.py`](#contextsecoes) | 216 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
@@ -251,6 +252,21 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 ### `PoliticaRevisor` (PoliticaBase)
 
 *serviço* — Revisor: os artefatos derivados do alvo e as evidências que os sustentam.
+
+## `context/protocolo.py`
+
+O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_DO_PROTOCOLO` | `str` | `'Protocolo de memoria do graphow'` |
+| `NOME_DO_SERVIDOR_MCP` | `str` | `'graphow'` |
+| `TIPOS_DE_REGISTRO` | `tuple[TipoNo, ...]` | `(TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.NOTE, TipoNo.ARTIFACT, TipoNo…` |
+| `PASSOS_DO_PROTOCOLO` | `tuple[str, ...]` | `('Durante o trabalho, registre no grafo o que descobriu e decidiu, prod…` |
+
+### Funções do módulo
+
+- `montar_protocolo() -> tuple[str, ...]` — As linhas do protocolo, numeradas, com a sessão e o papel quando são conhecidos.
 
 ## `context/renderizacao.py`
 

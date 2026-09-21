@@ -6,6 +6,7 @@ import json
 import sys
 from typing import Any
 
+from graphow.context.protocolo import montar_protocolo
 from graphow.mcp.server import GraphowMCPServer
 
 VERSAO_PROTOCOLO_MCP: str = "2024-11-05"
@@ -120,7 +121,14 @@ class DespachanteJsonRpc:
         }
 
     def _tratar_initialize(self, identificador: Any, requisicao: Mapping[str, Any]) -> None:
-        """Responde ao aperto de mão inicial declarando as capacidades do servidor."""
+        """Responde ao aperto de mão declarando as capacidades e o protocolo da memória.
+
+        `instructions` é o campo que o cliente mostra ao agente junto das
+        ferramentas: é por ele que um agente que nunca leu a skill fica sabendo
+        que o grafo espera Evidence, Decision e Aprendizado dele, e o que o
+        papel desta conexão pode criar.
+        """
+        papel = self._servidor.identidade.papel
         self._responder_sucesso(
             identificador,
             {
@@ -129,8 +137,9 @@ class DespachanteJsonRpc:
                 "serverInfo": {
                     "name": "graphow",
                     "version": "0.1.0",
-                    "papelDaSessao": self._servidor.identidade.papel.value,
+                    "papelDaSessao": papel.value,
                 },
+                "instructions": "\n".join(montar_protocolo(papel=papel)),
             },
         )
 

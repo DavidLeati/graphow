@@ -5,7 +5,7 @@ from typing import Any
 DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     {
         "name": "ler_vista",
-        "description": "Materializa uma vista de contexto do subgrafo com orçamento estrito de tokens. Num contêiner (Projeto, Setor, Sessao) a vista traz o panorama agregado dos filhos — quantas tarefas fecharam, quantas seguem abertas — em vez de listar a subárvore. Comece pelo Projeto e desça só onde houver trabalho aberto.",
+        "description": "Materializa uma vista de contexto do subgrafo com orçamento estrito de tokens. Num contêiner (Projeto, Setor, Sessao) a vista traz o panorama agregado dos filhos — quantas tarefas fecharam, quantas seguem abertas — em vez de listar a subárvore. Comece pelo Projeto e desça só onde houver trabalho aberto. Numa Sessao é o primeiro passo do trabalho: a vista traz a seção 'Aprendizados Aplicaveis', com o que outras sessões já aprenderam, e, se a sessão está encerrada, o fechamento dela.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -30,7 +30,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "propor_patch",
-        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia.",
+        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia. É por aqui que o trabalho vira memória: registre Evidence (fato observado: saída de teste, log, leitura) e Decision (escolha com motivo) produzidas pela sessão assim que acontecem, não só no fim; é delas que o fechamento, a condensação e o Aprendizado saem.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -255,7 +255,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "registrar_aprendizado",
-        "description": "Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu.",
+        "description": "Chame antes de terminar, para cada lição que vale além desta sessão. Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu.",
         "inputSchema": {
             "type": "object",
             "properties": {

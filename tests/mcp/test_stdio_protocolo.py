@@ -92,3 +92,12 @@ def test_requisicao_que_nao_e_objeto_e_registrada_edge_case() -> None:
     canal_de_entrada = CanalJsonRpcEmMemoria(linhas_de_entrada=("[1, 2, 3]",))
     executar_loop_stdio(DespachanteJsonRpc(_montar_servidor(), canal_de_entrada), canal_de_entrada)
     assert canal_de_entrada.falhas == ("Requisicao JSON-RPC deve ser um objeto",)
+
+
+def test_initialize_declara_o_protocolo_da_memoria_em_instructions_nominal() -> None:
+    """Quem nunca leu a skill recebe o protocolo no aperto de mão, com o papel da conexão."""
+    despachante, canal = _montar_despachante("planejador")
+    despachante.despachar({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    instrucoes = canal.mensagens[0]["result"]["instructions"]
+    assert "`registrar_aprendizado`" in instrucoes
+    assert "`planejador`" in instrucoes

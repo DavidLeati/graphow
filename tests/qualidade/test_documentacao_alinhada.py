@@ -132,3 +132,13 @@ def test_indice_nao_volta_a_ser_um_catalogo_monolitico_edge_case() -> None:
     """Caso de borda: o índice é o mapa, não o acervo. 197 KB indicavam o inverso."""
     tamanho = (RAIZ_PROJETO / "docs" / "INDEX.md").stat().st_size
     assert tamanho < 32_000, f"INDEX.md com {tamanho} bytes: o detalhe pertence aos dossiês"
+
+
+def test_descricoes_dizem_quando_registrar_evidence_decision_e_aprendizado_nominal() -> None:
+    """O agente lê as descrições, não a skill: elas precisam dizer quando, não só o quê."""
+    por_nome = {ferramenta["name"]: str(ferramenta["description"]) for ferramenta in DEFINICOES_FERRAMENTAS_MCP}
+
+    assert "Evidence" in por_nome["propor_patch"]
+    assert "Decision" in por_nome["propor_patch"]
+    assert "antes de terminar" in por_nome["registrar_aprendizado"].lower()
+    assert "Aprendizados Aplicaveis" in por_nome["ler_vista"]
