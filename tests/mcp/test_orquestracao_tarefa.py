@@ -1,4 +1,4 @@
-"""O que o orquestrador grava na Task e lê de volta: modelo, arquivos-alvo e decisões."""
+"""O que o orquestrador grava na Task e lê de volta: modelo, arquivos-alvo, decisões e a vista do executor frio."""
 
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
@@ -108,3 +108,28 @@ def test_fila_do_goal_traz_o_que_decide_o_despacho_nominal() -> None:
     assert por_id["t1"]["arquivos_alvo"] == ["a.py"]
     assert por_id["t2"]["modelo"] == ""
     assert por_id["t2"]["arquivos_alvo"] == ["b.py"]
+
+
+def test_planejador_le_a_tarefa_como_o_executor_frio_nominal() -> None:
+    """A política do planejador não monta a seção de decisões; a perspectiva do executor monta."""
+    _, planejador = _montar()
+    _criar(planejador, "t1", decisoes=["dec"])
+
+    propria = planejador.executar_ferramenta("ler_vista", {"id_alvo": "t1"})
+    fria = planejador.executar_ferramenta("ler_vista", {"id_alvo": "t1", "perspectiva": "executor"})
+
+    assert propria["perspectiva"] == "planejador"
+    assert "Decisoes Que Governam Esta Tarefa" not in propria["conteudo"]
+    assert fria["perspectiva"] == "executor"
+    assert "## Decisoes Que Governam Esta Tarefa\n- [dec]" in fria["conteudo"]
+
+
+def test_perspectiva_fora_dos_papeis_de_agente_e_recusada_edge_case() -> None:
+    """Caso de borda: ler como 'sistema' ou 'humano' não é perspectiva de agente."""
+    _, planejador = _montar()
+    _criar(planejador, "t1")
+
+    recibo = planejador.executar_ferramenta("ler_vista", {"id_alvo": "t1", "perspectiva": "sistema"})
+
+    assert recibo["sucesso"] is False
+    assert "perspectiva" in recibo["erro"]

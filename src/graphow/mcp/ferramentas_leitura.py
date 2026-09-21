@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
-from graphow.core.types import TipoNo
+from graphow.core.types import PapelAutor, TipoNo
 from graphow.mcp.submissao import ContextoFerramentaMCP, extrair_ramo
 from graphow.projection.fila_trabalho import FilaDeTrabalho
 from graphow.projection.graph_view import GrafoView
@@ -13,6 +13,13 @@ from graphow.projection.working_set import RAIO_PADRAO, EscopoAtivo
 
 ORCAMENTO_TOKENS_PADRAO: int = 1500
 ESCOPO_ATIVO: str = "ativo"
+
+# Ler não dá poder: nenhum papel é restrito na leitura, e a política só decide o
+# que é relevante. Ler a Task como o executor a lerá é o teste do executor frio,
+# que o planejador não fazia porque a política dele esconde as decisões.
+PERSPECTIVAS_DE_VISTA: frozenset[PapelAutor] = frozenset(
+    {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
+)
 
 
 class FerramentasLeitura:
@@ -52,10 +59,10 @@ class FerramentasLeitura:
         }
 
     def ler_vista(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Materializa o subgrafo focal usando a política do papel da sessão."""
+        """Materializa o subgrafo focal pela política do papel da sessão, ou da perspectiva pedida."""
         requisicao = RequisicaoVista(
             id_alvo=str(argumentos["id_alvo"]),
-            papel=self._contexto.identidade.papel,
+            papel=self._perspectiva(argumentos),
             orcamento_tokens=int(argumentos.get("orcamento_tokens", ORCAMENTO_TOKENS_PADRAO)),
             escopo_ativo=self._pediu_escopo_ativo(argumentos),
             raio_do_escopo=int(argumentos.get("raio_do_escopo", RAIO_PADRAO)),
@@ -64,11 +71,22 @@ class FerramentasLeitura:
         vista = self._materializador.materializar(requisicao, view)
         return {
             "sucesso": True,
+            "perspectiva": requisicao.papel.value,
             "conteudo": vista.conteudo_formatado,
             "tokens_estimados": vista.tokens_estimados,
             "orcamento": vista.orcamento_tokens,
             "vizinhos_expansiveis": list(vista.vizinhos_expansiveis),
         }
+
+    def _perspectiva(self, argumentos: Mapping[str, Any]) -> PapelAutor:
+        """O papel da sessão, ou o papel de agente pelo qual se pediu para ler; outro valor é recusado."""
+        pedida = str(argumentos.get("perspectiva", "") or "").strip().lower()
+        if not pedida:
+            return self._contexto.identidade.papel
+        aceitas = {papel.value: papel for papel in PERSPECTIVAS_DE_VISTA}
+        if pedida not in aceitas:
+            raise ValueError(f"perspectiva '{pedida}' nao existe: use {', '.join(sorted(aceitas))}")
+        return aceitas[pedida]
 
     def expandir_no(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
         """Devolve a ficha completa de um nó específico e suas arestas incidentes."""

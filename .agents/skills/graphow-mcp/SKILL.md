@@ -44,7 +44,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 
 | Ferramenta | Argumentos | O que faz |
 | :--- | :--- | :--- |
-| `ler_vista` | `id_alvo`, `orcamento_tokens` (1500), `escopo` (`tudo`\|`ativo`), `raio_do_escopo`, `ramo_id` | Devolve o subgrafo focal em Markdown dentro do orçamento. Em contêiner (Projeto, Setor, Sessao) devolve o panorama dos filhos, quantas tarefas fecharam, quantas seguem abertas, quantas dúvidas esperam, em vez da subárvore. |
+| `ler_vista` | `id_alvo`, `orcamento_tokens` (1500), `escopo` (`tudo`\|`ativo`), `raio_do_escopo`, `perspectiva`, `ramo_id` | Devolve o subgrafo focal em Markdown dentro do orçamento. Em contêiner (Projeto, Setor, Sessao) devolve o panorama dos filhos, quantas tarefas fecharam, quantas seguem abertas, quantas dúvidas esperam, em vez da subárvore. `perspectiva` (`planejador`, `executor`, `revisor`) lê o alvo como esse papel o lê. |
 | `expandir_no` | `id_no`, `ramo_id` | Propriedades e arestas incidentes de um nó, sem corte. |
 | `buscar` | `termo`, `tipos_no`, `limite` (5, teto 50), `escopo`, `ramo_id` | Busca ranqueada: rótulo vence propriedade, palavra inteira vence prefixo, aberto vence encerrado. Se voltar `truncado`, refine o termo em vez de subir o `limite`. |
 | `proximas_tarefas` | `id_sessao` (ou o id de um Goal), `ramo_id` | Fila ordenada por urgência com o que está livre para pegar, com `modelo` e `arquivos_alvo` de cada tarefa. Traz também `impedidas`, com o motivo de cada exclusão (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`, `concluida`), que é o que dizer quando a fila volta vazia. |

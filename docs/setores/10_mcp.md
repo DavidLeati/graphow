@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2152 linhas · 26 classes
+17 módulos · 2171 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/espera.py`](#mcpespera) | 85 | Relógio e política de espera do long-poll MCP, isolados para permitir teste. |
 | [`mcp/ferramentas_escalacao.py`](#mcpferramentasescalacao) | 153 | Ferramentas MCP do caminho de volta: da resposta humana até o agente. |
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
-| [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 127 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
+| [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 145 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 173 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 106 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
@@ -29,7 +29,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 178 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 104 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 300 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 301 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -142,6 +142,7 @@ Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais.
 | :--- | :--- | :--- |
 | `ORCAMENTO_TOKENS_PADRAO` | `int` | `1500` |
 | `ESCOPO_ATIVO` | `str` | `'ativo'` |
+| `PERSPECTIVAS_DE_VISTA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 
 ### `FerramentasLeitura`
 
@@ -149,7 +150,7 @@ Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais.
 
 - `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de leitura aos seus executores.
 - `proximas_tarefas(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Devolve as tarefas executáveis da sessão, em ordem estável de atendimento.
-- `ler_vista(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Materializa o subgrafo focal usando a política do papel da sessão.
+- `ler_vista(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Materializa o subgrafo focal pela política do papel da sessão, ou da perspectiva pedida.
 - `expandir_no(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Devolve a ficha completa de um nó específico e suas arestas incidentes.
 - `buscar(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Pesquisa textual ranqueada, cortada no limite e sempre com o total.
 

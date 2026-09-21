@@ -136,7 +136,7 @@ O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **p
 
 | Ferramenta | Descrição |
 | :--- | :--- |
-| **`ler_vista`** | Materializa o subgrafo do nó alvo formatado em Markdown, respeitando orçamentos estritos de tokens (ex: 1500, 500, 200). Num contêiner, traz o **panorama agregado** dos filhos em vez de listar a subárvore. Aceita `escopo="ativo"` para podar a navegação até o trabalho não concluído. |
+| **`ler_vista`** | Materializa o subgrafo do nó alvo formatado em Markdown, respeitando orçamentos estritos de tokens (ex: 1500, 500, 200). Num contêiner, traz o **panorama agregado** dos filhos em vez de listar a subárvore. Aceita `escopo="ativo"` para podar a navegação até o trabalho não concluído, e `perspectiva` para ler o alvo como outro papel o lê: é o teste do executor frio, feito pelo planejador antes de despachar. |
 | **`expandir_no`** | Fornece visão detalhada sob demanda de propriedades e arestas incidentes de um nó específico. |
 | **`propor_patch`** | Submete propostas de alteração via operações JSON Patch com validação atômica. |
 | **`abrir_questao`** | Cria um nó `Question` e uma aresta `bloqueia` sobre uma `Task`, sinalizando dúvida ao humano. Aceita `titulo` curto — é o que o card mostra no canvas — e guarda o corpo da dúvida na propriedade `pergunta`; sem `titulo`, ele sai do começo da pergunta. |
