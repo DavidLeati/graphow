@@ -45,7 +45,7 @@ Rodando direto do código-fonte, sem instalar, troque o comando pelo módulo e a
 
 Mude `--autor` por harness: é o identificador que vai para o log de eventos e o que aparece quando o kernel recusa a escrita de quem não detém a posse da tarefa.
 
-A saída padrão do `graphow mcp` é só o canal JSON-RPC: o diagnóstico (`Banco: ...`) vai para a saída de erro.
+No servidor de um subagente, acrescente `--autor-por-conexao`. O ambiente sobe um processo por invocação do subagente, sempre com os mesmos argumentos, e sem o sufixo dois executores em paralelo assinariam com o mesmo nome e dividiriam a posse de qualquer tarefa. Com ele, cada processo vira `executor-sonnet#3f9a1c`, com posse própria. A saída padrão do `graphow mcp` é só o canal JSON-RPC: o diagnóstico (`Banco: ...`) vai para a saída de erro.
 
 | Harness | Arquivo de configuração |
 | :--- | :--- |

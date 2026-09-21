@@ -9,7 +9,7 @@ from typing import Any
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.composicao import montar_kernel_sqlite
 from graphow.kernel.write_kernel import WriteKernel
-from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
+from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, autor_da_conexao
 from graphow.mcp.server import GraphowMCPServer
 from graphow.mcp.stdio_protocolo import (
     CanalJsonRpc,
@@ -71,6 +71,11 @@ def _construir_parser() -> argparse.ArgumentParser:
         help="Papel fixado para esta sessao. Agentes nao podem alterá-lo",
     )
     parser.add_argument("--autor", default="agente-mcp", help="Identificador do autor no log")
+    parser.add_argument(
+        "--autor-por-conexao",
+        action="store_true",
+        help="Acrescenta ao autor um sufixo unico por processo, para cada conexao ter posse propria",
+    )
     return parser
 
 
@@ -85,7 +90,8 @@ def main(argumentos: Sequence[str] | None = None) -> int:
     localizacao = LocalizadorBancoEventos().resolver(parsed.db)
     PreparadorDiretorioBanco().garantir_diretorio(localizacao)
     try:
-        identidade = IdentidadeSessaoMCP.criar(parsed.autor, parsed.papel)
+        autor = autor_da_conexao(parsed.autor, por_conexao=parsed.autor_por_conexao)
+        identidade = IdentidadeSessaoMCP.criar(autor, parsed.papel)
     except GraphowError as erro:
         sys.stderr.write(erro.formatar_para_llm() + "\n")
         return CODIGO_FALHA_DOMINIO

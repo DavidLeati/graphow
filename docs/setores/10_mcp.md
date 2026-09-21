@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-16 módulos · 2019 linhas · 26 classes
+16 módulos · 2044 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,10 +23,10 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 92 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 221 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 107 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 178 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
-| [`mcp/stdio_server.py`](#mcpstdioserver) | 98 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
+| [`mcp/stdio_server.py`](#mcpstdioserver) | 104 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
 | [`mcp/tool_definitions.py`](#mcptooldefinitions) | 295 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
@@ -237,6 +237,8 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `PAPEIS_VALIDOS_EM_SESSAO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.PLANEJADOR, PapelAutor.EXECUTO…` |
+| `SEPARADOR_DO_SUFIXO_DE_CONEXAO` | `str` | `'#'` |
+| `BYTES_DO_SUFIXO_DE_CONEXAO` | `int` | `3` |
 | `FERRAMENTAS_EXCLUSIVAS_DO_HUMANO` | `frozenset[str]` | `frozenset({'responder_questao', 'configurar_autonomia_projeto', 'exclui…` |
 
 ### `IdentidadeSessaoMCP`
@@ -262,6 +264,10 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 - `permitido() -> 'ResultadoAutorizacao'` — Constrói o veredito positivo padrão.
 - `negado(motivo: str) -> 'ResultadoAutorizacao'` — Constrói o veredito negativo com a justificativa exibida ao agente.
+
+### Funções do módulo
+
+- `autor_da_conexao(autor: str) -> str` — O autor declarado, com um sufixo único quando cada conexão precisa de posse própria.
 
 ## `mcp/server.py`
 

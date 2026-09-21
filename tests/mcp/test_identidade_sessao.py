@@ -78,3 +78,22 @@ def test_resultado_autorizacao_expoe_construtores_nomeados() -> None:
     negado = ResultadoAutorizacao.negado("motivo qualquer")
     assert negado.autorizado is False
     assert negado.motivo == "motivo qualquer"
+
+
+def test_autor_por_conexao_acrescenta_sufixo_unico_nominal() -> None:
+    """Dois processos da mesma definição de subagente assinam com nomes distintos."""
+    from graphow.mcp.identidade_sessao import autor_da_conexao
+
+    primeiro = autor_da_conexao("executor-sonnet", por_conexao=True)
+    segundo = autor_da_conexao("executor-sonnet", por_conexao=True)
+
+    assert primeiro.startswith("executor-sonnet#")
+    assert segundo.startswith("executor-sonnet#")
+    assert primeiro != segundo
+
+
+def test_autor_sem_conexao_propria_fica_como_declarado_edge_case() -> None:
+    """Caso de borda: sem a opção, o autor não muda, e a posse sobrevive a um reinício."""
+    from graphow.mcp.identidade_sessao import autor_da_conexao
+
+    assert autor_da_conexao("agente-mcp", por_conexao=False) == "agente-mcp"

@@ -6,6 +6,7 @@ alterá-lo.
 """
 
 from dataclasses import dataclass
+import secrets
 
 from graphow.core.exceptions import ErroPermissaoPapel
 from graphow.core.types import PapelAutor
@@ -13,6 +14,24 @@ from graphow.core.types import PapelAutor
 PAPEIS_VALIDOS_EM_SESSAO: frozenset[PapelAutor] = frozenset(
     {PapelAutor.HUMANO, PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
 )
+
+SEPARADOR_DO_SUFIXO_DE_CONEXAO: str = "#"
+BYTES_DO_SUFIXO_DE_CONEXAO: int = 3
+
+
+def autor_da_conexao(autor: str, *, por_conexao: bool) -> str:
+    """O autor declarado, com um sufixo único quando cada conexão precisa de posse própria.
+
+    Um subagente com servidor MCP próprio sobe um processo por invocação, sempre
+    com os argumentos da definição. Sem o sufixo, dois executores em paralelo
+    assinavam o log com o mesmo nome e dividiam a posse de qualquer tarefa: o
+    `assumir_tarefa` do segundo passava como se fosse do primeiro. O nome
+    declarado continua à frente, para o log dizer de que definição veio.
+    """
+    if not por_conexao:
+        return autor
+    sufixo = secrets.token_hex(BYTES_DO_SUFIXO_DE_CONEXAO)
+    return f"{autor.strip()}{SEPARADOR_DO_SUFIXO_DE_CONEXAO}{sufixo}"
 
 # Ferramentas cujo efeito anula uma garantia de governança se um agente as executar:
 # responder_questao encerra a escalação ao humano; configurar_autonomia_projeto

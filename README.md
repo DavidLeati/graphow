@@ -263,6 +263,9 @@ graphow print
 # Abrir o servidor MCP com o papel fixado para a sessão
 graphow mcp --papel executor --autor agente-cursor
 
+# No servidor de um subagente: posse própria para cada processo, para executores em paralelo não dividirem a tarefa
+graphow mcp --papel executor --autor executor-sonnet --autor-por-conexao
+
 # Regenerar o catálogo de documentação a partir do código
 graphow docs-gerar
 

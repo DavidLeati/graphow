@@ -81,3 +81,20 @@ def test_dois_processos_do_ponto_de_entrada_nao_dividem_a_posse_nominal(
     recusa = _resultado(segundo[1])
     assert recusa["sucesso"] is False
     assert recusa["dono_atual"] == "agente-a"
+
+
+def test_autor_por_conexao_da_a_cada_processo_a_propria_posse_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Caso de borda: a mesma definição de subagente, rodada duas vezes, não se confunde consigo."""
+    banco = tmp_path / "graphow.db"
+    _preparar_banco(banco)
+    argumentos = ["--papel", "executor", "--db", str(banco), "--autor", "executor-sonnet", "--autor-por-conexao"]
+
+    primeiro = _rodar_servidor(monkeypatch, argumentos, [("assumir_tarefa", {"id_task": "t1"})])
+    segundo = _rodar_servidor(monkeypatch, argumentos, [("assumir_tarefa", {"id_task": "t1"})])
+
+    assert _resultado(primeiro[1])["sucesso"] is True
+    recusa = _resultado(segundo[1])
+    assert recusa["sucesso"] is False
+    assert recusa["dono_atual"].startswith("executor-sonnet#")

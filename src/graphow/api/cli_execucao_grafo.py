@@ -199,9 +199,10 @@ class ManipuladorComandosGrafo:
 
     def _executar_mcp(self, argumentos: argparse.Namespace) -> int:
         """Inicia o servidor MCP com a identidade fixada no momento da abertura."""
-        from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
+        from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, autor_da_conexao
         from graphow.mcp.stdio_server import iniciar_stdio_server
 
-        identidade = IdentidadeSessaoMCP.criar(argumentos.autor, argumentos.papel)
+        autor = autor_da_conexao(argumentos.autor, por_conexao=argumentos.autor_por_conexao)
+        identidade = IdentidadeSessaoMCP.criar(autor, argumentos.papel)
         iniciar_stdio_server(self._kernel, identidade)
         return CODIGO_SUCESSO

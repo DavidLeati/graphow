@@ -168,7 +168,14 @@ def _registrar_comandos_de_servidor(
     parser_web.add_argument("--host", default="127.0.0.1", help="Host HTTP (padrao: 127.0.0.1)")
 
     _registrar_comando_harness(subparsers, parser_base)
+    _registrar_comando_mcp(subparsers, parser_base)
 
+
+def _registrar_comando_mcp(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra o servidor MCP stdio, com a identidade fixada na linha de comando."""
     parser_mcp = subparsers.add_parser("mcp", parents=[parser_base], help="Inicia o servidor MCP stdio")
     parser_mcp.add_argument(
         "--papel",
@@ -180,6 +187,14 @@ def _registrar_comandos_de_servidor(
         "--autor",
         default="agente-mcp",
         help="Identificador do autor registrado no log para esta sessao",
+    )
+    parser_mcp.add_argument(
+        "--autor-por-conexao",
+        action="store_true",
+        help=(
+            "Acrescenta ao autor um sufixo unico por processo. Use nos servidores de subagente: "
+            "dois executores em paralelo precisam de posses distintas"
+        ),
     )
 
 

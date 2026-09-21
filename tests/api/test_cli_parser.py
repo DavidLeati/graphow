@@ -90,3 +90,15 @@ def test_harness_recusa_duas_origens_ao_mesmo_tempo_edge_case() -> None:
         construir_parser().parse_args(
             ["harness", "--fase", "inicio", "--sessao", "s1", "--entrada-hook"]
         )
+
+
+def test_subcomando_mcp_aceita_autor_por_conexao_nominal() -> None:
+    """Os servidores de subagente pedem posse própria por processo."""
+    parsed = construir_parser().parse_args(["mcp", "--papel", "executor", "--autor-por-conexao"])
+    assert parsed.autor_por_conexao is True
+
+
+def test_subcomando_mcp_sem_autor_por_conexao_mantem_o_autor_edge_case() -> None:
+    """Caso de borda: o padrão preserva o comportamento de quem já configurou o servidor."""
+    parsed = construir_parser().parse_args(["mcp", "--papel", "humano"])
+    assert parsed.autor_por_conexao is False
