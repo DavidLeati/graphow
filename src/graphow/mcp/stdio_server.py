@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 from graphow.core.exceptions import GraphowError
+from graphow.kernel.composicao import montar_kernel_sqlite
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
 from graphow.mcp.server import GraphowMCPServer
@@ -74,7 +75,12 @@ def _construir_parser() -> argparse.ArgumentParser:
 
 
 def main(argumentos: Sequence[str] | None = None) -> int:
-    """Ponto de entrada do módulo stdio MCP."""
+    """Ponto de entrada do módulo stdio MCP.
+
+    O kernel é o mesmo de `graphow mcp`, com locks e ramos no SQLite. Montado
+    só sobre o repositório de eventos, ele caía nos locks em memória: dois
+    processos, cada um com a sua posse, e `assumir_tarefa` não impedia nada.
+    """
     parsed = _construir_parser().parse_args(list(argumentos if argumentos is not None else sys.argv[1:]))
     localizacao = LocalizadorBancoEventos().resolver(parsed.db)
     PreparadorDiretorioBanco().garantir_diretorio(localizacao)
@@ -84,7 +90,7 @@ def main(argumentos: Sequence[str] | None = None) -> int:
         sys.stderr.write(erro.formatar_para_llm() + "\n")
         return CODIGO_FALHA_DOMINIO
     with SQLiteEventStore(localizacao.caminho_absoluto_texto) as repositorio:
-        iniciar_stdio_server(WriteKernel(repositorio), identidade)
+        iniciar_stdio_server(montar_kernel_sqlite(repositorio), identidade)
     return CODIGO_SUCESSO
 
 
