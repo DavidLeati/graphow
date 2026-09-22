@@ -31,7 +31,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "propor_patch",
-        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia. É por aqui que o trabalho vira memória: registre Evidence (fato observado: saída de teste, log, leitura) e Decision (escolha com motivo) produzidas pela sessão assim que acontecem, não só no fim; é delas que o fechamento, a condensação e o Aprendizado saem.",
+        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia. Formas aceitas: add e remove em /nos/<id> e /arestas/<id>, add e replace em /nos/<id>/rotulo, add, replace e remove em /nos/<id>/propriedades/<chave>; o resto volta com caminho_invalido. add só cria: o id do caminho é o do campo id do valor e não pode existir ainda (elemento_ja_existente); para editar um nó, use replace no rótulo ou numa propriedade. É por aqui que o trabalho vira memória: registre Evidence (fato observado: saída de teste, log, leitura) e Decision (escolha com motivo) produzidas pela sessão assim que acontecem, não só no fim; é delas que o fechamento, a condensação e o Aprendizado saem.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -40,7 +40,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "op": {"type": "string", "enum": ["add", "remove", "replace", "move", "copy", "test"]},
+                            "op": {"type": "string", "enum": ["add", "remove", "replace"]},
                             "path": {"type": "string"},
                             "value": {},
                         },

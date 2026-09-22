@@ -114,11 +114,14 @@ Até ser promovido, o aprendizado vale só onde nasceu. A promoção é gesto hu
 
 ## JSON Patch (RFC 6902)
 
-Paths canônicos:
+Formas aceitas (o kernel recusa o resto com `caminho_invalido`):
 
-- `/nos/<id>`: adição, substituição ou remoção de nó.
-- `/nos/<id>/propriedades/<chave>`: atualização granular de propriedade.
-- `/arestas/<id>`: adição ou remoção de aresta direcionada.
+- `/nos/<id>`: `add` cria o nó; `remove` o apaga junto com as arestas que tocam nele.
+- `/nos/<id>/rotulo`: `add` ou `replace` do rótulo.
+- `/nos/<id>/propriedades/<chave>`: `add`, `replace` ou `remove` de uma propriedade.
+- `/arestas/<id>`: `add` cria a aresta; `remove` a apaga. Aresta não se edita: remova e crie outra com id novo.
+
+`add` só cria. O id do caminho precisa ser o do campo `id` do valor e ainda não existir, nem no grafo nem antes no mesmo lote; do contrário o lote volta com `elemento_ja_existente`. Para mudar um nó, use `replace` no rótulo ou numa propriedade. `test`, `move` e `copy` não são aceitos.
 
 ### Criar tarefa e aresta estrutural (planejador)
 
