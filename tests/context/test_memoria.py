@@ -126,12 +126,32 @@ def test_tarefa_herda_do_projeto_do_setor_e_do_global_nominal() -> None:
         assert f"[{id_no}]" in conteudo
 
 
-def test_substituido_e_contradito_ficam_marcados_e_nao_somem_nominal() -> None:
-    """Esquecer é marcar: o aprendizado vencido continua visível, com o aviso."""
+def test_substituido_por_promovido_sai_da_vista_e_o_substituto_diz_quem_absorveu_nominal() -> None:
+    """A vista carrega só o vigente: o antigo fica no grafo, e a linha do novo o cita."""
     conteudo = _vista(_montar_kernel(), "task-a")
 
-    assert "[SUBSTITUIDO por apr-proj: nao siga]" in _linha_de(conteudo, "apr-velho")
+    assert "[apr-velho]" not in conteudo
+    assert "[substitui apr-velho]" in _linha_de(conteudo, "apr-proj")
+
+
+def test_contradito_fica_marcado_e_nao_some_nominal() -> None:
+    """Contradito não é substituído: segue valendo, com o pedido de revisão."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
     assert "[CONTRADITO por ev-a: precisa de revisao]" in _linha_de(conteudo, "apr-contradito")
+
+
+def test_substituto_sem_promocao_nao_tira_o_antigo_da_vista_edge_case() -> None:
+    """Caso de borda: substituir é propor; até o humano promover o novo, o antigo vale, avisado."""
+    kernel = _montar_kernel()
+    novo = _aprendizado("apr-novo", "Politica de eviccao por LRU com teto e janela", origem="ev-a")
+    _submeter(kernel, novo, PapelAutor.EXECUTOR)
+    _submeter(kernel, [_aresta("apr-novo", "apr-setor", TipoAresta.SUBSTITUI)])
+
+    conteudo = _vista(kernel, "task-a")
+
+    assert "[apr-novo]" not in conteudo
+    assert "[SUBSTITUTO PENDENTE: apr-novo aguarda promocao, siga este ate la]" in _linha_de(conteudo, "apr-setor")
 
 
 def test_expirado_e_nao_promovido_nao_aparecem_edge_case() -> None:

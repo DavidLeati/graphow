@@ -210,3 +210,16 @@ def test_setor_inexistente_devolve_vista_vazia_edge_case() -> None:
     kernel = _ambiente()
 
     assert montar_vista_de_retomada(PedidoDeRetomada(view=kernel.obter_view(), id_sessao="s", id_setor="setor-fantasma")) == ()
+
+
+def test_aprendizado_local_substituido_por_promovido_nao_volta_edge_case() -> None:
+    """Caso de borda: o substituto promovido é o que vale; o antigo fica no grafo, fora da vista."""
+    kernel = _ambiente()
+    _submeter(kernel, _aprendizado("apr-velho", "sess-antes", "dec-1"))
+    _submeter(kernel, _aprendizado("apr-novo", "sess-antes", "dec-1", alcance="proj-1"))
+    _submeter(kernel, [_aresta("apr-novo", "apr-velho", TipoAresta.SUBSTITUI)])
+
+    texto = "\n".join(_vista(kernel))
+
+    assert "[apr-velho]" not in texto
+    assert "[substitui apr-velho]" in texto

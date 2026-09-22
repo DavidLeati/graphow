@@ -91,7 +91,7 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`bloqueia`** | `Question` $\rightarrow$ `Task` | todos / **humano** | Bloqueia a conclusão da tarefa até resolução humana. |
 | **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, planejador, executor, revisor | Fundamentação empírica de decisões. |
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
-| **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador | Evolução e invalidação histórica. O substituído segue visível, marcado. |
+| **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador | Evolução e invalidação histórica. O substituído fica no grafo, marcado; a vista carrega só o vigente, e a linha do substituto diz quem ele absorveu. |
 | **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
 | **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Evidence` $\rightarrow$ `Artifact` / `Task`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano** | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a autonomia ilimitada a abre a agentes. |
@@ -563,8 +563,12 @@ o fechamento retêm como `MEMORIA`, e só saem da vista no degrau em que a
 navegação também sai.
 
 Esquecer é marcar, nunca apagar: `substitui` entre aprendizados deixa o antigo
-visível com `SUBSTITUIDO`, `contradiz` de uma `Evidence` nova o marca com
-`CONTRADITO`, `valido_ate` tira o vencido da vista, e remover é do humano. O
+no grafo, no painel e no acervo com `SUBSTITUIDO`, e a vista carrega só o
+vigente, cuja linha diz quem ele substitui. Enquanto o substituto não é
+promovido, o antigo segue valendo, avisado de que há um substituto à espera:
+substituir é propor, promover é o humano aceitar. `contradiz` de uma
+`Evidence` nova marca o aprendizado com `CONTRADITO` sem tirá-lo da vista,
+`valido_ate` tira o vencido, e remover é do humano. O
 índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
 nulo: sem configurar, não custa nada e não traz dependência.
 

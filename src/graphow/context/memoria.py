@@ -8,6 +8,11 @@ sem busca nenhuma, como as restrições herdadas. O casamento lexical cobre o
 aprendizado promovido a outro lugar cujo texto casa com o alvo. O índice
 semântico é injetável e nulo por padrão: sem configurar, não custa nada e não
 traz dependência.
+
+A vista carrega só o vigente. O aprendizado substituído por um promovido fica
+no grafo, no painel e no acervo, marcado, e a linha do substituto diz quem ele
+absorveu. Enquanto o substituto não é promovido, o antigo segue valendo:
+substituir é propor, promover é o humano aceitar.
 """
 
 from abc import ABC, abstractmethod
@@ -43,6 +48,7 @@ MECANISMO_LEXICO: str = "lexico"
 MECANISMO_SEMANTICO: str = "semantico"
 MARCA_DE_SUBSTITUIDO: str = "SUBSTITUIDO"
 MARCA_DE_CONTRADITO: str = "CONTRADITO"
+MARCA_DE_SUBSTITUTO_PENDENTE: str = "SUBSTITUTO PENDENTE"
 
 
 class IndiceSemantico(ABC):
@@ -108,9 +114,9 @@ class AprendizadoAplicavel:
 
 def montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto:
     """Monta a seção nos três passos, agrupada por mecanismo para encolher sob orçamento."""
-    promovidos = aprendizados_promovidos(pedido.view, pedido.instante)
-    herdados = _por_heranca(pedido, promovidos)
-    restantes = _excluir(promovidos, herdados)
+    vigentes = aprendizados_vigentes(pedido.view, pedido.instante)
+    herdados = _por_heranca(pedido, vigentes)
+    restantes = _excluir(vigentes, herdados)
     lexicais = _por_lexico(pedido, restantes)
     semanticos = _por_indice(pedido, _excluir(restantes, lexicais))
     candidatos = (
@@ -148,6 +154,11 @@ def aprendizados_promovidos(view: GrafoView, instante: str) -> tuple[NoGrafo, ..
     candidatos = view.listar_nos_por_tipo(TipoNo.APRENDIZADO)
     promovidos = [no for no in candidatos if _tem_alcance(no, view) and not _expirou(no, instante)]
     return tuple(sorted(promovidos, key=lambda no: (no.ordem.seq_criacao, no.id)))
+
+
+def aprendizados_vigentes(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]:
+    """Os promovidos que nenhum promovido substituiu: o que a vista carrega."""
+    return tuple(no for no in aprendizados_promovidos(view, instante) if substituto_promovido(no.id, view) is None)
 
 
 def _tem_alcance(no: NoGrafo, view: GrafoView) -> bool:
@@ -246,8 +257,8 @@ def _por_indice(pedido: PedidoDeMemoria, candidatos: Sequence[NoGrafo]) -> tuple
 
 
 def _grupo(rotulo: str, itens: Sequence[AprendizadoAplicavel], view: GrafoView) -> GrupoDeLinhas:
-    """Um grupo cortável por mecanismo: os vigentes primeiro, os substituídos por último."""
-    ordenados = sorted(itens, key=lambda item: (identificar_substituto(item.no.id, view) is not None, item.no.id))
+    """Um grupo cortável por mecanismo, em ordem estável de identificador."""
+    ordenados = sorted(itens, key=lambda item: item.no.id)
     return GrupoDeLinhas(
         rotulo=rotulo,
         linhas=tuple(formatar_aprendizado(item.no, view) for item in ordenados),
@@ -256,13 +267,40 @@ def _grupo(rotulo: str, itens: Sequence[AprendizadoAplicavel], view: GrafoView) 
 
 
 def identificar_substituto(id_aprendizado: str, view: GrafoView) -> str | None:
-    """O Aprendizado vigente que substituiu o informado, se houver."""
+    """O primeiro Aprendizado que substituiu o informado, promovido ou não, se houver."""
+    substitutos = substitutos_de(id_aprendizado, view)
+    return substitutos[0] if substitutos else None
+
+
+def substitutos_de(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]:
+    """Os Aprendizados de onde parte `substitui` chegando neste, em ordem estável."""
     entradas = view.obter_arestas_entrada(id_aprendizado, TipoAresta.SUBSTITUI)
-    for id_origem in sorted(aresta.origem_id for aresta in entradas):
-        no = view.obter_no(id_origem)
-        if no is not None and no.tipo == TipoNo.APRENDIZADO:
-            return no.id
+    return tuple(id_no for id_no in sorted(aresta.origem_id for aresta in entradas) if _eh_aprendizado(id_no, view))
+
+
+def substituidos_por(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]:
+    """Os Aprendizados que este substitui: a linha do consolidado diz quem ele absorveu."""
+    saidas = view.obter_arestas_saida(id_aprendizado, TipoAresta.SUBSTITUI)
+    return tuple(id_no for id_no in sorted(aresta.destino_id for aresta in saidas) if _eh_aprendizado(id_no, view))
+
+
+def substituto_promovido(id_aprendizado: str, view: GrafoView) -> str | None:
+    """O substituto que já tem alcance, se houver: só ele tira o antigo da vista.
+
+    Um agente pode escrever o substituto; quem lhe dá alcance é o humano. Até
+    lá o antigo segue valendo, com a marca de que há um substituto à espera.
+    """
+    for id_no in substitutos_de(id_aprendizado, view):
+        no = view.obter_no(id_no)
+        if no is not None and _tem_alcance(no, view):
+            return id_no
     return None
+
+
+def _eh_aprendizado(id_no: str, view: GrafoView) -> bool:
+    """Diz se o id nomeia um Aprendizado presente na projeção."""
+    no = view.obter_no(id_no)
+    return no is not None and no.tipo == TipoNo.APRENDIZADO
 
 
 def identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]:
@@ -272,7 +310,7 @@ def identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str,
 
 
 def formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str:
-    """Uma linha: a afirmação, a proveniência, como aplicar, o alcance, a origem e as marcas."""
+    """Uma linha: afirmação, proveniência, como aplicar, alcance, quem substitui, origem e marcas."""
     partes = [f"- [{no.id}] {no.rotulo}{anotar_ordem(no)}{anotar_proveniencia(no)}"]
     como_aplicar = str(no.obter_propriedade(CAMPO_COMO_APLICAR, "")).strip()
     if como_aplicar:
@@ -280,6 +318,9 @@ def formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str:
     alcances = alcances_de(no, view)
     if alcances:
         partes.append(f"[vale_para {', '.join(alcances)}]")
+    absorvidos = substituidos_por(no.id, view)
+    if absorvidos:
+        partes.append(f"[substitui {', '.join(absorvidos)}]")
     origens = origens_de(no, view)
     if origens:
         partes.append(f"[origem: {', '.join(origens)}]")
@@ -288,12 +329,20 @@ def formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str:
 
 
 def _marcas_de_revisao(id_no: str, view: GrafoView) -> tuple[str, ...]:
-    """Substituído ou contradito: o aprendizado segue visível e marcado, nunca apagado."""
-    marcas: list[str] = []
-    substituto = identificar_substituto(id_no, view)
-    if substituto is not None:
-        marcas.append(f"[{MARCA_DE_SUBSTITUIDO} por {substituto}: nao siga]")
+    """Substituído, com substituto à espera de promoção, ou contradito: marcado, nunca apagado."""
+    marcas: list[str] = [*_marca_de_substituicao(id_no, view)]
     contradicoes = identificar_contradicoes(id_no, view)
     if contradicoes:
         marcas.append(f"[{MARCA_DE_CONTRADITO} por {', '.join(contradicoes)}: precisa de revisao]")
     return tuple(marcas)
+
+
+def _marca_de_substituicao(id_no: str, view: GrafoView) -> tuple[str, ...]:
+    """Substituído por promovido diz por quem e não segue; o antigo ainda em vigor diz quem o espera."""
+    promovido = substituto_promovido(id_no, view)
+    if promovido is not None:
+        return (f"[{MARCA_DE_SUBSTITUIDO} por {promovido}: nao siga]",)
+    pendentes = substitutos_de(id_no, view)
+    if pendentes:
+        return (f"[{MARCA_DE_SUBSTITUTO_PENDENTE}: {', '.join(pendentes)} aguarda promocao, siga este ate la]",)
+    return ()

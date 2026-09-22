@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-16 módulos · 2041 linhas · 30 classes
+16 módulos · 2090 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
-| [`context/memoria.py`](#contextmemoria) | 299 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/memoria.py`](#contextmemoria) | 348 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
@@ -152,6 +152,7 @@ Seção de memória: os aprendizados que alcançam o alvo, por herança, por lé
 | `MECANISMO_SEMANTICO` | `str` | `'semantico'` |
 | `MARCA_DE_SUBSTITUIDO` | `str` | `'SUBSTITUIDO'` |
 | `MARCA_DE_CONTRADITO` | `str` | `'CONTRADITO'` |
+| `MARCA_DE_SUBSTITUTO_PENDENTE` | `str` | `'SUBSTITUTO PENDENTE'` |
 
 ### `AprendizadoAplicavel`
 
@@ -186,12 +187,16 @@ Seção de memória: os aprendizados que alcançam o alvo, por herança, por lé
 
 - `montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto` — Monta a seção nos três passos, agrupada por mecanismo para encolher sob orçamento.
 - `aprendizados_promovidos(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]` — Aprendizados com alcance declarado e ainda válidos, em ordem estável.
+- `aprendizados_vigentes(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]` — Os promovidos que nenhum promovido substituiu: o que a vista carrega.
 - `alcances_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]` — Onde o aprendizado vale: a marca global e os destinos de `vale_para`.
 - `ja_vale_para(id_aprendizado: str, id_alvo: str, view: GrafoView) -> bool` — Diz se o aprendizado já tem `vale_para` chegando no alvo.
 - `origens_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]` — De onde o aprendizado saiu: os destinos das arestas `deriva_de`.
-- `identificar_substituto(id_aprendizado: str, view: GrafoView) -> str | None` — O Aprendizado vigente que substituiu o informado, se houver.
+- `identificar_substituto(id_aprendizado: str, view: GrafoView) -> str | None` — O primeiro Aprendizado que substituiu o informado, promovido ou não, se houver.
+- `substitutos_de(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Os Aprendizados de onde parte `substitui` chegando neste, em ordem estável.
+- `substituidos_por(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Os Aprendizados que este substitui: a linha do consolidado diz quem ele absorveu.
+- `substituto_promovido(id_aprendizado: str, view: GrafoView) -> str | None` — O substituto que já tem alcance, se houver: só ele tira o antigo da vista.
 - `identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Evidences que contradizem o aprendizado: sinal de que ele precisa de revisão.
-- `formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str` — Uma linha: a afirmação, a proveniência, como aplicar, o alcance, a origem e as marcas.
+- `formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str` — Uma linha: afirmação, proveniência, como aplicar, alcance, quem substitui, origem e marcas.
 
 ## `context/orientacao.py`
 

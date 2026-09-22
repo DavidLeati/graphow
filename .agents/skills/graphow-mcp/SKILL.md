@@ -32,7 +32,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 **8. Ambiguidade vira questão, não chute.** Especificação vaga, dependência faltando, contrato em conflito: `abrir_questao` suspende a tarefa e chama o humano.
 
-**9. Memória diz de onde veio.** Um `Aprendizado` nasce com `deriva_de` no mesmo lote para cada nó de onde saiu; sem isso o lote cai com `aprendizado_sem_origem`. Registrar é do executor e do revisor, os donos de `deriva_de` (`registrar_aprendizado`); promover, isto é, dar alcance por `vale_para` ou pela marca `alcance: global`, é do humano (`promover_aprendizado`), e um agente que escrevesse `alcance` é recusado. Os aprendizados promovidos chegam à sua vista na seção `Aprendizados Aplicaveis`, cada um com a origem e as marcas `SUBSTITUIDO` e `CONTRADITO`: siga os vigentes e não reabra o que já foi decidido.
+**9. Memória diz de onde veio.** Um `Aprendizado` nasce com `deriva_de` no mesmo lote para cada nó de onde saiu; sem isso o lote cai com `aprendizado_sem_origem`. Registrar é do executor e do revisor, os donos de `deriva_de` (`registrar_aprendizado`); promover, isto é, dar alcance por `vale_para` ou pela marca `alcance: global`, é do humano (`promover_aprendizado`), e um agente que escrevesse `alcance` é recusado. Os aprendizados promovidos chegam à sua vista na seção `Aprendizados Aplicaveis`, cada um com a origem. Só os vigentes chegam, e a linha de um aprendizado que substitui outros diz quem ele absorveu. A marca `CONTRADITO` pede revisão, e `SUBSTITUTO PENDENTE` avisa que há um substituto à espera de promoção: siga o que está na vista e não reabra o que já foi decidido.
 
 ## O que chega sem pedir
 
@@ -110,7 +110,7 @@ Um `Aprendizado` é o que sobrevive ao projeto: a lição em uma linha, como apl
 }
 ```
 
-Até ser promovido, o aprendizado vale só onde nasceu. A promoção é gesto humano: `promover_aprendizado` com `id_alvo` (um Projeto ou Setor) cria `vale_para`, e com `global: true` grava `alcance: global`. A partir daí ele entra em `Aprendizados Aplicaveis` na vista de toda tarefa sob esse alcance, por herança pela hierarquia; tarefas de outros projetos o recebem quando o texto delas casa com o dele. Um aprendizado que deixou de valer é substituído (`substitui`, planejador ou humano) ou contradito por uma `Evidence` nova (`contradiz`); ele continua visível, marcado, e só o humano o remove.
+Até ser promovido, o aprendizado vale só onde nasceu. A promoção é gesto humano: `promover_aprendizado` com `id_alvo` (um Projeto ou Setor) cria `vale_para`, e com `global: true` grava `alcance: global`. A partir daí ele entra em `Aprendizados Aplicaveis` na vista de toda tarefa sob esse alcance, por herança pela hierarquia; tarefas de outros projetos o recebem quando o texto delas casa com o dele. Um aprendizado que deixou de valer é substituído (`substitui`, planejador ou humano) ou contradito por uma `Evidence` nova (`contradiz`); ele continua no grafo, marcado, e só o humano o remove. A vista carrega só o vigente: o substituído por um aprendizado promovido sai dela, e a linha do substituto diz quem ele absorveu; enquanto o substituto não é promovido, o antigo segue valendo, com a marca `SUBSTITUTO PENDENTE`.
 
 ## JSON Patch (RFC 6902)
 

@@ -14,7 +14,12 @@ from collections import Counter
 from dataclasses import dataclass
 
 from graphow.context.fechamento import CAMPO_CORPO, localizar_condensacao
-from graphow.context.memoria import PedidoDeMemoria, formatar_aprendizado, montar_secao_de_aprendizados
+from graphow.context.memoria import (
+    PedidoDeMemoria,
+    formatar_aprendizado,
+    montar_secao_de_aprendizados,
+    substituto_promovido,
+)
 from graphow.context.protocolo import montar_protocolo
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusSessao, StatusTask, TipoAresta, TipoNo
@@ -89,13 +94,13 @@ def _linhas_de_aprendizados(setor: NoGrafo, view: GrafoView) -> tuple[str, ...]:
 
 
 def _aprendizados_locais(setor: NoGrafo, view: GrafoView, *, excluidos: frozenset[str]) -> tuple[NoGrafo, ...]:
-    """Aprendizados que nasceram nas sessões deste Setor: até a promoção, valem só onde nasceram."""
+    """Aprendizados nascidos nas sessões deste Setor e ainda em vigor: até a promoção, valem só onde nasceram."""
     sessoes = view.obter_filhos_por_contencao(setor.id)
     nascidos = [
         no
         for sessao in sessoes
         for no in produzidos_pela_sessao(sessao.id, view)
-        if no.tipo == TipoNo.APRENDIZADO and no.id not in excluidos
+        if no.tipo == TipoNo.APRENDIZADO and no.id not in excluidos and substituto_promovido(no.id, view) is None
     ]
     return tuple(sorted(nascidos, key=lambda no: (-no.ordem.seq_criacao, no.id)))
 
