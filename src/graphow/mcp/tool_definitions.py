@@ -276,12 +276,12 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "promover_aprendizado",
-        "description": "Da alcance a um Aprendizado: aresta vale_para um Projeto ou Setor, ou a marca 'alcance: global' para valer em todo projeto. A partir dai ele entra na secao Aprendizados Aplicaveis da vista de qualquer tarefa sob esse alcance. Somente sessao humana.",
+        "description": "Da alcance a um Aprendizado: aresta vale_para um Projeto ou Setor, ou a marca 'alcance: global' para valer em todo projeto. A partir dai ele entra na secao Aprendizados Aplicaveis da vista de qualquer tarefa sob esse alcance. Somente sessao humana. Sem id_alvo nem global, promove ao Setor da sessao que o produziu, que e o alcance padrao: reserve o Projeto para o que vale em toda tarefa dele, e global para o que vale em qualquer projeto.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "id_aprendizado": {"type": "string", "description": "ID do Aprendizado a promover."},
-                "id_alvo": {"type": "string", "description": "ID do Projeto ou Setor onde o aprendizado passa a valer."},
+                "id_alvo": {"type": "string", "description": "ID do Projeto ou Setor onde o aprendizado passa a valer. Omitido, e sem global, vale o Setor da sessao de origem."},
                 "global": {"type": "boolean", "default": False, "description": "Vale para todo projeto, sem conteiner ficticio na hierarquia."},
             },
             "required": ["id_aprendizado"],

@@ -4,7 +4,9 @@ Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
 prazo: é dele que o fechamento determinístico passa a abrir a vista e que o
 motor reativo pede a condensação. Registrar um aprendizado é destilar o que
 sobrevive ao projeto, com a origem obrigatória. Promover é dar-lhe alcance, e
-isso fica com o humano. Consolidar é registrar com `substitui`: um aprendizado
+isso fica com o humano; sem alvo declarado, o alcance é o Setor da sessão de
+origem, porque promover ao Projeto dá a lição a toda tarefa dele, case ou não
+com o assunto. Consolidar é registrar com `substitui`: um aprendizado
 que absorve vários, com a aresta para cada absorvido no mesmo lote; o absorvido
 só sai da vista quando o humano promove o consolidado.
 """
@@ -165,22 +167,44 @@ class FerramentasMemoria:
         )
 
     def promover_aprendizado(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou a marca global."""
+        """Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou a marca global; sem alvo, o Setor de origem."""
         id_aprendizado = str(argumentos["id_aprendizado"])
+        ramo = extrair_ramo(dict(argumentos))
         id_alvo = str(argumentos.get("id_alvo", "") or "").strip()
         eh_global = bool(argumentos.get("global", False))
         if not id_alvo and not eh_global:
-            return {"sucesso": False, "erro": "Informe 'id_alvo' (um Projeto ou Setor) ou 'global': true"}
-        ramo = extrair_ramo(dict(argumentos))
-        if id_alvo and ja_vale_para(id_aprendizado, id_alvo, self._contexto.kernel.obter_view(ramo)):
-            id_alvo = ""
+            id_alvo = self._setor_de_origem(id_aprendizado, ramo)
+        if not id_alvo and not eh_global:
+            return {
+                "sucesso": False,
+                "erro": "Aprendizado sem sessao de origem neste ramo: informe 'id_alvo' (um Projeto ou Setor) "
+                "ou 'global': true",
+            }
+        ja_promovido = bool(id_alvo) and ja_vale_para(id_aprendizado, id_alvo, self._contexto.kernel.obter_view(ramo))
         pedido = PedidoSubmissaoMCP(
-            operacoes=self._operacoes_de_promocao(id_aprendizado, id_alvo, eh_global),
+            operacoes=self._operacoes_de_promocao(id_aprendizado, "" if ja_promovido else id_alvo, eh_global),
             justificativa=f"Promocao do aprendizado {id_aprendizado}",
             ramo_id=ramo,
             identificadores_criados={"id_aprendizado": id_aprendizado},
         )
-        return self._submissor.submeter_e_relatar(pedido)
+        resposta = self._submissor.submeter_e_relatar(pedido)
+        resposta["alcance"] = id_alvo or ALCANCE_GLOBAL
+        return resposta
+
+    def _setor_de_origem(self, id_aprendizado: str, ramo: str) -> str:
+        """O Setor da sessão que produziu o aprendizado: o alcance padrão da promoção.
+
+        Promover ao Projeto dá a lição a toda tarefa dele, case ou não com o
+        assunto; o Setor é o alcance que corresponde a onde ela foi aprendida.
+        O Projeto fica para o que vale em toda tarefa dele, e o global para o
+        que vale em qualquer projeto.
+        """
+        view = self._contexto.kernel.obter_view(ramo)
+        sessoes = sorted(a.origem_id for a in view.obter_arestas_entrada(id_aprendizado, TipoAresta.PRODUZ))
+        if not sessoes:
+            return ""
+        setores = sorted(a.origem_id for a in view.obter_arestas_entrada(sessoes[0], TipoAresta.CONTEM))
+        return setores[0] if setores else ""
 
     def _operacoes_de_promocao(self, id_aprendizado: str, id_alvo: str, eh_global: bool) -> tuple[ItemPatch, ...]:
         """A marca global como propriedade e o alcance por contêiner como aresta."""

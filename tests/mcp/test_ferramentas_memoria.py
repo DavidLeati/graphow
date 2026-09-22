@@ -187,11 +187,27 @@ def test_promover_de_novo_para_o_mesmo_alvo_nao_e_recusado_edge_case() -> None:
 
     assert primeira["sucesso"] is True, primeira
     assert segunda["sucesso"] is True, segunda
+    assert segunda["alcance"] == "setor"
     assert len(kernel.obter_view().obter_arestas_saida(registro["id_aprendizado"], TipoAresta.VALE_PARA)) == 1
 
 
-def test_promover_sem_alvo_nem_global_e_recusa_explicada_edge_case() -> None:
-    """Caso de borda: promover para lugar nenhum não é promover."""
+def test_promover_sem_alvo_vai_ao_setor_da_sessao_de_origem_nominal() -> None:
+    """O alcance padrão é o Setor onde a lição foi aprendida; o Projeto e o global são escolhas explícitas."""
+    servidor, kernel = _servidor("humano")
+    registro = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Licao", "id_sessao": "sess", "origens": ["dec-1"]}
+    )
+
+    resposta = servidor.executar_ferramenta("promover_aprendizado", {"id_aprendizado": registro["id_aprendizado"]})
+
+    assert resposta["sucesso"] is True, resposta
+    assert resposta["alcance"] == "setor"
+    arestas = kernel.obter_view().obter_arestas_saida(registro["id_aprendizado"], TipoAresta.VALE_PARA)
+    assert [aresta.destino_id for aresta in arestas] == ["setor"]
+
+
+def test_promover_sem_alvo_um_aprendizado_sem_sessao_e_recusa_explicada_edge_case() -> None:
+    """Caso de borda: sem sessão de origem não há Setor padrão; promover para lugar nenhum não é promover."""
     servidor, _ = _servidor("humano")
 
     resposta = servidor.executar_ferramenta("promover_aprendizado", {"id_aprendizado": "apr-x"})

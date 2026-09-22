@@ -155,7 +155,7 @@ O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **p
 | **`configurar_autonomia_projeto`** | Ajusta a autonomia dos agentes no projeto. **Somente sessão humana.** |
 | **`encerrar_sessao`** | Encerra a `Sessao`: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo **fechamento determinístico** (decisões vigentes, dúvidas abertas, restrições, último artefato). **Somente sessão humana**; o harness encerra pelo hook de fim. |
 | **`registrar_aprendizado`** | Cria um `Aprendizado` pendurado na `Sessao` e ligado por `deriva_de` a cada nó de origem. Sem origem no mesmo lote, o `InvariantGate` recusa com `aprendizado_sem_origem`. Com `substitui`, consolida: a aresta para cada `Aprendizado` absorvido nasce no mesmo lote. |
-| **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. **Somente sessão humana.** |
+| **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. **Somente sessão humana.** Sem alvo, promove ao `Setor` da sessão de origem, o alcance padrão; o `Projeto` fica para o que vale em toda tarefa dele, e o global para o que vale em qualquer projeto. |
 | **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. **Somente sessão humana.** |
 | **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. **Somente sessão humana.** |
 
