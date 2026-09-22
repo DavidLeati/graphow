@@ -198,3 +198,29 @@ def test_promover_sem_alvo_nem_global_e_recusa_explicada_edge_case() -> None:
 
     assert resposta["sucesso"] is False
     assert "id_alvo" in resposta["erro"]
+
+
+def test_agente_consolida_registrando_com_substitui_nominal() -> None:
+    """Consolidar é registrar com `substitui`: cada absorvido ganha a aresta no mesmo lote."""
+    servidor, kernel = _servidor("revisor")
+    primeiro = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Regra 1", "id_sessao": "sess", "origens": ["dec-1"]}
+    )
+    segundo = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Regra 2", "id_sessao": "sess", "origens": ["art-1"]}
+    )
+
+    resposta = servidor.executar_ferramenta(
+        "registrar_aprendizado",
+        {
+            "afirmacao": "Regra geral",
+            "id_sessao": "sess",
+            "origens": ["dec-1", "art-1"],
+            "substitui": [primeiro["id_aprendizado"], segundo["id_aprendizado"]],
+        },
+    )
+
+    assert resposta["sucesso"] is True, resposta
+    view = kernel.obter_view()
+    absorvidos = {a.destino_id for a in view.obter_arestas_saida(resposta["id_aprendizado"], TipoAresta.SUBSTITUI)}
+    assert absorvidos == {primeiro["id_aprendizado"], segundo["id_aprendizado"]}

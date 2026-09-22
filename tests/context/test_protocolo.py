@@ -49,3 +49,11 @@ def test_protocolo_e_ascii_edge_case() -> None:
     """Caso de borda: o texto atravessa a saída padrão do hook, cuja codificação ninguém controla."""
     for linha in montar_protocolo(papel=PapelAutor.REVISOR, id_sessao="sess-1"):
         assert linha.isascii(), linha
+
+
+def test_protocolo_diz_como_consolidar_aprendizados_nominal() -> None:
+    """O agente que pega a Task de consolidar sabe pelo protocolo que registra com substitui."""
+    texto = "\n".join(montar_protocolo())
+
+    assert "consolidar aprendizados" in texto
+    assert "substitui = os ids absorvidos" in texto

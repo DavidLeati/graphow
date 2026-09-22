@@ -319,3 +319,19 @@ A Task de condensar (`acao: condensar_sessao`) foi aberta pelo grafo quando a se
 ```
 
 O revisor não grava `concluido`: ele deixa a Task em `pronto_para_revisao` e devolve a posse com `liberar_tarefa`. Um executor que condensasse poderia fechar por `concluir_tarefa`.
+
+## revisor: consolidar aprendizados acumulados
+
+A Task de consolidar (`acao: consolidar_aprendizados`) foi aberta pelo grafo quando uma sessão abriu num alcance com mais de doze aprendizados vigentes; a descrição lista os ids. Consolidar não é patch: é `registrar_aprendizado` por tema, que monta o `produz`, os `deriva_de` e os `substitui` no mesmo lote.
+
+```json
+{
+  "afirmacao": "Toda escrita fora do PatchBoard nasce com aresta de contencao no mesmo lote",
+  "como_aplicar": "No canal de execucao e em qualquer comportamento reativo, crie produz ou contem junto do no; o InvariantGate nao ve esses canais",
+  "id_sessao": "sess-sprint-02",
+  "origens": ["evi-runs-fora-da-hierarquia", "dec-run-pendurado-na-sessao", "evi-nota-orfa"],
+  "substitui": ["apr-run-sem-aresta", "apr-nota-reativa-orfa"]
+}
+```
+
+Os dois absorvidos ficam no grafo, marcados com `SUBSTITUTO PENDENTE` na vista, até o humano promover o consolidado; só então saem dela. Depois, o revisor move a Task para `pronto_para_revisao` e libera a posse, como na condensação.

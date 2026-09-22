@@ -4,7 +4,9 @@ Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
 prazo: é dele que o fechamento determinístico passa a abrir a vista e que o
 motor reativo pede a condensação. Registrar um aprendizado é destilar o que
 sobrevive ao projeto, com a origem obrigatória. Promover é dar-lhe alcance, e
-isso fica com o humano.
+isso fica com o humano. Consolidar é registrar com `substitui`: um aprendizado
+que absorve vários, com a aresta para cada absorvido no mesmo lote; o absorvido
+só sai da vista quando o humano promove o consolidado.
 """
 
 from collections.abc import Callable, Mapping
@@ -30,6 +32,7 @@ from graphow.mcp.submissao import (
 
 CAMPO_RESUMO: str = "resumo"
 CAMPO_ORIGENS: str = "origens"
+CAMPO_SUBSTITUI: str = "substitui"
 
 
 class FerramentasMemoria:
@@ -81,7 +84,7 @@ class FerramentasMemoria:
         return resumo.fechamento.em_dicionario()
 
     def registrar_aprendizado(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Cria o Aprendizado pendurado na sessão e derivado de cada origem declarada."""
+        """Cria o Aprendizado pendurado na sessão, derivado de cada origem e substituindo os que consolida."""
         afirmacao = str(argumentos["afirmacao"]).strip()
         origens = self._origens_declaradas(argumentos)
         if not afirmacao or not origens:
@@ -101,10 +104,14 @@ class FerramentasMemoria:
 
     def _origens_declaradas(self, argumentos: Mapping[str, Any]) -> tuple[str, ...]:
         """Ids de origem informados, sem vazios e sem repetição, na ordem declarada."""
-        brutas = argumentos.get(CAMPO_ORIGENS, [])
-        if not isinstance(brutas, (list, tuple)):
+        return self._ids_declarados(argumentos, CAMPO_ORIGENS)
+
+    def _ids_declarados(self, argumentos: Mapping[str, Any], campo: str) -> tuple[str, ...]:
+        """Ids informados no campo, sem vazios e sem repetição, na ordem declarada."""
+        brutos = argumentos.get(campo, [])
+        if not isinstance(brutos, (list, tuple)):
             return ()
-        return tuple(dict.fromkeys(str(origem).strip() for origem in brutas if str(origem).strip()))
+        return tuple(dict.fromkeys(str(item).strip() for item in brutos if str(item).strip()))
 
     def _operacoes_de_registro(
         self,
@@ -112,7 +119,7 @@ class FerramentasMemoria:
         argumentos: Mapping[str, Any],
         origens: tuple[str, ...],
     ) -> tuple[ItemPatch, ...]:
-        """O nó, o vínculo com a sessão e uma aresta de origem por nó de onde ele saiu."""
+        """O nó, o vínculo com a sessão, uma aresta de origem por nó de onde saiu e uma de substituição por absorvido."""
         especificacao = EspecificacaoNo(
             id=id_aprendizado,
             tipo=TipoNo.APRENDIZADO,
@@ -126,7 +133,8 @@ class FerramentasMemoria:
             tipo=TipoAresta.PRODUZ,
         )
         cabeca = (montar_operacao_criar_no(especificacao), montar_operacao_criar_aresta(producao))
-        return cabeca + self._derivacoes(id_aprendizado, origens)
+        absorvidos = self._ids_declarados(argumentos, CAMPO_SUBSTITUI)
+        return cabeca + self._derivacoes(id_aprendizado, origens) + self._substituicoes(id_aprendizado, absorvidos)
 
     def _derivacoes(self, id_aprendizado: str, origens: tuple[str, ...]) -> tuple[ItemPatch, ...]:
         """Uma aresta `deriva_de` por origem: é o que o InvariantGate exige no mesmo lote."""
@@ -140,6 +148,20 @@ class FerramentasMemoria:
                 )
             )
             for origem in origens
+        )
+
+    def _substituicoes(self, id_aprendizado: str, absorvidos: tuple[str, ...]) -> tuple[ItemPatch, ...]:
+        """Uma aresta `substitui` por absorvido: a consolidação, que só vale na vista quando o humano promover."""
+        return tuple(
+            montar_operacao_criar_aresta(
+                EspecificacaoAresta(
+                    id=f"subst-{id_aprendizado}-{antigo}",
+                    origem_id=id_aprendizado,
+                    destino_id=antigo,
+                    tipo=TipoAresta.SUBSTITUI,
+                )
+            )
+            for antigo in absorvidos
         )
 
     def promover_aprendizado(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:

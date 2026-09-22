@@ -36,7 +36,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 ## O que chega sem pedir
 
-Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que ela. O hook de início de sessão (`graphow harness --fase inicio --entrada-hook`) imprime a **vista de retomada**, que o ambiente injeta no contexto: onde a sessão mora (Projeto, Setor e o `id_sessao` que as ferramentas pedem), os `Aprendizados aplicaveis`, o que a sessão anterior deixou (balanço, fechamento, condensação ou a `Task` de condensar pendente, com o id para `assumir_tarefa`) e o protocolo de memória. E a resposta de `initialize` do servidor MCP traz `instructions` com esse protocolo e o que o papel da conexão pode criar. Esta skill é o detalhe: o cookbook de patches, a matriz de papéis e o roteiro completo.
+Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que ela. O hook de início de sessão (`graphow harness --fase inicio --entrada-hook`) imprime a **vista de retomada**, que o ambiente injeta no contexto: onde a sessão mora (Projeto, Setor e o `id_sessao` que as ferramentas pedem), os `Aprendizados aplicaveis` (e a `Task` de consolidar aprendizados pendente do alcance, quando o grafo a abriu), o que a sessão anterior deixou (balanço, fechamento, condensação ou a `Task` de condensar pendente, com o id para `assumir_tarefa`) e o protocolo de memória. E a resposta de `initialize` do servidor MCP traz `instructions` com esse protocolo e o que o papel da conexão pode criar. Esta skill é o detalhe: o cookbook de patches, a matriz de papéis e o roteiro completo.
 
 ## As 22 ferramentas do servidor
 
@@ -71,7 +71,7 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |
 | `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Muda a permissividade dos agentes no projeto. |
 | `encerrar_sessao` | `id_sessao`, `resumo` *(só humano)* | Encerra a Sessao: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo fechamento, e `ler_vista` numa sessão encerrada é o jeito barato de retomá-la. |
-| `registrar_aprendizado` | `afirmacao`, `como_aplicar`, `id_sessao`, `origens` | Cria o Aprendizado pendurado na sessão e ligado por `deriva_de` a cada id de `origens`. Sem origem, `aprendizado_sem_origem`. |
+| `registrar_aprendizado` | `afirmacao`, `como_aplicar`, `id_sessao`, `origens`, `substitui` | Cria o Aprendizado pendurado na sessão e ligado por `deriva_de` a cada id de `origens`. Sem origem, `aprendizado_sem_origem`. Com `substitui`, consolida: a aresta para cada absorvido nasce no mesmo lote. |
 | `promover_aprendizado` | `id_aprendizado`, `id_alvo` ou `global` *(só humano)* | Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou `alcance: global`. É o que o faz chegar à vista das tarefas sob esse alcance. |
 | `excluir_em_lote` | `ids_nos`, `ids_arestas`, `justificativa` *(só humano)* | Remove atomicamente uma coleção de nós e arestas. |
 | `excluir_projeto` | `id_projeto`, `cascata` (true) *(só humano)* | Remove o projeto e, em cascata, setores, sessões e tarefas. |
@@ -111,6 +111,17 @@ Um `Aprendizado` é o que sobrevive ao projeto: a lição em uma linha, como apl
 ```
 
 Até ser promovido, o aprendizado vale só onde nasceu. A promoção é gesto humano: `promover_aprendizado` com `id_alvo` (um Projeto ou Setor) cria `vale_para`, e com `global: true` grava `alcance: global`. A partir daí ele entra em `Aprendizados Aplicaveis` na vista de toda tarefa sob esse alcance, por herança pela hierarquia; tarefas de outros projetos o recebem quando o texto delas casa com o dele. Um aprendizado que deixou de valer é substituído (`substitui`: planejador ou humano; entre Aprendizados, também executor e revisor, que consolidam) ou contradito por uma `Evidence` nova (`contradiz`); ele continua no grafo, marcado, e só o humano o remove. A vista carrega só o vigente: o substituído por um aprendizado promovido sai dela, e a linha do substituto diz quem ele absorveu; enquanto o substituto não é promovido, o antigo segue valendo, com a marca `SUBSTITUTO PENDENTE`.
+
+## Consolidar aprendizados acumulados
+
+Quando um alcance (Setor, Projeto ou global) passa de doze aprendizados vigentes, o grafo abre, na sessão que abre nele, uma Task com `acao: consolidar_aprendizados` (autor `comportamento-consolidador`), com os ids vigentes na descrição. Ela aparece em `proximas_tarefas(id_sessao)` e na vista de retomada. Quem consolida é o revisor ou o executor, que registram `Aprendizado` e, entre Aprendizados, escrevem `substitui`.
+
+1. `assumir_tarefa` na Task e `expandir_no` em cada aprendizado listado; agrupe por tema.
+2. Para cada grupo, `registrar_aprendizado` com a afirmação geral, `como_aplicar` que funde os dos absorvidos, `origens` = a união das origens deles e `substitui` = os ids absorvidos. A ferramenta cria o `produz`, os `deriva_de` e os `substitui` no mesmo lote.
+3. Nada é apagado. O absorvido fica no grafo, com a marca `SUBSTITUTO PENDENTE` na vista, até o humano promover o consolidado (`promover_aprendizado`); só então ele sai da vista, e a linha do consolidado diz quem ele substitui.
+4. O revisor deixa a Task em `pronto_para_revisao` e libera a posse; o executor pode `concluir_tarefa`.
+
+O exemplo dos argumentos está no [cookbook](./references/patch_cookbook.md), em "revisor: consolidar aprendizados acumulados".
 
 ## JSON Patch (RFC 6902)
 

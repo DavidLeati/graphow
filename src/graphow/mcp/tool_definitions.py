@@ -261,7 +261,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "registrar_aprendizado",
-        "description": "Chame antes de terminar, para cada lição que vale além desta sessão. Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu.",
+        "description": "Chame antes de terminar, para cada lição que vale além desta sessão. Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu. Para consolidar (Task de acao consolidar_aprendizados), passe em substitui os ids dos Aprendizados absorvidos: a aresta substitui nasce no mesmo lote, e o absorvido sai da vista quando o humano promover o consolidado.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -269,6 +269,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "como_aplicar": {"type": "string", "default": "", "description": "O que fazer com isto na proxima vez."},
                 "id_sessao": {"type": "string", "description": "ID da Sessao que destilou o aprendizado."},
                 "origens": {"type": "array", "items": {"type": "string"}, "description": "IDs das Evidence, Decision, Note, Artifact ou Task de onde o aprendizado saiu. Ao menos um."},
+                "substitui": {"type": "array", "items": {"type": "string"}, "default": [], "description": "IDs dos Aprendizados que este consolida e substitui. O absorvido fica no grafo e sai da vista quando o humano promover este."},
             },
             "required": ["afirmacao", "id_sessao", "origens"],
         },

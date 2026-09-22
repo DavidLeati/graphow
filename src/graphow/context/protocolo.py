@@ -46,8 +46,9 @@ PASSOS_DO_PROTOCOLO: tuple[str, ...] = (
     "Duvida que trava o trabalho vira `abrir_questao`; espere a pessoa em `aguardar_resposta`.",
     "Antes de terminar, destile o que vale alem desta sessao com `registrar_aprendizado` "
     "(afirmacao, como_aplicar, origens = ids dos nos de onde saiu).",
-    "Se houver Task de condensar sessao pendente, assuma-a e escreva a Note de condensacao "
-    "(acao condensacao_de_sessao) com deriva_de para cada no condensado.",
+    "Se houver Task de condensar sessao ou de consolidar aprendizados pendente, assuma-a: a condensacao "
+    "e uma Note (acao condensacao_de_sessao) com deriva_de para cada no condensado; a consolidacao e um "
+    "`registrar_aprendizado` por tema, com substitui = os ids absorvidos e origens = as origens deles.",
     "Nao edite o banco por fora: toda escrita passa pelas ferramentas. Promover aprendizado e "
     "encerrar a sessao sao gestos humanos; o hook de fim encerra esta.",
 )
