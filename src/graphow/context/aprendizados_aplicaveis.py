@@ -15,6 +15,9 @@ tarefa dele herdava vinte linhas com como aplicar e origem, e a seção sozinha
 consumia o orçamento. A linha inteira fica para o que casa com o texto do alvo,
 até um limite por herança; o resto vai só com a afirmação, e `expandir_no` traz
 o que faltar. O que chega por léxico ou por índice já casou, e vai inteiro.
+Entre os que casam igual, o mais recente vem primeiro: quando o grupo encolhe
+sob orçamento, sobrevive o que casa mais e o que foi aprendido por último,
+não o de identificador menor.
 """
 
 from abc import ABC, abstractmethod
@@ -160,7 +163,7 @@ def _titulo(herdados: Sequence[AprendizadoAplicavel], *, resumida: bool = False)
 
 
 def _por_heranca(pedido: PedidoDeMemoria, vigentes: Sequence[NoGrafo]) -> tuple[AprendizadoAplicavel, ...]:
-    """Aprendizados que valem para o alvo ou para um ancestral dele, os que casam com o alvo primeiro."""
+    """Aprendizados que valem para o alvo ou para um ancestral dele: os que mais casam primeiro, depois os mais recentes."""
     ancestrais = _ancestrais_por_contencao(pedido.alvo, pedido.view)
     palavras = pedido.palavras_do_alvo
     herdados: list[AprendizadoAplicavel] = []
@@ -169,7 +172,7 @@ def _por_heranca(pedido: PedidoDeMemoria, vigentes: Sequence[NoGrafo]) -> tuple[
         if alcance is not None:
             casamento = contar_palavras_casadas(no, palavras)
             herdados.append(AprendizadoAplicavel(no=no, mecanismo=MECANISMO_HERANCA, alcance=alcance, casamento=casamento))
-    ordenados = sorted(herdados, key=lambda item: (-item.casamento, item.no.id))
+    ordenados = sorted(herdados, key=lambda item: (-item.casamento, -item.no.ordem.seq_criacao, item.no.id))
     return tuple(_inteiro_se_casa(item, posicao) for posicao, item in enumerate(ordenados))
 
 
@@ -199,13 +202,14 @@ def _ancestrais_por_contencao(alvo: NoGrafo, view: GrafoView) -> frozenset[str]:
 
 
 def _por_lexico(pedido: PedidoDeMemoria, candidatos: Sequence[NoGrafo]) -> tuple[AprendizadoAplicavel, ...]:
-    """Aprendizados cujo texto casa com o do alvo, os mais casados primeiro."""
+    """Aprendizados cujo texto casa com o do alvo: os mais casados primeiro, depois os mais recentes."""
     palavras = pedido.palavras_do_alvo
     if not palavras:
         return ()
     pontuados = [(contar_palavras_casadas(no, palavras), no) for no in candidatos]
     casados = sorted(
-        (par for par in pontuados if par[0] > 0), key=lambda par: (-par[0], par[1].id)
+        (par for par in pontuados if par[0] > 0),
+        key=lambda par: (-par[0], -par[1].ordem.seq_criacao, par[1].id),
     )
     return tuple(
         AprendizadoAplicavel(no=no, mecanismo=MECANISMO_LEXICO, alcance=MECANISMO_LEXICO, casamento=casamento)

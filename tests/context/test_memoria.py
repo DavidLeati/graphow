@@ -284,3 +284,20 @@ def test_secao_resumida_leva_toda_linha_a_forma_curta_e_avisa_no_titulo_nominal(
     assert "-> como aplicar" not in "\n".join(resumida.linhas)
     assert resumida.ids_incluidos == secao.ids_incluidos
     assert SUFIXO_DE_LINHAS_CURTAS in resumida.titulo
+
+
+def test_entre_herdados_que_casam_igual_o_mais_recente_vem_primeiro_e_sobrevive_ao_corte_nominal() -> None:
+    """A ordem é relevância e depois recência: ao encolher, o grupo mantém o que casa mais e o mais novo."""
+    kernel = _montar_kernel()
+    for numero in range(3):
+        _submeter(
+            kernel,
+            [*_aprendizado(f"apr-cache-{numero}", f"Cache com eviccao {numero}"), _aresta(f"apr-cache-{numero}", "proj-a", TipoAresta.VALE_PARA)],
+        )
+    view = kernel.obter_view()
+    alvo = view.obter_no("task-a")
+
+    secao = montar_secao_de_aprendizados(PedidoDeMemoria(alvo=alvo, view=view))
+
+    assert secao.ids_incluidos[:4] == ("apr-cache-2", "apr-cache-1", "apr-cache-0", "apr-setor")
+    assert secao.reduzida(2).ids_incluidos == ("apr-cache-2", "apr-cache-1")

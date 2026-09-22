@@ -10,11 +10,11 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2205 linhas · 30 classes
+17 módulos · 2209 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 243 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 247 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/corte.py`](#contextcorte) | 78 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
