@@ -2,8 +2,9 @@
 
 import pytest
 
+from graphow.context.corte import montar_escada_de_corte
 from graphow.context.renderizacao import AVISO_DE_TRUNCAGEM, RenderizadorContexto
-from graphow.context.secoes import PrioridadeRetencao, RecorteContexto, SecaoContexto
+from graphow.context.secoes import GrupoDeLinhas, PrioridadeRetencao, RecorteContexto, SecaoContexto
 from graphow.core.exceptions import ErroOrcamentoExcedido
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
@@ -102,3 +103,68 @@ def test_recorte_sem_secoes_renderiza_apenas_o_alvo_edge_case() -> None:
     assert texto.secoes_incluidas == ()
     assert "task-1" in texto.conteudo
     assert texto.ids_incluidos == ("task-1",)
+
+
+def _memoria(quantidade: int) -> SecaoContexto:
+    """Seção de memória cujo grupo declara a forma curta de cada linha."""
+    ids = tuple(f"apr-{indice}" for indice in range(quantidade))
+    inteiras = tuple(
+        f"- [{id_no}] afirmacao {indice} -> como aplicar: um paragrafo inteiro de instrucoes que custa muitos tokens [origem: ev-{indice}]"
+        for indice, id_no in enumerate(ids)
+    )
+    curtas = tuple(f"- [{id_no}] afirmacao {indice}" for indice, id_no in enumerate(ids))
+    grupo = GrupoDeLinhas(rotulo="Aprendizado herdado", linhas=inteiras, ids=ids, linhas_curtas=curtas)
+    return SecaoContexto(
+        titulo="Aprendizados Aplicaveis",
+        linhas=inteiras,
+        ordem_exibicao=2,
+        prioridade_retencao=PrioridadeRetencao.MEMORIA,
+        ids_incluidos=ids,
+        grupos=(grupo,),
+        titulo_resumido="Aprendizados Aplicaveis (linhas curtas)",
+    )
+
+
+def _recorte_com_memoria() -> RecorteContexto:
+    """Recorte de uma tarefa governada por decisões, com evidências, memória volumosa e vizinhos."""
+    return RecorteContexto(
+        alvo=_alvo(),
+        secoes=(
+            _secao("Restricoes Inviolaveis", 2, PrioridadeRetencao.RESTRICOES, 1),
+            _memoria(6),
+            _secao("Decisoes Que Governam Esta Tarefa", 3, PrioridadeRetencao.DECISOES, 3),
+            _secao("Evidencias Relacionadas", 3, PrioridadeRetencao.APOIO, 4),
+            _secao("Vizinhos a 1 Salto", 3, PrioridadeRetencao.NAVEGACAO, 9),
+        ),
+    )
+
+
+def test_memoria_encolhe_para_a_afirmacao_antes_de_a_tarefa_perder_decisoes_e_evidencias_edge_case() -> None:
+    """Caso de borda: sob aperto, os aprendizados vão só com a afirmação e o que governa a tarefa fica."""
+    renderizador = RenderizadorContexto()
+    inteiro = renderizador.renderizar(_recorte_com_memoria(), ORCAMENTO_FOLGADO)
+
+    texto = renderizador.renderizar(_recorte_com_memoria(), inteiro.tokens_estimados - 1)
+
+    assert "Decisoes Que Governam Esta Tarefa" in texto.secoes_incluidas
+    assert "Evidencias Relacionadas" in texto.secoes_incluidas
+    assert "Aprendizados Aplicaveis (linhas curtas)" in texto.secoes_incluidas
+    assert "como aplicar" not in texto.conteudo
+    assert "- [apr-5] afirmacao 5" in texto.conteudo
+    assert "apr-5" in texto.ids_incluidos
+    assert AVISO_DE_TRUNCAGEM in texto.conteudo
+
+
+def test_escada_resume_a_memoria_antes_de_descartar_apoio_e_decisoes_nominal() -> None:
+    """A memória encolhe por dentro num degrau em que apoio e decisões ainda estão na vista."""
+    degraus = montar_escada_de_corte()
+
+    primeiro_resumido = next(indice for indice, degrau in enumerate(degraus) if degrau.memoria_resumida)
+    primeiro_sem_apoio = next(
+        indice for indice, degrau in enumerate(degraus) if PrioridadeRetencao.APOIO in degrau.prioridades_descartadas
+    )
+
+    assert primeiro_resumido < primeiro_sem_apoio
+    assert PrioridadeRetencao.DECISOES not in degraus[primeiro_resumido].prioridades_descartadas
+    assert all(degrau.memoria_resumida for degrau in degraus[primeiro_resumido:])
+    assert degraus[primeiro_resumido].houve_corte is True

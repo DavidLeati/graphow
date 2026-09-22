@@ -35,7 +35,8 @@ class PrioridadeRetencao(IntEnum):
     RESTRICOES = 1
     # Memória: o fechamento de uma sessão encerrada e os aprendizados que
     # alcançam o alvo. Cai no mesmo degrau da navegação, nunca antes dela:
-    # memória que some sob pressão de orçamento não é memória.
+    # memória que some sob pressão de orçamento não é memória. Antes de cair
+    # ela encolhe: os aprendizados vão só com a afirmação (ver context/corte.py).
     MEMORIA = 2
     NAVEGACAO = 3
     BLOQUEIOS = 4
@@ -65,6 +66,12 @@ class GrupoDeLinhas:
         """Devolve as linhas mantidas e os identificadores correspondentes."""
         return self.linhas[:limite], self.ids[:limite]
 
+    def resumido(self) -> "GrupoDeLinhas":
+        """O grupo com a forma curta no lugar de cada linha, quando a declara; senão ele mesmo."""
+        if not self.linhas_curtas:
+            return self
+        return GrupoDeLinhas(rotulo=self.rotulo, linhas=self.linhas_curtas, ids=self.ids, linhas_curtas=self.linhas_curtas)
+
     def linha_de_excedente(self, limite: int) -> tuple[str, ...]:
         """Anuncia quantos itens do grupo ficaram de fora, se algum ficou."""
         restantes = max(0, len(self.linhas) - limite)
@@ -83,6 +90,8 @@ class SecaoContexto:
     prioridade_retencao: PrioridadeRetencao
     ids_incluidos: tuple[str, ...] = field(default_factory=tuple)
     grupos: tuple[GrupoDeLinhas, ...] = field(default_factory=tuple)
+    # O título que a seção passa a usar quando vai resumida; vazio, mantém o seu.
+    titulo_resumido: str = ""
 
     @property
     def esta_vazia(self) -> bool:
@@ -113,6 +122,26 @@ class SecaoContexto:
             prioridade_retencao=self.prioridade_retencao,
             ids_incluidos=tuple(ids),
             grupos=self.grupos,
+            titulo_resumido=self.titulo_resumido,
+        )
+
+    def resumida(self) -> "SecaoContexto":
+        """Nova seção com a forma curta de cada grupo que a declara; sem forma curta, ela mesma.
+
+        É o degrau em que a memória encolhe por dentro antes de a vista perder o
+        que governa o alvo: a afirmação fica, e `expandir_no` traz o resto.
+        """
+        grupos = tuple(grupo.resumido() for grupo in self.grupos)
+        if grupos == self.grupos:
+            return self
+        return SecaoContexto(
+            titulo=self.titulo_resumido or self.titulo,
+            linhas=tuple(linha for grupo in grupos for linha in grupo.linhas),
+            ordem_exibicao=self.ordem_exibicao,
+            prioridade_retencao=self.prioridade_retencao,
+            ids_incluidos=tuple(id_no for grupo in grupos for id_no in grupo.ids),
+            grupos=grupos,
+            titulo_resumido=self.titulo_resumido,
         )
 
     def _acumular_grupo_reduzido(

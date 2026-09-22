@@ -136,6 +136,7 @@ def montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto:
         prioridade_retencao=PrioridadeRetencao.MEMORIA,
         ids_incluidos=tuple(id_no for grupo in grupos for id_no in grupo.ids),
         grupos=grupos,
+        titulo_resumido=_titulo(herdados, resumida=True),
     )
 
 
@@ -145,13 +146,13 @@ def _excluir(nos: Sequence[NoGrafo], ja_incluidos: Sequence[AprendizadoAplicavel
     return tuple(no for no in nos if no.id not in incluidos)
 
 
-def _titulo(herdados: Sequence[AprendizadoAplicavel]) -> str:
+def _titulo(herdados: Sequence[AprendizadoAplicavel], *, resumida: bool = False) -> str:
     """O título nomeia de onde a herança veio e avisa quando há linha curta, para o agente saber o que pedir."""
     partes: list[str] = []
     alcances = sorted({item.alcance for item in herdados})
     if alcances:
         partes.append(f"herdados de {', '.join(alcances)}")
-    if any(not item.inteiro for item in herdados):
+    if resumida or any(not item.inteiro for item in herdados):
         partes.append(SUFIXO_DE_LINHAS_CURTAS)
     if not partes:
         return TITULO_APRENDIZADOS

@@ -560,7 +560,9 @@ sozinha. Memória diz de onde veio: um `Aprendizado` sem `deriva_de` no mesmo
 lote é recusado no portão, como um nó sem aresta de contenção. E memória que
 cai primeiro sob pressão de orçamento não é memória: a seção de aprendizados e
 o fechamento retêm como `MEMORIA`, e só saem da vista no degrau em que a
-navegação também sai.
+navegação também sai. Antes de sair ela encolhe: logo depois do contexto, e
+antes do apoio e das decisões que governam a tarefa, os aprendizados vão só
+com a afirmação, a proveniência e as marcas, e `expandir_no` traz o resto.
 
 Esquecer é marcar, nunca apagar: `substitui` entre aprendizados deixa o antigo
 no grafo, no painel e no acervo com `SUBSTITUIDO`, e a vista carrega só o

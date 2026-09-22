@@ -271,3 +271,16 @@ def test_alvo_sem_aprendizado_algum_nao_ganha_secao_edge_case() -> None:
     _submeter(kernel, _hierarquia("c", "Tarefa sem memoria"))
 
     assert TITULO_APRENDIZADOS not in _vista(kernel, "task-c")
+
+
+def test_secao_resumida_leva_toda_linha_a_forma_curta_e_avisa_no_titulo_nominal() -> None:
+    """No degrau da memória resumida, até o que casa com o alvo vai só com a afirmação, e o título diz isso."""
+    view = _montar_kernel().obter_view()
+    secao = montar_secao_de_aprendizados(PedidoDeMemoria(alvo=view.obter_no("task-a"), view=view))
+
+    resumida = secao.resumida()
+
+    assert "-> como aplicar" in "\n".join(secao.linhas)
+    assert "-> como aplicar" not in "\n".join(resumida.linhas)
+    assert resumida.ids_incluidos == secao.ids_incluidos
+    assert SUFIXO_DE_LINHAS_CURTAS in resumida.titulo

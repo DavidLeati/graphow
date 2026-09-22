@@ -77,10 +77,12 @@ class RenderizadorContexto:
         secoes: Sequence[SecaoContexto],
         plano: PlanoDeCorte,
     ) -> tuple[SecaoContexto, ...]:
-        """Descarta as prioridades do degrau e encolhe o que ainda pode encolher."""
+        """Descarta as prioridades do degrau, resume a memória se ele pede e encolhe o que ainda pode."""
         sobreviventes = [
             secao for secao in secoes if secao.prioridade_retencao not in plano.prioridades_descartadas
         ]
+        if plano.memoria_resumida:
+            sobreviventes = [secao.resumida() for secao in sobreviventes]
         if plano.limite_de_vizinhos is None:
             return tuple(sobreviventes)
         reduzidas = [secao.reduzida(plano.limite_de_vizinhos) for secao in sobreviventes]

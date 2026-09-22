@@ -10,12 +10,12 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2158 linhas · 30 classes
+17 módulos · 2204 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 242 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
-| [`context/corte.py`](#contextcorte) | 64 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 243 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/corte.py`](#contextcorte) | 78 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
@@ -24,8 +24,8 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/protocolo.py`](#contextprotocolo) | 86 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
-| [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 226 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/renderizacao.py`](#contextrenderizacao) | 135 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
+| [`context/secoes.py`](#contextsecoes) | 255 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -98,9 +98,9 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 
 ### `PlanoDeCorte`
 
-*DTO imutável* — Um degrau da escada: o que se abre mão e quanto a vizinhança encolhe.
+*DTO imutável* — Um degrau da escada: o que se abre mão, se a memória vai resumida e quanto a vizinhança encolhe.
 
-**Campos:** `prioridades_descartadas: frozenset[PrioridadeRetencao]`, `limite_de_vizinhos: int | None`
+**Campos:** `prioridades_descartadas: frozenset[PrioridadeRetencao]`, `limite_de_vizinhos: int | None`, `memoria_resumida: bool`
 
 - `houve_corte() -> bool` `[property]` — Indica se algo foi omitido, para o aviso de truncagem no texto.
 
@@ -352,6 +352,7 @@ Seções que compõem uma vista de contexto e sua ordem de descarte.
 **Campos:** `rotulo: str`, `linhas: tuple[str, ...]`, `ids: tuple[str, ...]`, `linhas_curtas: tuple[str, ...]`
 
 - `primeiras(limite: int) -> tuple[tuple[str, ...], tuple[str, ...]]` — Devolve as linhas mantidas e os identificadores correspondentes.
+- `resumido() -> 'GrupoDeLinhas'` — O grupo com a forma curta no lugar de cada linha, quando a declara; senão ele mesmo.
 - `linha_de_excedente(limite: int) -> tuple[str, ...]` — Anuncia quantos itens do grupo ficaram de fora, se algum ficou.
 
 ### `PrioridadeRetencao` (IntEnum)
@@ -371,11 +372,12 @@ Seções que compõem uma vista de contexto e sua ordem de descarte.
 
 *DTO imutável* — Bloco nomeado da vista materializada, com suas duas ordens.
 
-**Campos:** `titulo: str`, `linhas: tuple[str, ...]`, `ordem_exibicao: int`, `prioridade_retencao: PrioridadeRetencao`, `ids_incluidos: tuple[str, ...]`, `grupos: tuple[GrupoDeLinhas, ...]`
+**Campos:** `titulo: str`, `linhas: tuple[str, ...]`, `ordem_exibicao: int`, `prioridade_retencao: PrioridadeRetencao`, `ids_incluidos: tuple[str, ...]`, `grupos: tuple[GrupoDeLinhas, ...]`, `titulo_resumido: str`
 
 - `esta_vazia() -> bool` `[property]` — Uma seção sem linhas não deve ser renderizada.
 - `pode_encolher() -> bool` `[property]` — Só encolhe por dentro a seção que declara grupos cortáveis.
 - `reduzida(limite_por_grupo: int) -> 'SecaoContexto'` — Nova seção com no máximo N itens por grupo e o resto anunciado.
+- `resumida() -> 'SecaoContexto'` — Nova seção com a forma curta de cada grupo que a declara; sem forma curta, ela mesma.
 - `renderizar() -> tuple[str, ...]` — Emite o cabeçalho uma única vez, seguido das linhas do bloco.
 
 ### Funções do módulo
