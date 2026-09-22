@@ -11,6 +11,7 @@ from graphow.kernel.composicao import montar_kernel_em_memoria
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.projection.fila_trabalho import FilaDeTrabalho
+from graphow.reactive.condensacao import tem_trabalho_a_condensar
 from graphow.reactive.consolidacao import (
     ACAO_DE_CONSOLIDAR,
     AUTOR_DO_CONSOLIDADOR,
@@ -129,6 +130,7 @@ def test_sessao_que_abre_num_alcance_lotado_recebe_a_tarefa_de_consolidar_nomina
     fila = FilaDeTrabalho(kernel.obter_view()).proximas_tarefas("sess-nova")
     assert [item.rotulo for item in fila] == ["Consolidar aprendizados: proj"]
     assert fila[0].status == StatusTask.PENDENTE.value
+    assert tem_trabalho_a_condensar("sess-nova", kernel.obter_view()) is False
 
 
 def test_no_limite_nao_pede_consolidacao_edge_case() -> None:

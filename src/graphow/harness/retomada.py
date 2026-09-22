@@ -22,6 +22,7 @@ from graphow.core.types import StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.projection.fechamento import FechamentoDeSubarvore
 from graphow.projection.graph_view import GrafoView
 from graphow.reactive.condensacao import (
+    eh_tarefa_aberta_pelo_grafo,
     eh_tarefa_de_condensacao,
     produzidos_pela_sessao,
     tem_condensacao_pendente,
@@ -156,12 +157,12 @@ def _descrever_sessao(sessao: NoGrafo, view: GrafoView) -> tuple[str, ...]:
 
 
 def _balanco(sessao: NoGrafo, view: GrafoView) -> str:
-    """Status e contagem por tipo do que a sessão produziu, sem a telemetria e sem a Task de condensar."""
+    """Status e contagem por tipo do que a sessão produziu, sem a telemetria e sem as Tasks que o grafo abriu."""
     status = str(sessao.obter_propriedade("status", StatusSessao.ATIVA.value))
     contagem = Counter(
         no.tipo.value
         for no in produzidos_pela_sessao(sessao.id, view)
-        if no.tipo != TipoNo.RUN and not eh_tarefa_de_condensacao(no)
+        if no.tipo != TipoNo.RUN and not eh_tarefa_aberta_pelo_grafo(no)
     )
     registros = ", ".join(f"{total} {tipo}" for tipo, total in sorted(contagem.items()))
     return f"status {status} | {registros}"

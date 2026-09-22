@@ -241,3 +241,4 @@ def test_consolidacao_pendente_do_alcance_e_apontada_pela_task_nominal() -> None
     texto = "\n".join(_vista(kernel))
 
     assert "- consolidacao pendente: Task task-consolidar-x (1 aprendizados vigentes em proj-1): assuma-a" in texto
+    assert "1 Task" not in texto

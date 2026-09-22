@@ -23,10 +23,9 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.projection.graph_view import GrafoView
-from graphow.reactive.condensacao import CAMPO_ACAO, CAMPO_ALVO
+from graphow.reactive.condensacao import ACAO_DE_CONSOLIDAR, CAMPO_ACAO, CAMPO_ALVO
 from graphow.reactive.interfaces import ComportamentoReativo
 
-ACAO_DE_CONSOLIDAR: str = "consolidar_aprendizados"
 AUTOR_DO_CONSOLIDADOR: str = "comportamento-consolidador"
 PREFIXO_DA_TAREFA: str = "task-consolidar"
 LIMITE_DE_VIGENTES_POR_ALCANCE: int = 12

@@ -21,6 +21,11 @@ from graphow.projection.graph_view import GrafoView
 from graphow.reactive.interfaces import ComportamentoReativo
 
 ACAO_DE_CONDENSAR: str = "condensar_sessao"
+# A acao da Task de consolidar aprendizados mora aqui, ao lado da de condensar,
+# porque o balanco da sessao precisa das duas e reactive/consolidacao.py importa
+# deste modulo: as Tasks que o grafo abre sozinho nao sao trabalho da sessao.
+ACAO_DE_CONSOLIDAR: str = "consolidar_aprendizados"
+ACOES_ABERTAS_PELO_GRAFO: frozenset[str] = frozenset({ACAO_DE_CONDENSAR, ACAO_DE_CONSOLIDAR})
 AUTOR_DO_CONDENSADOR: str = "comportamento-condensador"
 PREFIXO_DA_TAREFA: str = "task-condensar"
 CAMPO_ACAO: str = "acao"
@@ -86,9 +91,9 @@ def produzidos_pela_sessao(id_sessao: str, view: GrafoView) -> tuple[NoGrafo, ..
 
 
 def tem_trabalho_a_condensar(id_sessao: str, view: GrafoView) -> bool:
-    """Há conhecimento na sessão além da telemetria e da própria Task de condensar."""
+    """Há conhecimento na sessão além da telemetria e das Tasks que o grafo abriu nela sozinho."""
     return any(
-        no.tipo in TIPOS_QUE_PEDEM_CONDENSACAO and not eh_tarefa_de_condensacao(no)
+        no.tipo in TIPOS_QUE_PEDEM_CONDENSACAO and not eh_tarefa_aberta_pelo_grafo(no)
         for no in produzidos_pela_sessao(id_sessao, view)
     )
 
@@ -104,6 +109,11 @@ def tem_condensacao_pendente(id_sessao: str, view: GrafoView) -> bool:
 def eh_tarefa_de_condensacao(no: NoGrafo) -> bool:
     """Reconhece a Task que este comportamento abre."""
     return no.tipo == TipoNo.TASK and no.obter_propriedade(CAMPO_ACAO) == ACAO_DE_CONDENSAR
+
+
+def eh_tarefa_aberta_pelo_grafo(no: NoGrafo) -> bool:
+    """Condensar a sessão ou consolidar aprendizados: pedido do grafo, não trabalho da sessão."""
+    return no.tipo == TipoNo.TASK and str(no.obter_propriedade(CAMPO_ACAO, "")) in ACOES_ABERTAS_PELO_GRAFO
 
 
 def _esta_concluida(no: NoGrafo) -> bool:
