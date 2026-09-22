@@ -9,8 +9,11 @@
  */
 import { escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
+import { AMBITO_DO_HOOK, ESCOPO_DO_HOOK, ehEscopoDoHook } from "./indice_navegacao.js";
 import { abrirMenuDeContexto } from "./menu_contexto.js";
 import { apresentarTipo } from "./ontologia_ui.js";
+
+const RAIZ_DOS_PROJETOS = { id: "__todos__", rotulo: "Todos os projetos" };
 
 const FERRAMENTAS = {
   diff: { titulo: "Comparar ramos", icone: "git-compare" },
@@ -62,8 +65,7 @@ export class AbasWorkspace {
     this.trilha.addEventListener("click", (evento) => {
       const item = evento.target.closest("[data-trilha]");
       if (!item) return;
-      const id = item.dataset.trilha;
-      this.abrirEscopo(id === "__todos__" ? null : this.indice.escopoDe(id));
+      this.abrirEscopo(this.escopoDaTrilha(item.dataset.trilha));
     });
     this.botoesDeNavegacao.voltar.addEventListener("click", () => this.mover(-1));
     this.botoesDeNavegacao.avancar.addEventListener("click", () => this.mover(1));
@@ -192,6 +194,7 @@ export class AbasWorkspace {
 
   iconeDe(aba) {
     if (aba.tipo !== "grafo") return FERRAMENTAS[aba.tipo]?.icone || "file-text";
+    if (ehEscopoDoHook(aba.escopo)) return "bot";
     return aba.escopo ? apresentarTipo(aba.escopo.tipo).icone : "grafo";
   }
 
@@ -221,14 +224,27 @@ export class AbasWorkspace {
       return;
     }
     const cadeia = aba.escopo ? this.indice.ancestrais(aba.escopo.id) : [];
-    const partes = [{ id: "__todos__", rotulo: "Todos os projetos" }, ...cadeia];
-    if (aba.escopo && cadeia.length === 0) partes.push({ id: aba.escopo.id, rotulo: aba.escopo.rotulo });
+    const raiz = this.raizDaTrilha(aba.escopo, cadeia);
+    const partes = [raiz, ...cadeia];
+    if (aba.escopo && cadeia.length === 0 && aba.escopo.id !== raiz.id) partes.push({ id: aba.escopo.id, rotulo: aba.escopo.rotulo });
     this.trilha.innerHTML = partes
       .map((parte, indice) => {
         const atual = indice === partes.length - 1;
         return `<span class="trilha-parte ${atual ? "mod-atual" : ""}" data-trilha="${escapeHtml(parte.id)}">${escapeHtml(parte.rotulo)}</span>`;
       })
       .join('<span class="trilha-separador">/</span>');
+  }
+
+  /** A trilha de um ambiente do hook começa nas sessões do hook, e não em "Todos os projetos". */
+  raizDaTrilha(escopo, cadeia) {
+    const doHook = ehEscopoDoHook(escopo) || (cadeia.length > 0 && this.indice.ambitoDe(cadeia[0].id) === AMBITO_DO_HOOK);
+    return doHook ? { id: ESCOPO_DO_HOOK.id, rotulo: ESCOPO_DO_HOOK.rotulo } : RAIZ_DOS_PROJETOS;
+  }
+
+  escopoDaTrilha(id) {
+    if (id === RAIZ_DOS_PROJETOS.id) return null;
+    if (id === ESCOPO_DO_HOOK.id) return ESCOPO_DO_HOOK;
+    return this.indice.escopoDe(id);
   }
 
   persistir() {

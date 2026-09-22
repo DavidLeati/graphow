@@ -16,7 +16,8 @@ export class GraphowState {
     // Papel apenas do simulador de tokens: e a pergunta "o que um executor
     // veria daqui?", nunca a credencial de quem escreve.
     this.simulationRole = "executor";
-    // Contêiner aberto na aba ativa: nenhum, ou { tipo, id, rotulo, projetoId }.
+    // Contêiner aberto na aba ativa: nenhum, { tipo, id, rotulo, projetoId }, ou
+    // a raiz das sessões do hook, que é um âmbito ({ tipo: "Ambito", ambito }).
     this.escopo = null;
     this.selectedElement = null; // { type: 'node' | 'edge', id: string, data: object }
     this.nodes = new Map(); // id -> nodeData
@@ -46,10 +47,14 @@ export class GraphowState {
   /**
    * Parâmetros do contêiner aberto. A Sessão leva junto o Projeto dela, que o
    * servidor aplica como um segundo filtro sobre o da sessão.
+   *
+   * Sem contêiner é a raiz "Todos os projetos", que pede só o âmbito dos
+   * projetos: as sessões do hook têm raiz própria e não entram no meio.
    */
   parametrosDeEscopo() {
     const escopo = this.escopo;
-    if (!escopo) return "";
+    if (!escopo) return "&ambito=projetos";
+    if (escopo.tipo === "Ambito") return `&ambito=${encodeURIComponent(escopo.ambito)}`;
     const id = encodeURIComponent(escopo.id);
     if (escopo.tipo === "Projeto") return `&projeto=${id}`;
     if (escopo.tipo === "Setor") return `&setor=${id}`;

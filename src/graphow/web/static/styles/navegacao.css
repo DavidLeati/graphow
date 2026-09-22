@@ -46,6 +46,9 @@
 .arvore-titulo.mod-raiz { margin-bottom: 2px; padding-left: 6px; color: var(--texto-normal); font-weight: 500; }
 .arvore-titulo.mod-raiz .arvore-icone { color: var(--texto-acento); }
 .arvore-titulo.mod-orfaos .arvore-icone { color: var(--tom-espera); }
+/* As sessões do hook são outra raiz, não mais um projeto: um traço as separa da lista. */
+.arvore-no.mod-grupo { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--moldura-divisor); }
+.arvore-no.mod-grupo > .arvore-titulo.mod-raiz { padding-left: 2px; }
 
 .arvore-seta {
   display: inline-flex;

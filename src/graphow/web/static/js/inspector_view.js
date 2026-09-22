@@ -12,6 +12,7 @@ import { TIPOS_DE_ORIGEM_DE_APRENDIZADO } from "./dialogos_memoria.js";
 import { copiarTexto, escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
 import { foiAlterado, formatarDataCompleta, formatarIdadeRelativa } from "./idade.js";
+import { AMBITO_DO_HOOK, AMBITO_DOS_PROJETOS, ESCOPO_DO_HOOK, ehEscopoDoHook } from "./indice_navegacao.js";
 import { avisar } from "./modais.js";
 import {
   apresentarStatus, apresentarTipo, corDaAresta, corDoTipo, ehConteiner, lerAresta,
@@ -461,16 +462,18 @@ export class InspectorView {
 
   renderPanorama() {
     const escopo = this.acoes.escopoAtivo();
-    const no = escopo ? this.indice.conteineres.get(escopo.id) : null;
-    const tipo = no ? apresentarTipo(no.tipo) : { nome: "Grafo", icone: "grafo" };
-    const resumo = no ? no.resumo : this.resumoGeral();
+    const doHook = ehEscopoDoHook(escopo);
+    const no = escopo && !doHook ? this.indice.conteineres.get(escopo.id) : null;
+    const tipo = no ? apresentarTipo(no.tipo) : { nome: doHook ? "Âmbito" : "Grafo", icone: doHook ? "bot" : "grafo" };
+    const resumo = no ? no.resumo : this.resumoGeral(doHook ? AMBITO_DO_HOOK : AMBITO_DOS_PROJETOS);
+    const titulo = no?.rotulo || (doHook ? ESCOPO_DO_HOOK.rotulo : "Todos os projetos");
     this.raiz.innerHTML = `
       <div class="inspetor mod-panorama">
         <div class="inspetor-topo">
           <span class="pilula-tipo" style="--cor-tipo:${no ? corDoTipo(no.tipo) : "var(--texto-fraco)"}">${icone(tipo.icone, { tamanho: 13 })}${escapeHtml(tipo.nome)}</span>
           <span class="texto-fraco">panorama do escopo</span>
         </div>
-        <div class="inspetor-titulo mod-estatico">${escapeHtml(no?.rotulo || "Todos os projetos")}</div>
+        <div class="inspetor-titulo mod-estatico">${escapeHtml(titulo)}</div>
         ${no ? this.montarCaminho(no) : ""}
         ${montarCartaoDeResumo(resumo)}
         ${this.montarDistribuicao()}
@@ -478,12 +481,15 @@ export class InspectorView {
       </div>`;
   }
 
-  resumoGeral() {
-    const projetos = [...this.indice.conteineres.values()].filter((no) => no.tipo === "Projeto" && no.resumo);
+  /** O agregado de uma raiz da árvore: os projetos de trabalho ou os ambientes das sessões do hook. */
+  resumoGeral(ambito) {
+    const projetos = [...this.indice.conteineres.values()].filter(
+      (no) => no.tipo === "Projeto" && no.resumo && this.indice.ambitoDe(no.id) === ambito
+    );
     if (projetos.length === 0) return null;
     const soma = (campo) => projetos.reduce((total, no) => total + (no.resumo[campo] || 0), 0);
     return {
-      total_nos: this.indice.totalNoGrafo ?? soma("total_nos"),
+      total_nos: this.indice.totalPorAmbito[ambito] ?? soma("total_nos"),
       tarefas_totais: soma("tarefas_totais"),
       tarefas_concluidas: soma("tarefas_concluidas"),
       tarefas_abertas: soma("tarefas_abertas"),

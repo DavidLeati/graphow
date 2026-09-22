@@ -7,8 +7,23 @@
  * isso o índice pede ao servidor só a camada de navegação (`colapsar=sessao`,
  * poucos KB, já com o agregado de cada subárvore) e busca o conteúdo de uma
  * sessão apenas quando ela é aberta na árvore.
+ *
+ * Cada nó chega com o âmbito em que mora: `projetos`, o trabalho estruturado,
+ * ou `hook`, os ambientes que o hook de início cria por repositório para as
+ * sessões do agente. As duas raízes da árvore saem daí.
  */
 import { api } from "./api.js";
+
+export const AMBITO_DOS_PROJETOS = "projetos";
+export const AMBITO_DO_HOOK = "hook";
+
+// A raiz das sessões do hook não é contêiner do grafo: é o âmbito que junta os
+// ambientes que o hook criou. Aberta, ela vira escopo de aba como qualquer outro.
+export const ESCOPO_DO_HOOK = Object.freeze({ tipo: "Ambito", id: "__hook__", rotulo: "Sessões do hook", ambito: AMBITO_DO_HOOK });
+
+export function ehEscopoDoHook(escopo) {
+  return escopo?.id === ESCOPO_DO_HOOK.id;
+}
 
 export class IndiceNavegacao {
   constructor(state) {
@@ -18,6 +33,7 @@ export class IndiceNavegacao {
     this.paiDe = new Map();
     this.raizes = [];
     this.orfaos = [];
+    this.totalPorAmbito = {};
     this.conteudoDaSessao = new Map();
     this.pedidosDeSessao = new Map();
     this.info = new Map();
@@ -69,7 +85,18 @@ export class IndiceNavegacao {
     this.raizes = dados.nos.filter((no) => !this.paiDe.has(no.id)).map((no) => no.id);
     this.orfaos = dados.recorte?.nos_orfaos || [];
     this.totalNoGrafo = dados.recorte?.total_no_grafo ?? null;
+    this.totalPorAmbito = dados.total_por_ambito || {};
     this.registrarNos(dados.nos);
+  }
+
+  /** Raízes de um âmbito: os projetos de trabalho ou os ambientes que o hook criou. */
+  raizesDo(ambito) {
+    return this.raizes.filter((id) => this.ambitoDe(id) === ambito);
+  }
+
+  /** O âmbito em que o nó mora; o que nada informa fica entre os projetos, como sempre ficou. */
+  ambitoDe(id) {
+    return this.conteineres.get(id)?.ambito || this.info.get(id)?.ambito || AMBITO_DOS_PROJETOS;
   }
 
   /** Guarda tipo, rótulo e sessão de nós vistos em qualquer resposta, para rotular ids soltos. */
@@ -82,6 +109,7 @@ export class IndiceNavegacao {
         rotulo: no.rotulo ?? anterior.rotulo,
         sessao_id: no.sessao_id ?? anterior.sessao_id ?? null,
         status: no.propriedades?.status ?? no.status ?? anterior.status ?? null,
+        ambito: no.ambito ?? anterior.ambito ?? null,
       });
     }
   }

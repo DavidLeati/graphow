@@ -5,9 +5,16 @@
  * todas as sessões, sem dizer quem pertencia a quem — e clicar num setor não fazia
  * nada. Aqui a árvore segue as arestas `contem`, cada contêiner mostra quanto
  * trabalho segue aberto na subárvore, e abrir um contêiner abre o canvas nele.
+ *
+ * Os projetos de trabalho e as sessões que o hook abre ficam em raízes
+ * separadas. O hook cria um ambiente por repositório, com uma sessão a cada vez
+ * que o agente roda, e no meio dos projetos ele enchia a lista de sessões e de
+ * Runs de telemetria. Numa raiz própria, recolhida por padrão, ele continua a um
+ * clique, com as perguntas e notas avulsas que o agente deixou nas sessões.
  */
 import { escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
+import { AMBITO_DO_HOOK, AMBITO_DOS_PROJETOS, ESCOPO_DO_HOOK, ehEscopoDoHook } from "./indice_navegacao.js";
 import { abrirMenuDeContexto } from "./menu_contexto.js";
 import { apresentarStatus, apresentarTipo, corDoTipo, ehConteiner, ORDEM_DE_TRABALHO, tomDoStatus } from "./ontologia_ui.js";
 
@@ -29,6 +36,7 @@ const ORDENACOES = {
 };
 
 const ID_DOS_ORFAOS = "__orfaos__";
+const ID_DO_HOOK = ESCOPO_DO_HOOK.id;
 
 export class ExploradorView {
   constructor(raiz, { state, indice, acoes }) {
@@ -79,6 +87,11 @@ export class ExploradorView {
       this.alternar(id);
       return;
     }
+    if (id === ID_DO_HOOK) {
+      this.expandir(id);
+      this.acoes.abrirEscopo(ESCOPO_DO_HOOK, { novaAba });
+      return;
+    }
     if (titulo.dataset.raiz) {
       this.acoes.abrirEscopo(null, { novaAba });
       return;
@@ -95,6 +108,12 @@ export class ExploradorView {
     const titulo = evento.target.closest(".arvore-titulo");
     if (!titulo || !titulo.dataset.id || titulo.dataset.id === ID_DOS_ORFAOS) return;
     evento.preventDefault();
+    if (titulo.dataset.id === ID_DO_HOOK) {
+      abrirMenuDeContexto(evento, [
+        { rotulo: "Abrir em nova aba", icone: "plus", acao: () => this.acoes.abrirEscopo(ESCOPO_DO_HOOK, { novaAba: true }) },
+      ]);
+      return;
+    }
     if (titulo.dataset.raiz) {
       abrirMenuDeContexto(evento, [
         { rotulo: "Abrir em nova aba", icone: "plus", acao: () => this.acoes.abrirEscopo(null, { novaAba: true }) },
@@ -160,7 +179,10 @@ export class ExploradorView {
 
   alternarTudo() {
     if (this.expandidos.size > 0) this.expandidos.clear();
-    else this.indice.conteineres.forEach((no) => { if (no.tipo !== "Sessao") this.expandidos.add(no.id); });
+    else {
+      this.indice.conteineres.forEach((no) => { if (no.tipo !== "Sessao") this.expandidos.add(no.id); });
+      this.expandidos.add(ID_DO_HOOK);
+    }
     this.persistirExpansao();
     this.render();
   }
@@ -171,7 +193,9 @@ export class ExploradorView {
 
   /** Abre os ancestrais do nó e o traz para a vista, como "Revelar no explorador". */
   async revelar(id) {
-    for (const ancestral of this.indice.ancestrais(id)) this.expandidos.add(ancestral.id);
+    const ancestrais = this.indice.ancestrais(id);
+    for (const ancestral of ancestrais) this.expandidos.add(ancestral.id);
+    if (ancestrais.length && this.indice.ambitoDe(ancestrais[0].id) === AMBITO_DO_HOOK) this.expandidos.add(ID_DO_HOOK);
     this.persistirExpansao();
     this.idFocado = id;
     // O nó de trabalho só entra na árvore depois que a sessão dele é lida.
@@ -213,25 +237,50 @@ export class ExploradorView {
       this.arvore.innerHTML = `<div class="arvore-aviso">${this.indice.erro ? escapeHtml(this.indice.erro) : "Carregando a árvore…"}</div>`;
       return;
     }
+    const projetos = this.raizesOrdenadas(AMBITO_DOS_PROJETOS);
+    const ambientes = this.raizesOrdenadas(AMBITO_DO_HOOK);
     if (this.primeiraCarga) {
-      this.indice.raizes.forEach((id) => this.expandidos.add(id));
+      projetos.forEach((no) => this.expandidos.add(no.id));
       this.primeiraCarga = false;
     }
-    const raizes = this.ordenar(this.indice.raizes.map((id) => this.indice.conteineres.get(id)));
-    const partes = [this.montarRaiz(), ...raizes.map((no) => this.montarConteiner(no))];
-    if (raizes.length === 0) partes.push(this.montarVazio());
+    const partes = [this.montarRaiz(), ...projetos.map((no) => this.montarConteiner(no))];
+    if (projetos.length === 0) partes.push(this.montarVazio());
+    if (ambientes.length) partes.push(this.montarSessoesDoHook(ambientes));
     if (this.indice.orfaos.length) partes.push(this.montarOrfaos());
     this.arvore.innerHTML = partes.join("");
   }
 
+  raizesOrdenadas(ambito) {
+    return this.ordenar(this.indice.raizesDo(ambito).map((id) => this.indice.conteineres.get(id)));
+  }
+
   montarRaiz() {
     const ativo = this.acoes.escopoAtivo() === null;
-    const total = this.indice.totalNoGrafo;
+    const total = this.indice.totalPorAmbito[AMBITO_DOS_PROJETOS] ?? this.indice.totalNoGrafo;
     return `
-      <div class="arvore-titulo mod-raiz ${ativo ? "is-ativo" : ""}" data-id="__raiz__" data-raiz="1" title="Abrir o grafo inteiro">
+      <div class="arvore-titulo mod-raiz ${ativo ? "is-ativo" : ""}" data-id="__raiz__" data-raiz="${AMBITO_DOS_PROJETOS}" title="Abrir todos os projetos, sem as sessões do hook">
         <span class="arvore-icone">${icone("grafo", { tamanho: 15 })}</span>
         <span class="arvore-rotulo">Todos os projetos</span>
-        ${total !== null ? `<span class="arvore-sinais"><span class="contador">${total}</span></span>` : ""}
+        ${total != null ? `<span class="arvore-sinais"><span class="contador">${total}</span></span>` : ""}
+      </div>`;
+  }
+
+  /** A raiz das sessões do hook: um ambiente por repositório, fora dos projetos, recolhida até alguém abrir. */
+  montarSessoesDoHook(ambientes) {
+    const expandido = this.expandidos.has(ID_DO_HOOK);
+    const ativo = ehEscopoDoHook(this.acoes.escopoAtivo());
+    const total = this.indice.totalPorAmbito[AMBITO_DO_HOOK];
+    const classes = ["arvore-titulo", "mod-raiz", "mod-conteiner", ativo ? "is-ativo" : "", this.idFocado === ID_DO_HOOK ? "is-focado" : ""];
+    const dica = "Sessões que o hook abre a cada vez que o agente roda, um ambiente por repositório. Ficam fora dos projetos, e as perguntas e notas avulsas do agente continuam nelas.";
+    return `
+      <div class="arvore-no mod-grupo">
+        <div class="${classes.join(" ")}" role="treeitem" aria-expanded="${expandido}" data-id="${ID_DO_HOOK}" data-raiz="${AMBITO_DO_HOOK}" title="${escapeHtml(dica)}">
+          <span class="arvore-seta ${expandido ? "" : "is-recolhida"}" data-seta>${icone("chevron-down", { tamanho: 14 })}</span>
+          <span class="arvore-icone">${icone("bot", { tamanho: 15 })}</span>
+          <span class="arvore-rotulo">${escapeHtml(ESCOPO_DO_HOOK.rotulo)}</span>
+          ${total != null ? `<span class="arvore-sinais"><span class="contador">${total}</span></span>` : ""}
+        </div>
+        ${expandido ? `<div class="arvore-filhos">${ambientes.map((no) => this.montarConteiner(no)).join("")}</div>` : ""}
       </div>`;
   }
 

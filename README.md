@@ -495,6 +495,18 @@ dentro do ambiente é reaproveitado. É por isso que o papel `sistema` cria
 `Projeto` e `Setor`: só o ambiente padrão, e nunca o grafo de trabalho.
 `--setor <id>` continua valendo para quem quer a sessão em outro lugar.
 
+**Projetos e sessões do hook ficam em raízes separadas.** O ambiente padrão
+guarda uma sessão por vez que o agente roda, com os `Run` de telemetria, e no
+meio dos projetos ele enchia a árvore e o canvas. A separação é lida da
+proveniência, sem propriedade nova: o que nasceu do papel `sistema`, que só o
+harness assume, mora no âmbito `hook`; o resto mora no âmbito `projetos`. A
+árvore mostra **Todos os projetos** e, à parte, **Sessões do hook**, um ambiente
+por repositório. O canvas aberto em cada raiz traz só o que é dela
+(`/api/canvas?ambito=projetos|hook`). A sessão do hook continua sendo onde o
+agente registra a pergunta ou a nota avulsa que não deve poluir projeto nenhum.
+Uma sessão do hook que alguém move para um Setor de trabalho passa a morar nele,
+com o que produziu.
+
 Uma sessão que o hook de fim já encerrou e o ambiente retoma volta a `ativa`,
 para o painel não a mostrar fechada enquanto o agente trabalha nela. O `source`
 do início e o `reason` do fim vão para o `Run` como `motivo`; o `resumo` da
