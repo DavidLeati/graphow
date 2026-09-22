@@ -101,37 +101,128 @@ export class DialogosDeMemoria {
     return this.concluir(recibo, "Aprendizado registrado: promova-o para chegar às outras tarefas");
   }
 
-  /** Promoção: global, ou um Projeto ou Setor escolhido entre os contêineres do índice. */
+  /**
+   * Promoção: global, ou um Projeto ou Setor escolhido numa lista com busca.
+   * Um <select> nativo cresce até a altura da tela quando há muitos contêineres;
+   * a lista tem altura fixa, rola por dentro e agrupa cada Setor sob o seu Projeto.
+   */
   promover(no) {
     if (!no) return;
-    const alvos = this.alvosDePromocao();
-    const opcoes = alvos.map((alvo) => `<option value="${escapeHtml(alvo.id)}">${escapeHtml(alvo.texto)}</option>`).join("");
     abrirModal({
       titulo: "Promover aprendizado",
       largura: 520,
       corpo: `
         <p class="inspetor-descricao">${escapeHtml(no.rotulo || no.id)}</p>
         <div class="campo"><label class="alternador-rotulado"><input type="checkbox" data-campo="global"><span class="alternador-trilho"></span><span>${ROTULO_DO_GLOBAL}</span></label></div>
-        <label class="campo"><span class="campo-rotulo">Ou vale para um contêiner</span>
-          <select class="seletor" data-campo="alvo"><option value="">— escolha um Projeto ou Setor —</option>${opcoes}</select></label>
+        <div class="campo" data-bloco-alvo><span class="campo-rotulo">Ou vale para um contêiner</span>
+          <input type="hidden" data-campo="alvo" value="">
+          <input type="text" class="entrada mod-busca" data-busca-alvo placeholder="Filtrar Projetos e Setores…" autocomplete="off">
+          <div class="lista-alvos" role="listbox" aria-label="Projetos e Setores" data-lista-alvos>${this.montarListaDeAlvos()}</div>
+          <p class="lista-alvos-vazia" data-vazio hidden>Nenhum Projeto ou Setor com esse nome.</p>
+        </div>
         <p class="campo-nota">Promovido, o aprendizado entra em <strong>Aprendizados Aplicáveis</strong> na vista de toda tarefa sob esse alcance. É gesto humano: nenhum agente promove, nem sob autonomia ilimitada.</p>`,
       botoes: [
         { rotulo: "Cancelar" },
         { rotulo: "Promover", primario: true, acao: (modal) => this.enviarPromocao(modal, no) },
       ],
+      aoAbrir: (modal) => this.ligarListaDeAlvos(modal),
     });
   }
 
-  /** Projetos e Setores do índice, com o Projeto ao lado do Setor para não haver dois "Memoria" iguais. */
-  alvosDePromocao() {
+  /**
+   * Projetos do índice, cada um com os seus Setores. Setor cujo pai não é um
+   * Projeto conhecido vai para um grupo à parte, para não sumir da escolha.
+   */
+  gruposDePromocao() {
     const conteineres = [...this.indice.conteineres.values()];
-    return conteineres
-      .filter((no) => no.tipo === "Projeto" || no.tipo === "Setor")
-      .map((no) => {
-        const pai = no.tipo === "Setor" ? this.indice.conteineres.get(this.indice.paiDe.get(no.id)) : null;
-        const contexto = pai ? ` (${pai.rotulo})` : "";
-        return { id: no.id, texto: `${apresentarTipo(no.tipo).nome} · ${no.rotulo}${contexto}` };
-      });
+    const grupos = new Map();
+    for (const no of conteineres.filter((c) => c.tipo === "Projeto")) grupos.set(no.id, { projeto: no, setores: [] });
+    const orfaos = [];
+    for (const no of conteineres.filter((c) => c.tipo === "Setor")) {
+      const grupo = grupos.get(this.indice.paiDe.get(no.id));
+      (grupo ? grupo.setores : orfaos).push(no);
+    }
+    const porRotulo = (a, b) => (a.rotulo || a.id).localeCompare(b.rotulo || b.id, "pt-BR");
+    const lista = [...grupos.values()].sort((a, b) => porRotulo(a.projeto, b.projeto));
+    for (const grupo of lista) grupo.setores.sort(porRotulo);
+    if (orfaos.length) lista.push({ projeto: null, setores: orfaos.sort(porRotulo) });
+    return lista;
+  }
+
+  montarListaDeAlvos() {
+    const item = (no, classe) => {
+      const tipo = apresentarTipo(no.tipo);
+      const rotulo = no.rotulo || no.id;
+      return `<button type="button" class="lista-alvos-item ${classe}" role="option" aria-selected="false" tabindex="-1"
+          data-alvo="${escapeHtml(no.id)}" data-texto="${escapeHtml(rotulo.toLowerCase())}" title="${escapeHtml(`${tipo.nome} · ${rotulo}`)}">
+          <span class="lista-alvos-icone" style="color:${corDoTipo(no.tipo)}">${icone(tipo.icone, { tamanho: 13 })}</span>
+          <span class="lista-alvos-rotulo">${escapeHtml(rotulo)}</span></button>`;
+    };
+    return this.gruposDePromocao().map(({ projeto, setores }) => `
+      <div class="lista-alvos-grupo" data-grupo>
+        ${projeto ? item(projeto, "mod-projeto") : '<div class="lista-alvos-cabeca">Setores sem Projeto</div>'}
+        ${setores.map((setor) => item(setor, "mod-setor")).join("")}
+      </div>`).join("");
+  }
+
+  /** Busca, escolha por clique ou setas, e o alternador global que desliga a lista. */
+  ligarListaDeAlvos(modal) {
+    const campo = modal.querySelector("[data-campo=alvo]");
+    const busca = modal.querySelector("[data-busca-alvo]");
+    const lista = modal.querySelector("[data-lista-alvos]");
+    const vazio = modal.querySelector("[data-vazio]");
+    const global = modal.querySelector("[data-campo=global]");
+    const bloco = modal.querySelector("[data-bloco-alvo]");
+    const visiveis = () => [...lista.querySelectorAll(".lista-alvos-item:not([hidden])")];
+
+    const escolher = (botao, focar = false) => {
+      for (const outro of lista.querySelectorAll("[aria-selected=true]")) outro.setAttribute("aria-selected", "false");
+      campo.value = botao?.dataset.alvo || "";
+      if (!botao) return;
+      botao.setAttribute("aria-selected", "true");
+      botao.scrollIntoView({ block: "nearest" });
+      if (focar) botao.focus();
+    };
+
+    const filtrar = () => {
+      const termo = busca.value.trim().toLowerCase();
+      for (const grupo of lista.querySelectorAll("[data-grupo]")) {
+        const projeto = grupo.querySelector(".mod-projeto");
+        const setores = [...grupo.querySelectorAll(".mod-setor")];
+        // Projeto que casa mostra todos os seus Setores; Setor que casa traz o Projeto junto, como contexto.
+        const projetoCasa = !termo || (projeto?.dataset.texto.includes(termo) ?? false);
+        let algumSetor = false;
+        for (const setor of setores) {
+          setor.hidden = !(projetoCasa || setor.dataset.texto.includes(termo));
+          algumSetor ||= !setor.hidden;
+        }
+        if (projeto) projeto.hidden = !(projetoCasa || algumSetor);
+        grupo.hidden = !(projetoCasa && projeto) && !algumSetor;
+      }
+      vazio.hidden = visiveis().length > 0;
+    };
+
+    busca.addEventListener("input", filtrar);
+    busca.addEventListener("keydown", (evento) => {
+      if (evento.key !== "ArrowDown") return;
+      evento.preventDefault();
+      const atual = lista.querySelector("[aria-selected=true]:not([hidden])");
+      escolher(atual || visiveis()[0], true);
+    });
+    lista.addEventListener("click", (evento) => {
+      const botao = evento.target.closest(".lista-alvos-item");
+      if (botao) escolher(botao);
+    });
+    lista.addEventListener("keydown", (evento) => {
+      const itens = visiveis();
+      const posicao = itens.indexOf(document.activeElement);
+      const destino = { ArrowDown: posicao + 1, ArrowUp: posicao - 1, Home: 0, End: itens.length - 1 }[evento.key];
+      if (destino === undefined) return;
+      evento.preventDefault();
+      if (destino < 0) { busca.focus(); return; }
+      escolher(itens[Math.min(destino, itens.length - 1)], true);
+    });
+    global.addEventListener("change", () => bloco.classList.toggle("mod-desligado", global.checked));
   }
 
   async enviarPromocao(modal, no) {
