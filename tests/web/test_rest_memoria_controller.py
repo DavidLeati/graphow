@@ -88,6 +88,20 @@ def test_promover_global_e_por_conteiner_nominal() -> None:
     assert [a.destino_id for a in view.obter_arestas_saida("apr-1", TipoAresta.VALE_PARA)] == ["setor-01"]
 
 
+def test_promover_de_novo_para_o_mesmo_setor_nao_e_recusado_edge_case() -> None:
+    """Caso de borda: a segunda promoção recriava `vale-apr-1-setor-01`, e `add` passou a só criar."""
+    kernel, _, memoria = _montar()
+    memoria.registrar_aprendizado(_registro())
+    pedido = RequisicaoPromocaoDeAprendizado(id_aprendizado="apr-1", id_alvo="setor-01")
+    primeira = memoria.promover_aprendizado(pedido)
+
+    segunda = memoria.promover_aprendizado(pedido)
+
+    assert primeira.sucesso is True, primeira.mensagem
+    assert segunda.sucesso is True, segunda.mensagem
+    assert len(kernel.obter_view().obter_arestas_saida("apr-1", TipoAresta.VALE_PARA)) == 1
+
+
 def test_promover_sem_alvo_e_recusado_edge_case() -> None:
     """Caso de borda: promover sem dizer para onde não é promover."""
     _, _, memoria = _montar()

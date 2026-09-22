@@ -10,7 +10,7 @@ isso fica com o humano.
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR
+from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR, ja_vale_para
 from graphow.core.types import StatusSessao, TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch
 from graphow.mcp.construcao_operacoes import (
@@ -149,10 +149,13 @@ class FerramentasMemoria:
         eh_global = bool(argumentos.get("global", False))
         if not id_alvo and not eh_global:
             return {"sucesso": False, "erro": "Informe 'id_alvo' (um Projeto ou Setor) ou 'global': true"}
+        ramo = extrair_ramo(dict(argumentos))
+        if id_alvo and ja_vale_para(id_aprendizado, id_alvo, self._contexto.kernel.obter_view(ramo)):
+            id_alvo = ""
         pedido = PedidoSubmissaoMCP(
             operacoes=self._operacoes_de_promocao(id_aprendizado, id_alvo, eh_global),
             justificativa=f"Promocao do aprendizado {id_aprendizado}",
-            ramo_id=extrair_ramo(dict(argumentos)),
+            ramo_id=ramo,
             identificadores_criados={"id_aprendizado": id_aprendizado},
         )
         return self._submissor.submeter_e_relatar(pedido)

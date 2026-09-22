@@ -170,6 +170,26 @@ def test_humano_promove_por_conteiner_e_por_marca_global_nominal() -> None:
     assert view.obter_no(id_aprendizado).obter_propriedade("alcance") == "global"
 
 
+def test_promover_de_novo_para_o_mesmo_alvo_nao_e_recusado_edge_case() -> None:
+    """Caso de borda: a segunda promoção recriava `vale-<id>-<alvo>`, e `add` passou a só criar.
+
+    O aprendizado já vale para o alvo; a ferramenta tira a aresta do lote em
+    vez de pedir ao kernel uma criação que ele recusa.
+    """
+    servidor, kernel = _servidor("humano")
+    registro = servidor.executar_ferramenta(
+        "registrar_aprendizado", {"afirmacao": "Licao", "id_sessao": "sess", "origens": ["dec-1"]}
+    )
+    pedido = {"id_aprendizado": registro["id_aprendizado"], "id_alvo": "setor"}
+    primeira = servidor.executar_ferramenta("promover_aprendizado", pedido)
+
+    segunda = servidor.executar_ferramenta("promover_aprendizado", pedido)
+
+    assert primeira["sucesso"] is True, primeira
+    assert segunda["sucesso"] is True, segunda
+    assert len(kernel.obter_view().obter_arestas_saida(registro["id_aprendizado"], TipoAresta.VALE_PARA)) == 1
+
+
 def test_promover_sem_alvo_nem_global_e_recusa_explicada_edge_case() -> None:
     """Caso de borda: promover para lugar nenhum não é promover."""
     servidor, _ = _servidor("humano")

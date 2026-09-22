@@ -11,7 +11,7 @@ from collections.abc import Sequence
 import uuid
 
 from graphow.context.fechamento import localizar_condensacao
-from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR
+from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR, ja_vale_para
 from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusSessao, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
@@ -76,7 +76,10 @@ class MemoriaWebController:
                 sucesso=False,
                 mensagem="Informe o aprendizado e um alvo (Projeto ou Setor), ou a promoção global",
             )
-        operacoes = montar_operacoes_de_promocao(req)
+        ja_promovido = bool(req.id_alvo) and ja_vale_para(
+            req.id_aprendizado, req.id_alvo, self._kernel.obter_view(req.ramo_id)
+        )
+        operacoes = montar_operacoes_de_promocao(req, ja_promovido)
         return self._submeter(operacoes, req.ramo_id, f"Promocao do aprendizado {req.id_aprendizado}")
 
     def _submeter(self, operacoes: Sequence[ItemPatch], ramo_id: str, justificativa: str) -> RespostaReciboWeb:
@@ -155,13 +158,20 @@ def montar_operacoes_de_registro(id_aprendizado: str, req: RequisicaoRegistroDeA
     return tuple(operacoes)
 
 
-def montar_operacoes_de_promocao(req: RequisicaoPromocaoDeAprendizado) -> tuple[ItemPatch, ...]:
-    """A marca global como propriedade e o alcance por contêiner como aresta."""
+def montar_operacoes_de_promocao(
+    req: RequisicaoPromocaoDeAprendizado,
+    ja_promovido: bool = False,
+) -> tuple[ItemPatch, ...]:
+    """A marca global como propriedade e o alcance por contêiner como aresta.
+
+    A aresta sai do lote quando o aprendizado já vale para o alvo: promover de
+    novo não muda nada, e recriá-la seria recusado, porque `add` só cria id novo.
+    """
     operacoes: list[ItemPatch] = []
     if req.eh_global:
         caminho = f"/nos/{req.id_aprendizado}/propriedades/{CAMPO_ALCANCE}"
         operacoes.append(ItemPatch(op=OperacaoPatch.REPLACE, path=caminho, value=ALCANCE_GLOBAL))
-    if req.id_alvo:
+    if req.id_alvo and not ja_promovido:
         id_aresta = f"vale-{req.id_aprendizado}-{req.id_alvo}"
         operacoes.append(_aresta(id_aresta, req.id_aprendizado, req.id_alvo, tipo=TipoAresta.VALE_PARA))
     return tuple(operacoes)

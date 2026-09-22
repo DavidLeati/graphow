@@ -171,6 +171,16 @@ def alcances_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]:
     return tuple(destinos)
 
 
+def ja_vale_para(id_aprendizado: str, id_alvo: str, view: GrafoView) -> bool:
+    """Diz se o aprendizado já tem `vale_para` chegando no alvo.
+
+    Promover de novo para o mesmo alvo não muda nada, e recriar a aresta seria
+    recusado pelo kernel: `add` só cria id novo.
+    """
+    arestas = view.obter_arestas_saida(id_aprendizado, TipoAresta.VALE_PARA)
+    return any(aresta.destino_id == id_alvo for aresta in arestas)
+
+
 def origens_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]:
     """De onde o aprendizado saiu: os destinos das arestas `deriva_de`."""
     return tuple(sorted(aresta.destino_id for aresta in view.obter_arestas_saida(no.id, TipoAresta.DERIVA_DE)))

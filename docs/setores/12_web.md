@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-22 módulos · 2622 linhas · 45 classes
+22 módulos · 2632 linhas · 45 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 360 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
-| [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 205 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
+| [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 215 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
@@ -413,7 +413,7 @@ Controlador REST da memória: o que o canvas mostra dela e o que o humano faz co
 - `descrever_aprendizado(no: NoGrafo, view: GrafoView) -> AprendizadoWeb` — A mesma leitura do acervo de notas, mais a sessão de origem e as marcas resolvidas.
 - `descrever_sessao(no: NoGrafo, view: GrafoView) -> SessaoDeMemoriaWeb` — A sessão como a memória a vê: status, fechamento do rollup e a condensação.
 - `montar_operacoes_de_registro(id_aprendizado: str, req: RequisicaoRegistroDeAprendizado) -> tuple[ItemPatch, ...]` — O nó, o `produz` da sessão e uma aresta `deriva_de` por origem, como o MCP faz.
-- `montar_operacoes_de_promocao(req: RequisicaoPromocaoDeAprendizado) -> tuple[ItemPatch, ...]` — A marca global como propriedade e o alcance por contêiner como aresta.
+- `montar_operacoes_de_promocao(req: RequisicaoPromocaoDeAprendizado, ja_promovido: bool) -> tuple[ItemPatch, ...]` — A marca global como propriedade e o alcance por contêiner como aresta.
 
 ## `web/rest_simulation_controller.py`
 
