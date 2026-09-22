@@ -10,11 +10,12 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-11 módulos · 1695 linhas · 21 classes
+12 módulos · 1762 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`projection/acumulador.py`](#projectionacumulador) | 219 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
+| [`projection/ambito.py`](#projectionambito) | 67 | O âmbito de cada nó: os projetos de trabalho ou as sessões que o hook abre. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 240 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
@@ -42,6 +43,23 @@ Acumulador mutável usado para dobrar muitos eventos em uma passada só.
 - `metadados_do_evento(evento: EventoLog) -> MetadadosTemporais` — Marca temporal do nó tirada do log, nunca do relógio de quem projeta.
 - `ordem_do_evento(evento: EventoLog) -> OrdemNoLog` — Posição de nascimento do nó na ordem total do log.
 - `marca_da_aresta(evento: EventoLog) -> MetadadosTemporais` — Marca temporal da aresta, tirada do log pelo mesmo motivo que a do nó.
+
+## `projection/ambito.py`
+
+O âmbito de cada nó: os projetos de trabalho ou as sessões que o hook abre.
+
+### `Ambito` (str, Enum)
+
+*serviço* — Onde um nó mora: entre os projetos de trabalho ou nas sessões do hook.
+
+### Funções do módulo
+
+- `ler_ambito(texto: str | None) -> Ambito | None` — O âmbito pedido, ou None quando o pedido não nomeia um: nesse caso nada é filtrado.
+- `nasceu_do_hook(no: NoGrafo) -> bool` — O papel `sistema` só é assumido pelo harness: o que ele criou nasceu do hook.
+- `eh_ambiente_do_hook(no: NoGrafo) -> bool` — Um Projeto que o hook criou guarda as sessões de um repositório, e não é projeto de trabalho.
+- `ambientes_do_hook(view: GrafoView) -> frozenset[str]` — Os ids dos Projetos que o hook criou, um por repositório.
+- `ambito_do_no(id_no: str, mapa_projetos: Mapping[str, str], ambientes: frozenset[str]) -> Ambito` — O âmbito do Projeto que contém o nó.
+- `contar_por_ambito(view: GrafoView, mapa_projetos: Mapping[str, str]) -> dict[str, int]` — Quantos nós do grafo moram em cada âmbito, para cada raiz da árvore mostrar o seu total.
 
 ## `projection/caminho_critico.py`
 

@@ -4,11 +4,17 @@ O hook de início exigia `--setor` com o id de um Setor criado à mão no grafo,
 sem ele a sessão não era aberta: nada de fechamento, de condensação nem de
 aprendizado. A memória precisa de um lugar para nascer sem cerimônia, e o lugar
 é o próprio repositório: um Projeto com o nome da pasta e um Setor de memória
-dentro dele, criados na primeira sessão e reaproveitados nas seguintes. Quem já
-tem um Projeto com esse nome, ou um Setor `Memoria` nele, não ganha cópia.
+dentro dele, criados na primeira sessão e reaproveitados nas seguintes.
+
+Esse Projeto é das sessões do hook, e não de trabalho. O hook reaproveitava o
+Projeto que o humano tivesse criado com o nome do repositório, e com isso as
+sessões e os Runs de telemetria iam parar no meio do trabalho estruturado.
+Agora ele só reconhece o ambiente que ele mesmo criou, pela proveniência (ver
+`projection.ambito`), e um id derivado já ocupado por outro nó ganha sufixo.
 """
 
 from dataclasses import dataclass
+from itertools import count
 from pathlib import Path
 import re
 import unicodedata
@@ -19,6 +25,7 @@ from graphow.harness.identidade_harness import IdentidadeHarness
 from graphow.harness.repositorio import nome_do_projeto
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
+from graphow.projection.ambito import eh_ambiente_do_hook
 from graphow.projection.graph_view import GrafoView
 
 ROTULO_DO_SETOR_DE_MEMORIA: str = "Memoria"
@@ -60,12 +67,12 @@ class AmbientePadrao:
 
     @property
     def id_projeto(self) -> str:
-        """Id do Projeto criado para o repositório, quando nenhum com o nome dele existe."""
+        """Id derivado do Projeto do ambiente, usado ao criá-lo quando nenhum outro nó o ocupa."""
         return f"{PREFIXO_DE_PROJETO}-{self.slug}"
 
     @property
     def id_setor(self) -> str:
-        """Id do Setor de memória do repositório."""
+        """Id derivado do Setor de memória do repositório, com a mesma regra de ocupação."""
         return f"{PREFIXO_DE_SETOR}-{self.slug}-{SUFIXO_DO_SETOR_DE_MEMORIA}"
 
     @property
@@ -79,13 +86,47 @@ class AmbientePadrao:
         return ROTULO_DO_SETOR_DE_MEMORIA
 
 
+@dataclass(frozen=True)
+class IdsDoAmbiente:
+    """Os ids com que o ambiente nasce: os derivados do nome ou, ocupados, os primeiros livres depois deles."""
+
+    id_projeto: str
+    id_setor: str
+
+    @classmethod
+    def reservar(cls, ambiente: AmbientePadrao, projeto: NoGrafo | None, view: GrafoView) -> "IdsDoAmbiente":
+        """Mantém o Projeto já achado e procura id livre para o que ainda vai nascer."""
+        id_projeto = projeto.id if projeto is not None else primeiro_id_livre(ambiente.id_projeto, view)
+        return cls(id_projeto=id_projeto, id_setor=primeiro_id_livre(ambiente.id_setor, view))
+
+
+def primeiro_id_livre(base: str, view: GrafoView) -> str:
+    """O id derivado, se nenhum nó o usa; senão o primeiro `<id>-2`, `<id>-3`... livre.
+
+    Criar com um id que já existe falharia o lote inteiro, e a sessão nasceria
+    sem Setor, só com telemetria.
+    """
+    if not view.contem_no(base):
+        return base
+    return next(candidato for candidato in (f"{base}-{n}" for n in count(2)) if not view.contem_no(candidato))
+
+
 def localizar_projeto(ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None:
-    """O Projeto do repositório: pelo id derivado ou, na falta, pelo nome que o humano deu."""
+    """O ambiente do repositório entre os que o hook criou: pelo id derivado ou pelo nome da pasta.
+
+    Um Projeto de trabalho com o nome do repositório, ou até com o id derivado,
+    não é o ambiente. Pendurar nele as sessões do hook o encheria de sessões e
+    Runs de telemetria, que é justamente o que a separação evita.
+    """
     pelo_id = view.obter_no(ambiente.id_projeto)
-    if pelo_id is not None and pelo_id.tipo == TipoNo.PROJETO:
+    if pelo_id is not None and eh_ambiente_do_hook(pelo_id):
         return pelo_id
     nome = ambiente.nome_do_projeto.strip().casefold()
-    candidatos = [no for no in view.listar_nos_por_tipo(TipoNo.PROJETO) if no.rotulo.strip().casefold() == nome]
+    candidatos = [
+        no
+        for no in view.listar_nos_por_tipo(TipoNo.PROJETO)
+        if eh_ambiente_do_hook(no) and no.rotulo.strip().casefold() == nome
+    ]
     return min(candidatos, key=lambda no: (no.ordem.seq_criacao, no.id), default=None)
 
 
@@ -114,32 +155,34 @@ class GarantidorDeAmbientePadrao:
         setor = localizar_setor_de_memoria(projeto, ambiente, view) if projeto is not None else None
         if setor is not None:
             return setor.id
+        ids = IdsDoAmbiente.reservar(ambiente, projeto, view)
         dados = DadosPropostaPatch(
             autor=self._identidade.autor,
             papel=self._identidade.papel,
-            operacoes=montar_operacoes_do_ambiente(ambiente, projeto),
+            operacoes=montar_operacoes_do_ambiente(ambiente, ids, criar_projeto=projeto is None),
             justificativa=f"Ambiente padrao da memoria do repositorio '{ambiente.nome_do_projeto}'",
             ramo_id=ramo_id,
         )
         recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
-        return ambiente.id_setor if recibo.sucesso else ""
+        return ids.id_setor if recibo.sucesso else ""
 
 
-def montar_operacoes_do_ambiente(ambiente: AmbientePadrao, projeto: NoGrafo | None) -> tuple[ItemPatch, ...]:
+def montar_operacoes_do_ambiente(
+    ambiente: AmbientePadrao, ids: IdsDoAmbiente, *, criar_projeto: bool
+) -> tuple[ItemPatch, ...]:
     """O Projeto, se ainda não existe, e o Setor de memória pendurado nele no mesmo lote."""
-    id_projeto = projeto.id if projeto is not None else ambiente.id_projeto
     operacoes: list[ItemPatch] = []
-    if projeto is None:
-        operacoes.append(_operacao_de_no(id_projeto, TipoNo.PROJETO, ambiente.rotulo_do_projeto))
+    if criar_projeto:
+        operacoes.append(_operacao_de_no(ids.id_projeto, TipoNo.PROJETO, ambiente.rotulo_do_projeto))
     operacoes.append(
         _operacao_de_no(
-            ambiente.id_setor,
+            ids.id_setor,
             TipoNo.SETOR,
             ambiente.rotulo_do_setor,
             propriedades={"descricao": DESCRICAO_DO_SETOR_DE_MEMORIA},
         )
     )
-    operacoes.append(_operacao_de_contencao(id_projeto, ambiente.id_setor))
+    operacoes.append(_operacao_de_contencao(ids.id_projeto, ids.id_setor))
     return tuple(operacoes)
 
 

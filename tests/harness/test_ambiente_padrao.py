@@ -35,6 +35,12 @@ def _submeter_como_humano(kernel: WriteKernel, operacoes: list[ItemPatch]) -> No
     assert kernel.submeter_patch(PropostaPatch.criar(dados)).sucesso
 
 
+def _submeter_como_harness(kernel: WriteKernel, operacoes: list[ItemPatch]) -> None:
+    """O que o hook já criou numa sessão anterior."""
+    dados = DadosPropostaPatch(autor="harness", papel=PapelAutor.SISTEMA, operacoes=operacoes, justificativa="hook")
+    assert kernel.submeter_patch(PropostaPatch.criar(dados)).sucesso
+
+
 def test_slug_tira_acentos_espacos_e_maiusculas_nominal() -> None:
     """O nome da pasta vira identificador estável."""
     assert gerar_slug("Memória em Camadas 2") == "memoria-em-camadas-2"
@@ -79,8 +85,8 @@ def test_garantir_cria_projeto_e_setor_como_sistema_uma_vez_nominal() -> None:
     assert len(view.listar_nos_por_tipo(TipoNo.PROJETO)) == 1
 
 
-def test_projeto_que_o_humano_ja_criou_com_o_nome_do_repositorio_e_reaproveitado_nominal() -> None:
-    """Um Projeto `Graphow` criado à mão recebe o Setor de memória em vez de ganhar um gêmeo."""
+def test_projeto_de_trabalho_com_o_nome_do_repositorio_nao_recebe_as_sessoes_do_hook_nominal() -> None:
+    """Um Projeto `Graphow` criado à mão é trabalho: o hook abre o próprio ambiente ao lado dele."""
     kernel = montar_kernel_em_memoria()
     _submeter_como_humano(kernel, [_no("projeto-do-david", TipoNo.PROJETO, "Graphow")])
 
@@ -88,17 +94,53 @@ def test_projeto_que_o_humano_ja_criou_com_o_nome_do_repositorio_e_reaproveitado
 
     view = kernel.obter_view()
     assert id_setor == "setor-graphow-memoria"
-    assert len(view.listar_nos_por_tipo(TipoNo.PROJETO)) == 1
-    assert [no.id for no in view.obter_filhos_por_contencao("projeto-do-david")] == [id_setor]
+    assert view.obter_filhos_por_contencao("projeto-do-david") == []
+    assert [no.id for no in view.obter_filhos_por_contencao("proj-graphow")] == [id_setor]
+    assert view.obter_no("proj-graphow").proveniencia.papel == PapelAutor.SISTEMA.value
 
 
-def test_setor_memoria_que_ja_existe_no_projeto_e_reaproveitado_pelo_rotulo_nominal() -> None:
-    """Um Setor chamado `Memoria` dentro do Projeto é o ambiente, seja qual for o id dele."""
+def test_id_derivado_ocupado_por_projeto_de_trabalho_ganha_sufixo_edge_case() -> None:
+    """Caso de borda: o humano criou `proj-graphow` à mão; o ambiente nasce em `proj-graphow-2` e é achado de novo."""
     kernel = montar_kernel_em_memoria()
-    _submeter_como_humano(
+    _submeter_como_humano(kernel, [_no("proj-graphow", TipoNo.PROJETO, "graphow")])
+    garantidor = GarantidorDeAmbientePadrao(kernel)
+
+    primeiro = garantidor.garantir(AmbientePadrao(nome_do_projeto="graphow"))
+    segundo = garantidor.garantir(AmbientePadrao(nome_do_projeto="graphow"))
+
+    view = kernel.obter_view()
+    assert primeiro == segundo == "setor-graphow-memoria"
+    assert view.obter_filhos_por_contencao("proj-graphow") == []
+    assert [no.id for no in view.obter_filhos_por_contencao("proj-graphow-2")] == [primeiro]
+    assert len(view.listar_nos_por_tipo(TipoNo.PROJETO)) == 2
+
+
+def test_setor_memoria_antigo_dentro_de_projeto_de_trabalho_fica_onde_esta_edge_case() -> None:
+    """Caso de borda: o hook de antes pendurou `setor-graphow-memoria` num Projeto do humano.
+
+    O ambiente novo não pode tentar criar o mesmo id, ou o lote falharia e as
+    sessões nasceriam sem Setor: ele ganha `setor-graphow-memoria-2`.
+    """
+    kernel = montar_kernel_em_memoria()
+    _submeter_como_humano(kernel, [_no("projeto-do-david", TipoNo.PROJETO, "graphow")])
+    _submeter_como_harness(
         kernel,
-        [_no("proj-graphow", TipoNo.PROJETO, "graphow"), _no("setor-x", TipoNo.SETOR, "memoria"), _contem("proj-graphow", "setor-x")],
+        [_no("setor-graphow-memoria", TipoNo.SETOR, "Memoria"), _contem("projeto-do-david", "setor-graphow-memoria")],
     )
+
+    id_setor = GarantidorDeAmbientePadrao(kernel).garantir(AmbientePadrao(nome_do_projeto="graphow"))
+
+    view = kernel.obter_view()
+    assert id_setor == "setor-graphow-memoria-2"
+    assert [no.id for no in view.obter_filhos_por_contencao("proj-graphow")] == [id_setor]
+    assert [no.id for no in view.obter_filhos_por_contencao("projeto-do-david")] == ["setor-graphow-memoria"]
+
+
+def test_setor_memoria_que_ja_existe_no_ambiente_e_reaproveitado_pelo_rotulo_nominal() -> None:
+    """Um Setor chamado `Memoria` dentro do ambiente do hook é o Setor dele, seja qual for o id."""
+    kernel = montar_kernel_em_memoria()
+    _submeter_como_harness(kernel, [_no("proj-graphow", TipoNo.PROJETO, "graphow")])
+    _submeter_como_humano(kernel, [_no("setor-x", TipoNo.SETOR, "memoria"), _contem("proj-graphow", "setor-x")])
 
     id_setor = GarantidorDeAmbientePadrao(kernel).garantir(AmbientePadrao(nome_do_projeto="graphow"))
 
@@ -106,13 +148,11 @@ def test_setor_memoria_que_ja_existe_no_projeto_e_reaproveitado_pelo_rotulo_nomi
     assert len(kernel.obter_view().listar_nos_por_tipo(TipoNo.SETOR)) == 1
 
 
-def test_outros_setores_do_projeto_nao_sao_confundidos_com_a_memoria_edge_case() -> None:
-    """Caso de borda: um Setor `Engenharia` no Projeto não é o ambiente padrão."""
+def test_outros_setores_do_ambiente_nao_sao_confundidos_com_a_memoria_edge_case() -> None:
+    """Caso de borda: um Setor `Engenharia` no ambiente do hook não é o Setor de memória."""
     kernel = montar_kernel_em_memoria()
-    _submeter_como_humano(
-        kernel,
-        [_no("proj-graphow", TipoNo.PROJETO, "graphow"), _no("setor-eng", TipoNo.SETOR, "Engenharia"), _contem("proj-graphow", "setor-eng")],
-    )
+    _submeter_como_harness(kernel, [_no("proj-graphow", TipoNo.PROJETO, "graphow")])
+    _submeter_como_humano(kernel, [_no("setor-eng", TipoNo.SETOR, "Engenharia"), _contem("proj-graphow", "setor-eng")])
 
     id_setor = GarantidorDeAmbientePadrao(kernel).garantir(AmbientePadrao(nome_do_projeto="graphow"))
 

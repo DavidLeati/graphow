@@ -10,11 +10,11 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-12 módulos · 1162 linhas · 14 classes
+12 módulos · 1205 linhas · 15 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 162 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
+| [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 205 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
 | [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 39 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
@@ -49,8 +49,8 @@ O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` de
 
 - `do_diretorio(diretorio: str) -> 'AmbientePadrao'` — Deriva do diretório de trabalho; vazio significa o diretório corrente do processo.
 - `slug() -> str` `[property]` — A forma do nome que entra nos identificadores.
-- `id_projeto() -> str` `[property]` — Id do Projeto criado para o repositório, quando nenhum com o nome dele existe.
-- `id_setor() -> str` `[property]` — Id do Setor de memória do repositório.
+- `id_projeto() -> str` `[property]` — Id derivado do Projeto do ambiente, usado ao criá-lo quando nenhum outro nó o ocupa.
+- `id_setor() -> str` `[property]` — Id derivado do Setor de memória do repositório, com a mesma regra de ocupação.
 - `rotulo_do_projeto() -> str` `[property]` — O Projeto se chama como a pasta do repositório.
 - `rotulo_do_setor() -> str` `[property]` — O Setor de memória tem o mesmo rótulo em todo repositório.
 
@@ -60,12 +60,21 @@ O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` de
 
 - `garantir(ambiente: AmbientePadrao, ramo_id: str) -> str` — Devolve o id do Setor de memória; vazio quando o grafo recusou criá-lo.
 
+### `IdsDoAmbiente`
+
+*DTO imutável* — Os ids com que o ambiente nasce: os derivados do nome ou, ocupados, os primeiros livres depois deles.
+
+**Campos:** `id_projeto: str`, `id_setor: str`
+
+- `reservar(ambiente: AmbientePadrao, projeto: NoGrafo | None, view: GrafoView) -> 'IdsDoAmbiente'` — Mantém o Projeto já achado e procura id livre para o que ainda vai nascer.
+
 ### Funções do módulo
 
 - `gerar_slug(texto: str) -> str` — Identificador estável a partir de um nome: minúsculas e hífens, sem acento nem espaço.
-- `localizar_projeto(ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O Projeto do repositório: pelo id derivado ou, na falta, pelo nome que o humano deu.
+- `primeiro_id_livre(base: str, view: GrafoView) -> str` — O id derivado, se nenhum nó o usa; senão o primeiro `<id>-2`, `<id>-3`... livre.
+- `localizar_projeto(ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O ambiente do repositório entre os que o hook criou: pelo id derivado ou pelo nome da pasta.
 - `localizar_setor_de_memoria(projeto: NoGrafo, ambiente: AmbientePadrao, view: GrafoView) -> NoGrafo | None` — O Setor de memória do Projeto: pelo id derivado ou pelo rótulo `Memoria`.
-- `montar_operacoes_do_ambiente(ambiente: AmbientePadrao, projeto: NoGrafo | None) -> tuple[ItemPatch, ...]` — O Projeto, se ainda não existe, e o Setor de memória pendurado nele no mesmo lote.
+- `montar_operacoes_do_ambiente(ambiente: AmbientePadrao, ids: IdsDoAmbiente) -> tuple[ItemPatch, ...]` — O Projeto, se ainda não existe, e o Setor de memória pendurado nele no mesmo lote.
 
 ## `harness/consumo_do_disparo.py`
 

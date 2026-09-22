@@ -487,11 +487,13 @@ primeiro hook: sem `--setor`, a sessão nasce no repositório em que o hook rodo
 lido do `cwd` do payload. O harness garante o `Projeto` com o nome da pasta do
 repositório (um worktree do git conta como o repositório principal, para a
 memória não se partir por worktree) e o `Setor` `Memoria` dentro dele, criados na
-primeira sessão e reaproveitados nas seguintes. Um `Projeto` que o humano já
-criou com o nome do repositório é reaproveitado, e um `Setor` chamado `Memoria`
-dentro dele também. É por isso que o papel `sistema` cria `Projeto` e `Setor`:
-só o ambiente padrão, e nunca o grafo de trabalho. `--setor <id>` continua
-valendo para quem quer a sessão em outro lugar.
+primeira sessão e reaproveitados nas seguintes. Esse `Projeto` é das sessões do
+hook, e não de trabalho. Um `Projeto` que o humano ou o planejador criou com o
+nome do repositório não é reaproveitado: o ambiente nasce ao lado dele, com
+sufixo no id se o id derivado já estiver ocupado. Um `Setor` chamado `Memoria`
+dentro do ambiente é reaproveitado. É por isso que o papel `sistema` cria
+`Projeto` e `Setor`: só o ambiente padrão, e nunca o grafo de trabalho.
+`--setor <id>` continua valendo para quem quer a sessão em outro lugar.
 
 Uma sessão que o hook de fim já encerrou e o ambiente retoma volta a `ativa`,
 para o painel não a mostrar fechada enquanto o agente trabalha nela. O `source`
