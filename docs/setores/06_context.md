@@ -10,15 +10,16 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-16 módulos · 2090 linhas · 30 classes
+17 módulos · 2100 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 201 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/corte.py`](#contextcorte) | 64 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
-| [`context/memoria.py`](#contextmemoria) | 348 | Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/memoria.py`](#contextmemoria) | 157 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
@@ -29,6 +30,54 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
 | [`context/vizinhanca.py`](#contextvizinhanca) | 76 | Montagem da seção de vizinhos: ordem por relevância e corte por tipo. |
+
+## `context/aprendizados_aplicaveis.py`
+
+A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_APRENDIZADOS` | `str` | `'Aprendizados Aplicaveis'` |
+| `ORDEM_DE_EXIBICAO_DOS_APRENDIZADOS` | `int` | `2` |
+| `CAMPO_DESCRICAO` | `str` | `'descricao'` |
+| `PROFUNDIDADE_DA_HERANCA` | `int` | `8` |
+| `LIMITE_DE_CASAMENTOS_LEXICAIS` | `int` | `5` |
+| `MECANISMO_HERANCA` | `str` | `'heranca'` |
+| `MECANISMO_LEXICO` | `str` | `'lexico'` |
+| `MECANISMO_SEMANTICO` | `str` | `'semantico'` |
+
+### `AprendizadoAplicavel`
+
+*DTO imutável* — Um aprendizado que alcançou o alvo, com o mecanismo pelo qual chegou.
+
+**Campos:** `no: NoGrafo`, `mecanismo: str`, `alcance: str`
+
+### `IndiceSemantico` (ABC)
+
+*contrato* — Recuperação por sentido, para quando herança e léxico não atravessam projetos.
+
+- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` `[abstract]` — Identificadores dos candidatos aplicáveis ao texto, em ordem.
+- `descrever() -> str` `[abstract]` — Nome do índice em uso, para o relatório de avaliação declarar.
+
+### `IndiceSemanticoNulo` (IndiceSemantico)
+
+*serviço* — O padrão: não sugere nada e não custa nada.
+
+- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` — Nenhuma sugestão.
+- `descrever() -> str` — Nome do índice nulo.
+
+### `PedidoDeMemoria`
+
+*DTO imutável* — O que a seção precisa: o alvo, a projeção, o índice e o instante de referência.
+
+**Campos:** `alvo: NoGrafo`, `view: GrafoView`, `indice: IndiceSemantico`, `agora: str`
+
+- `instante() -> str` `[property]` — Instante ISO contra o qual `valido_ate` é comparado; o relógio, se não vier.
+- `texto_do_alvo() -> str` `[property]` — Título e descrição do alvo, que é o que o léxico e o índice comparam.
+
+### Funções do módulo
+
+- `montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto` — Monta a seção nos três passos, agrupada por mecanismo para encolher sob orçamento.
 
 ## `context/corte.py`
 
@@ -134,58 +183,20 @@ Motor de materialização de vistas de contexto com orçamento de tokens.
 
 ## `context/memoria.py`
 
-Seção de memória: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice.
+O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `TITULO_APRENDIZADOS` | `str` | `'Aprendizados Aplicaveis'` |
-| `ORDEM_DE_EXIBICAO_DOS_APRENDIZADOS` | `int` | `2` |
 | `CAMPO_ALCANCE` | `str` | `'alcance'` |
 | `ALCANCE_GLOBAL` | `str` | `'global'` |
 | `CAMPO_COMO_APLICAR` | `str` | `'como_aplicar'` |
 | `CAMPO_VALIDO_ATE` | `str` | `'valido_ate'` |
-| `CAMPO_DESCRICAO` | `str` | `'descricao'` |
-| `PROFUNDIDADE_DA_HERANCA` | `int` | `8` |
-| `LIMITE_DE_CASAMENTOS_LEXICAIS` | `int` | `5` |
-| `MECANISMO_HERANCA` | `str` | `'heranca'` |
-| `MECANISMO_LEXICO` | `str` | `'lexico'` |
-| `MECANISMO_SEMANTICO` | `str` | `'semantico'` |
 | `MARCA_DE_SUBSTITUIDO` | `str` | `'SUBSTITUIDO'` |
 | `MARCA_DE_CONTRADITO` | `str` | `'CONTRADITO'` |
 | `MARCA_DE_SUBSTITUTO_PENDENTE` | `str` | `'SUBSTITUTO PENDENTE'` |
 
-### `AprendizadoAplicavel`
-
-*DTO imutável* — Um aprendizado que alcançou o alvo, com o mecanismo pelo qual chegou.
-
-**Campos:** `no: NoGrafo`, `mecanismo: str`, `alcance: str`
-
-### `IndiceSemantico` (ABC)
-
-*contrato* — Recuperação por sentido, para quando herança e léxico não atravessam projetos.
-
-- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` `[abstract]` — Identificadores dos candidatos aplicáveis ao texto, em ordem.
-- `descrever() -> str` `[abstract]` — Nome do índice em uso, para o relatório de avaliação declarar.
-
-### `IndiceSemanticoNulo` (IndiceSemantico)
-
-*serviço* — O padrão: não sugere nada e não custa nada.
-
-- `sugerir(texto: str, candidatos: Sequence[NoGrafo]) -> tuple[str, ...]` — Nenhuma sugestão.
-- `descrever() -> str` — Nome do índice nulo.
-
-### `PedidoDeMemoria`
-
-*DTO imutável* — O que a seção precisa: o alvo, a projeção, o índice e o instante de referência.
-
-**Campos:** `alvo: NoGrafo`, `view: GrafoView`, `indice: IndiceSemantico`, `agora: str`
-
-- `instante() -> str` `[property]` — Instante ISO contra o qual `valido_ate` é comparado; o relógio, se não vier.
-- `texto_do_alvo() -> str` `[property]` — Título e descrição do alvo, que é o que o léxico e o índice comparam.
-
 ### Funções do módulo
 
-- `montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto` — Monta a seção nos três passos, agrupada por mecanismo para encolher sob orçamento.
 - `aprendizados_promovidos(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]` — Aprendizados com alcance declarado e ainda válidos, em ordem estável.
 - `aprendizados_vigentes(view: GrafoView, instante: str) -> tuple[NoGrafo, ...]` — Os promovidos que nenhum promovido substituiu: o que a vista carrega.
 - `alcances_de(no: NoGrafo, view: GrafoView) -> tuple[str, ...]` — Onde o aprendizado vale: a marca global e os destinos de `vale_para`.

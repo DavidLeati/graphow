@@ -10,12 +10,12 @@ Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e 
 
 ## Inventário
 
-11 módulos · 1694 linhas · 20 classes
+11 módulos · 1689 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
-| [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 195 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
+| [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 190 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |

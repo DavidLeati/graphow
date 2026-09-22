@@ -3,13 +3,13 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
 from graphow.context.politicas import (
     PoliticaContexto,
     PoliticaExecutor,
     PoliticaPlanejador,
     PoliticaRevisor,
 )
-from graphow.context.memoria import IndiceSemantico, IndiceSemanticoNulo
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
 from graphow.context.secoes import filtrar_propriedades_de_dominio
 from graphow.core.exceptions import ErroEntidadeNaoEncontrada

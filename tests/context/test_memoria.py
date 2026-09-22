@@ -1,14 +1,14 @@
-"""Testes da seção de memória: herança, léxico, índice injetável e as marcas de esquecimento."""
+"""Testes da seção Aprendizados Aplicaveis: herança, léxico, índice injetável e as marcas de esquecimento."""
 
 from collections.abc import Sequence
 
-from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
-from graphow.context.memoria import (
+from graphow.context.aprendizados_aplicaveis import (
     TITULO_APRENDIZADOS,
     IndiceSemantico,
     PedidoDeMemoria,
     montar_secao_de_aprendizados,
 )
+from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
 from graphow.context.secoes import MARCA_DE_CONTEUDO_NAO_CONFIAVEL, PrioridadeRetencao
 from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo

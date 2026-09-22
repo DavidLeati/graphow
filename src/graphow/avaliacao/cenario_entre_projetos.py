@@ -13,13 +13,8 @@ from dataclasses import dataclass
 
 from graphow.avaliacao.cenario_memoria import AUTOR_HUMANO, montar_cenario_com_memoria
 from graphow.avaliacao.tarefas_gravadas import ID_PROJETO, ID_SESSAO, DescricaoDeNo, Ligacao
-from graphow.context.memoria import (
-    ALCANCE_GLOBAL,
-    CAMPO_ALCANCE,
-    CAMPO_COMO_APLICAR,
-    MECANISMO_HERANCA,
-    MECANISMO_LEXICO,
-)
+from graphow.context.aprendizados_aplicaveis import MECANISMO_HERANCA, MECANISMO_LEXICO
+from graphow.context.memoria import ALCANCE_GLOBAL, CAMPO_ALCANCE, CAMPO_COMO_APLICAR
 from graphow.core.types import PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel

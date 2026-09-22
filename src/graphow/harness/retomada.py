@@ -13,13 +13,9 @@ CLAUDE.md que fale dela.
 from collections import Counter
 from dataclasses import dataclass
 
+from graphow.context.aprendizados_aplicaveis import PedidoDeMemoria, montar_secao_de_aprendizados
 from graphow.context.fechamento import CAMPO_CORPO, localizar_condensacao
-from graphow.context.memoria import (
-    PedidoDeMemoria,
-    formatar_aprendizado,
-    montar_secao_de_aprendizados,
-    substituto_promovido,
-)
+from graphow.context.memoria import formatar_aprendizado, substituto_promovido
 from graphow.context.protocolo import montar_protocolo
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusSessao, StatusTask, TipoAresta, TipoNo

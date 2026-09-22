@@ -10,14 +10,14 @@ from dataclasses import dataclass, field
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
-from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
-from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
-from graphow.context.memoria import (
+from graphow.context.aprendizados_aplicaveis import (
     IndiceSemantico,
     IndiceSemanticoNulo,
     PedidoDeMemoria,
     montar_secao_de_aprendizados,
 )
+from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
+from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
 from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (

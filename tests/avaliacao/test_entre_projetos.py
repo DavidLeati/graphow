@@ -10,7 +10,7 @@ from graphow.avaliacao.cenario_entre_projetos import (
 )
 from graphow.avaliacao.entre_projetos import ORCAMENTO_ENTRE_PROJETOS, MedidorEntreProjetos
 from graphow.context.materializer import MaterializadorContexto
-from graphow.context.memoria import IndiceSemantico
+from graphow.context.aprendizados_aplicaveis import IndiceSemantico
 from graphow.core.models import NoGrafo
 
 
