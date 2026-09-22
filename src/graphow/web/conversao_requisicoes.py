@@ -177,6 +177,7 @@ def serializar_canvas(dados: DadosCanvasVisual) -> dict[str, Any]:
         "nos": [no.__dict__ for no in dados.nos],
         "arestas": [aresta.__dict__ for aresta in dados.arestas],
         "recorte": dict(dados.recorte),
+        "total_por_ambito": dict(dados.total_por_ambito),
     }
 
 

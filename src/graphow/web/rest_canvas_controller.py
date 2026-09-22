@@ -8,6 +8,7 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
+from graphow.projection.ambito import Ambito, ambientes_do_hook, ambito_do_no, contar_por_ambito, ler_ambito
 from graphow.projection.graph_view import GrafoView
 from graphow.web.colapso_visual import OpcoesDeRecorteVisual, RecortadorVisual, SelecaoVisual
 from graphow.web.identidade_web import IdentidadeSessaoWeb
@@ -33,11 +34,16 @@ CHAVE_POS_Y: str = "pos_y"
 
 @dataclass(frozen=True)
 class EscopoDoCanvas:
-    """Contêiner de navegação que a tela abriu: nenhum, um Projeto, um Setor ou uma Sessão."""
+    """Contêiner de navegação que a tela abriu: nenhum, um Projeto, um Setor ou uma Sessão.
+
+    `ambito` separa os projetos de trabalho das sessões do hook: a raiz "Todos os
+    projetos" pede só os primeiros, e a raiz das sessões do hook, só os segundos.
+    """
 
     sessao_id: str | None = None
     projeto_id: str | None = None
     setor_id: str | None = None
+    ambito: Ambito | None = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +58,8 @@ class ContextoFiltroVisual:
     selecao: SelecaoVisual | None = None
     setor_id: str | None = None
     mapa_setores: Mapping[str, str] = field(default_factory=dict)
+    ambito: Ambito | None = None
+    ambientes_do_hook: frozenset[str] = frozenset()
 
     def foi_recortado(self, id_no: str) -> bool:
         """Indica que o recorte visual deixou este nó de fora da tela."""
@@ -60,6 +68,14 @@ class ContextoFiltroVisual:
     def fora_do_setor(self, id_no: str) -> bool:
         """Indica que a tela abriu um Setor e este nó não pende dele."""
         return self.setor_id is not None and self.mapa_setores.get(id_no) != self.setor_id
+
+    def ambito_de(self, id_no: str) -> Ambito:
+        """Se o nó mora entre os projetos de trabalho ou nas sessões do hook."""
+        return ambito_do_no(id_no, self.mapa_projetos, self.ambientes_do_hook)
+
+    def fora_do_ambito(self, id_no: str) -> bool:
+        """Indica que a tela pediu um âmbito e este nó mora no outro."""
+        return self.ambito is not None and self.ambito_de(id_no) != self.ambito
 
 
 @dataclass(frozen=True)
@@ -102,11 +118,12 @@ class CanvasWebController:
         *,
         opcoes: OpcoesDeRecorteVisual | None = None,
         setor_id: str | None = None,
+        ambito: str | None = None,
     ) -> DadosCanvasVisual:
         """Gera a projeção visual do grafo, já recortada pelo que a tela pediu."""
         view: GrafoView = self._kernel.obter_view(ramo_id)
         selecao = RecortadorVisual(view).selecionar(opcoes or OpcoesDeRecorteVisual())
-        escopo = EscopoDoCanvas(sessao_id=sessao_id, projeto_id=projeto_id, setor_id=setor_id)
+        escopo = EscopoDoCanvas(sessao_id=sessao_id, projeto_id=projeto_id, setor_id=setor_id, ambito=ler_ambito(ambito))
         ctx = self._montar_contexto(view, escopo, selecao)
         nos_visuais = self._extrair_nos_visuais(view, ctx)
         arestas_visuais = self._extrair_arestas_visuais(view, nos_visuais)
@@ -118,6 +135,7 @@ class CanvasWebController:
             nos=nos_visuais,
             arestas=arestas_visuais,
             recorte=selecao.em_dicionario(),
+            total_por_ambito=contar_por_ambito(view, ctx.mapa_projetos),
         )
 
     def _montar_contexto(
@@ -141,6 +159,8 @@ class CanvasWebController:
             selecao=selecao,
             setor_id=escopo.setor_id,
             mapa_setores=self._mapeador.mapear_setores(view) if escopo.setor_id else {},
+            ambito=escopo.ambito,
+            ambientes_do_hook=ambientes_do_hook(view),
         )
 
     def _extrair_nos_visuais(self, view: GrafoView, ctx: ContextoFiltroVisual) -> list[DadosNoVisual]:
@@ -159,7 +179,7 @@ class CanvasWebController:
         ficavam também — o filtro poupava todo nó do tipo Sessão para não sumir
         com a própria —, e o enquadramento da tela se espalhava por todas elas.
         """
-        if ctx.foi_recortado(no.id) or ctx.fora_do_setor(no.id):
+        if ctx.foi_recortado(no.id) or ctx.fora_do_setor(no.id) or ctx.fora_do_ambito(no.id):
             return True
         if ctx.projeto_id is not None and ctx.mapa_projetos.get(no.id) != ctx.projeto_id:
             return True
@@ -186,6 +206,7 @@ class CanvasWebController:
             seq_criacao=no.ordem.seq_criacao,
             seq_atualizacao=no.ordem.seq_atualizacao,
             resumo=None if resumo is None else dict(resumo.em_dicionario()),
+            ambito=ctx.ambito_de(no.id).value,
         )
 
     def _extrair_arestas_visuais(self, view: GrafoView, nos_visuais: list[DadosNoVisual]) -> list[DadosArestaVisual]:

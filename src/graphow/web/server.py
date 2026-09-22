@@ -178,8 +178,9 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         sessao = params.get("sessao", [None])[0]
         projeto = params.get("projeto", [None])[0]
         setor = params.get("setor", [None])[0]
+        ambito = params.get("ambito", [None])[0]
         opcoes = converter_opcoes_de_recorte(params)
-        dados = self.server.canvas_ctrl.obter_canvas(ramo, sessao, projeto, opcoes=opcoes, setor_id=setor)
+        dados = self.server.canvas_ctrl.obter_canvas(ramo, sessao, projeto, opcoes=opcoes, setor_id=setor, ambito=ambito)
         self._responder_json(serializar_canvas(dados), HTTPStatus.OK)
 
     def _tratar_get_timeline(self, params: Mapping[str, list[str]]) -> None:

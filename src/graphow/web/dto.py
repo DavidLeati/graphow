@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from graphow.projection.ambito import Ambito
+
 
 @dataclass(frozen=True)
 class DadosNoVisual:
@@ -13,6 +15,9 @@ class DadosNoVisual:
     responde há quanto tempo o card existe, e a sequência responde se ele veio
     antes ou depois de outro — o que relógios de processos diferentes não
     conseguem decidir sozinhos.
+
+    `ambito` diz se o nó mora entre os projetos de trabalho (`projetos`) ou nas
+    sessões que o hook abre (`hook`): é por ele que a árvore separa as duas raízes.
     """
 
     id: str
@@ -27,6 +32,7 @@ class DadosNoVisual:
     seq_criacao: int = 0
     seq_atualizacao: int = 0
     resumo: Mapping[str, Any] | None = None
+    ambito: str = Ambito.PROJETOS.value
 
 
 @dataclass(frozen=True)
@@ -46,7 +52,8 @@ class DadosCanvasVisual:
 
     `recorte` acompanha os dados porque a tela precisa dizer o que escondeu. Um
     canvas que mostra 27 de 191 nós sem explicar por quê é indistinguível de um
-    canvas quebrado.
+    canvas quebrado. `total_por_ambito` conta o grafo inteiro, qualquer que seja
+    o recorte, para cada raiz da árvore mostrar o total do seu âmbito.
     """
 
     ramo_id: str
@@ -56,6 +63,7 @@ class DadosCanvasVisual:
     nos: Sequence[DadosNoVisual]
     arestas: Sequence[DadosArestaVisual]
     recorte: Mapping[str, Any] = field(default_factory=dict)
+    total_por_ambito: Mapping[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

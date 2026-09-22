@@ -10,28 +10,28 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-22 módulos · 2632 linhas · 45 classes
+22 módulos · 2663 linhas · 45 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
-| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 209 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
+| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 267 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 275 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 89 | Mapeamento de cada nó do grafo à Sessão, ao Setor e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
 | [`web/ontologia_publica.py`](#webontologiapublica) | 39 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 105 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 360 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 381 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
 | [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 215 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
-| [`web/server.py`](#webserver) | 395 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/server.py`](#webserver) | 396 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
@@ -136,13 +136,13 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 *DTO imutável* — DTO imutável contendo o estado do Canvas para renderização.
 
-**Campos:** `ramo_id: str`, `versao_log: int`, `total_nos: int`, `total_arestas: int`, `nos: Sequence[DadosNoVisual]`, `arestas: Sequence[DadosArestaVisual]`, `recorte: Mapping[str, Any]`
+**Campos:** `ramo_id: str`, `versao_log: int`, `total_nos: int`, `total_arestas: int`, `nos: Sequence[DadosNoVisual]`, `arestas: Sequence[DadosArestaVisual]`, `recorte: Mapping[str, Any]`, `total_por_ambito: Mapping[str, int]`
 
 ### `DadosNoVisual`
 
 *DTO imutável* — DTO imutável para representação de um nó no Canvas.
 
-**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`, `resumo: Mapping[str, Any] | None`
+**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`, `resumo: Mapping[str, Any] | None`, `ambito: str`
 
 ### `NoCitadoWeb`
 
@@ -348,16 +348,18 @@ Controlador REST especializado para operações de leitura e mutação visual do
 
 *DTO imutável* — DTO imutável para parâmetros de filtragem e mapeamento visual.
 
-**Campos:** `mapa_sessoes: Mapping[str, str]`, `mapa_projetos: Mapping[str, str]`, `nos_bloqueados: frozenset[str]`, `sessao_id: str | None`, `projeto_id: str | None`, `selecao: SelecaoVisual | None`, `setor_id: str | None`, `mapa_setores: Mapping[str, str]`
+**Campos:** `mapa_sessoes: Mapping[str, str]`, `mapa_projetos: Mapping[str, str]`, `nos_bloqueados: frozenset[str]`, `sessao_id: str | None`, `projeto_id: str | None`, `selecao: SelecaoVisual | None`, `setor_id: str | None`, `mapa_setores: Mapping[str, str]`, `ambito: Ambito | None`, `ambientes_do_hook: frozenset[str]`
 
 - `foi_recortado(id_no: str) -> bool` — Indica que o recorte visual deixou este nó de fora da tela.
 - `fora_do_setor(id_no: str) -> bool` — Indica que a tela abriu um Setor e este nó não pende dele.
+- `ambito_de(id_no: str) -> Ambito` — Se o nó mora entre os projetos de trabalho ou nas sessões do hook.
+- `fora_do_ambito(id_no: str) -> bool` — Indica que a tela pediu um âmbito e este nó mora no outro.
 
 ### `EscopoDoCanvas`
 
 *DTO imutável* — Contêiner de navegação que a tela abriu: nenhum, um Projeto, um Setor ou uma Sessão.
 
-**Campos:** `sessao_id: str | None`, `projeto_id: str | None`, `setor_id: str | None`
+**Campos:** `sessao_id: str | None`, `projeto_id: str | None`, `setor_id: str | None`, `ambito: Ambito | None`
 
 ### `MetadadosSubmissao`
 

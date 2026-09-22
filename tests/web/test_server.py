@@ -6,6 +6,7 @@ import time
 import urllib.error
 import urllib.request
 
+from graphow.harness.ambiente_padrao import AmbientePadrao, GarantidorDeAmbientePadrao
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
@@ -91,6 +92,30 @@ def test_servidor_http_publica_busca_ontologia_e_escopo_por_setor_nominal() -> N
         assert busca["total"] == 2 and busca["truncado"] is True
         assert ["Projeto", "Setor"] in ontologia["arestas"]["contem"]
         assert [no["id"] for no in canvas["nos"]] == ["s"]
+    finally:
+        servidor.parar()
+
+
+def test_servidor_http_separa_projetos_das_sessoes_do_hook_pelo_ambito_nominal() -> None:
+    """O parâmetro `ambito` chega ao controlador, e a resposta traz o total de cada raiz."""
+    kernel = WriteKernel(InMemoryEventStore())
+    GarantidorDeAmbientePadrao(kernel).garantir(AmbientePadrao(nome_do_projeto="meu-repo"))
+    porta = _obter_porta_livre()
+    servidor = GraphowWebServer(kernel, EnderecoServidor(porta=porta))
+    servidor.iniciar(bloqueante=False)
+    time.sleep(0.05)
+
+    base_url = f"http://127.0.0.1:{porta}"
+    try:
+        _postar_no(base_url, {"tipo": "Projeto", "rotulo": "Trabalho", "id_no": "p"})
+        with urllib.request.urlopen(f"{base_url}/api/canvas?ambito=hook") as resp:
+            hook = json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(f"{base_url}/api/canvas?ambito=projetos") as resp:
+            projetos = json.loads(resp.read().decode("utf-8"))
+
+        assert {no["id"] for no in hook["nos"]} == {"proj-meu-repo", "setor-meu-repo-memoria"}
+        assert [(no["id"], no["ambito"]) for no in projetos["nos"]] == [("p", "projetos")]
+        assert projetos["total_por_ambito"] == {"projetos": 1, "hook": 2}
     finally:
         servidor.parar()
 
