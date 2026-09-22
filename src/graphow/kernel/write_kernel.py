@@ -6,6 +6,7 @@ import threading
 
 from graphow.core.events import EventoLog
 from graphow.core.exceptions import ErroConflitoDeSequencia
+from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
 from graphow.kernel.execucao import PedidoDeExecucao
@@ -111,12 +112,7 @@ class WriteKernel:
         projecao = self._projecoes.sincronizar(proposta.ramo_id)
         validacao = self._executar_portoes(proposta, projecao.estado)
         if not validacao.aprovado:
-            return ResultadoSubmissao(
-                sucesso=False,
-                mensagem=validacao.mensagem_erro or "Patch rejeitado",
-                versao_log=projecao.estado.versao_log,
-                diagnostico=MASTEvaluator.classificar_resultado(validacao),
-            )
+            return _recibo_de_recusa(validacao, projecao.estado.versao_log)
         try:
             return self._aplicar_e_commitar(proposta, projecao)
         except ErroConflitoDeSequencia:
@@ -138,17 +134,24 @@ class WriteKernel:
         proposta: PropostaPatch,
         projecao: ProjecaoDoRamo,
     ) -> ResultadoSubmissao:
-        """Gera os eventos, persiste o lote em transação única e adota a nova projeção."""
-        eventos = self._conversor.converter(proposta, projecao.ultimo_seq_aplicado)
+        """Converte e projeta o lote antes de gravá-lo: só chega ao log o que se aplica ao grafo.
+
+        A projeção vinha depois do `append_eventos`. Um lote que os portões
+        aprovavam e o acumulador não sabia aplicar ficava gravado, e toda
+        leitura seguinte do ramo estourava no mesmo evento.
+        """
+        try:
+            eventos = self._conversor.converter(proposta, projecao.ultimo_seq_aplicado)
+            estado_novo = GrafoReducer.aplicar_eventos(projecao.estado, eventos)
+        except (KeyError, TypeError, ValueError) as erro:
+            return _recusar_lote_que_nao_se_aplica(erro, projecao.estado.versao_log)
         if not eventos:
             return ResultadoSubmissao(
                 sucesso=True,
                 mensagem="Nenhuma operacao gerou evento",
                 versao_log=projecao.estado.versao_log,
             )
-        self._repositorio.append_eventos(eventos)
-        self._adotar_projecao_pos_commit(proposta.ramo_id, projecao, eventos)
-        self._observadores.notificar(eventos)
+        self._gravar_e_adotar(proposta.ramo_id, eventos, estado_novo)
         return ResultadoSubmissao(
             sucesso=True,
             mensagem="Patch validado e persistido com sucesso",
@@ -156,17 +159,18 @@ class WriteKernel:
             eventos_gerados=tuple(evento.id for evento in eventos),
         )
 
-    def _adotar_projecao_pos_commit(
+    def _gravar_e_adotar(
         self,
         ramo_id: str,
-        projecao_anterior: ProjecaoDoRamo,
         eventos: Sequence[EventoLog],
+        estado_novo: GrafoEstado,
     ) -> None:
-        """Avança a projeção em memória com os eventos que acabaram de ser persistidos."""
-        estado_novo = GrafoReducer.aplicar_eventos(projecao_anterior.estado, eventos)
+        """Persiste eventos já projetados, adota o estado que eles produzem e avisa os observadores."""
+        self._repositorio.append_eventos(eventos)
         self._projecoes.registrar_estado_recem_commitado(
             ramo_id, ProjecaoDoRamo(estado=estado_novo, ultimo_seq_aplicado=eventos[-1].seq)
         )
+        self._observadores.notificar(eventos)
 
     def registrar_execucao(self, pedido: PedidoDeExecucao) -> ResultadoSubmissao:
         """Grava um fato de ciclo de vida de execução no log e notifica os observadores.
@@ -188,12 +192,11 @@ class WriteKernel:
         return resultado
 
     def _persistir_execucao(self, pedido: PedidoDeExecucao) -> ResultadoSubmissao:
-        """Numera, persiste e adota o evento de execução em uma passada só."""
+        """Numera e projeta o evento de execução antes de persisti-lo, como faz com o lote."""
         projecao = self._projecoes.sincronizar(pedido.ramo_id)
         evento = pedido.montar_evento(projecao.ultimo_seq_aplicado + 1)
-        self._repositorio.append_eventos((evento,))
-        self._adotar_projecao_pos_commit(pedido.ramo_id, projecao, (evento,))
-        self._observadores.notificar((evento,))
+        estado_novo = GrafoReducer.aplicar_eventos(projecao.estado, (evento,))
+        self._gravar_e_adotar(pedido.ramo_id, (evento,), estado_novo)
         return ResultadoSubmissao(
             sucesso=True,
             mensagem=f"Execucao registrada: {pedido.tipo_evento.value}",
@@ -243,6 +246,31 @@ class WriteKernel:
     def liberar_lock_task(self, id_task: str, autor: str) -> bool:
         """Libera o lock exclusivo caso pertença ao autor solicitante."""
         return self._locks.liberar(id_task, autor)
+
+
+def _recibo_de_recusa(validacao: ResultadoValidacao, versao_log: int) -> ResultadoSubmissao:
+    """Recibo de um lote recusado, com o diagnóstico MAST do modo que a recusa declarou."""
+    return ResultadoSubmissao(
+        sucesso=False,
+        mensagem=validacao.mensagem_erro or "Patch rejeitado",
+        versao_log=versao_log,
+        diagnostico=MASTEvaluator.classificar_resultado(validacao),
+    )
+
+
+def _recusar_lote_que_nao_se_aplica(erro: KeyError | TypeError | ValueError, versao_log: int) -> ResultadoSubmissao:
+    """Recusa, sem gravar nada, o lote que o conversor ou o acumulador não conseguem aplicar.
+
+    É a rede atrás dos portões: se um deles deixar passar uma forma que a
+    projeção não sabe dobrar, o lote volta recusado em vez de ficar no log.
+    """
+    validacao = ResultadoValidacao.falha(
+        f"O lote nao se aplica ao grafo ({type(erro).__name__}: {erro}). Nada foi gravado",
+        "WriteKernel",
+        {"erro": type(erro).__name__},
+        modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
+    )
+    return _recibo_de_recusa(validacao, versao_log)
 
 
 def _descrever(resultado: ResultadoSubmissao) -> FatoDeEscrita:

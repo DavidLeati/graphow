@@ -126,7 +126,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
    - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor.
-4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog`, persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
+4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
 
 ---
 
@@ -667,8 +667,8 @@ agrupamento feito só no cliente ainda faria o payload inteiro atravessar a rede
 | **Caminho crítico** | `?vista=caminho_critico` mantém quem participa de dependência declarada | `proximas_tarefas` já traz `depende_de` e as impedidas com motivo |
 
 O índice de rollup é recalculado **inteiro a cada commit**, dentro de
-`ProjecaoSincronizada._registrar` — ponto único, porque o kernel adota a
-projeção que ele mesmo dobrou após o commit. Não há manutenção incremental: a
+`ProjecaoSincronizada._registrar` — ponto único, porque o kernel adota, logo
+após o commit, a projeção que ele mesmo dobrou antes de gravar. Não há manutenção incremental: a
 agregação é uma dobra pura do estado, com a mesma garantia de determinismo do
 resto da projeção.
 

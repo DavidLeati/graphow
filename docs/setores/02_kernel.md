@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-15 módulos · 2527 linhas · 26 classes
+15 módulos · 2555 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/role_gate.py`](#kernelrolegate) | 400 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
-| [`kernel/write_kernel.py`](#kernelwritekernel) | 255 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
+| [`kernel/write_kernel.py`](#kernelwritekernel) | 283 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
 ## `kernel/composicao.py`
 

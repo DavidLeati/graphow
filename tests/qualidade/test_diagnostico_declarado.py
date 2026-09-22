@@ -13,12 +13,14 @@ from graphow.core.falhas import CATEGORIA_POR_MODO, ModoFalhaMAST
 
 RAIZ_KERNEL: Path = Path(__file__).parent.parent.parent / "src" / "graphow" / "kernel"
 
-# `forma_e_identidade.py` recusa em nome do SchemaGate.
+# `forma_e_identidade.py` recusa em nome do SchemaGate, e o `write_kernel.py`
+# recusa o lote que os portões aprovaram mas o acumulador não sabe aplicar.
 ARQUIVOS_DE_PORTAO: tuple[str, ...] = (
     "schema_gate.py",
     "forma_e_identidade.py",
     "role_gate.py",
     "invariant_gate.py",
+    "write_kernel.py",
 )
 
 

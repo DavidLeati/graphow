@@ -1,8 +1,17 @@
 """Testes unitários para o WriteKernel e fluxo transacional."""
 
+from graphow.core.falhas import ModoFalhaMAST
+from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusTask, TipoAresta, TipoNo
-from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
-from graphow.kernel.write_kernel import WriteKernel
+from graphow.kernel.patch_models import (
+    DadosPropostaPatch,
+    ItemPatch,
+    OperacaoPatch,
+    PropostaPatch,
+    ResultadoValidacao,
+)
+from graphow.kernel.schema_gate import SchemaGate
+from graphow.kernel.write_kernel import DependenciasKernel, WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 
 
@@ -115,3 +124,36 @@ def test_write_kernel_gestao_de_locks_edge_case() -> None:
     # Agente A libera lock e agente B consegue adquirir
     assert kernel.liberar_lock_task("t1", "agente-a") is True
     assert kernel.adquirir_lock_task("t1", "agente-b") is True
+
+
+class _SchemaGatePermissivo(SchemaGate):
+    """Aprova tudo: faz o papel de um portão que deixou passar uma forma que a projeção não dobra."""
+
+    def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
+        """Aprova o lote sem olhar."""
+        return ResultadoValidacao.sucesso()
+
+
+def test_lote_que_nao_se_aplica_e_recusado_sem_tocar_o_log_edge_case() -> None:
+    """Caso de borda: a projeção vinha depois do `append_eventos` e o lote ruim ficava gravado.
+
+    Com um portão que aprova tudo, a aresta de tipo inexistente chega ao
+    acumulador, que estoura. O kernel projeta antes de gravar: o lote volta
+    recusado, o log não anda e o ramo continua legível.
+    """
+    store = InMemoryEventStore()
+    kernel = WriteKernel(store, DependenciasKernel(schema_gate=_SchemaGatePermissivo()))
+    valor = {"id": "e1", "origem_id": "a", "destino_id": "b", "tipo": "tipo_fantasma"}
+    dados = DadosPropostaPatch(
+        autor="david",
+        papel=PapelAutor.HUMANO,
+        operacoes=[ItemPatch(op=OperacaoPatch.ADD, path="/arestas/e1", value=valor)],
+    )
+
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.ESTRUTURA_INCOMPLETA.value
+    assert recibo.diagnostico is not None and recibo.diagnostico.portao == "WriteKernel"
+    assert store.obter_ultimo_seq("main") == 0
+    assert kernel.obter_view("main").total_arestas == 0
