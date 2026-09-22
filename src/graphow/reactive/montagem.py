@@ -6,6 +6,7 @@ from graphow.reactive.builtins import (
     RevisorNotificadoBehavior,
 )
 from graphow.reactive.condensacao import SessaoEncerradaBehavior
+from graphow.reactive.consolidacao import AprendizadosAcumuladosBehavior
 from graphow.reactive.engine import MotorReativo
 from graphow.reactive.interfaces import ComportamentoReativo
 from graphow.reactive.observador_reativo import ObservadorReativo
@@ -17,6 +18,7 @@ def montar_comportamentos_padrao() -> tuple[ComportamentoReativo, ...]:
         RevisorNotificadoBehavior(),
         ReavaliacaoDecisaoSubstituidaBehavior(),
         SessaoEncerradaBehavior(),
+        AprendizadosAcumuladosBehavior(),
     )
 
 

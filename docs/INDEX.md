@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 165 módulos · 20413 linhas · 324 classes**
+**15 alas · 166 módulos · 20653 linhas · 327 classes**
 
 ---
 
@@ -61,10 +61,10 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 16 | 2633 | 27 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 11 | 1326 | 31 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 12 | 1762 | 22 |
-| 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 9 | 644 | 11 |
+| 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 872 | 14 |
 | 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 17 | 2204 | 30 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |
-| 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 12 | 1206 | 15 |
+| 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 12 | 1218 | 15 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2174 | 26 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 1068 | 10 |

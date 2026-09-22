@@ -10,16 +10,17 @@ Comportamentos desacoplados que observam commits e propõem patches derivados, c
 
 ## Inventário
 
-9 módulos · 644 linhas · 11 classes
+10 módulos · 872 linhas · 14 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`reactive/builtins.py`](#reactivebuiltins) | 95 | Comportamentos reativos nativos desacoplados do Graphow. |
 | [`reactive/condensacao.py`](#reactivecondensacao) | 159 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
+| [`reactive/consolidacao.py`](#reactiveconsolidacao) | 226 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
 | [`reactive/diagnostico.py`](#reactivediagnostico) | 57 | Registro das reações que o kernel recusou, para que nenhuma morra calada. |
 | [`reactive/engine.py`](#reactiveengine) | 104 | Motor reativo que processa eventos e orquestra comportamentos desacoplados. |
 | [`reactive/interfaces.py`](#reactiveinterfaces) | 22 | Interface abstrata para comportamentos reativos desacoplados. |
-| [`reactive/montagem.py`](#reactivemontagem) | 41 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
+| [`reactive/montagem.py`](#reactivemontagem) | 43 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
 | [`reactive/notas.py`](#reactivenotas) | 110 | Montagem das notas reativas: sempre ligadas à sessão e ao nó que as motivou. |
 | [`reactive/observador_reativo.py`](#reactiveobservadorreativo) | 41 | Adaptador que liga o motor reativo ao gancho pós-commit do kernel. |
 
@@ -70,6 +71,51 @@ Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Tas
 - `tem_condensacao_pendente(id_sessao: str, view: GrafoView) -> bool` — Uma Task de condensar ainda aberta: pedir outra seria pedir duas vezes.
 - `eh_tarefa_de_condensacao(no: NoGrafo) -> bool` — Reconhece a Task que este comportamento abre.
 - `montar_proposta_de_condensacao(sessao: NoGrafo) -> PropostaPatch` — A Task pendurada na sessão que a motivou, assinada pelo papel que cria Task.
+
+## `reactive/consolidacao.py`
+
+Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DE_CONSOLIDAR` | `str` | `'consolidar_aprendizados'` |
+| `AUTOR_DO_CONSOLIDADOR` | `str` | `'comportamento-consolidador'` |
+| `PREFIXO_DA_TAREFA` | `str` | `'task-consolidar'` |
+| `LIMITE_DE_VIGENTES_POR_ALCANCE` | `int` | `12` |
+| `ROTEIRO_DA_CONSOLIDACAO` | `str` | `'Leia os aprendizados vigentes deste alcance (expandir_no em cada id ab…` |
+| `CRITERIO_DE_PRONTO` | `str` | `f'Aprendizados consolidados registrados, cada um com substitui para os …` |
+| `GLOBAL` | `Alcance` | `Alcance(id=ALCANCE_GLOBAL, rotulo=ALCANCE_GLOBAL)` |
+
+### `Alcance`
+
+*DTO imutável* — Um lugar onde aprendizados valem: o id do contêiner ou a marca global, com o rótulo para a Task.
+
+**Campos:** `id: str`, `rotulo: str`
+
+### `AprendizadosAcumuladosBehavior` (ComportamentoReativo)
+
+*serviço* — Abre a Task de consolidar quando uma Sessao abre num alcance com vigentes demais.
+
+- `nome() -> str` `[property]` — Nome identificador do comportamento.
+- `avaliar(evento: EventoLog, view: GrafoView) -> PropostaPatch | None` — Reage à Sessao criada ou reaberta; propõe uma Task por alcance lotado e sem pedido pendente.
+
+### `PedidoDeConsolidacao`
+
+*DTO imutável* — Um alcance que passou do limite e os vigentes que a Task vai listar.
+
+**Campos:** `alcance: Alcance`, `vigentes: tuple[str, ...]`
+
+### Funções do módulo
+
+- `sessao_que_abre(evento: EventoLog, view: GrafoView) -> NoGrafo | None` — A Sessao que o evento cria ou devolve a `ativa`; None para qualquer outro evento.
+- `pedidos_de_consolidacao(id_sessao: str, view: GrafoView) -> tuple[PedidoDeConsolidacao, ...]` — Os alcances da sessão que passaram do limite e ainda não têm Task de consolidar aberta.
+- `alcances_da_sessao(id_sessao: str, view: GrafoView) -> tuple[Alcance, ...]` — O Setor da sessão, o Projeto dele e o global, nesta ordem; sem Setor, só o global.
+- `alcances_do_setor(id_setor: str, view: GrafoView) -> tuple[Alcance, ...]` — O Setor, o Projeto que o contém e o global, nesta ordem.
+- `vigentes_no_alcance(alcance: str, view: GrafoView) -> tuple[str, ...]` — Ids dos aprendizados vigentes que valem para o alcance, na ordem do log.
+- `tarefas_de_consolidacao_pendentes(alcance: str, view: GrafoView) -> tuple[NoGrafo, ...]` — As Tasks de consolidar este alcance ainda abertas, em ordem estável.
+- `tem_consolidacao_pendente(alcance: str, view: GrafoView) -> bool` — Uma Task de consolidar ainda aberta: pedir outra seria pedir duas vezes.
+- `eh_tarefa_de_consolidacao(no: NoGrafo) -> bool` — Reconhece a Task que este comportamento abre.
+- `montar_proposta_de_consolidacao(sessao: NoGrafo, pedidos: Sequence[PedidoDeConsolidacao]) -> PropostaPatch` — Uma Task por alcance lotado, pendurada na sessão que abre e assinada pelo papel que cria Task.
 
 ## `reactive/diagnostico.py`
 

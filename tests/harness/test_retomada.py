@@ -17,6 +17,7 @@ from graphow.kernel.composicao import montar_kernel_em_memoria
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.reactive.condensacao import montar_proposta_de_condensacao
+from graphow.reactive.consolidacao import ACAO_DE_CONSOLIDAR
 
 
 def _no(id_no: str, tipo: TipoNo, rotulo: str, **propriedades: str) -> ItemPatch:
@@ -223,3 +224,20 @@ def test_aprendizado_local_substituido_por_promovido_nao_volta_edge_case() -> No
 
     assert "[apr-velho]" not in texto
     assert "[substitui apr-velho]" in texto
+
+
+def test_consolidacao_pendente_do_alcance_e_apontada_pela_task_nominal() -> None:
+    """A Task de consolidar que o grafo abriu para o Projeto chega ao agente com o id para assumir."""
+    kernel = _ambiente()
+    _submeter(kernel, _aprendizado("apr-prom", "sess-antes", "dec-1", alcance="proj-1"))
+    _submeter(
+        kernel,
+        [
+            _no("task-consolidar-x", TipoNo.TASK, "Consolidar aprendizados: meu-repo", status="pendente", acao=ACAO_DE_CONSOLIDAR, id_alvo="proj-1"),
+            _aresta("sess-antes", "task-consolidar-x", TipoAresta.PRODUZ),
+        ],
+    )
+
+    texto = "\n".join(_vista(kernel))
+
+    assert "- consolidacao pendente: Task task-consolidar-x (1 aprendizados vigentes em proj-1): assuma-a" in texto

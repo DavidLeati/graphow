@@ -574,6 +574,16 @@ substituir é propor, promover é o humano aceitar. `contradiz` de uma
 índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
 nulo: sem configurar, não custa nada e não traz dependência.
 
+**A memória se consolida.** Quando uma sessão abre num Setor cujo alcance (o
+Setor, o Projeto ou o global) passa de doze aprendizados vigentes, o
+comportamento `AprendizadosAcumulados` abre nela uma `Task` de consolidar
+(`acao: consolidar_aprendizados`), com os ids vigentes na descrição. Quem a
+pega agrupa por tema e registra, por `registrar_aprendizado`, um aprendizado
+por grupo, com `substitui` para os absorvidos e `deriva_de` para as origens
+deles. Nada é apagado: os absorvidos saem da vista quando o humano promove o
+consolidado. É a mesma compactação que a condensação faz com a sessão, um
+nível acima, e a vista de retomada aponta a `Task` enquanto ela estiver aberta.
+
 **A memória tem ambiente padrão e tem lugar na tela.** O hook de início não
 precisa de um Setor criado à parte: a sessão nasce no `Projeto` com o nome do
 repositório, dentro do `Setor` `Memoria`, que o harness cria na primeira vez e

@@ -27,6 +27,7 @@ from graphow.reactive.condensacao import (
     tem_condensacao_pendente,
     tem_trabalho_a_condensar,
 )
+from graphow.reactive.consolidacao import alcances_do_setor, tarefas_de_consolidacao_pendentes, vigentes_no_alcance
 
 TITULO_DA_VISTA: str = "Memoria do graphow para esta sessao"
 TITULO_DOS_APRENDIZADOS: str = "### Aprendizados aplicaveis"
@@ -60,6 +61,7 @@ def montar_vista_de_retomada(pedido: PedidoDeRetomada) -> tuple[str, ...]:
         f"## {TITULO_DA_VISTA}",
         _linha_de_onde(setor, pedido),
         *_linhas_de_aprendizados(setor, pedido.view),
+        *_linhas_de_consolidacao(setor.id, pedido.view),
         *_linhas_da_sessao_anterior(pedido),
         *_linhas_da_sessao_retomada(pedido),
         "",
@@ -87,6 +89,16 @@ def _linhas_de_aprendizados(setor: NoGrafo, view: GrafoView) -> tuple[str, ...]:
     if excedente > 0:
         mantidas.append(f"- ... e mais {excedente} (use `ler_vista` no Setor ou `buscar`)")
     return (TITULO_DOS_APRENDIZADOS, *mantidas)
+
+
+def _linhas_de_consolidacao(id_setor: str, view: GrafoView) -> tuple[str, ...]:
+    """A Task de consolidar que o grafo abriu para um alcance desta sessão, com o id para assumir."""
+    return tuple(
+        f"- consolidacao pendente: Task {tarefa.id} ({len(vigentes_no_alcance(alcance.id, view))} aprendizados "
+        f"vigentes em {alcance.id}): assuma-a e registre os consolidados."
+        for alcance in alcances_do_setor(id_setor, view)
+        for tarefa in tarefas_de_consolidacao_pendentes(alcance.id, view)
+    )
 
 
 def _aprendizados_locais(setor: NoGrafo, view: GrafoView, *, excluidos: frozenset[str]) -> tuple[NoGrafo, ...]:

@@ -10,7 +10,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-12 módulos · 1206 linhas · 15 classes
+12 módulos · 1218 linhas · 15 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
-| [`harness/retomada.py`](#harnessretomada) | 180 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
+| [`harness/retomada.py`](#harnessretomada) | 192 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
 | [`harness/transcricao.py`](#harnesstranscricao) | 150 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
