@@ -13,7 +13,13 @@ from graphow.core.falhas import CATEGORIA_POR_MODO, ModoFalhaMAST
 
 RAIZ_KERNEL: Path = Path(__file__).parent.parent.parent / "src" / "graphow" / "kernel"
 
-ARQUIVOS_DE_PORTAO: tuple[str, ...] = ("schema_gate.py", "role_gate.py", "invariant_gate.py")
+# `forma_e_identidade.py` recusa em nome do SchemaGate.
+ARQUIVOS_DE_PORTAO: tuple[str, ...] = (
+    "schema_gate.py",
+    "forma_e_identidade.py",
+    "role_gate.py",
+    "invariant_gate.py",
+)
 
 
 def _coletar_recusas(caminho: Path) -> list[ast.Call]:

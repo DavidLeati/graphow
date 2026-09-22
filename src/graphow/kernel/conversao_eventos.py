@@ -18,7 +18,40 @@ from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, PropostaPatch
 SEGMENTO_NOS: str = "nos"
 SEGMENTO_ARESTAS: str = "arestas"
 SEGMENTO_PROPRIEDADES: str = "propriedades"
+SEGMENTOS_DO_ELEMENTO_INTEIRO: int = 2
 SEGMENTOS_DE_UMA_PROPRIEDADE: int = 4
+MARCADOR_DE_ID: str = "<id>"
+MARCADOR_DE_CHAVE: str = "<chave>"
+
+# As formas que o conversor grava como a operação diz, e nada além delas. Fora
+# daqui o evento dizia outra coisa: `test`, `move` e `copy` viravam escrita,
+# `add` em `/arestas/<id>/...` criava a aresta com o valor inteiro, `remove` do
+# rótulo gravava "None" e `replace` no nó inteiro virava uma propriedade com o
+# nome do id. O SchemaGate recusa o que não está na tabela; o conversor não o
+# traduz.
+OPERACOES_POR_FORMA: Mapping[tuple[str, ...], frozenset[OperacaoPatch]] = {
+    (SEGMENTO_NOS, MARCADOR_DE_ID): frozenset({OperacaoPatch.ADD, OperacaoPatch.REMOVE}),
+    (SEGMENTO_NOS, MARCADOR_DE_ID, CAMPO_ROTULO): frozenset({OperacaoPatch.ADD, OperacaoPatch.REPLACE}),
+    (SEGMENTO_NOS, MARCADOR_DE_ID, SEGMENTO_PROPRIEDADES, MARCADOR_DE_CHAVE): frozenset(
+        {OperacaoPatch.ADD, OperacaoPatch.REPLACE, OperacaoPatch.REMOVE}
+    ),
+    (SEGMENTO_ARESTAS, MARCADOR_DE_ID): frozenset({OperacaoPatch.ADD, OperacaoPatch.REMOVE}),
+}
+
+
+def forma_do_caminho(segmentos: Sequence[str]) -> tuple[str, ...]:
+    """O caminho com o id do elemento e a chave da propriedade trocados por marcadores."""
+    if len(segmentos) < SEGMENTOS_DO_ELEMENTO_INTEIRO:
+        return tuple(segmentos)
+    forma = [segmentos[0], MARCADOR_DE_ID, *segmentos[SEGMENTOS_DO_ELEMENTO_INTEIRO:]]
+    if len(forma) == SEGMENTOS_DE_UMA_PROPRIEDADE and forma[2] == SEGMENTO_PROPRIEDADES:
+        forma[3] = MARCADOR_DE_CHAVE
+    return tuple(forma)
+
+
+def grava_como_diz(segmentos: Sequence[str], op: OperacaoPatch) -> bool:
+    """Diz se o conversor grava a operação neste caminho como ela é, sem reinterpretá-la."""
+    return op in OPERACOES_POR_FORMA.get(forma_do_caminho(segmentos), frozenset())
 
 
 @dataclass(frozen=True)
@@ -57,21 +90,19 @@ class ConversorPatchParaEventos:
         return tuple(eventos)
 
     def _converter_item(self, item: ItemPatch, proposta: PropostaPatch, seq: int) -> EventoLog | None:
-        """Converte uma operação individual, ignorando caminhos fora da ontologia."""
+        """Converte uma operação individual; a que o log não gravaria como ela diz fica de fora."""
         segmentos = tuple(segmento for segmento in item.path.split("/") if segmento)
-        if not segmentos:
+        if not grava_como_diz(segmentos, item.op):
             return None
         contexto = ContextoConversaoEvento(segmentos=segmentos, item=item, proposta=proposta, seq=seq)
         if segmentos[0] == SEGMENTO_NOS:
             return self._evento_de_no(contexto)
-        if segmentos[0] == SEGMENTO_ARESTAS:
-            return self._evento_de_aresta(contexto)
-        return None
+        return self._evento_de_aresta(contexto)
 
-    def _evento_de_no(self, contexto: ContextoConversaoEvento) -> EventoLog | None:
+    def _evento_de_no(self, contexto: ContextoConversaoEvento) -> EventoLog:
         """Gera o evento correspondente a uma mutação em nó."""
         id_no = contexto.segmentos[1]
-        eh_operacao_sobre_o_no_inteiro = len(contexto.segmentos) == 2
+        eh_operacao_sobre_o_no_inteiro = len(contexto.segmentos) == SEGMENTOS_DO_ELEMENTO_INTEIRO
         if eh_operacao_sobre_o_no_inteiro and contexto.item.op == OperacaoPatch.ADD:
             return self._montar(contexto, TipoEvento.NO_CRIADO, contexto.item.value)
         if eh_operacao_sobre_o_no_inteiro and contexto.item.op == OperacaoPatch.REMOVE:
@@ -79,35 +110,26 @@ class ConversorPatchParaEventos:
         return self._montar(contexto, TipoEvento.NO_ATUALIZADO, self._payload_de_atualizacao(contexto))
 
     def _payload_de_atualizacao(self, contexto: ContextoConversaoEvento) -> dict[str, Any]:
-        """Monta o payload de atualização de rótulo ou de propriedade isolada."""
-        id_no = contexto.segmentos[1]
-        campo = contexto.segmentos[-1]
-        if campo == CAMPO_ROTULO:
-            return {"id": id_no, CAMPO_ROTULO: contexto.item.value}
-        if self._remove_uma_propriedade(contexto):
-            return {"id": id_no, CAMPO_PROPRIEDADES_REMOVIDAS: [campo]}
-        return {"id": id_no, CAMPO_PROPRIEDADES: {campo: contexto.item.value}}
+        """Monta o payload de atualização do rótulo ou de uma propriedade nomeada.
 
-    def _remove_uma_propriedade(self, contexto: ContextoConversaoEvento) -> bool:
-        """Indica se a operação apaga uma propriedade nomeada de um nó.
-
-        A intenção precisa viajar no evento. Inferi-la do valor nulo confundiria
-        apagar a chave com gravá-la como nula — e nulo é um valor que alguém pode
-        legitimamente querer escrever.
+        Decide pela forma do caminho, não pelo último segmento: uma propriedade
+        chamada `rotulo` era gravada como o rótulo do nó. A remoção viaja
+        declarada no evento; inferi-la do valor nulo confundiria apagar a chave
+        com gravá-la como nula, e nulo é um valor que alguém pode querer escrever.
         """
-        if contexto.item.op != OperacaoPatch.REMOVE:
-            return False
+        id_no = contexto.segmentos[1]
         if len(contexto.segmentos) != SEGMENTOS_DE_UMA_PROPRIEDADE:
-            return False
-        return contexto.segmentos[2] == SEGMENTO_PROPRIEDADES
+            return {"id": id_no, CAMPO_ROTULO: contexto.item.value}
+        chave = contexto.segmentos[-1]
+        if contexto.item.op == OperacaoPatch.REMOVE:
+            return {"id": id_no, CAMPO_PROPRIEDADES_REMOVIDAS: [chave]}
+        return {"id": id_no, CAMPO_PROPRIEDADES: {chave: contexto.item.value}}
 
-    def _evento_de_aresta(self, contexto: ContextoConversaoEvento) -> EventoLog | None:
-        """Gera o evento correspondente a uma mutação em aresta."""
+    def _evento_de_aresta(self, contexto: ContextoConversaoEvento) -> EventoLog:
+        """Gera a criação ou a remoção da aresta inteira: aresta não tem campo editável."""
         if contexto.item.op == OperacaoPatch.ADD:
             return self._montar(contexto, TipoEvento.ARESTA_CRIADA, contexto.item.value)
-        if contexto.item.op == OperacaoPatch.REMOVE:
-            return self._montar(contexto, TipoEvento.ARESTA_REMOVIDA, {"id": contexto.segmentos[1]})
-        return None
+        return self._montar(contexto, TipoEvento.ARESTA_REMOVIDA, {"id": contexto.segmentos[1]})
 
     def _montar(
         self,

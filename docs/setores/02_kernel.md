@@ -10,13 +10,14 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-14 módulos · 2342 linhas · 25 classes
+15 módulos · 2527 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
-| [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 129 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
+| [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
+| [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 352 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 134 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
@@ -24,7 +25,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 166 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 400 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 305 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 255 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
@@ -48,7 +49,11 @@ Conversão de operações JSON Patch RFC 6902 em eventos formais do log.
 | `SEGMENTO_NOS` | `str` | `'nos'` |
 | `SEGMENTO_ARESTAS` | `str` | `'arestas'` |
 | `SEGMENTO_PROPRIEDADES` | `str` | `'propriedades'` |
+| `SEGMENTOS_DO_ELEMENTO_INTEIRO` | `int` | `2` |
 | `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
+| `MARCADOR_DE_ID` | `str` | `'<id>'` |
+| `MARCADOR_DE_CHAVE` | `str` | `'<chave>'` |
+| `OPERACOES_POR_FORMA` | `Mapping[tuple[str, ...], frozenset[OperacaoPatch]]` | `{(SEGMENTO_NOS, MARCADOR_DE_ID): frozenset({OperacaoPatch.ADD, Operacao…` |
 
 ### `ContextoConversaoEvento`
 
@@ -63,6 +68,11 @@ Conversão de operações JSON Patch RFC 6902 em eventos formais do log.
 *serviço* — Traduz uma proposta aprovada na sequência de eventos que a representa.
 
 - `converter(proposta: PropostaPatch, seq_base: int) -> tuple[EventoLog, ...]` — Numera e converte cada operação da proposta a partir da sequência base.
+
+### Funções do módulo
+
+- `forma_do_caminho(segmentos: Sequence[str]) -> tuple[str, ...]` — O caminho com o id do elemento e a chave da propriedade trocados por marcadores.
+- `grava_como_diz(segmentos: Sequence[str], op: OperacaoPatch) -> bool` — Diz se o conversor grava a operação neste caminho como ela é, sem reinterpretá-la.
 
 ## `kernel/execucao.py`
 
@@ -81,6 +91,37 @@ Registro do ciclo de vida de execução de um agente no log compartilhado.
 - `eh_de_ciclo_de_execucao() -> bool` `[property]` — Recusa qualquer tipo de evento que não pertença a este canal.
 - `montar_payload() -> dict[str, Any]` — Payload do evento, com o vínculo à sessão sempre presente.
 - `montar_evento(seq: int) -> EventoLog` — Constrói o evento numerado na posição informada do log.
+
+## `kernel/forma_e_identidade.py`
+
+Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PORTAO` | `str` | `'SchemaGate'` |
+| `SEGMENTOS_ATE_O_IDENTIFICADOR` | `int` | `2` |
+| `COLECAO_DE_NOS` | `str` | `'nos'` |
+| `COLECOES` | `frozenset[str]` | `frozenset({COLECAO_DE_NOS, 'arestas'})` |
+| `FORMAS_ACEITAS` | `str` | `'; '.join((f"{', '.join(sorted((op.value for op in operacoes)))} em /{'…` |
+
+### `ContextoValidacaoNo`
+
+*DTO imutável* — DTO imutável para encapsular os parâmetros de validação do nó.
+
+**Campos:** `segmentos: Sequence[str]`, `item: ItemPatch`, `estado: GrafoEstado`
+
+### `CriadosNoLote`
+
+*serviço* — O que as operações anteriores do mesmo lote já criaram, na ordem do lote.
+
+**Campos:** `nos: dict[str, TipoNo]`, `arestas: set[str]`
+
+- `contem(colecao: str, id_elemento: str, estado: GrafoEstado) -> bool` — Diz se o id já está no grafo ou foi criado antes neste lote.
+
+### Funções do módulo
+
+- `validar_caminho(item: ItemPatch, segmentos: tuple[str, ...]) -> ResultadoValidacao` — O caminho nomeia um nó ou uma aresta, numa forma que o log grava como ela é.
+- `validar_identidade(ctx: ContextoValidacaoNo, criados: CriadosNoLote) -> ResultadoValidacao` — O valor cria o elemento que o caminho nomeia, e esse id ainda não existe.
 
 ## `kernel/invariant_gate.py`
 
@@ -286,16 +327,6 @@ Portão 2: Validação de Contratos de Permissão por Papel (Role Gate).
 ## `kernel/schema_gate.py`
 
 Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate).
-
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `SEGMENTOS_ATE_O_IDENTIFICADOR` | `int` | `2` |
-
-### `ContextoValidacaoNo`
-
-*DTO imutável* — DTO imutável para encapsular os parâmetros de validação do nó.
-
-**Campos:** `segmentos: Sequence[str]`, `item: ItemPatch`, `estado: GrafoEstado`
 
 ### `SchemaGate`
 

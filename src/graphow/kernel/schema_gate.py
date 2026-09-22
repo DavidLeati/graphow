@@ -1,13 +1,20 @@
 """Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate)."""
 
-from collections.abc import Mapping, Sequence, Set
-from dataclasses import dataclass
+from collections.abc import Mapping, Set
 from typing import Any
 
 from graphow.core.exceptions import ErroPatchInvalido, ErroSegurancaPatch
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.core.types import TipoAresta, TipoNo
+from graphow.kernel.forma_e_identidade import (
+    COLECAO_DE_NOS,
+    SEGMENTOS_ATE_O_IDENTIFICADOR,
+    ContextoValidacaoNo,
+    CriadosNoLote,
+    validar_caminho,
+    validar_identidade,
+)
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -15,18 +22,6 @@ from graphow.kernel.patch_models import (
     ResultadoValidacao,
     SanitizadorPatch,
 )
-
-# Todo caminho valido nomeia a colecao e o elemento: '/nos/<id>' ou '/arestas/<id>'.
-SEGMENTOS_ATE_O_IDENTIFICADOR: int = 2
-
-
-@dataclass(frozen=True)
-class ContextoValidacaoNo:
-    """DTO imutável para encapsular os parâmetros de validação do nó."""
-
-    segmentos: Sequence[str]
-    item: ItemPatch
-    estado: GrafoEstado
 
 
 class SchemaGate:
@@ -110,9 +105,9 @@ class SchemaGate:
 
     def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
         """Avalia todas as operações do patch contra o schema da ontologia."""
-        nos_criados_no_patch: dict[str, TipoNo] = {}
+        criados = CriadosNoLote()
         for item in proposta.operacoes:
-            resultado_item = self._validar_operacao(item, estado, nos_criados_no_patch)
+            resultado_item = self._validar_operacao(item, estado, criados)
             if not resultado_item.aprovado:
                 return resultado_item
         return ResultadoValidacao.sucesso()
@@ -121,13 +116,13 @@ class SchemaGate:
         self,
         item: ItemPatch,
         estado: GrafoEstado,
-        nos_criados: dict[str, TipoNo],
+        criados: CriadosNoLote,
     ) -> ResultadoValidacao:
         """Sanitiza a operação e, se ela for segura, valida contra a ontologia."""
         resultado_sanitizacao = self._sanitizar(item)
         if not resultado_sanitizacao.aprovado:
             return resultado_sanitizacao
-        return self._validar_item(item, estado, nos_criados)
+        return self._validar_item(item, estado, criados)
 
     def _sanitizar(self, item: ItemPatch) -> ResultadoValidacao:
         """Converte as falhas de sanitização em veredito, preservando o caminho ofensor."""
@@ -153,42 +148,28 @@ class SchemaGate:
         self,
         item: ItemPatch,
         estado: GrafoEstado,
-        nos_criados: dict[str, TipoNo],
+        criados: CriadosNoLote,
     ) -> ResultadoValidacao:
-        """Despacha validação por prefixo de caminho."""
-        segmentos: list[str] = [seg for seg in item.path.split("/") if seg]
-        if not segmentos:
-            return ResultadoValidacao.falha(
-                "Caminho de patch vazio", "SchemaGate", modo=ModoFalhaMAST.CAMINHO_INVALIDO
-            )
-        if len(segmentos) < SEGMENTOS_ATE_O_IDENTIFICADOR:
-            return ResultadoValidacao.falha(
-                f"Caminho '{item.path}' nao identifica um no nem uma aresta",
-                "SchemaGate",
-                {"path": item.path},
-                modo=ModoFalhaMAST.CAMINHO_INVALIDO,
-            )
-        ctx = ContextoValidacaoNo(segmentos=tuple(segmentos), item=item, estado=estado)
-        if segmentos[0] == "nos":
-            return self._validar_operacao_no(ctx, nos_criados)
-        if segmentos[0] == "arestas":
-            return self._validar_operacao_aresta(ctx, nos_criados)
-        return ResultadoValidacao.falha(
-            f"Raiz desconhecida '{segmentos[0]}'. Use 'nos' ou 'arestas'",
-            "SchemaGate",
-            modo=ModoFalhaMAST.CAMINHO_INVALIDO,
-        )
+        """Confere o caminho e despacha a validação para nó ou aresta."""
+        segmentos = tuple(seg for seg in item.path.split("/") if seg)
+        resultado_caminho = validar_caminho(item, segmentos)
+        if not resultado_caminho.aprovado:
+            return resultado_caminho
+        ctx = ContextoValidacaoNo(segmentos=segmentos, item=item, estado=estado)
+        if segmentos[0] == COLECAO_DE_NOS:
+            return self._validar_operacao_no(ctx, criados)
+        return self._validar_operacao_aresta(ctx, criados)
 
     def _validar_operacao_no(
         self,
         ctx: ContextoValidacaoNo,
-        nos_criados: dict[str, TipoNo],
+        criados: CriadosNoLote,
     ) -> ResultadoValidacao:
         """Valida inserção ou alteração de nó."""
         if len(ctx.segmentos) == SEGMENTOS_ATE_O_IDENTIFICADOR and ctx.item.op == OperacaoPatch.ADD:
-            return self._validar_criacao_no(ctx.item.value, nos_criados)
+            return self._validar_criacao_no(ctx, criados)
         id_no = ctx.segmentos[1]
-        if ctx.estado.contem_no(id_no) or id_no in nos_criados:
+        if ctx.estado.contem_no(id_no) or id_no in criados.nos:
             return ResultadoValidacao.sucesso()
         return ResultadoValidacao.falha(
             f"Nó '{id_no}' não existe no grafo",
@@ -196,8 +177,31 @@ class SchemaGate:
             modo=ModoFalhaMAST.REFERENCIA_INEXISTENTE,
         )
 
-    def _validar_criacao_no(self, valor: Any, nos_criados: dict[str, TipoNo]) -> ResultadoValidacao:
-        """Checa campos obrigatórios e tipo formal do nó a ser criado."""
+    def _validar_criacao_no(self, ctx: ContextoValidacaoNo, criados: CriadosNoLote) -> ResultadoValidacao:
+        """Checa estrutura, identidade e tipo formal do nó a ser criado."""
+        valor = ctx.item.value
+        resultado_estrutura = self._validar_estrutura_do_no(valor)
+        if not resultado_estrutura.aprovado:
+            return resultado_estrutura
+        resultado_identidade = validar_identidade(ctx, criados)
+        if not resultado_identidade.aprovado:
+            return resultado_identidade
+        try:
+            criados.nos[str(valor["id"])] = TipoNo(valor["tipo"])
+            return ResultadoValidacao.sucesso()
+        except ValueError:
+            return ResultadoValidacao.falha(
+                f"Tipo de nó inválido: '{valor.get('tipo')}'",
+                "SchemaGate",
+                modo=ModoFalhaMAST.TIPO_DESCONHECIDO,
+            )
+
+    def _validar_estrutura_do_no(self, valor: Any) -> ResultadoValidacao:
+        """Um objeto com 'id' e 'tipo', e 'propriedades', quando vier, também objeto.
+
+        O acumulador copia as propriedades com `dict(...)`. Um texto ali passava
+        pelos portões e estourava na projeção, depois de gravado.
+        """
         if not isinstance(valor, dict):
             return ResultadoValidacao.falha(
                 "Valor do nó deve ser um objeto JSON",
@@ -210,34 +214,31 @@ class SchemaGate:
                 "SchemaGate",
                 modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
             )
-        try:
-            tipo_no = TipoNo(valor["tipo"])
-            nos_criados[str(valor["id"])] = tipo_no
-            return ResultadoValidacao.sucesso()
-        except ValueError:
+        if not isinstance(valor.get("propriedades", {}), dict):
             return ResultadoValidacao.falha(
-                f"Tipo de nó inválido: '{valor.get('tipo')}'",
+                "'propriedades' do nó deve ser um objeto JSON",
                 "SchemaGate",
-                modo=ModoFalhaMAST.TIPO_DESCONHECIDO,
+                modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
             )
+        return ResultadoValidacao.sucesso()
 
     def _validar_operacao_aresta(
         self,
         ctx: ContextoValidacaoNo,
-        nos_criados: dict[str, TipoNo],
+        criados: CriadosNoLote,
     ) -> ResultadoValidacao:
         """Valida criação e semântica de conexão da aresta."""
         if len(ctx.segmentos) == SEGMENTOS_ATE_O_IDENTIFICADOR and ctx.item.op == OperacaoPatch.ADD:
-            return self._validar_criacao_aresta(ctx.item.value, ctx.estado, nos_criados)
+            return self._validar_criacao_aresta(ctx, criados)
         return ResultadoValidacao.sucesso()
 
     def _validar_criacao_aresta(
         self,
-        valor: Any,
-        estado: GrafoEstado,
-        nos_criados: dict[str, TipoNo],
+        ctx: ContextoValidacaoNo,
+        criados: CriadosNoLote,
     ) -> ResultadoValidacao:
-        """Verifica se os tipos dos nós de origem e destino são permitidos para a aresta."""
+        """Verifica campos, identidade e o par de tipos de origem e destino da aresta."""
+        valor = ctx.item.value
         if not isinstance(valor, dict):
             return ResultadoValidacao.falha(
                 "Valor da aresta deve ser um objeto JSON",
@@ -251,7 +252,11 @@ class SchemaGate:
                     "SchemaGate",
                     modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
                 )
-        return self._validar_par_aresta(valor, estado, nos_criados)
+        resultado_identidade = validar_identidade(ctx, criados)
+        if not resultado_identidade.aprovado:
+            return resultado_identidade
+        criados.arestas.add(ctx.segmentos[1])
+        return self._validar_par_aresta(valor, ctx.estado, criados.nos)
 
     def _validar_par_aresta(
         self,

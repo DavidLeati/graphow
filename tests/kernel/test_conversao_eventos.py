@@ -103,3 +103,29 @@ def test_remover_o_no_inteiro_nao_vira_remocao_de_propriedade_edge_case() -> Non
     eventos = ConversorPatchParaEventos().converter(_proposta([operacao]), seq_base=0)
 
     assert eventos[0].tipo_evento == TipoEvento.NO_REMOVIDO
+
+
+def test_propriedade_chamada_rotulo_nao_vira_o_rotulo_do_no_edge_case() -> None:
+    """Caso de borda: o conversor decidia pelo último segmento e gravava o rótulo do nó.
+
+    '/nos/n1/propriedades/rotulo' é uma propriedade como outra qualquer; só
+    '/nos/n1/rotulo' escreve o rótulo.
+    """
+    operacao = ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/n1/propriedades/rotulo", value="x")
+    eventos = ConversorPatchParaEventos().converter(_proposta([operacao]), seq_base=0)
+
+    assert eventos[0].payload == {"id": "n1", "propriedades": {"rotulo": "x"}}
+
+
+def test_forma_sem_gravacao_fiel_nao_gera_evento_edge_case() -> None:
+    """Caso de borda: o conversor só traduz o que grava como a operação diz.
+
+    O `test` virava escrita do status, o `remove` do rótulo gravava "None" e o
+    `add` em '/arestas/x/y' criava a aresta com o valor inteiro.
+    """
+    operacoes = [
+        ItemPatch(op=OperacaoPatch.TEST, path="/nos/n1/propriedades/status", value="concluido"),
+        ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/n1/rotulo"),
+        ItemPatch(op=OperacaoPatch.ADD, path="/arestas/x/y", value={"id": "x", "tipo": "tipo_fantasma"}),
+    ]
+    assert ConversorPatchParaEventos().converter(_proposta(operacoes), 0) == ()

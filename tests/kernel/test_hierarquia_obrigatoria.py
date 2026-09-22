@@ -99,6 +99,26 @@ def test_um_orfao_no_lote_recusa_o_lote_inteiro_edge_case() -> None:
     assert kernel.obter_estado().contem_no("ok") is False
 
 
+@pytest.mark.parametrize("papel", [PapelAutor.HUMANO, PapelAutor.EXECUTOR])
+def test_id_do_valor_diferente_do_caminho_nao_cria_orfao_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: '/nos/nota' com 'id' 'orfa' criava 'orfa' fora da hierarquia.
+
+    'nota' já pendia da Sessao, e era a hierarquia dela que o InvariantGate
+    conferia, pelo caminho; o log gravava 'orfa', pelo valor, sem aresta de
+    contenção. O SchemaGate recusa o lote, e nada é gravado.
+    """
+    kernel = _kernel_com_sessao()
+    assert _submeter(kernel, _no("nota", TipoNo.NOTE), _aresta("sess", "nota", TipoAresta.PRODUZ)).sucesso
+    versao = kernel.obter_estado().versao_log
+    contorno = ItemPatch(op=OperacaoPatch.ADD, path="/nos/nota", value={"id": "orfa", "tipo": TipoNo.NOTE.value, "rotulo": "x"})
+    recibo = _submeter(kernel, contorno, papel=papel)
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.CAMINHO_INVALIDO.value
+    assert "'nota'" in recibo.mensagem and "'orfa'" in recibo.mensagem
+    assert kernel.obter_estado().contem_no("orfa") is False
+    assert kernel.obter_estado().versao_log == versao
+
+
 def test_setor_sem_projeto_indica_a_aresta_esperada_edge_case() -> None:
     """Caso de borda: a recusa diz qual aresta falta para cada contêiner."""
     kernel = montar_kernel_em_memoria()
