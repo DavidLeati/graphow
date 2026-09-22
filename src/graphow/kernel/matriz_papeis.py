@@ -94,6 +94,18 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     TipoAresta.ORIENTA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
 }
 
+# O dono pode depender do que a aresta liga. Consolidar memória é escrever um
+# Aprendizado que substitui vários; quem registra Aprendizado (executor e
+# revisor, donos de `deriva_de`) pode dizê-lo, e o planejador já detinha
+# `substitui`. O substituído só sai da vista quando o humano promove o novo
+# (context/memoria.py): substituir é propor, promover é aceitar. Remover a
+# substituição segue com humano e planejador, como nas outras.
+DONOS_POR_PAR_DE_ARESTA: Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta] = {
+    (TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosDeAresta(
+        adicao=HUMANO_E_AGENTES, remocao=HUMANO_E_PLANEJADOR
+    ),
+}
+
 
 # Um projeto que o humano marcou como autônomo entrega ao agente a camada que
 # estrutura o trabalho — inclusive `contem`, sem a qual um Setor criado nasceria
@@ -106,24 +118,29 @@ ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoAresta] = frozenset(
 )
 
 
-def obter_donos_sob_autonomia_ilimitada(tipo: TipoAresta) -> DonosDeAresta:
+def obter_donos_sob_autonomia_ilimitada(
+    tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None = None
+) -> DonosDeAresta:
     """Donos ampliados de um tipo de aresta dentro de um projeto autônomo.
 
     Só a criação é ampliada. Remover segue a tabela base, para que a retirada de
     um `bloqueia` continue exigindo sessão humana em qualquer projeto.
     """
-    base = obter_donos_de_aresta(tipo)
+    base = obter_donos_de_aresta(tipo, par)
     if tipo in ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA:
         return base
     return DonosDeAresta(adicao=base.adicao | HUMANO_E_AGENTES, remocao=base.remocao)
 
 
-def obter_donos_de_aresta(tipo: TipoAresta) -> DonosDeAresta:
-    """Consulta o par de donos de um tipo de aresta, negando o que não foi declarado.
+def obter_donos_de_aresta(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None = None) -> DonosDeAresta:
+    """Consulta os donos de um tipo de aresta, negando o que não foi declarado.
 
     Um tipo novo sem entrada na tabela nasce fechado a agentes: esquecer de
-    declarar o dono não pode virar permissão silenciosa.
+    declarar o dono não pode virar permissão silenciosa. Quando o par de tipos
+    das pontas é conhecido e tem entrada própria, ela prevalece sobre o tipo.
     """
+    if par is not None and (tipo, par[0], par[1]) in DONOS_POR_PAR_DE_ARESTA:
+        return DONOS_POR_PAR_DE_ARESTA[(tipo, par[0], par[1])]
     return DONOS_POR_TIPO_DE_ARESTA.get(
         tipo, DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO)
     )

@@ -2,25 +2,22 @@
 
 O portão avalia três superfícies, não uma: a criação de nós, a edição e remoção
 de nós, e a camada de arestas — que antes retornava sucesso para qualquer papel
-e deixava um executor reescopar a própria tarefa.
+e deixava um executor reescopar a própria tarefa. A camada de arestas vive em
+kernel/permissao_de_aresta.py, com o dono por tipo e por par de tipos.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado, NoGrafo
-from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, StatusTask, TipoAresta, TipoNo
+from graphow.core.types import PapelAutor, StatusTask, TipoNo
 from graphow.kernel.matriz_papeis import (
     PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
     STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO,
     TIPOS_CUJA_REMOCAO_EXIGE_HUMANO,
     TIPOS_EDITAVEIS_PELO_SISTEMA,
     TIPOS_EXCLUSIVOS_DO_HUMANO,
-    DonosDeAresta,
-    obter_donos_de_aresta,
-    obter_donos_sob_autonomia_ilimitada,
 )
 from graphow.kernel.patch_models import (
     ItemPatch,
@@ -28,24 +25,15 @@ from graphow.kernel.patch_models import (
     PropostaPatch,
     ResultadoValidacao,
 )
+from graphow.kernel.permissao_de_aresta import (
+    SEGMENTOS_DE_ELEMENTO_INTEIRO,
+    ContextoPapel,
+    PermissaoDeAresta,
+    projeto_eh_ilimitado,
+)
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral, projetar_lote
 
-SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 SEGMENTOS_DE_UMA_PROPRIEDADE: int = 4
-
-
-@dataclass(frozen=True)
-class ContextoPapel:
-    """Estado compartilhado por todas as verificações de uma mesma proposta.
-
-    `estado_com_lote` inclui os nós e arestas que o próprio lote cria: é o que
-    permite resolver o projeto ancestral de uma Sessao recém-criada pela aresta
-    `contem` que veio junto, em vez de por chaves dentro do valor do nó.
-    """
-
-    proposta: PropostaPatch
-    estado: GrafoEstado
-    estado_com_lote: GrafoEstado
 
 
 @dataclass(frozen=True)
@@ -94,6 +82,7 @@ class RoleGate:
 
     def __init__(self, rastreador: RastreadorProjetoAncestral | None = None) -> None:
         self._rastreador: RastreadorProjetoAncestral = rastreador or RastreadorProjetoAncestral()
+        self._arestas: PermissaoDeAresta = PermissaoDeAresta(self._rastreador)
 
     def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
         """Avalia se todas as operações da proposta estão autorizadas para o papel."""
@@ -116,103 +105,13 @@ class RoleGate:
         if not segmentos:
             return ResultadoValidacao.sucesso()
         if segmentos[0] == "arestas":
-            return self._validar_permissao_aresta(segmentos, item, contexto)
+            return self._arestas.validar(segmentos, item, contexto)
         if segmentos[0] != "nos":
             return ResultadoValidacao.sucesso()
         if len(segmentos) == SEGMENTOS_DE_ELEMENTO_INTEIRO and item.op == OperacaoPatch.ADD:
             return self._validar_permissao_criacao_no(item, contexto)
         ctx = ContextoPermissaoEdicao(segmentos=tuple(segmentos), item=item, contexto=contexto)
         return self._validar_permissao_edicao_no(ctx)
-
-    def _validar_permissao_aresta(
-        self,
-        segmentos: Sequence[str],
-        item: ItemPatch,
-        contexto: ContextoPapel,
-    ) -> ResultadoValidacao:
-        """Consulta a matriz de donos de aresta para a operação e o papel correntes."""
-        tipo = self._identificar_tipo_de_aresta(segmentos, item, contexto.estado)
-        if tipo is None:
-            return ResultadoValidacao.sucesso()
-        eh_remocao = item.op == OperacaoPatch.REMOVE
-        donos = self._donos_aplicaveis(tipo, item, contexto)
-        if donos.autoriza(contexto.proposta.papel, eh_remocao):
-            return ResultadoValidacao.sucesso()
-        return self._recusar_aresta(tipo, contexto.proposta.papel, eh_remocao)
-
-    def _donos_aplicaveis(
-        self,
-        tipo: TipoAresta,
-        item: ItemPatch,
-        contexto: ContextoPapel,
-    ) -> DonosDeAresta:
-        """Amplia os donos quando a aresta pertence a um projeto autônomo.
-
-        Sem isto a autonomia ilimitada voltaria a ser inerte por outro
-        caminho: o agente criaria o nó Setor e seria barrado na aresta
-        `contem` que o prende ao Projeto.
-        """
-        if not self._aresta_sob_autonomia_ilimitada(item, contexto):
-            return obter_donos_de_aresta(tipo)
-        return obter_donos_sob_autonomia_ilimitada(tipo)
-
-    def _aresta_sob_autonomia_ilimitada(
-        self,
-        item: ItemPatch,
-        contexto: ContextoPapel,
-    ) -> bool:
-        """Rastreia o projeto a partir das duas pontas declaradas da aresta."""
-        for id_ponta in self._pontas_da_aresta(item):
-            projeto = self._rastreador.rastrear(id_ponta, contexto.estado_com_lote)
-            if projeto is not None and self._projeto_eh_ilimitado(projeto, contexto.estado_com_lote):
-                return True
-        return False
-
-    def _pontas_da_aresta(self, item: ItemPatch) -> tuple[str, ...]:
-        """Identificadores de origem e destino declarados no valor da aresta."""
-        if not isinstance(item.value, dict):
-            return ()
-        pontas = (item.value.get("origem_id"), item.value.get("destino_id"))
-        return tuple(str(ponta) for ponta in pontas if ponta)
-
-    def _recusar_aresta(
-        self,
-        tipo: TipoAresta,
-        papel: PapelAutor,
-        eh_remocao: bool,
-    ) -> ResultadoValidacao:
-        """Explica ao agente quem detém a aresta que ele tentou mexer."""
-        verbo = "remover" if eh_remocao else "criar"
-        donos = obter_donos_de_aresta(tipo)
-        autorizados = sorted(p.value for p in (donos.remocao if eh_remocao else donos.adicao))
-        return ResultadoValidacao.falha(
-            f"Papel '{papel.value}' não pode {verbo} aresta '{tipo.value}'",
-            "RoleGate",
-            {"tipo_aresta": tipo.value, "papeis_autorizados": ", ".join(autorizados)},
-            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-        )
-
-    def _identificar_tipo_de_aresta(
-        self,
-        segmentos: Sequence[str],
-        item: ItemPatch,
-        estado: GrafoEstado,
-    ) -> TipoAresta | None:
-        """Lê o tipo do valor proposto ou, na remoção, da aresta já projetada."""
-        declarado = item.value.get("tipo") if isinstance(item.value, dict) else None
-        if declarado is not None:
-            return self._converter_tipo_de_aresta(declarado)
-        if len(segmentos) < SEGMENTOS_DE_ELEMENTO_INTEIRO:
-            return None
-        aresta = estado.arestas.get(segmentos[1])
-        return aresta.tipo if aresta is not None else None
-
-    def _converter_tipo_de_aresta(self, declarado: Any) -> TipoAresta | None:
-        """Converte o tipo textual, deixando a forma inválida para o SchemaGate."""
-        try:
-            return TipoAresta(declarado)
-        except ValueError:
-            return None
 
     def _validar_permissao_criacao_no(
         self,
@@ -250,7 +149,7 @@ class RoleGate:
         if id_alvo is None:
             return False
         projeto = self._rastreador.rastrear(id_alvo, contexto.estado_com_lote)
-        return projeto is not None and self._projeto_eh_ilimitado(projeto, contexto.estado_com_lote)
+        return projeto is not None and projeto_eh_ilimitado(projeto, contexto.estado_com_lote)
 
     def _identificar_alvo_do_item(self, item: ItemPatch) -> str | None:
         """Extrai o identificador do nó que a operação cria, a partir do caminho."""
@@ -258,14 +157,6 @@ class RoleGate:
         if len(segmentos) < SEGMENTOS_DE_ELEMENTO_INTEIRO:
             return None
         return segmentos[1]
-
-    def _projeto_eh_ilimitado(self, projeto_id: str, estado: GrafoEstado) -> bool:
-        """Checa se o nó de projeto possui configuração de autonomia ilimitada."""
-        projeto = estado.nos.get(projeto_id)
-        if projeto is None or projeto.tipo != TipoNo.PROJETO:
-            return False
-        nivel = str(projeto.propriedades.get("nivel_autonomia", "")).lower()
-        return nivel == NivelAutonomiaProjeto.ILIMITADO.value
 
     def _validar_permissao_edicao_no(self, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao:
         """Valida se o papel pode editar ou remover campos específicos do nó."""

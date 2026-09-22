@@ -232,3 +232,50 @@ def test_vale_para_um_no_de_trabalho_e_recusado_pelo_schema_edge_case() -> None:
 
     assert recibo.sucesso is False
     assert recibo.modo_de_falha == ModoFalhaMAST.PAR_DE_ARESTA_INVALIDO.value
+
+
+def _consolidado(id_novo: str, id_antigo: str) -> list[ItemPatch]:
+    """Um Aprendizado produzido pela sessão, derivado da evidência e substituindo o antigo, no mesmo lote."""
+    return [
+        _no(id_novo, TipoNo.APRENDIZADO),
+        _aresta("sess", id_novo, TipoAresta.PRODUZ),
+        _aresta(id_novo, "ev-1", TipoAresta.DERIVA_DE),
+        _aresta(id_novo, id_antigo, TipoAresta.SUBSTITUI),
+    ]
+
+
+@pytest.mark.parametrize("papel", PAPEIS_QUE_REGISTRAM)
+def test_quem_registra_aprendizado_consolida_por_substitui_entre_aprendizados_nominal(papel: PapelAutor) -> None:
+    """Consolidar é escrever um Aprendizado que substitui outros: quem o registra pode dizê-lo."""
+    kernel = _kernel_com_sessao()
+    assert _registrar(kernel).sucesso
+
+    recibo = _submeter(kernel, _consolidado("apr-2", "apr"), papel)
+
+    assert recibo.sucesso, recibo.mensagem
+
+
+def test_a_abertura_de_substitui_vale_so_entre_aprendizados_e_so_para_criar_edge_case() -> None:
+    """Caso de borda: Decision -> Decision segue com planejador e humano, e remover a substituição também."""
+    kernel = _kernel_com_sessao()
+    assert _registrar(kernel).sucesso
+    assert _submeter(kernel, _consolidado("apr-2", "apr"), PapelAutor.REVISOR).sucesso
+
+    remocao = _submeter(
+        kernel, [ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/substitui-apr-2-apr")], PapelAutor.REVISOR
+    )
+    decisao = _submeter(
+        kernel,
+        [
+            _no("dec-2", TipoNo.DECISION),
+            _aresta("sess", "dec-2", TipoAresta.PRODUZ),
+            _aresta("dec-2", "dec-1", TipoAresta.SUBSTITUI),
+        ],
+        PapelAutor.EXECUTOR,
+    )
+
+    assert remocao.sucesso is False
+    assert remocao.modo_de_falha == ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL.value
+    assert decisao.sucesso is False
+    assert decisao.modo_de_falha == ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL.value
+    assert "pode criar aresta 'substitui'" in str(decisao.mensagem)

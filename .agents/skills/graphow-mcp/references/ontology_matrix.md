@@ -32,7 +32,7 @@ Camada de trabalho:
 | `ocorreu_em` | `Run`→`Sessao` | humano, sistema | humano, sistema |
 | `decompoe` | `Goal`→`Task`, `Task`→`Task` | humano, planejador | humano, planejador |
 | `depende_de` | `Task`→`Task` | humano, planejador | humano, planejador |
-| `substitui` | `Decision`→`Decision`, `Task`→`Task`, `Aprendizado`→`Aprendizado` | humano, planejador | humano, planejador |
+| `substitui` | `Decision`→`Decision`, `Task`→`Task`, `Aprendizado`→`Aprendizado` | humano, planejador; `Aprendizado`→`Aprendizado`: também executor e revisor (consolidação) | humano, planejador |
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | só humano |
 | `justifica` | `Evidence`→`Decision` | humano, planejador, executor, revisor | humano, planejador, executor, revisor |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence`, `Evidence`→`Aprendizado` | humano, executor, revisor | humano, executor, revisor |

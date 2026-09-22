@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-15 módulos · 2555 linhas · 26 classes
+16 módulos · 2633 linhas · 27 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,11 +20,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 352 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 134 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 151 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 166 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
+| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 170 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 400 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 291 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 283 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
@@ -192,6 +193,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `TODOS_OS_PAPEIS_DE_AGENTE` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |
+| `DONOS_POR_PAR_DE_ARESTA` | `Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta]` | `{(TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosD…` |
 | `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA})` |
 
 ### `DonosDeAresta`
@@ -204,8 +206,8 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 
 ### Funções do módulo
 
-- `obter_donos_sob_autonomia_ilimitada(tipo: TipoAresta) -> DonosDeAresta` — Donos ampliados de um tipo de aresta dentro de um projeto autônomo.
-- `obter_donos_de_aresta(tipo: TipoAresta) -> DonosDeAresta` — Consulta o par de donos de um tipo de aresta, negando o que não foi declarado.
+- `obter_donos_sob_autonomia_ilimitada(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None) -> DonosDeAresta` — Donos ampliados de um tipo de aresta dentro de um projeto autônomo.
+- `obter_donos_de_aresta(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None) -> DonosDeAresta` — Consulta os donos de um tipo de aresta, negando o que não foi declarado.
 - `descrever_donos_de_aresta(tipo: TipoAresta) -> tuple[str, ...]` — Lista, em ordem estável, os papéis que podem criar o tipo de aresta.
 
 ## `kernel/observadores.py`
@@ -272,6 +274,30 @@ Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902).
 
 - `sanitizar_item(item: ItemPatch) -> None` — Verifica se o caminho ou valores contêm propriedades proibidas.
 
+## `kernel/permissao_de_aresta.py`
+
+Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+
+### `ContextoPapel`
+
+*DTO imutável* — Estado compartilhado por todas as verificações de uma mesma proposta.
+
+**Campos:** `proposta: PropostaPatch`, `estado: GrafoEstado`, `estado_com_lote: GrafoEstado`
+
+### `PermissaoDeAresta`
+
+*serviço* — Aplica a matriz de donos de aresta à operação de um lote, sob o papel do autor.
+
+- `validar(segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Consulta a matriz de donos de aresta para a operação e o papel correntes.
+
+### Funções do módulo
+
+- `projeto_eh_ilimitado(projeto_id: str, estado: GrafoEstado) -> bool` — Checa se o nó de projeto possui configuração de autonomia ilimitada.
+
 ## `kernel/rastreio_projeto.py`
 
 Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
@@ -297,14 +323,7 @@ Portão 2: Validação de Contratos de Permissão por Papel (Role Gate).
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
 | `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
-
-### `ContextoPapel`
-
-*DTO imutável* — Estado compartilhado por todas as verificações de uma mesma proposta.
-
-**Campos:** `proposta: PropostaPatch`, `estado: GrafoEstado`, `estado_com_lote: GrafoEstado`
 
 ### `ContextoPermissaoEdicao`
 
