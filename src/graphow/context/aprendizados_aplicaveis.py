@@ -9,15 +9,27 @@ aprendizado promovido a outro lugar cujo texto casa com o alvo. O índice
 semântico é injetável e nulo por padrão: sem configurar, não custa nada e não
 traz dependência. A leitura de cada Aprendizado (alcance, origem, substituição
 e a linha que a vista carrega) fica em `context/memoria.py`.
+
+Nem toda linha vai inteira. Com vinte aprendizados promovidos num projeto, toda
+tarefa dele herdava vinte linhas com como aplicar e origem, e a seção sozinha
+consumia o orçamento. A linha inteira fica para o que casa com o texto do alvo,
+até um limite por herança; o resto vai só com a afirmação, e `expandir_no` traz
+o que faltar. O que chega por léxico ou por índice já casou, e vai inteiro.
 """
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
-from graphow.context.memoria import ALCANCE_GLOBAL, alcances_de, aprendizados_vigentes, formatar_aprendizado
+from graphow.context.memoria import (
+    ALCANCE_GLOBAL,
+    alcances_de,
+    aprendizados_vigentes,
+    formatar_aprendizado,
+    formatar_aprendizado_curto,
+)
 from graphow.context.secoes import GrupoDeLinhas, PrioridadeRetencao, SecaoContexto
 from graphow.core.models import NoGrafo
 from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
@@ -29,6 +41,8 @@ ORDEM_DE_EXIBICAO_DOS_APRENDIZADOS: int = 2
 CAMPO_DESCRICAO: str = "descricao"
 PROFUNDIDADE_DA_HERANCA: int = 8
 LIMITE_DE_CASAMENTOS_LEXICAIS: int = 5
+LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA: int = 5
+SUFIXO_DE_LINHAS_CURTAS: str = "linhas curtas: expandir_no traz como aplicar e origem"
 MECANISMO_HERANCA: str = "heranca"
 MECANISMO_LEXICO: str = "lexico"
 MECANISMO_SEMANTICO: str = "semantico"
@@ -85,14 +99,21 @@ class PedidoDeMemoria:
         descricao = str(self.alvo.obter_propriedade(CAMPO_DESCRICAO, ""))
         return f"{self.alvo.rotulo} {descricao}".strip()
 
+    @property
+    def palavras_do_alvo(self) -> frozenset[str]:
+        """As palavras que dizem do que o alvo trata: decidem o casamento e a linha inteira."""
+        return palavras_significativas(self.texto_do_alvo)
+
 
 @dataclass(frozen=True)
 class AprendizadoAplicavel:
-    """Um aprendizado que alcançou o alvo, com o mecanismo pelo qual chegou."""
+    """Um aprendizado que alcançou o alvo: por qual mecanismo, quanto casa com ele e em que forma vai."""
 
     no: NoGrafo
     mecanismo: str
     alcance: str
+    casamento: int = 0
+    inteiro: bool = True
 
 
 def montar_secao_de_aprendizados(pedido: PedidoDeMemoria) -> SecaoContexto:
@@ -125,22 +146,35 @@ def _excluir(nos: Sequence[NoGrafo], ja_incluidos: Sequence[AprendizadoAplicavel
 
 
 def _titulo(herdados: Sequence[AprendizadoAplicavel]) -> str:
-    """O título nomeia de onde a herança veio, para o agente saber o alcance."""
+    """O título nomeia de onde a herança veio e avisa quando há linha curta, para o agente saber o que pedir."""
+    partes: list[str] = []
     alcances = sorted({item.alcance for item in herdados})
-    if not alcances:
+    if alcances:
+        partes.append(f"herdados de {', '.join(alcances)}")
+    if any(not item.inteiro for item in herdados):
+        partes.append(SUFIXO_DE_LINHAS_CURTAS)
+    if not partes:
         return TITULO_APRENDIZADOS
-    return f"{TITULO_APRENDIZADOS} (herdados de {', '.join(alcances)})"
+    return f"{TITULO_APRENDIZADOS} ({'; '.join(partes)})"
 
 
-def _por_heranca(pedido: PedidoDeMemoria, promovidos: Sequence[NoGrafo]) -> tuple[AprendizadoAplicavel, ...]:
-    """Aprendizados que valem para o alvo ou para um ancestral dele por contenção."""
+def _por_heranca(pedido: PedidoDeMemoria, vigentes: Sequence[NoGrafo]) -> tuple[AprendizadoAplicavel, ...]:
+    """Aprendizados que valem para o alvo ou para um ancestral dele, os que casam com o alvo primeiro."""
     ancestrais = _ancestrais_por_contencao(pedido.alvo, pedido.view)
+    palavras = pedido.palavras_do_alvo
     herdados: list[AprendizadoAplicavel] = []
-    for no in promovidos:
+    for no in vigentes:
         alcance = _alcance_que_cobre(no, ancestrais, pedido.view)
         if alcance is not None:
-            herdados.append(AprendizadoAplicavel(no=no, mecanismo=MECANISMO_HERANCA, alcance=alcance))
-    return tuple(herdados)
+            casamento = contar_palavras_casadas(no, palavras)
+            herdados.append(AprendizadoAplicavel(no=no, mecanismo=MECANISMO_HERANCA, alcance=alcance, casamento=casamento))
+    ordenados = sorted(herdados, key=lambda item: (-item.casamento, item.no.id))
+    return tuple(_inteiro_se_casa(item, posicao) for posicao, item in enumerate(ordenados))
+
+
+def _inteiro_se_casa(item: AprendizadoAplicavel, posicao: int) -> AprendizadoAplicavel:
+    """A linha inteira vai para os primeiros que casam com o alvo; os demais vão só com a afirmação."""
+    return replace(item, inteiro=item.casamento > 0 and posicao < LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA)
 
 
 def _alcance_que_cobre(no: NoGrafo, ancestrais: frozenset[str], view: GrafoView) -> str | None:
@@ -165,7 +199,7 @@ def _ancestrais_por_contencao(alvo: NoGrafo, view: GrafoView) -> frozenset[str]:
 
 def _por_lexico(pedido: PedidoDeMemoria, candidatos: Sequence[NoGrafo]) -> tuple[AprendizadoAplicavel, ...]:
     """Aprendizados cujo texto casa com o do alvo, os mais casados primeiro."""
-    palavras = palavras_significativas(pedido.texto_do_alvo)
+    palavras = pedido.palavras_do_alvo
     if not palavras:
         return ()
     pontuados = [(contar_palavras_casadas(no, palavras), no) for no in candidatos]
@@ -173,8 +207,8 @@ def _por_lexico(pedido: PedidoDeMemoria, candidatos: Sequence[NoGrafo]) -> tuple
         (par for par in pontuados if par[0] > 0), key=lambda par: (-par[0], par[1].id)
     )
     return tuple(
-        AprendizadoAplicavel(no=no, mecanismo=MECANISMO_LEXICO, alcance=MECANISMO_LEXICO)
-        for _, no in casados[:LIMITE_DE_CASAMENTOS_LEXICAIS]
+        AprendizadoAplicavel(no=no, mecanismo=MECANISMO_LEXICO, alcance=MECANISMO_LEXICO, casamento=casamento)
+        for casamento, no in casados[:LIMITE_DE_CASAMENTOS_LEXICAIS]
     )
 
 
@@ -192,10 +226,17 @@ def _por_indice(pedido: PedidoDeMemoria, candidatos: Sequence[NoGrafo]) -> tuple
 
 
 def _grupo(rotulo: str, itens: Sequence[AprendizadoAplicavel], view: GrafoView) -> GrupoDeLinhas:
-    """Um grupo cortável por mecanismo, em ordem estável de identificador."""
-    ordenados = sorted(itens, key=lambda item: item.no.id)
+    """Um grupo cortável por mecanismo, na ordem em que o mecanismo entregou, com a forma curta de cada linha."""
     return GrupoDeLinhas(
         rotulo=rotulo,
-        linhas=tuple(formatar_aprendizado(item.no, view) for item in ordenados),
-        ids=tuple(item.no.id for item in ordenados),
+        linhas=tuple(_linha(item, view) for item in itens),
+        ids=tuple(item.no.id for item in itens),
+        linhas_curtas=tuple(formatar_aprendizado_curto(item.no, view) for item in itens),
     )
+
+
+def _linha(item: AprendizadoAplicavel, view: GrafoView) -> str:
+    """Inteira ou curta, conforme o casamento com o alvo decidiu."""
+    if item.inteiro:
+        return formatar_aprendizado(item.no, view)
+    return formatar_aprendizado_curto(item.no, view)

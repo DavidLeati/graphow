@@ -10,22 +10,22 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2100 linhas · 30 classes
+17 módulos · 2158 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 201 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
+| [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 242 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/corte.py`](#contextcorte) | 64 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 130 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
-| [`context/memoria.py`](#contextmemoria) | 157 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
+| [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/protocolo.py`](#contextprotocolo) | 86 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 133 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 220 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/secoes.py`](#contextsecoes) | 226 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -42,15 +42,17 @@ A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por her
 | `CAMPO_DESCRICAO` | `str` | `'descricao'` |
 | `PROFUNDIDADE_DA_HERANCA` | `int` | `8` |
 | `LIMITE_DE_CASAMENTOS_LEXICAIS` | `int` | `5` |
+| `LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA` | `int` | `5` |
+| `SUFIXO_DE_LINHAS_CURTAS` | `str` | `'linhas curtas: expandir_no traz como aplicar e origem'` |
 | `MECANISMO_HERANCA` | `str` | `'heranca'` |
 | `MECANISMO_LEXICO` | `str` | `'lexico'` |
 | `MECANISMO_SEMANTICO` | `str` | `'semantico'` |
 
 ### `AprendizadoAplicavel`
 
-*DTO imutável* — Um aprendizado que alcançou o alvo, com o mecanismo pelo qual chegou.
+*DTO imutável* — Um aprendizado que alcançou o alvo: por qual mecanismo, quanto casa com ele e em que forma vai.
 
-**Campos:** `no: NoGrafo`, `mecanismo: str`, `alcance: str`
+**Campos:** `no: NoGrafo`, `mecanismo: str`, `alcance: str`, `casamento: int`, `inteiro: bool`
 
 ### `IndiceSemantico` (ABC)
 
@@ -74,6 +76,7 @@ A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por her
 
 - `instante() -> str` `[property]` — Instante ISO contra o qual `valido_ate` é comparado; o relógio, se não vier.
 - `texto_do_alvo() -> str` `[property]` — Título e descrição do alvo, que é o que o léxico e o índice comparam.
+- `palavras_do_alvo() -> frozenset[str]` `[property]` — As palavras que dizem do que o alvo trata: decidem o casamento e a linha inteira.
 
 ### Funções do módulo
 
@@ -208,6 +211,7 @@ O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que 
 - `substituto_promovido(id_aprendizado: str, view: GrafoView) -> str | None` — O substituto que já tem alcance, se houver: só ele tira o antigo da vista.
 - `identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str, ...]` — Evidences que contradizem o aprendizado: sinal de que ele precisa de revisão.
 - `formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str` — Uma linha: afirmação, proveniência, como aplicar, alcance, quem substitui, origem e marcas.
+- `formatar_aprendizado_curto(no: NoGrafo, view: GrafoView) -> str` — Só a afirmação, a proveniência, quem substitui e as marcas: `expandir_no` traz o resto.
 
 ## `context/orientacao.py`
 
@@ -345,7 +349,7 @@ Seções que compõem uma vista de contexto e sua ordem de descarte.
 
 *DTO imutável* — Subconjunto homogêneo de uma seção, cortável de forma independente.
 
-**Campos:** `rotulo: str`, `linhas: tuple[str, ...]`, `ids: tuple[str, ...]`
+**Campos:** `rotulo: str`, `linhas: tuple[str, ...]`, `ids: tuple[str, ...]`, `linhas_curtas: tuple[str, ...]`
 
 - `primeiras(limite: int) -> tuple[tuple[str, ...], tuple[str, ...]]` — Devolve as linhas mantidas e os identificadores correspondentes.
 - `linha_de_excedente(limite: int) -> tuple[str, ...]` — Anuncia quantos itens do grupo ficaram de fora, se algum ficou.

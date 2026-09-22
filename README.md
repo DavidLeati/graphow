@@ -552,7 +552,7 @@ montados com as peças que já existiam, e cada degrau tem número em
 | :--- | :--- | :--- | :--- |
 | **Curto prazo** | A sessão viva: alvo, restrições, bloqueios, decisões, vizinhança | O trabalho de sempre | `ler_vista` sob orçamento |
 | **Médio prazo** | O fechamento da sessão encerrada: decisões vigentes, dúvidas abertas, restrições, último artefato, e a condensação em prosa | O fechamento é projeção do log, recalculada a cada commit no rollup. A prosa é uma `Note` escrita por um agente a partir da `Task` de condensação que o próprio grafo abre quando a sessão encerra | `ler_vista` numa sessão encerrada abre pelo fechamento; o panorama do Setor mostra o fechamento de cada sessão |
-| **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção pelo humano com `promover_aprendizado` | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico |
+| **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção pelo humano com `promover_aprendizado` | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico. Vai inteira (como aplicar, alcance, origem) a linha do que casa com o texto do alvo, até cinco por herança; as demais levam só a afirmação, e `expandir_no` traz o resto |
 
 Três princípios seguram o desenho. Nada derivado é gravado quando pode ser
 projetado: o fechamento é uma dobra do estado, e uma sessão reaberta atualiza

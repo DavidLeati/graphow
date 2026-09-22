@@ -3,6 +3,8 @@
 from collections.abc import Sequence
 
 from graphow.context.aprendizados_aplicaveis import (
+    LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA,
+    SUFIXO_DE_LINHAS_CURTAS,
     TITULO_APRENDIZADOS,
     IndiceSemantico,
     PedidoDeMemoria,
@@ -89,7 +91,7 @@ def _montar_kernel() -> WriteKernel:
             *_aprendizado("apr-global", "Descarte por secao, nunca linha a linha", alcance="global", como_aplicar="Desca a escada de corte"),
             *_aprendizado("apr-proj", "Lote recusado inteiro sem contencao"),
             _aresta("apr-proj", "proj-a", TipoAresta.VALE_PARA),
-            *_aprendizado("apr-setor", "Politica de eviccao por LRU com teto"),
+            *_aprendizado("apr-setor", "Politica de eviccao por LRU com teto", como_aplicar="Meca o teto antes"),
             _aresta("apr-setor", "setor-a", TipoAresta.VALE_PARA),
             *_aprendizado("apr-velho", "Rollup incremental por aresta"),
             _aresta("apr-velho", "proj-a", TipoAresta.VALE_PARA),
@@ -121,7 +123,7 @@ def test_tarefa_herda_do_projeto_do_setor_e_do_global_nominal() -> None:
     """Herança pela hierarquia resolve o mesmo projeto sem busca nenhuma."""
     conteudo = _vista(_montar_kernel(), "task-a")
 
-    assert f"## {TITULO_APRENDIZADOS} (herdados de global, proj-a, setor-a)" in conteudo
+    assert f"## {TITULO_APRENDIZADOS} (herdados de global, proj-a, setor-a; {SUFIXO_DE_LINHAS_CURTAS})" in conteudo
     for id_no in ("apr-global", "apr-proj", "apr-setor"):
         assert f"[{id_no}]" in conteudo
 
@@ -211,13 +213,45 @@ def test_aprendizado_de_agente_chega_marcado_como_nao_confiavel_nominal() -> Non
     assert MARCA_DE_CONTEUDO_NAO_CONFIAVEL not in _linha_de(conteudo, "apr-proj")
 
 
-def test_como_aplicar_origem_e_alcance_viajam_na_linha_nominal() -> None:
-    """A linha diz o que fazer, de onde veio e onde vale."""
-    linha = _linha_de(_vista(_montar_kernel(), "task-a"), "apr-global")
+def test_como_aplicar_origem_e_alcance_viajam_na_linha_do_que_casa_com_o_alvo_nominal() -> None:
+    """A linha inteira diz o que fazer, de onde veio e onde vale: é a do aprendizado que casa com a tarefa."""
+    linha = _linha_de(_vista(_montar_kernel(), "task-a"), "apr-setor")
 
-    assert "-> como aplicar: Desca a escada de corte" in linha
-    assert "[vale_para global]" in linha
+    assert "-> como aplicar: Meca o teto antes" in linha
+    assert "[vale_para setor-a]" in linha
     assert "[origem: dec-a]" in linha
+
+
+def test_herdado_que_nao_casa_com_o_alvo_vai_so_com_a_afirmacao_nominal() -> None:
+    """O que alcança o alvo sem casar com o texto dele chega curto: afirmação, proveniência e marcas."""
+    conteudo = _vista(_montar_kernel(), "task-a")
+
+    linha = _linha_de(conteudo, "apr-global")
+    assert linha.startswith("- [apr-global] Descarte por secao, nunca linha a linha (log #")
+    assert "como aplicar" not in linha
+    assert "[origem:" not in linha
+    assert "[vale_para" not in linha
+    assert conteudo.index("[apr-setor]") < conteudo.index("[apr-global]")
+
+
+def test_linha_curta_ainda_diz_quem_o_aprendizado_substitui_nominal() -> None:
+    """Curta ou inteira, a linha do consolidado cita os absorvidos: é o que impede reabrir o que ele fechou."""
+    linha = _linha_de(_vista(_montar_kernel(), "task-a"), "apr-proj")
+
+    assert "como aplicar" not in linha
+    assert "[substitui apr-velho]" in linha
+
+
+def test_linhas_inteiras_por_heranca_tem_teto_edge_case() -> None:
+    """Caso de borda: quando muitos casam com o alvo, só os primeiros vão inteiros; o resto fica curto, não some."""
+    kernel = _montar_kernel()
+    for numero in range(LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA + 2):
+        _submeter(kernel, [*_aprendizado(f"apr-cache-{numero}", f"Cache com eviccao {numero}", como_aplicar="Meca"), _aresta(f"apr-cache-{numero}", "proj-a", TipoAresta.VALE_PARA)])
+
+    linhas = [linha for linha in _vista(kernel, "task-a").splitlines() if linha.startswith("- [apr-")]
+
+    assert sum(1 for linha in linhas if "-> como aplicar" in linha) == LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA
+    assert sum(1 for linha in linhas if "[apr-cache-" in linha) == LIMITE_DE_LINHAS_INTEIRAS_POR_HERANCA + 2
 
 
 def test_secao_retem_como_memoria_e_encolhe_por_grupo_nominal() -> None:

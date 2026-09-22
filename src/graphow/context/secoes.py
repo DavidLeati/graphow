@@ -49,11 +49,17 @@ class PrioridadeRetencao(IntEnum):
 
 @dataclass(frozen=True)
 class GrupoDeLinhas:
-    """Subconjunto homogêneo de uma seção, cortável de forma independente."""
+    """Subconjunto homogêneo de uma seção, cortável de forma independente.
+
+    `linhas_curtas` é a forma resumida de cada linha, na mesma ordem e com os
+    mesmos ids: o grupo que a declara pode encolher por dentro antes de perder
+    itens. Vazia, o grupo só encolhe perdendo itens.
+    """
 
     rotulo: str
     linhas: tuple[str, ...]
     ids: tuple[str, ...] = field(default_factory=tuple)
+    linhas_curtas: tuple[str, ...] = field(default_factory=tuple)
 
     def primeiras(self, limite: int) -> tuple[tuple[str, ...], tuple[str, ...]]:
         """Devolve as linhas mantidas e os identificadores correspondentes."""

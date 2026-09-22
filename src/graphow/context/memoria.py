@@ -4,7 +4,9 @@ Um Aprendizado não tem status gravado. Promovido é o que tem alcance, por
 `vale_para` ou pela marca global; vigente é o promovido que nenhum promovido
 substituiu; contradito é o que uma Evidence nova aponta. Tudo vem das arestas,
 e a linha da vista diz isso de uma vez: afirmação, proveniência, como aplicar,
-alcance, quem substitui, origem e marcas.
+alcance, quem substitui, origem e marcas. A linha curta leva só a afirmação, a
+proveniência, quem substitui e as marcas: é a forma do que alcança o alvo sem
+casar com o texto dele, e `expandir_no` traz o resto.
 
 A vista carrega só o vigente. O aprendizado substituído por um promovido fica
 no grafo, no painel e no acervo, marcado, e a linha do substituto diz quem ele
@@ -13,7 +15,7 @@ substituir é propor, promover é o humano aceitar. A seção que reúne os
 aprendizados que alcançam um alvo fica em `context/aprendizados_aplicaveis.py`.
 """
 
-from graphow.context.secoes import anotar_ordem, anotar_proveniencia
+from graphow.context.secoes import formatar_no_em_linha
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
@@ -120,21 +122,30 @@ def identificar_contradicoes(id_aprendizado: str, view: GrafoView) -> tuple[str,
 
 def formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str:
     """Uma linha: afirmação, proveniência, como aplicar, alcance, quem substitui, origem e marcas."""
-    partes = [f"- [{no.id}] {no.rotulo}{anotar_ordem(no)}{anotar_proveniencia(no)}"]
+    partes = [formatar_no_em_linha(no)]
     como_aplicar = str(no.obter_propriedade(CAMPO_COMO_APLICAR, "")).strip()
     if como_aplicar:
         partes.append(f"-> como aplicar: {como_aplicar}")
     alcances = alcances_de(no, view)
     if alcances:
         partes.append(f"[vale_para {', '.join(alcances)}]")
-    absorvidos = substituidos_por(no.id, view)
-    if absorvidos:
-        partes.append(f"[substitui {', '.join(absorvidos)}]")
+    partes.extend(_marca_de_substitutos(no.id, view))
     origens = origens_de(no, view)
     if origens:
         partes.append(f"[origem: {', '.join(origens)}]")
     partes.extend(_marcas_de_revisao(no.id, view))
     return " ".join(partes)
+
+
+def formatar_aprendizado_curto(no: NoGrafo, view: GrafoView) -> str:
+    """Só a afirmação, a proveniência, quem substitui e as marcas: `expandir_no` traz o resto."""
+    return " ".join((formatar_no_em_linha(no), *_marca_de_substitutos(no.id, view), *_marcas_de_revisao(no.id, view)))
+
+
+def _marca_de_substitutos(id_no: str, view: GrafoView) -> tuple[str, ...]:
+    """Quem este aprendizado absorveu, quando é o consolidado de outros."""
+    absorvidos = substituidos_por(id_no, view)
+    return (f"[substitui {', '.join(absorvidos)}]",) if absorvidos else ()
 
 
 def _marcas_de_revisao(id_no: str, view: GrafoView) -> tuple[str, ...]:
