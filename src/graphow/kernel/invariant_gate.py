@@ -17,6 +17,13 @@ from graphow.kernel.patch_models import (
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 
+# Arestas que mudam o que uma Task é: do que depende, de onde vem, o que a
+# governa, o que a restringe e o que ela substitui. Numa Task travada, só o
+# dono do lock as cria ou remove.
+ARESTAS_QUE_REDEFINEM_A_TAREFA: frozenset[TipoAresta] = frozenset(
+    {TipoAresta.DEPENDE_DE, TipoAresta.DECOMPOE, TipoAresta.ORIENTA, TipoAresta.ESCOPA, TipoAresta.SUBSTITUI}
+)
+
 # A aresta que pendura cada tipo, dita na recusa. Os pares valem o que o
 # SchemaGate aceita; aqui só se escolhe o que sugerir.
 VINCULO_DE_TRABALHO: str = "'produz' vinda de uma Sessao"
@@ -38,7 +45,7 @@ class InvariantGate:
     ) -> ResultadoValidacao:
         """Executa validação de invariantes de ciclo, questões bloqueantes e locks."""
         locks: Mapping[str, str] = locks_ativos or {}
-        resultado_lock = self._validar_locks_concorrencia(proposta, locks)
+        resultado_lock = self._validar_locks_concorrencia(proposta, estado, locks)
         if not resultado_lock.aprovado:
             return resultado_lock
         estrutura = EstruturaAposLote.antever(proposta, estado)
@@ -189,23 +196,43 @@ class InvariantGate:
     def _validar_locks_concorrencia(
         self,
         proposta: PropostaPatch,
+        estado: GrafoEstado,
         locks: Mapping[str, str],
     ) -> ResultadoValidacao:
         """Garante que a Task não está bloqueada para escrita por outro autor."""
-        for item in proposta.operacoes:
-            segmentos = [s for s in item.path.split("/") if s]
-            if len(segmentos) < 2 or segmentos[0] != "nos":
-                continue
-            id_no = segmentos[1]
+        tocados = (id_no for item in proposta.operacoes for id_no in self._nos_que_a_operacao_redefine(item, estado))
+        for id_no in tocados:
             dono_lock = locks.get(id_no)
-            if dono_lock is not None and dono_lock != proposta.autor:
-                return ResultadoValidacao.falha(
-                    f"Nó '{id_no}' está bloqueado para escrita pelo autor '{dono_lock}'",
-                    "InvariantGate",
-                    {"id_no": id_no, "dono_lock": dono_lock},
-                    modo=ModoFalhaMAST.CONFLITO_CONCORRENCIA_LOCK,
-                )
+            if dono_lock is None or dono_lock == proposta.autor:
+                continue
+            return ResultadoValidacao.falha(
+                f"Nó '{id_no}' está bloqueado para escrita pelo autor '{dono_lock}'",
+                "InvariantGate",
+                {"id_no": id_no, "dono_lock": dono_lock},
+                modo=ModoFalhaMAST.CONFLITO_CONCORRENCIA_LOCK,
+            )
         return ResultadoValidacao.sucesso()
+
+    def _nos_que_a_operacao_redefine(self, item: ItemPatch, estado: GrafoEstado) -> tuple[str, ...]:
+        """O nó que a operação edita, ou as pontas da aresta que muda o que a tarefa é.
+
+        O lock só olhava `/nos/...`: com a Task travada por um executor, o
+        planejador criava ou removia `depende_de` nela e mudava o trabalho em
+        andamento. As arestas que dizem do que a tarefa depende, de onde ela
+        vem, o que a governa e o que a restringe contam como escrever nela.
+        """
+        segmentos = item.path.split("/")[1:]
+        if len(segmentos) < SEGMENTOS_DE_ELEMENTO_INTEIRO:
+            return ()
+        if segmentos[0] == "nos":
+            return (segmentos[1],)
+        aresta = estado.arestas.get(segmentos[1])
+        if item.op == OperacaoPatch.REMOVE and aresta is not None:
+            return (aresta.origem_id, aresta.destino_id) if aresta.tipo in ARESTAS_QUE_REDEFINEM_A_TAREFA else ()
+        valor = item.value if isinstance(item.value, dict) else {}
+        if valor.get("tipo") not in {tipo.value for tipo in ARESTAS_QUE_REDEFINEM_A_TAREFA}:
+            return ()
+        return (str(valor.get("origem_id")), str(valor.get("destino_id")))
 
     def _validar_bloqueio_questoes(
         self,

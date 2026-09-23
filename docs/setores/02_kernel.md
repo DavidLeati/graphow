@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-17 módulos · 2798 linhas · 28 classes
+17 módulos · 2825 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 115 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 308 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 335 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 158 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
@@ -150,6 +150,7 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `ARESTAS_QUE_REDEFINEM_A_TAREFA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DEPENDE_DE, TipoAresta.DECOMPOE, TipoAresta.ORIEN…` |
 | `VINCULO_DE_TRABALHO` | `str` | `"'produz' vinda de uma Sessao"` |
 | `VINCULO_ESPERADO` | `Mapping[TipoNo, str]` | `{TipoNo.SETOR: "'contem' vinda de um Projeto", TipoNo.SESSAO: "'contem'…` |
 
