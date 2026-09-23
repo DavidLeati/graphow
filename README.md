@@ -13,7 +13,7 @@ A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
 1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
 2. **Caminho Único de Escrita (*PatchBoard*):** Humanos e IAs submetem mutações utilizando o mesmo protocolo JSON Patch ([RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902)), avaliado rigorosamente por um **Kernel de 4 Portões**.
 3. **Divulgação Progressiva (*Progressive Disclosure*):** Agentes de IA consom recortes de contexto otimizados sob orçamento estrito de tokens, expandindo nós vizinhos sob demanda.
-4. **Linhagem Causal e Reversibilidade:** Rastreabilidade reversa integral do `Artifact` até a intenção raiz (`Goal`), com ramificações históricas (*forks*) registradas como ponteiro `(ramo_base, seq_corte)`, sem cópia de prefixo.
+4. **Linhagem Causal e Reversibilidade:** Rastreabilidade reversa do `Artifact` até a intenção raiz (`Goal`) pelo caminho mais curto, subindo por proveniência e decomposição e nunca por `depende_de` (pré-requisito não diz a que objetivo a tarefa pertence), com ramificações históricas (*forks*) registradas como ponteiro `(ramo_base, seq_corte)`, sem cópia de prefixo.
 
 ---
 
@@ -136,6 +136,10 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
    - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor, e isso inclui criar ou remover as arestas que redefinem a tarefa (`depende_de`, `decompoe`, `orienta`, `escopa`, `substitui`). `bloqueia` e `deriva_de` seguem livres: a escalação e a proveniência continuam chegando à tarefa travada.
 4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
+
+   Quando outro processo ocupa a posição entre a validação e o commit, o kernel revalida contra o log atualizado, dobrando só o que o outro gravou, e tenta de novo depois de uma espera sorteada que dobra a cada perda, até dez vezes. Com quatro tentativas coladas, três processos gravando juntos perdiam de 2% a 7% dos lotes; no mesmo cenário, agora, nenhum de 900. Ler o que outro processo gravou custa a janela nova, lida pelo SQL (0,6 ms num log de 14 mil eventos), e não o ramo inteiro (117 ms).
+
+   Abrir o banco parte do último **instantâneo** da projeção (`projection/instantaneo.py`), guardado no mesmo arquivo, e dobra só o que veio depois dele: 55 a 80 ms num log de 14 mil eventos, contra 200 ms do replay completo. O instantâneo é cache, não verdade. Ele só vale se o evento na posição do corte for o mesmo de quando foi gravado e se a impressão digital do código de projeção for a de agora; qualquer divergência cai no replay, e `reparar-sequencias` apaga todos.
 
 ---
 
@@ -378,7 +382,11 @@ O conteúdo de uma sessão se empacota embaixo do cartão dela, os filhos de
 árvore descem numa coluna ao lado do pai, e a coluna só se reparte quando
 passa da altura de uma página — que é calculada e recalculada até o desenho
 inteiro ter a proporção da tela. Duzentos e vinte nós saem em 8000 × 7000 px,
-sem um cartão sobre o outro; dois mil e quinhentos nós levam 100 ms.
+sem um cartão sobre o outro; dois mil e quinhentos nós levam 100 ms. O corredor
+de uma aresta longa tem teto de altura: sem ele, a altura se realimentava a cada
+relaxação, e uma sessão de mil nós saía com y na casa de 7e12. O arranjo tem
+testes próprios em `tests/web/js`, rodados por `node --test` e chamados pela
+suíte do pytest quando há Node no PATH.
 
 Quatro leituras sustentam a moldura, todas resolvidas no servidor:
 
@@ -576,7 +584,7 @@ montados com as peças que já existiam, e cada degrau tem número em
 | Camada | O que é | Como nasce | Como chega ao agente |
 | :--- | :--- | :--- | :--- |
 | **Curto prazo** | A sessão viva: alvo, restrições, bloqueios, decisões, vizinhança | O trabalho de sempre | `ler_vista` sob orçamento |
-| **Médio prazo** | O fechamento da sessão encerrada: decisões vigentes, dúvidas abertas, restrições, último artefato, e a condensação em prosa | O fechamento é projeção do log, recalculada a cada commit no rollup. A prosa é uma `Note` escrita por um agente a partir da `Task` de condensação que o próprio grafo abre quando a sessão encerra | `ler_vista` numa sessão encerrada abre pelo fechamento; o panorama do Setor mostra o fechamento de cada sessão |
+| **Médio prazo** | O fechamento da sessão encerrada: decisões vigentes, dúvidas abertas, restrições, último artefato, e a condensação em prosa | O fechamento é projeção do log, calculada no rollup na primeira consulta depois de cada commit. A prosa é uma `Note` escrita por um agente a partir da `Task` de condensação que o próprio grafo abre quando a sessão encerra | `ler_vista` numa sessão encerrada abre pelo fechamento; o panorama do Setor mostra o fechamento de cada sessão |
 | **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção pelo humano com `promover_aprendizado` | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico. Vai inteira (como aplicar, alcance, origem) a linha do que casa com o texto do alvo, até cinco por herança; as demais levam só a afirmação, e `expandir_no` traz o resto |
 
 Três princípios seguram o desenho. Nada derivado é gravado quando pode ser
@@ -738,11 +746,15 @@ agrupamento feito só no cliente ainda faria o payload inteiro atravessar a rede
 | **Escopo ativo** | `?escopo=ativo&raio=1` mantém o que está perto de tarefa não concluída ou dúvida aberta | `escopo="ativo"` em `ler_vista` e `buscar` |
 | **Caminho crítico** | `?vista=caminho_critico` mantém quem participa de dependência declarada | `proximas_tarefas` já traz `depende_de` e as impedidas com motivo |
 
-O índice de rollup é recalculado **inteiro a cada commit**, dentro de
+O índice de rollup nasce a cada commit, dentro de
 `ProjecaoSincronizada._registrar` — ponto único, porque o kernel adota, logo
-após o commit, a projeção que ele mesmo dobrou antes de gravar. Não há manutenção incremental: a
-agregação é uma dobra pura do estado, com a mesma garantia de determinismo do
-resto da projeção.
+após o commit, a projeção que ele mesmo dobrou antes de gravar. O commit só
+mapeia filhos e órfãos, em tempo linear; o resumo de cada contêiner sai na
+primeira consulta e fica guardado até o próximo commit. Resolver de saída a
+subárvore de todo nó custava a soma dos tamanhos de subárvore: 10,9 s por
+commit numa cadeia de `decompoe` com 5.000 Tasks, contra 3,5 ms agora. Não há
+manutenção incremental: a agregação é uma dobra pura do estado, com a mesma
+garantia de determinismo do resto da projeção.
 
 A resposta do canvas carrega sempre um bloco `recorte` dizendo quantos nós
 ficaram de fora, por qual filtro, e quais nós estão fora de qualquer hierarquia.
