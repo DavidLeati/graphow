@@ -232,7 +232,7 @@ que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 ### Instalação em Modo Editável
 ```bash
-git clone https://github.com/seu-usuario/graphow.git
+git clone https://github.com/DavidLeati/graphow.git
 cd graphow
 pip install -e .
 ```
