@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-12 módulos · 1758 linhas · 22 classes
+12 módulos · 1729 linhas · 21 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 100 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
-| [`projection/rollup.py`](#projectionrollup) | 250 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
+| [`projection/rollup.py`](#projectionrollup) | 221 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
 | [`projection/working_set.py`](#projectionworkingset) | 170 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
 
 ## `projection/acumulador.py`
@@ -279,9 +279,9 @@ Resumo agregado de cada subárvore de contenção, calculado uma vez por commit.
 
 ### `IndiceDeRollup`
 
-*serviço* — Resumo de cada subárvore de contenção do grafo, pronto para consulta.
+*serviço* — Resumo de cada subárvore de contenção do grafo, calculado quando pedido.
 
-- `calcular(estado: GrafoEstado) -> 'IndiceDeRollup'` — Dobra o estado inteiro em um resumo por contêiner, em uma passada.
+- `calcular(estado: GrafoEstado) -> 'IndiceDeRollup'` — Mapeia a contenção do estado; os resumos saem sob demanda.
 - `obter(id_no: str) -> ResumoDeSubarvore | None` — Resumo da subárvore do nó, ou None quando ele não contém nada.
 - `eh_container(id_no: str) -> bool` — Indica se o nó tem ao menos um filho por contenção.
 - `nos_orfaos() -> tuple[str, ...]` `[property]` — Nós fora de qualquer hierarquia, que sumiriam calados na tela colapsada.
@@ -299,12 +299,6 @@ Resumo agregado de cada subárvore de contenção, calculado uma vez por commit.
 - `tem_trabalho_aberto() -> bool` `[property]` — Indica se vale a pena descer neste contêiner.
 - `descrever() -> str` — Linha compacta de panorama, na casa de dez tokens.
 - `em_dicionario() -> dict[str, object]` — Forma serializável para o canvas e para as respostas REST.
-
-### `_MotorDeAlcance`
-
-*serviço* — Resolve, para cada nó, o conjunto de identificadores da sua subárvore.
-
-- `resolver_todos() -> Mapping[str, frozenset[str]]` — Alcance de cada nó do grafo, incluindo ele mesmo.
 
 ## `projection/working_set.py`
 

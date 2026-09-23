@@ -1,5 +1,7 @@
 """Testes do índice de rollup: agregação por subárvore, ciclos e órfãos."""
 
+import pytest
+
 from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento
 from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta
@@ -142,3 +144,34 @@ def test_resumo_descreve_progresso_em_uma_linha_curta() -> None:
     descricao = indice.obter("setor-b").descrever()  # type: ignore[union-attr]
     assert "1/2 tarefas concluidas" in descricao
     assert "1 abertas" in descricao
+
+
+def test_rollup_so_resume_o_conteiner_consultado_edge_case(monkeypatch: pytest.MonkeyPatch) -> None:
+    """O commit mapeia a contenção sem resumir nada; cada resumo sai na primeira consulta.
+
+    Resolver de saída o alcance de todo nó custava a soma dos tamanhos de
+    subárvore: numa cadeia de `decompoe` com 5.000 Tasks, 11,5 s por commit.
+    """
+    import graphow.projection.rollup as modulo
+
+    resumidos: list[str] = []
+    original = modulo._resumir
+
+    def espiao(id_no: str, *resto: object) -> object:
+        resumidos.append(id_no)
+        return original(id_no, *resto)
+
+    monkeypatch.setattr(modulo, "_resumir", espiao)
+    eventos = [_no(1, "goal", "Goal", "Raiz")]
+    eventos += [_no(1 + i, f"t{i}", "Task", f"T{i}", status=StatusTask.PENDENTE.value) for i in range(1, 300)]
+    eventos += [_aresta(400 + i, "goal" if i == 1 else f"t{i - 1}", f"t{i}", TipoAresta.DECOMPOE) for i in range(1, 300)]
+
+    indice = IndiceDeRollup.calcular(GrafoReducer.reconstruir(eventos))
+    assert resumidos == []
+    assert indice.total_de_containers == 299
+
+    resumo = indice.obter("t100")
+    assert resumo is not None
+    assert resumo.tarefas_totais == 200
+    assert indice.obter("t100") is resumo
+    assert resumidos == ["t100"]

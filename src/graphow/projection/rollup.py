@@ -5,11 +5,13 @@ contêiner: no grafo de 191 nós isso eram 8.819 tokens e onze chamadas, e ao fi
 delas o agente sabia o que já poderia ter lido em uma linha por setor. O índice
 abaixo responde a mesma pergunta em ~100 tokens.
 
-Ele é recalculado inteiro a cada commit, não mantido incrementalmente. Medido:
-0,53 ms para 191 nós e 318 arestas. Manutenção incremental exigiria invalidar
-subárvores a cada aresta removida e a cada cascata de remoção de nó, o que é
-complexidade real contra meio milissegundo — e arriscaria o invariante de que a
-projeção é uma dobra determinística do log.
+O commit só mapeia filhos e órfãos, em tempo linear; o resumo de cada
+contêiner é calculado na primeira consulta e guardado. O índice resolvia de
+saída o alcance de todo nó do grafo, e esse custo é a soma dos tamanhos de
+subárvore: numa cadeia de `decompoe` com 5.000 Tasks, 11,5 s por commit para
+resumos que ninguém pediu. Manutenção incremental exigiria invalidar subárvores
+a cada aresta removida e a cada cascata de remoção de nó, e arriscaria o
+invariante de que a projeção é uma dobra determinística do log.
 
 A agregação une conjuntos de identificadores em vez de somar contagens porque a
 contenção é um DAG, não uma árvore: um nó alcançável por dois pais seria contado
@@ -95,36 +97,31 @@ class ResumoDeSubarvore:
 
 
 class IndiceDeRollup:
-    """Resumo de cada subárvore de contenção do grafo, pronto para consulta."""
+    """Resumo de cada subárvore de contenção do grafo, calculado quando pedido."""
 
-    def __init__(
-        self,
-        resumos: Mapping[str, ResumoDeSubarvore],
-        orfaos: tuple[str, ...] = (),
-    ) -> None:
-        self._resumos: Mapping[str, ResumoDeSubarvore] = dict(resumos)
-        self._orfaos: tuple[str, ...] = orfaos
+    def __init__(self, estado: GrafoEstado, filhos: Mapping[str, tuple[str, ...]]) -> None:
+        self._estado: GrafoEstado = estado
+        self._filhos: Mapping[str, tuple[str, ...]] = filhos
+        self._resumos: dict[str, ResumoDeSubarvore] = {}
+        self._substituidas: frozenset[str] | None = None
+        self._orfaos: tuple[str, ...] = _detectar_orfaos(estado)
 
     @classmethod
     def calcular(cls, estado: GrafoEstado) -> "IndiceDeRollup":
-        """Dobra o estado inteiro em um resumo por contêiner, em uma passada."""
-        filhos = _mapear_filhos(estado)
-        alcances = _MotorDeAlcance(estado, filhos).resolver_todos()
-        substituidas = decisoes_substituidas(estado)
-        resumos = {
-            id_no: _resumir(id_no, _nos_alcancados(alcances[id_no], estado), substituidas)
-            for id_no in filhos
-            if id_no in estado.nos
-        }
-        return cls(resumos=resumos, orfaos=_detectar_orfaos(estado))
+        """Mapeia a contenção do estado; os resumos saem sob demanda."""
+        return cls(estado, _mapear_filhos(estado))
 
     def obter(self, id_no: str) -> ResumoDeSubarvore | None:
         """Resumo da subárvore do nó, ou None quando ele não contém nada."""
-        return self._resumos.get(id_no)
+        if not self.eh_container(id_no):
+            return None
+        if id_no not in self._resumos:
+            self._resumos[id_no] = self._resumir(id_no)
+        return self._resumos[id_no]
 
     def eh_container(self, id_no: str) -> bool:
         """Indica se o nó tem ao menos um filho por contenção."""
-        return id_no in self._resumos
+        return id_no in self._filhos and id_no in self._estado.nos
 
     @property
     def nos_orfaos(self) -> tuple[str, ...]:
@@ -134,7 +131,14 @@ class IndiceDeRollup:
     @property
     def total_de_containers(self) -> int:
         """Quantos nós do grafo têm subárvore resumida."""
-        return len(self._resumos)
+        return sum(1 for id_no in self._filhos if id_no in self._estado.nos)
+
+    def _resumir(self, id_no: str) -> ResumoDeSubarvore:
+        """Percorre a subárvore do nó uma vez e conta o que ela contém."""
+        if self._substituidas is None:
+            self._substituidas = decisoes_substituidas(self._estado)
+        alcancados = _alcance(id_no, self._filhos)
+        return _resumir(id_no, _nos_alcancados(alcancados, self._estado), self._substituidas)
 
 
 def _mapear_filhos(estado: GrafoEstado) -> dict[str, tuple[str, ...]]:
@@ -202,49 +206,16 @@ def _eh_questao_aberta(no: NoGrafo) -> bool:
     return no.obter_propriedade("status", StatusQuestion.ABERTA.value) == StatusQuestion.ABERTA.value
 
 
-class _MotorDeAlcance:
-    """Resolve, para cada nó, o conjunto de identificadores da sua subárvore.
+def _alcance(raiz: str, filhos: Mapping[str, tuple[str, ...]]) -> frozenset[str]:
+    """A raiz e tudo o que ela contém, por pilha explícita.
 
-    A travessia é iterativa e em duas fases (descer, depois combinar) porque a
-    contenção admite ciclo: um `decompoe` circular estouraria a pilha de uma
-    recursão ingênua. Um filho ainda em progresso é um ancestral na própria
-    pilha, e é justamente aí que o ciclo se corta.
+    O conjunto de visitados corta ciclos: um `decompoe` circular não trava a
+    travessia nem estoura a pilha, e cada nó do ciclo alcança os demais.
     """
-
-    def __init__(self, estado: GrafoEstado, filhos: Mapping[str, tuple[str, ...]]) -> None:
-        self._estado: GrafoEstado = estado
-        self._filhos: Mapping[str, tuple[str, ...]] = filhos
-        self._memo: dict[str, frozenset[str]] = {}
-        self._em_progresso: set[str] = set()
-
-    def resolver_todos(self) -> Mapping[str, frozenset[str]]:
-        """Alcance de cada nó do grafo, incluindo ele mesmo."""
-        for id_no in self._estado.nos:
-            self._resolver(id_no)
-        return self._memo
-
-    def _resolver(self, raiz: str) -> None:
-        """Percorre a subárvore da raiz com pilha explícita, sem recursão."""
-        pilha: list[tuple[str, bool]] = [(raiz, False)]
-        while pilha:
-            id_no, combinar = pilha.pop()
-            self._processar(id_no, combinar, pilha)
-
-    def _processar(self, id_no: str, combinar: bool, pilha: list[tuple[str, bool]]) -> None:
-        """Empilha os filhos na descida e une os alcances na volta."""
-        if combinar:
-            self._memo[id_no] = self._unir(id_no)
-            self._em_progresso.discard(id_no)
-            return
-        if id_no in self._memo or id_no in self._em_progresso:
-            return
-        self._em_progresso.add(id_no)
-        pilha.append((id_no, True))
-        pilha.extend((filho, False) for filho in self._filhos.get(id_no, ()))
-
-    def _unir(self, id_no: str) -> frozenset[str]:
-        """Junta o próprio nó aos alcances já resolvidos dos seus filhos."""
-        alcancado: set[str] = {id_no}
-        for filho in self._filhos.get(id_no, ()):
-            alcancado.update(self._memo.get(filho, frozenset()))
-        return frozenset(alcancado)
+    alcancados: set[str] = {raiz}
+    pilha: list[str] = [raiz]
+    while pilha:
+        ineditos = [filho for filho in filhos.get(pilha.pop(), ()) if filho not in alcancados]
+        alcancados.update(ineditos)
+        pilha.extend(ineditos)
+    return frozenset(alcancados)
