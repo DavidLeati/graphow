@@ -103,7 +103,7 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 
 Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6902 e processada sequencialmente:
 
-1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Antes disso, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
+1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito (único autorizado a criar/editar `Constraint`, encerrar uma `Question` e estruturar a camada de navegação).
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
@@ -111,16 +111,25 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
 
-   Cinco regras valem para **todo** papel não humano, e valem no kernel, não no
-   nome da ferramenta: mudar o status de uma `Question` para `respondida` ou
-   `descartada`, remover uma `Question`, remover a aresta `bloqueia`, escrever
-   `alcance` num `Aprendizado` ou criar `vale_para`, e remover um `Aprendizado`
-   exigem sessão humana. Sem as três primeiras, um agente encerrava a própria
-   escalação com um `propor_patch` e concluía a tarefa em seguida; sem as duas
-   últimas, promoveria a própria memória a memória de todos.
+   Estas regras valem para **todo** papel não humano, e valem no kernel, não no
+   nome da ferramenta: escrever na `Question` um status que não seja `aberta`
+   (ou remover o status), remover uma `Question`, remover a aresta `bloqueia`,
+   escrever `alcance` num `Aprendizado` ou criar `vale_para`, remover um
+   `Aprendizado` e escrever `nivel_autonomia` num `Projeto` exigem sessão
+   humana. Sem as três primeiras, um agente encerrava a própria escalação com
+   um `propor_patch` e concluía a tarefa em seguida; sem as duas seguintes,
+   promoveria a própria memória a memória de todos; sem a última, se daria
+   autonomia ilimitada.
+
+   A remoção é julgada pelo que está no grafo, nunca pelo valor enviado: o tipo
+   e as pontas de uma aresta removida vêm do estado, e um agente remove só o
+   tipo de nó que pode criar, desde que cada aresta que sai com ele na cascata
+   seja uma que ele também poderia remover. Antes, `remove` com
+   `"tipo": "justifica"` tirava a `bloqueia`, e remover a `Task` levava junto a
+   `bloqueia` e a `escopa` dela.
 3. **Portão 3 — `InvariantGate`:**
-   - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, precisa receber no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada.
-   - **Memória com Origem:** Todo `Aprendizado` novo precisa de ao menos uma aresta `deriva_de` partindo dele no mesmo lote; sem ela o lote cai com `aprendizado_sem_origem`. Memória sem origem é opinião com autoridade de memória.
+   - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, termina o lote que o cria com uma aresta de contenção chegando nele (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada. A regra lê o estado depois do lote, com remoções e cascata aplicadas (`kernel/estrutura_apos_lote.py`): criar a contenção e removê-la no mesmo lote não pendura nada, e um agente não solta da hierarquia um nó que já existia.
+   - **Memória com Origem:** Todo `Aprendizado` novo termina o lote com ao menos uma aresta `deriva_de` partindo dele; sem ela o lote cai com `aprendizado_sem_origem`. Um agente também não tira a última origem de um `Aprendizado` existente. Memória sem origem é opinião com autoridade de memória.
    - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
@@ -425,6 +434,16 @@ Quem escreveu o quê é a coisa que o produto promete mostrar, então a identida
 | :--- | :--- | :--- |
 | **MCP (agentes)** | `graphow mcp --papel <papel> --autor <autor>` | A chamada é recusada com o papel real da sessão. |
 | **Web (canvas)** | Sessão do servidor, no `graphow web` | `POST`/`PUT` com `autor` ou `papel` é recusado com `400`. |
+
+A web escreve como o humano, então ela só aceita quem prova ser a própria
+página (`web/guarda_http.py`). Toda requisição precisa de um `Host` que nomeie
+o servidor (um nome de loopback ou o host em que ele abriu) e, se trouxer
+`Origin`, que seja a da página. Toda escrita traz o token da sessão no
+cabeçalho `X-Graphow-Token` e o corpo em `application/json`. O token nasce com
+o servidor e chega à página por `/api/identity`, que outro site não consegue
+ler. Sem isso, qualquer site aberto no navegador criava nós como humano, e um
+domínio apontado para `127.0.0.1` lia o grafo inteiro. O canvas escapa todo
+campo do nó antes de pô-lo no HTML, porque status, posse e id vêm de agentes.
 | **Harness (hooks)** | `IdentidadeHarness`, papel `sistema` | Papéis de agente são recusados na construção. |
 
 A vista materializada carrega essa proveniência em cada linha (`por autor

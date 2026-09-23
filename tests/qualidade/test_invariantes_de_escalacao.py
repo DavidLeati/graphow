@@ -2,8 +2,10 @@
 
 A garantia valia para o nome da ferramenta `responder_questao` e não para o
 kernel: um executor trocava o status da Question por `propor_patch`, ou apagava
-a Question, ou removia a aresta `bloqueia`, e a Task destravava. Este arquivo
-percorre os três caminhos para cada papel de agente.
+a Question, ou removia a aresta `bloqueia`, e a Task destravava. Depois vieram
+os desvios: barra no final do caminho, status inventado, remoção declarando
+outro tipo de aresta, remoção da Task ou da Sessão levando a `bloqueia` na
+cascata. Este arquivo percorre todos eles para cada papel de agente.
 """
 
 from collections.abc import Sequence

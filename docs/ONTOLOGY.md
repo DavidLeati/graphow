@@ -9,8 +9,8 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 1. **Separação em Duas Camadas**:
    - **Camada de Navegação**: Espinha dorsal visual e de agrupamento hierárquico (`Projeto` → `Setor` → `Sessao`). Apenas humanos criam e estruturam a navegação.
    - **Camada de Trabalho**: Nós semânticos de intenção, execução e evidência pendurados exclusivamente em instâncias de `Sessao`. Tanto humanos quanto agentes interagem com a camada de trabalho.
-   - **Nenhum nó nasce solto**: exceto `Projeto`, todo nó criado recebe no mesmo lote uma aresta de contenção (`contem`, `produz` ou `decompoe`). O `InvariantGate` recusa o lote com `no_fora_da_hierarquia` para qualquer papel, humano incluído.
-   - **Memória diz de onde veio**: o `Aprendizado` é o único nó de trabalho que atravessa a hierarquia, e por isso é o único que nasce apontando obrigatoriamente para a origem. Sem uma aresta `deriva_de` no mesmo lote, o `InvariantGate` recusa com `aprendizado_sem_origem`. O alcance dele (`vale_para` um `Projeto` ou `Setor`, ou a propriedade `alcance: global`) é escrito só pelo humano.
+   - **Nenhum nó nasce solto**: exceto `Projeto`, todo nó criado termina o lote com uma aresta de contenção chegando nele (`contem`, `produz` ou `decompoe`). O `InvariantGate` lê o estado depois do lote e recusa com `no_fora_da_hierarquia` para qualquer papel, humano incluído; um agente também não solta da hierarquia um nó que já existia.
+   - **Memória diz de onde veio**: o `Aprendizado` é o único nó de trabalho que atravessa a hierarquia, e por isso é o único que nasce apontando obrigatoriamente para a origem. Sem uma aresta `deriva_de` ao fim do lote que o cria, o `InvariantGate` recusa com `aprendizado_sem_origem`, e um agente não tira a última origem de um que já existe. O alcance dele (`vale_para` um `Projeto` ou `Setor`, ou a propriedade `alcance: global`) é escrito só pelo humano.
    - **Leitura de código diz onde leu**: a `Evidence` do planejador é o que ele leu no código para decidir, e nasce com o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Toda `Evidence` que cite `linhas` ou `trecho`, de qualquer papel, cita os três. O `InvariantGate` recusa na criação e na edição com `evidencia_sem_localizacao`; o portão não lê o disco, para o replay dar o mesmo veredito anos depois, e garante a forma que torna a conferência possível.
    - **A Sessão tem ciclo de vida** (`ativa`, `concluida`). Encerrada, a vista dela abre pelo fechamento determinístico (decisões vigentes, dúvidas abertas, restrições, último artefato), que é projeção do log e nunca é gravado, e o motor reativo abre nela a `Task` de condensação.
 
@@ -133,8 +133,10 @@ tarefa.
 Estas operações exigem sessão humana no **portão**, não no nome da
 ferramenta — um `propor_patch` cru recebe a mesma recusa:
 
-1. Mudar o status de uma `Question` para `respondida` ou `descartada`.
+1. Escrever na `Question` um status que não seja `aberta`, ou remover o status dela.
 2. Remover uma `Question`.
-3. Remover uma aresta `bloqueia`.
+3. Remover uma aresta `bloqueia`, inclusive pela cascata de remover a `Task` ou a `Sessao`.
 4. Escrever `alcance` num `Aprendizado`, ou criar e remover `vale_para`: promover é do humano.
 5. Remover um `Aprendizado`: memória é substituída ou contradita, nunca apagada por agente.
+6. Escrever `nivel_autonomia` num `Projeto`, ou criar um `Projeto` que não seja `estrito`.
+7. Remover um nó de tipo que o papel não cria, ou um cuja cascata leve uma aresta que o papel não remove. O tipo e as pontas da aresta removida vêm do grafo, nunca do valor enviado.
