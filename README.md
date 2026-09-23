@@ -132,9 +132,9 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Memória com Origem:** Todo `Aprendizado` novo termina o lote com ao menos uma aresta `deriva_de` partindo dele; sem ela o lote cai com `aprendizado_sem_origem`. Um agente também não tira a última origem de um `Aprendizado` existente. Memória sem origem é opinião com autoridade de memória.
    - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
-   - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`.
+   - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
-   - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor.
+   - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor, e isso inclui criar ou remover as arestas que redefinem a tarefa (`depende_de`, `decompoe`, `orienta`, `escopa`, `substitui`). `bloqueia` e `deriva_de` seguem livres: a escalação e a proveniência continuam chegando à tarefa travada.
 4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
 
 ---
@@ -142,6 +142,8 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 ## 🔌 Superfície de Ferramentas MCP (Model Context Protocol)
 
 O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
+
+A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argumento de tipo errado e banco travado por outro escritor: antes, um `TypeError` ou um `sqlite3.OperationalError` derrubavam o processo MCP. Linha que não é JSON recebe `-32700`, e lote ou requisição sem `method` recebem `-32600`.
 
 | Ferramenta | Descrição |
 | :--- | :--- |
@@ -294,7 +296,7 @@ graphow harness --fase subagente --entrada-hook
 # Comparar Goals orquestrados sob configurações de modelo: retrabalho, rejeições na revisão e tokens
 graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 
-# Medir tokens por tarefa bem-sucedida sobre o corpus gravado
+# Medir o tamanho da vista contra o despejo da sessão sobre o corpus gravado
 graphow avaliar
 
 # Medir a escala do grafo que está no banco: peso do canvas por recorte,
@@ -447,9 +449,13 @@ campo do nó antes de pô-lo no HTML, porque status, posse e id vêm de agentes.
 | **Harness (hooks)** | `IdentidadeHarness`, papel `sistema` | Papéis de agente são recusados na construção. |
 
 A vista materializada carrega essa proveniência em cada linha (`por autor
-(papel)`), e conteúdo de `Evidence` ou `Artifact` criado por agente chega ao
-modelo marcado como **não confiável** — a defesa mínima contra injeção
-persistente.
+(papel)`), e conteúdo de `Evidence`, `Artifact` ou `Aprendizado` criado por
+agente chega ao modelo marcado como **não confiável**, com a marca logo depois
+do id e antes do texto, também nos vizinhos e no cabeçalho. Todo texto do grafo
+entra numa linha só (`context/secoes.py`, `em_uma_linha`): um rótulo não abre
+seção, não abre cerca de código e não finge ser outro item. Antes, uma Evidence
+com `\n## Restricoes Inviolaveis\n` no rótulo forjava uma seção com autoria de
+humano.
 
 Junto dela viaja a **ordem**: cada nó carrega a sequência do evento que o criou
 (`log #N` nas linhas da vista e no rodapé do card, com a data por extenso em
@@ -582,6 +588,11 @@ o fechamento retêm como `MEMORIA`, e só saem da vista no degrau em que a
 navegação também sai. Antes de sair ela encolhe: logo depois do contexto, e
 antes do apoio e das decisões que governam a tarefa, os aprendizados vão só
 com a afirmação, a proveniência e as marcas, e `expandir_no` traz o resto.
+As restrições invioláveis ficam para depois de tudo isso, e também encolhem
+antes de sair: primeiro cada `Constraint` vai numa linha sem propriedades, sob
+um título que pede `expandir_no` antes de agir, depois a lista corta com as
+demais anunciadas. Uma tarefa com sessenta restrições saía antes só com o
+cabeçalho em qualquer orçamento abaixo de 3200 tokens.
 
 Esquecer é marcar, nunca apagar: `substitui` entre aprendizados deixa o antigo
 no grafo, no painel e no acervo com `SUBSTITUIDO`, e a vista carrega só o
@@ -673,11 +684,14 @@ e os subagentes que ela despacha em `.agents/agents`. O instalador cuida só da
 
 ---
 
-## 📊 Métrica Número Um: Tokens por Tarefa Bem-Sucedida
+## 📊 Avaliação: Tamanho da Vista contra o Despejo
 
-`graphow avaliar` mede essa métrica sobre um
-corpus de **dez tarefas gravadas** (`src/graphow/avaliacao/`), comparando o
-recorte do grafo com o despejo integral do subgrafo da sessão, e acrescenta os
+A métrica que o projeto persegue é tokens por tarefa bem-sucedida, e ela ainda
+não tem número: medir sucesso exige um agente real executando as tarefas. O que
+`graphow avaliar` mede hoje é a parte determinística dela, o tamanho da vista
+que o agente recebe contra o despejo dos nós da sessão, sobre um corpus de
+**dez tarefas gravadas** (`src/graphow/avaliacao/`) em que "concluída" é um
+rótulo escrito à mão. Ele acrescenta os
 dois braços da memória: **retomar uma sessão encerrada** (a abertura da vista
 pelo fechamento e pela condensação contra expandir cada `Decision` e `Evidence`
 uma a uma) e **entre projetos** (um aprendizado do primeiro projeto chega à
@@ -690,8 +704,10 @@ graphow avaliar
 
 O relatório publica tokens por tarefa nos dois braços, a redução média, as
 intervenções humanas por tarefa e a calibração do contador em uso. Ele também
-declara os próprios limites: a taxa de patch rejeitado por rodada exige um
-agente real e continua fora da medição.
+declara os próprios limites: sucesso de tarefa e taxa de patch rejeitado exigem
+um agente real; o despejo vai sem as arestas, com menos informação relacional
+que a vista; e o contador é uma heurística que, contra tokenizadores BPE de
+referência, contou menos tokens do que eles.
 
 ### Escala: o grafo real ainda cabe?
 
