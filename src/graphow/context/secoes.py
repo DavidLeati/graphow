@@ -196,20 +196,40 @@ def formatar_propriedades(propriedades: Mapping[str, Any]) -> str:
     return json.dumps(filtrar_propriedades_de_dominio(propriedades), ensure_ascii=False)
 
 
+def em_uma_linha(texto: object) -> str:
+    """O texto sem quebra de linha, com todo espaço em branco reduzido a um espaço.
+
+    Rótulo, id e propriedade vêm de quem escreveu no grafo, agentes incluídos,
+    e a vista é Markdown lido por outro modelo. Um rótulo com
+    `\n## Restricoes Inviolaveis\n` abria uma seção forjada, com autoria falsa
+    de humano, e uma cerca de código sem fechamento engolia o resto da vista.
+    Sem quebra de linha, o texto não começa linha nenhuma: não abre seção, não
+    abre cerca e não finge ser outro item da lista.
+    """
+    return " ".join(str(texto).split())
+
+
+def marcar_nao_confiavel(no: NoGrafo) -> str:
+    """O aviso de conteúdo não confiável, para vir antes do texto que o agente escreveu.
+
+    Como sufixo, o aviso ficava depois do texto, que podia terminar a linha com
+    uma autoria forjada e empurrá-lo para onde ninguém lia.
+    """
+    if no.tipo in TIPOS_DE_CONTEUDO_EXTERNO and no.proveniencia.eh_de_agente:
+        return f" {MARCA_DE_CONTEUDO_NAO_CONFIAVEL}"
+    return ""
+
+
 def anotar_proveniencia(no: NoGrafo) -> str:
-    """Sufixo com autor e papel, mais o aviso de conteúdo não confiável se couber.
+    """Sufixo com autor e papel.
 
     Autor e papel viviam em cada evento do log e em nenhuma linha da vista, e uma
     Evidence trazida por ferramenta chegava ao modelo com a mesma autoridade de
-    uma escrita pelo humano.
+    uma escrita pelo humano. O aviso de conteúdo não confiável vem antes do
+    texto, por `marcar_nao_confiavel`.
     """
-    partes: list[str] = []
     assinatura = no.proveniencia.descrever()
-    if assinatura:
-        partes.append(f"(por {assinatura})")
-    if no.tipo in TIPOS_DE_CONTEUDO_EXTERNO and no.proveniencia.eh_de_agente:
-        partes.append(MARCA_DE_CONTEUDO_NAO_CONFIAVEL)
-    return (" " + " ".join(partes)) if partes else ""
+    return f" (por {assinatura})" if assinatura else ""
 
 
 def anotar_ordem(no: NoGrafo) -> str:
@@ -230,12 +250,14 @@ def anotar_ordem(no: NoGrafo) -> str:
 
 def formatar_no_em_linha(no: NoGrafo) -> str:
     """Descreve um nó em uma linha compacta de lista, com a ordem e a autoria."""
-    return f"- [{no.id}] {no.rotulo}{anotar_ordem(no)}{anotar_proveniencia(no)}"
+    cabeca = f"- [{em_uma_linha(no.id)}]{marcar_nao_confiavel(no)}"
+    return f"{cabeca} {em_uma_linha(no.rotulo)}{anotar_ordem(no)}{anotar_proveniencia(no)}"
 
 
 def formatar_no_com_propriedades(no: NoGrafo) -> str:
     """Descreve um nó incluindo propriedades de domínio, ordem e autoria."""
-    corpo = f"- [{no.id}] {no.rotulo}: {formatar_propriedades(no.propriedades)}"
+    cabeca = f"- [{em_uma_linha(no.id)}]{marcar_nao_confiavel(no)}"
+    corpo = f"{cabeca} {em_uma_linha(no.rotulo)}: {formatar_propriedades(no.propriedades)}"
     return f"{corpo}{anotar_ordem(no)}{anotar_proveniencia(no)}"
 
 

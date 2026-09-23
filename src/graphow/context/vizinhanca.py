@@ -9,7 +9,13 @@ e o que sobrou é anunciado em uma linha.
 
 from collections.abc import Mapping, Sequence
 
-from graphow.context.secoes import GrupoDeLinhas, PrioridadeRetencao, SecaoContexto
+from graphow.context.secoes import (
+    GrupoDeLinhas,
+    PrioridadeRetencao,
+    SecaoContexto,
+    em_uma_linha,
+    marcar_nao_confiavel,
+)
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusQuestion, StatusTask
 
@@ -44,8 +50,9 @@ def _chave_de_relevancia(no: NoGrafo) -> tuple[int, str]:
 def formatar_vizinho(no: NoGrafo) -> str:
     """Descreve o vizinho em uma linha, com o status quando ele existir."""
     status = no.obter_propriedade("status")
-    sufixo = f" [{status}]" if status is not None else ""
-    return f"- [{no.id}] ({no.tipo.value}): {no.rotulo}{sufixo}"
+    sufixo = f" [{em_uma_linha(status)}]" if status is not None else ""
+    cabeca = f"- [{em_uma_linha(no.id)}] ({no.tipo.value}){marcar_nao_confiavel(no)}"
+    return f"{cabeca}: {em_uma_linha(no.rotulo)}{sufixo}"
 
 
 def montar_secao_de_vizinhos(nos: Sequence[NoGrafo]) -> SecaoContexto:

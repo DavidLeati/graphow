@@ -14,7 +14,7 @@ seção de vizinhos encolhe por dentro antes de sumir.
 
 from collections.abc import Sequence
 
-from graphow.context.secoes import GrupoDeLinhas, PrioridadeRetencao, SecaoContexto
+from graphow.context.secoes import GrupoDeLinhas, PrioridadeRetencao, SecaoContexto, em_uma_linha
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusQuestion, StatusTask, TipoNo
 from graphow.projection.rollup import STATUS_TERMINAIS_DE_TAREFA, ResumoDeSubarvore
@@ -64,7 +64,7 @@ class FilhoResumido:
         panorama dizer menos que a lista de vizinhos que ele substituiu, e o
         status é a informação mais barata e mais decisiva da linha.
         """
-        cabeca = f"- [{self.no.id}] ({self.no.tipo.value}): {self.no.rotulo}"
+        cabeca = f"- [{em_uma_linha(self.no.id)}] ({self.no.tipo.value}): {em_uma_linha(self.no.rotulo)}"
         if self.resumo is None:
             return f"{cabeca}{self._sufixo_de_status()}"
         marca = " <- trabalho aberto" if self.resumo.tem_trabalho_aberto else ""

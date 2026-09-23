@@ -15,7 +15,7 @@ substituir é propor, promover é o humano aceitar. A seção que reúne os
 aprendizados que alcançam um alvo fica em `context/aprendizados_aplicaveis.py`.
 """
 
-from graphow.context.secoes import formatar_no_em_linha
+from graphow.context.secoes import em_uma_linha, formatar_no_em_linha
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
@@ -125,7 +125,7 @@ def formatar_aprendizado(no: NoGrafo, view: GrafoView) -> str:
     partes = [formatar_no_em_linha(no)]
     como_aplicar = str(no.obter_propriedade(CAMPO_COMO_APLICAR, "")).strip()
     if como_aplicar:
-        partes.append(f"-> como aplicar: {como_aplicar}")
+        partes.append(f"-> como aplicar: {em_uma_linha(como_aplicar)}")
     alcances = alcances_de(no, view)
     if alcances:
         partes.append(f"[vale_para {', '.join(alcances)}]")

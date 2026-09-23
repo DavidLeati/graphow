@@ -17,6 +17,8 @@ from graphow.context.secoes import (
     SecaoContexto,
     anotar_ordem,
     anotar_proveniencia,
+    em_uma_linha,
+    formatar_no_em_linha,
 )
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusSessao, TipoAresta, TipoNo
@@ -113,8 +115,10 @@ def _grupo_de_condensacao(sessao: NoGrafo, view: GrafoView) -> GrupoDeLinhas:
         return GrupoDeLinhas(rotulo="condensacao", linhas=())
     corpo = str(nota.obter_propriedade(CAMPO_CORPO, "")).strip() or nota.rotulo
     marca = f" {MARCA_DE_CONTEUDO_NAO_CONFIAVEL}" if nota.proveniencia.eh_de_agente else ""
-    texto = corpo.replace("\n", "\n  ")
-    linha = f"- condensacao [{nota.id}]{anotar_ordem(nota)}{anotar_proveniencia(nota)}{marca}:\n  {texto}"
+    # A prosa segue em várias linhas, mas cada uma citada: com '> ' na frente,
+    # nenhuma delas abre seção nem cerca de código na vista.
+    texto = "\n".join(f"  > {linha}" for linha in corpo.splitlines())
+    linha = f"- condensacao [{em_uma_linha(nota.id)}]{marca}{anotar_ordem(nota)}{anotar_proveniencia(nota)}:\n{texto}"
     return GrupoDeLinhas(rotulo="condensacao", linhas=(linha,), ids=(nota.id,))
 
 
@@ -124,7 +128,7 @@ def _grupo_de_nos(rotulo: str, ids: Sequence[str], view: GrafoView) -> GrupoDeLi
     return GrupoDeLinhas(
         rotulo=rotulo,
         linhas=tuple(
-            f"- {rotulo}: [{no.id}] {no.rotulo}{anotar_ordem(no)}{anotar_proveniencia(no)}" for no in nos
+            f"- {rotulo}: {formatar_no_em_linha(no).removeprefix('- ')}" for no in nos
         ),
         ids=tuple(no.id for no in nos),
     )

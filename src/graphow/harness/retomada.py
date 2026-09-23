@@ -17,6 +17,7 @@ from graphow.context.aprendizados_aplicaveis import PedidoDeMemoria, montar_seca
 from graphow.context.fechamento import CAMPO_CORPO, localizar_condensacao
 from graphow.context.memoria import formatar_aprendizado, substituto_promovido
 from graphow.context.protocolo import montar_protocolo
+from graphow.context.secoes import em_uma_linha
 from graphow.core.models import NoGrafo
 from graphow.core.types import StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.projection.fechamento import FechamentoDeSubarvore
@@ -119,7 +120,7 @@ def _linhas_da_sessao_anterior(pedido: PedidoDeRetomada) -> tuple[str, ...]:
     anterior = _sessao_anterior(pedido)
     if anterior is None:
         return (TITULO_DA_SESSAO_ANTERIOR, SEM_SESSAO_ANTERIOR)
-    cabecalho = f"- [{anterior.id}] {anterior.rotulo}"
+    cabecalho = f"- [{em_uma_linha(anterior.id)}] {em_uma_linha(anterior.rotulo)}"
     return (TITULO_DA_SESSAO_ANTERIOR, cabecalho, *_descrever_sessao(anterior, pedido.view))
 
 

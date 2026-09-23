@@ -11,7 +11,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from graphow.context.corte import PlanoDeCorte, montar_escada_de_corte
-from graphow.context.secoes import RecorteContexto, SecaoContexto, anotar_ordem, formatar_propriedades
+from graphow.context.secoes import (
+    RecorteContexto,
+    SecaoContexto,
+    anotar_ordem,
+    em_uma_linha,
+    formatar_propriedades,
+    marcar_nao_confiavel,
+)
 from graphow.context.tokenizacao import ESTIMADOR_PADRAO, EstimadorTokens
 from graphow.core.exceptions import ErroOrcamentoExcedido
 
@@ -114,7 +121,8 @@ class RenderizadorContexto:
         """
         alvo = recorte.alvo
         return (
-            f"# [VISTA DE CONTEXTO] No Alvo: {alvo.rotulo} ({alvo.id}){anotar_ordem(alvo)}",
+            f"# [VISTA DE CONTEXTO] No Alvo:{marcar_nao_confiavel(alvo)} {em_uma_linha(alvo.rotulo)} "
+            f"({em_uma_linha(alvo.id)}){anotar_ordem(alvo)}",
             f"- Tipo: {alvo.tipo.value}",
             f"- Propriedades: {formatar_propriedades(alvo.propriedades)}",
         )

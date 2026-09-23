@@ -122,7 +122,7 @@ def test_condensacao_de_agente_abre_a_vista_marcada_como_nao_confiavel_nominal()
 
     assert "- condensacao [nota-cond]" in conteudo
     assert MARCA_DE_CONTEUDO_NAO_CONFIAVEL in conteudo
-    assert "  Vigora a transacao unica por lote.\n  Ficou aberto o TTL." in conteudo
+    assert "  > Vigora a transacao unica por lote.\n  > Ficou aberto o TTL." in conteudo
 
 
 def test_esta_encerrada_so_reconhece_sessao_concluida_edge_case() -> None:
