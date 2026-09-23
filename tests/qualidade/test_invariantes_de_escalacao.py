@@ -47,6 +47,13 @@ CAMINHOS_DE_FUGA: tuple[ItemPatch, ...] = (
         path="//nos//quest-1//propriedades//status",
         value=StatusQuestion.RESPONDIDA.value,
     ),
+    # A remoção declarando outro tipo: o RoleGate lia o tipo do valor enviado.
+    ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/bloq-1", value={"tipo": TipoAresta.JUSTIFICA.value}),
+    ItemPatch(
+        op=OperacaoPatch.REMOVE,
+        path="/arestas/bloq-1",
+        value={"tipo": TipoAresta.DERIVA_DE.value, "origem_id": "quest-1", "destino_id": "task-1"},
+    ),
 )
 
 
@@ -232,6 +239,40 @@ def test_executor_nao_reescopa_a_propria_tarefa_edge_case() -> None:
         kernel,
         [ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/esc-1")],
         PapelAutor.EXECUTOR,
+    )
+
+    assert remocao.sucesso is False
+    assert kernel.obter_view().contem_aresta("esc-1") is True
+
+
+def _montar_tarefa_escopada() -> WriteKernel:
+    """A Task bloqueada, agora também amarrada a uma Constraint por `escopa`."""
+    kernel = _montar_tarefa_bloqueada()
+    recibo = _submeter(
+        kernel,
+        [
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/const-1",
+                value={"id": "const-1", "tipo": TipoNo.CONSTRAINT.value, "rotulo": "Zero deps"},
+            ),
+            _aresta("p-const-1", "sess-1", "const-1", TipoAresta.PRODUZ),
+            _aresta("esc-1", "const-1", "task-1", TipoAresta.ESCOPA),
+        ],
+    )
+    assert recibo.sucesso is True, recibo.mensagem
+    return kernel
+
+
+@pytest.mark.parametrize("papel", PAPEIS_DE_AGENTE)
+def test_remocao_declarando_outro_tipo_nao_reescopa_a_tarefa_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: o tipo da aresta removida vem do grafo, não do valor enviado."""
+    kernel = _montar_tarefa_escopada()
+
+    remocao = _submeter(
+        kernel,
+        [ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/esc-1", value={"tipo": TipoAresta.JUSTIFICA.value})],
+        papel,
     )
 
     assert remocao.sucesso is False

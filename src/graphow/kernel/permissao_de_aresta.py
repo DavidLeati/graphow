@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
-from graphow.core.models import GrafoEstado
+from graphow.core.models import ArestaGrafo, GrafoEstado
 from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.matriz_papeis import (
     DonosDeAresta,
@@ -57,15 +57,31 @@ class PermissaoDeAresta:
 
     def validar(self, segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao:
         """Consulta a matriz de donos de aresta para a operação e o papel correntes."""
-        tipo = self._identificar_tipo(segmentos, item, contexto.estado)
+        if item.op == OperacaoPatch.REMOVE:
+            aresta = contexto.estado_com_lote.arestas.get(segmentos[1]) if len(segmentos) >= SEGMENTOS_DE_ELEMENTO_INTEIRO else None
+            return self.validar_remocao(aresta, contexto) if aresta is not None else ResultadoValidacao.sucesso()
+        tipo = self._identificar_tipo(item)
         if tipo is None:
             return ResultadoValidacao.sucesso()
-        eh_remocao = item.op == OperacaoPatch.REMOVE
-        par = self._par_de_tipos(segmentos, item, contexto)
+        par = self._par_de_tipos(self._pontas_declaradas(item), contexto)
         donos = self._donos_aplicaveis(tipo, item, contexto, par=par)
-        if donos.autoriza(contexto.proposta.papel, eh_remocao):
+        if donos.autoriza(contexto.proposta.papel, False):
             return ResultadoValidacao.sucesso()
-        return self._recusar(tipo, contexto.proposta.papel, eh_remocao, par=par)
+        return self._recusar(tipo, contexto.proposta.papel, False, par=par)
+
+    def validar_remocao(self, aresta: ArestaGrafo, contexto: ContextoPapel) -> ResultadoValidacao:
+        """Julga a remoção pela aresta como ela está no grafo, nunca pelo valor enviado.
+
+        O tipo e as pontas vinham do `value` da operação quando ele trazia
+        algum: um executor removia a `bloqueia` que o travava declarando
+        `"tipo": "justifica"`, e concluía a Task no lote seguinte. A aresta
+        criada antes, no mesmo lote, conta como existente: a antevisão do lote
+        a inclui. Remover não é ampliado pela autonomia do projeto.
+        """
+        par = self._par_de_tipos((aresta.origem_id, aresta.destino_id), contexto)
+        if obter_donos_de_aresta(aresta.tipo, par).autoriza(contexto.proposta.papel, True):
+            return ResultadoValidacao.sucesso()
+        return self._recusar(aresta.tipo, contexto.proposta.papel, True, par=par)
 
     def _donos_aplicaveis(
         self,
@@ -100,17 +116,9 @@ class PermissaoDeAresta:
         pontas = (item.value.get("origem_id"), item.value.get("destino_id"))
         return tuple(str(ponta) for ponta in pontas if ponta)
 
-    def _pontas_existentes(self, segmentos: Sequence[str], estado: GrafoEstado) -> tuple[str, ...]:
-        """Na remoção, as pontas vêm da aresta já projetada."""
-        if len(segmentos) < SEGMENTOS_DE_ELEMENTO_INTEIRO:
-            return ()
-        aresta = estado.arestas.get(segmentos[1])
-        return (aresta.origem_id, aresta.destino_id) if aresta is not None else ()
-
     def _par_de_tipos(
         self,
-        segmentos: Sequence[str],
-        item: ItemPatch,
+        pontas: Sequence[str],
         contexto: ContextoPapel,
     ) -> tuple[TipoNo, TipoNo] | None:
         """Os tipos das duas pontas, lidos do lote projetado; None quando alguma não existe.
@@ -119,7 +127,6 @@ class PermissaoDeAresta:
         entre Aprendizados é consolidação de memória, e a escreve quem
         registra Aprendizado (kernel/matriz_papeis.py).
         """
-        pontas = self._pontas_declaradas(item) or self._pontas_existentes(segmentos, contexto.estado)
         if len(pontas) != 2:
             return None
         origem = contexto.estado_com_lote.nos.get(pontas[0])
@@ -147,20 +154,10 @@ class PermissaoDeAresta:
             modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
         )
 
-    def _identificar_tipo(
-        self,
-        segmentos: Sequence[str],
-        item: ItemPatch,
-        estado: GrafoEstado,
-    ) -> TipoAresta | None:
-        """Lê o tipo do valor proposto ou, na remoção, da aresta já projetada."""
+    def _identificar_tipo(self, item: ItemPatch) -> TipoAresta | None:
+        """Lê o tipo declarado no valor da aresta que a operação cria."""
         declarado = item.value.get("tipo") if isinstance(item.value, dict) else None
-        if declarado is not None:
-            return self._converter_tipo(declarado)
-        if len(segmentos) < SEGMENTOS_DE_ELEMENTO_INTEIRO:
-            return None
-        aresta = estado.arestas.get(segmentos[1])
-        return aresta.tipo if aresta is not None else None
+        return self._converter_tipo(declarado) if declarado is not None else None
 
     def _converter_tipo(self, declarado: Any) -> TipoAresta | None:
         """Converte o tipo textual, deixando a forma inválida para o SchemaGate."""
