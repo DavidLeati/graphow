@@ -10,15 +10,16 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-16 módulos · 2727 linhas · 27 classes
+17 módulos · 2792 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
+| [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 115 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 352 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 302 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 158 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
@@ -74,6 +75,24 @@ Conversão de operações JSON Patch RFC 6902 em eventos formais do log.
 
 - `forma_do_caminho(segmentos: Sequence[str]) -> tuple[str, ...]` — O caminho com o id do elemento e a chave da propriedade trocados por marcadores.
 - `grava_como_diz(segmentos: Sequence[str], op: OperacaoPatch) -> bool` — Diz se o conversor grava a operação neste caminho como ela é, sem reinterpretá-la.
+
+## `kernel/estrutura_apos_lote.py`
+
+Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+
+### `EstruturaAposLote`
+
+*DTO imutável* — O grafo antes e depois do lote, com o que o lote criou.
+
+**Campos:** `antes: GrafoEstado`, `depois: GrafoEstado`, `criados: frozenset[str]`, `desliga_existentes: bool`
+
+- `antever(proposta: PropostaPatch, estado: GrafoEstado) -> 'EstruturaAposLote'` — Aplica o lote inteiro sobre o estado, só para consulta.
+- `nos_fora_da_hierarquia() -> tuple[str, ...]` — Nós que o lote cria, ou de que o agente tira a contenção, e ficam sem pai.
+- `aprendizados_sem_origem() -> tuple[str, ...]` — Aprendizados que o lote cria, ou de que o agente tira a origem, e ficam sem `deriva_de`.
 
 ## `kernel/execucao.py`
 

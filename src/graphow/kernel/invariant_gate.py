@@ -2,12 +2,11 @@
 
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
-from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
+from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
 from graphow.kernel.localizacao import EvidenciaNoLote, diagnosticar_localizacao, projetar_evidencias_do_lote
 from graphow.kernel.patch_models import (
     ItemPatch,
@@ -42,10 +41,11 @@ class InvariantGate:
         resultado_lock = self._validar_locks_concorrencia(proposta, locks)
         if not resultado_lock.aprovado:
             return resultado_lock
-        resultado_hierarquia = self._validar_nos_na_hierarquia(proposta, estado)
+        estrutura = EstruturaAposLote.antever(proposta, estado)
+        resultado_hierarquia = self._validar_nos_na_hierarquia(estrutura)
         if not resultado_hierarquia.aprovado:
             return resultado_hierarquia
-        resultado_origem = self._validar_origem_de_aprendizado(proposta)
+        resultado_origem = self._validar_origem_de_aprendizado(estrutura)
         if not resultado_origem.aprovado:
             return resultado_origem
         resultado_localizacao = self._validar_localizacao_de_evidencia(proposta, estado)
@@ -59,99 +59,49 @@ class InvariantGate:
             return resultado_posse
         return self._validar_aciclicidade_dependencias(proposta, estado)
 
-    def _validar_nos_na_hierarquia(
-        self,
-        proposta: PropostaPatch,
-        estado: GrafoEstado,
-    ) -> ResultadoValidacao:
-        """Recusa o nó que nasceria sem pai por contenção.
+    def _validar_nos_na_hierarquia(self, estrutura: EstruturaAposLote) -> ResultadoValidacao:
+        """Recusa o nó que ficaria sem pai por contenção ao fim do lote.
 
         Um nó sem `contem`, `produz` ou `decompoe` chegando nele não aparece em
         visão colapsada nenhuma: só a pasta "Fora da hierarquia" o mostra, e
         ninguém a abre. O vínculo precisa vir no mesmo lote que cria o nó —
         em dois pedidos, a falha do segundo deixava o órfão para trás. Projeto
-        é a raiz legítima e fica de fora. Vale também para o humano: a regra é
-        sobre a forma do grafo, não sobre quem escreve.
+        é a raiz legítima e fica de fora. A regra lê o estado depois do lote
+        (kernel/estrutura_apos_lote.py): criar a contenção e removê-la no mesmo
+        lote não conta como pendurar.
         """
-        criados = self._nos_criados_sem_ser_raiz(proposta)
-        if not criados:
+        orfaos = estrutura.nos_fora_da_hierarquia()
+        if not orfaos:
             return ResultadoValidacao.sucesso()
-        com_pai = self._destinos_de_contencao(proposta, estado)
-        for id_no, tipo in criados.items():
-            if id_no not in com_pai:
-                return self._recusar_no_fora_da_hierarquia(id_no, tipo)
-        return ResultadoValidacao.sucesso()
-
-    def _nos_criados_sem_ser_raiz(self, proposta: PropostaPatch) -> dict[str, TipoNo]:
-        """Nós que o lote cria, exceto Projetos, na ordem em que aparecem."""
-        criados: dict[str, TipoNo] = {}
-        for item in proposta.operacoes:
-            segmentos = [seg for seg in item.path.split("/") if seg]
-            if item.op != OperacaoPatch.ADD or len(segmentos) != SEGMENTOS_DE_ELEMENTO_INTEIRO:
-                continue
-            if segmentos[0] != "nos" or not isinstance(item.value, dict):
-                continue
-            tipo = next((opcao for opcao in TipoNo if opcao.value == item.value.get("tipo")), None)
-            if tipo is not None and tipo != TipoNo.PROJETO:
-                criados[segmentos[1]] = tipo
-        return criados
-
-    def _destinos_de_contencao(self, proposta: PropostaPatch, estado: GrafoEstado) -> set[str]:
-        """Ids que recebem aresta de contenção, já no grafo ou criada neste lote."""
-        destinos = {
-            aresta.destino_id
-            for aresta in estado.arestas.values()
-            if aresta.tipo in ARESTAS_DE_CONTENCAO
-        }
-        tipos_de_contencao = {tipo.value for tipo in ARESTAS_DE_CONTENCAO}
-        for item in proposta.operacoes:
-            if item.op != OperacaoPatch.ADD or not item.path.startswith("/arestas/"):
-                continue
-            if isinstance(item.value, dict) and item.value.get("tipo") in tipos_de_contencao:
-                destinos.add(str(item.value.get("destino_id")))
-        return destinos
+        return self._recusar_no_fora_da_hierarquia(orfaos[0], estrutura.depois.nos[orfaos[0]].tipo)
 
     def _recusar_no_fora_da_hierarquia(self, id_no: str, tipo: TipoNo) -> ResultadoValidacao:
         """Diz qual aresta falta, para o autor refazer o lote sem adivinhar."""
         return ResultadoValidacao.falha(
-            f"No '{id_no}' ({tipo.value}) nasceria fora da hierarquia. "
-            f"Crie no mesmo lote a aresta que o pendura: {VINCULO_ESPERADO.get(tipo, VINCULO_DE_TRABALHO)}",
+            f"No '{id_no}' ({tipo.value}) ficaria fora da hierarquia. "
+            f"Mantenha ao fim do lote a aresta que o pendura: {VINCULO_ESPERADO.get(tipo, VINCULO_DE_TRABALHO)}",
             "InvariantGate",
             {"id_no": id_no, "tipo": tipo.value},
             modo=ModoFalhaMAST.NO_FORA_DA_HIERARQUIA,
         )
 
-    def _validar_origem_de_aprendizado(self, proposta: PropostaPatch) -> ResultadoValidacao:
-        """Recusa o Aprendizado que nasceria sem apontar para a própria origem.
+    def _validar_origem_de_aprendizado(self, estrutura: EstruturaAposLote) -> ResultadoValidacao:
+        """Recusa o Aprendizado que ficaria sem apontar para a própria origem.
 
-        Memória diz de onde veio. Um Aprendizado sem `deriva_de` no mesmo lote
-        é opinião com autoridade de memória, e é recusado como o nó sem aresta
-        de contenção: regra do kernel, não convenção de escrita.
+        Memória diz de onde veio. Um Aprendizado sem `deriva_de` ao fim do lote
+        que o cria é opinião com autoridade de memória, e é recusado como o nó
+        sem aresta de contenção; o agente também não tira a última origem de um
+        Aprendizado que já existe.
         """
-        criados = self._nos_criados_sem_ser_raiz(proposta)
-        aprendizados = [id_no for id_no, tipo in criados.items() if tipo == TipoNo.APRENDIZADO]
-        if not aprendizados:
+        sem_origem = estrutura.aprendizados_sem_origem()
+        if not sem_origem:
             return ResultadoValidacao.sucesso()
-        com_origem = self._origens_de_derivacao_no_lote(proposta)
-        for id_no in aprendizados:
-            if id_no not in com_origem:
-                return self._recusar_aprendizado_sem_origem(id_no)
-        return ResultadoValidacao.sucesso()
-
-    def _origens_de_derivacao_no_lote(self, proposta: PropostaPatch) -> set[str]:
-        """Ids de onde parte uma aresta `deriva_de` criada neste mesmo lote."""
-        origens: set[str] = set()
-        for item in proposta.operacoes:
-            if item.op != OperacaoPatch.ADD or not item.path.startswith("/arestas/"):
-                continue
-            if isinstance(item.value, dict) and item.value.get("tipo") == TipoAresta.DERIVA_DE.value:
-                origens.add(str(item.value.get("origem_id")))
-        return origens
+        return self._recusar_aprendizado_sem_origem(sem_origem[0])
 
     def _recusar_aprendizado_sem_origem(self, id_no: str) -> ResultadoValidacao:
         """Diz o que falta: ao menos uma aresta de origem no mesmo lote."""
         return ResultadoValidacao.falha(
-            f"Aprendizado '{id_no}' nasceria sem origem. Crie no mesmo lote ao menos uma aresta "
+            f"Aprendizado '{id_no}' ficaria sem origem. Mantenha ao fim do lote ao menos uma aresta "
             "'deriva_de' partindo dele para a Evidence, Decision, Note, Artifact ou Task de onde saiu",
             "InvariantGate",
             {"id_no": id_no},

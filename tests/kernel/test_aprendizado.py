@@ -279,3 +279,35 @@ def test_a_abertura_de_substitui_vale_so_entre_aprendizados_e_so_para_criar_edge
     assert decisao.sucesso is False
     assert decisao.modo_de_falha == ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL.value
     assert "pode criar aresta 'substitui'" in str(decisao.mensagem)
+
+
+@pytest.mark.parametrize("papel", [PapelAutor.HUMANO, PapelAutor.EXECUTOR])
+def test_origem_criada_e_removida_no_mesmo_lote_nao_conta_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: a regra olhava só os `add` do lote, e o Aprendizado nascia sem origem."""
+    kernel = _kernel_com_sessao()
+
+    recibo = _submeter(
+        kernel,
+        [
+            _no("apr", TipoNo.APRENDIZADO, como_aplicar="siga a decisao"),
+            _aresta("sess", "apr", TipoAresta.PRODUZ),
+            _aresta("apr", "dec-1", TipoAresta.DERIVA_DE),
+            ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/deriva_de-apr-dec-1"),
+        ],
+        papel,
+    )
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.APRENDIZADO_SEM_ORIGEM.value
+
+
+@pytest.mark.parametrize("papel", [PapelAutor.EXECUTOR, PapelAutor.REVISOR])
+def test_agente_nao_tira_a_ultima_origem_de_um_aprendizado_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: num lote posterior, o agente removia a `deriva_de` e a memória perdia a origem."""
+    kernel = _kernel_com_sessao()
+    assert _registrar(kernel).sucesso
+
+    recibo = _submeter(kernel, [ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/deriva_de-apr-dec-1")], papel)
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.APRENDIZADO_SEM_ORIGEM.value

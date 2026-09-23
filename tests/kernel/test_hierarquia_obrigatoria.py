@@ -132,3 +132,69 @@ def test_edicao_de_no_existente_nao_e_afetada_nominal() -> None:
     kernel = _kernel_com_sessao()
     edicao = ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/sess/propriedades/status", value="ativa")
     assert _submeter(kernel, edicao).sucesso
+
+
+def _remocao(id_aresta: str) -> ItemPatch:
+    """Operação de remoção de aresta."""
+    return ItemPatch(op=OperacaoPatch.REMOVE, path=f"/arestas/{id_aresta}")
+
+
+def test_contencao_criada_e_removida_no_mesmo_lote_nao_pendura_edge_case() -> None:
+    """Caso de borda: a regra olhava só os `add` do lote, e a Note nascia órfã.
+
+    Vale para o humano, porque é regra de forma. O agente nem chega aqui: a
+    `produz` só o humano remove, e o RoleGate recusa antes.
+    """
+    kernel = _kernel_com_sessao()
+
+    recibo = _submeter(
+        kernel,
+        _no("nota", TipoNo.NOTE),
+        _aresta("sess", "nota", TipoAresta.PRODUZ),
+        _remocao("produz-sess-nota"),
+    )
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.NO_FORA_DA_HIERARQUIA.value
+
+
+def test_agente_nao_solta_da_hierarquia_um_no_que_ja_existe_edge_case() -> None:
+    """Caso de borda: o planejador remove a `decompoe` e a Task fica sem pai."""
+    kernel = _kernel_com_sessao()
+    montagem = _submeter(
+        kernel,
+        _no("goal", TipoNo.GOAL),
+        _aresta("sess", "goal", TipoAresta.PRODUZ),
+        _no("task", TipoNo.TASK),
+        _aresta("goal", "task", TipoAresta.DECOMPOE),
+    )
+    assert montagem.sucesso, montagem.mensagem
+
+    recibo = _submeter(kernel, _remocao("decompoe-goal-task"), papel=PapelAutor.PLANEJADOR)
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == ModoFalhaMAST.NO_FORA_DA_HIERARQUIA.value
+
+
+def test_agente_troca_o_pai_no_mesmo_lote_nominal() -> None:
+    """Remover a contenção e pôr outra no mesmo lote mantém o nó pendurado."""
+    kernel = _kernel_com_sessao()
+    montagem = _submeter(
+        kernel,
+        _no("goal", TipoNo.GOAL),
+        _aresta("sess", "goal", TipoAresta.PRODUZ),
+        _no("task", TipoNo.TASK),
+        _aresta("goal", "task", TipoAresta.DECOMPOE),
+        _no("mae", TipoNo.TASK),
+        _aresta("sess", "mae", TipoAresta.PRODUZ),
+    )
+    assert montagem.sucesso, montagem.mensagem
+
+    recibo = _submeter(
+        kernel,
+        _remocao("decompoe-goal-task"),
+        _aresta("mae", "task", TipoAresta.DECOMPOE),
+        papel=PapelAutor.PLANEJADOR,
+    )
+
+    assert recibo.sucesso, recibo.mensagem
