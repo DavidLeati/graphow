@@ -6,29 +6,29 @@
 
 **Pacote:** `graphow.avaliacao`
 
-Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação.
+Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da sessão, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação, e declara o que ela não mede: sucesso de tarefa exige um agente real.
 
 ## Inventário
 
-11 módulos · 1689 linhas · 20 classes
+11 módulos · 1713 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado. |
+| [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobre um corpus gravado. |
 | [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 190 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
-| [`avaliacao/escala.py`](#avaliacaoescala) | 243 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
+| [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
 | [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 208 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
-| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 139 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
 | [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 65 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
 ## `avaliacao/__init__.py`
 
-Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado.
+Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobre um corpus gravado.
 
 ### Funções do módulo
 
@@ -219,11 +219,11 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `LIMITES_DECLARADOS` | `tuple[str, ...]` | `("O braco 'sem grafo' e o despejo do subgrafo da sessao, nao a saida de…` |
+| `LIMITES_DECLARADOS` | `tuple[str, ...]` | `("Sucesso de tarefa nao e medido: nenhum agente executa as tarefas, 'co…` |
 
 ### `RelatorioDeAvaliacao`
 
-*DTO imutável* — Consolidação das medições, com as médias de tokens por tarefa bem-sucedida.
+*DTO imutável* — Consolidação das medições: tamanho da vista contra o despejo, por tarefa marcada concluída.
 
 **Campos:** `medicoes: tuple[MedicaoDaTarefa, ...]`, `calibracao: str`, `limites: tuple[str, ...]`, `retomada: MedicaoDeRetomada | None`, `entre_projetos: RelatorioEntreProjetos | None`
 

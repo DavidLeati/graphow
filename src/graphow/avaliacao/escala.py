@@ -7,7 +7,8 @@ hoje, cabe na tela e no orçamento?" — e por isso corre contra o banco real.
 
 Ela existe para que a decisão de recortar tenha número antes e depois, em vez de
 impressão. Os três eixos são os que doíam: o tamanho do payload do canvas, o
-custo de descobrir onde há trabalho aberto, e o custo de uma busca sem limite.
+custo de descobrir onde há trabalho aberto, e o custo de uma busca no teto de
+resultados.
 """
 
 from dataclasses import dataclass, field
@@ -109,7 +110,7 @@ class RelatorioDeEscala:
             f"  ({self.fator_de_reducao_da_navegacao:.1f}x)",
             f"  passos: {' -> '.join(self.passos_do_caminho_guiado) or '(nenhum)'}",
             "",
-            "Busca (termo: encontrados | tokens sem limite -> com limite):",
+            "Busca (termo: encontrados | tokens no teto de 50 -> no limite padrao):",
         )
 
     def _linhas_de_busca(self) -> tuple[str, ...]:
@@ -207,9 +208,21 @@ class MedidorDeEscala:
         return None
 
     def _encontrar_raiz(self, view: GrafoView) -> str | None:
-        """Projeto raiz do grafo, ponto de partida de qualquer descida."""
+        """O Projeto de onde a descida parte: o primeiro com trabalho aberto, se houver.
+
+        Partir do primeiro Projeto da projeção media a descida num projeto sem
+        trabalho: o caminho guiado parava no primeiro passo e saía centenas de
+        vezes mais barato que a varredura sem ter achado tarefa nenhuma.
+        """
         projetos = view.listar_nos_por_tipo(TipoNo.PROJETO)
-        return projetos[0].id if projetos else None
+        com_trabalho = [no for no in projetos if self._tem_trabalho_aberto(view, no.id)]
+        candidatos = com_trabalho or list(projetos)
+        return candidatos[0].id if candidatos else None
+
+    def _tem_trabalho_aberto(self, view: GrafoView, id_no: str) -> bool:
+        """Diz se o rollup do contêiner declara trabalho aberto na subárvore."""
+        resumo = view.obter_resumo(id_no)
+        return resumo is not None and resumo.tem_trabalho_aberto
 
     def _listar_containers(self, view: GrafoView) -> tuple[NoGrafo, ...]:
         """Todos os nós da camada de navegação, na ordem da projeção."""

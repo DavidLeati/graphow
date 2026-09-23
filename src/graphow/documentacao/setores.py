@@ -99,7 +99,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         13,
         "avaliacao",
         "Harness de Avaliação",
-        "Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação.",
+        "Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da sessão, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação, e declara o que ela não mede: sucesso de tarefa exige um agente real.",
     ),
     DefinicaoSetor(
         14,

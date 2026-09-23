@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2291 linhas · 30 classes
+17 módulos · 2294 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -28,7 +28,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/secoes.py`](#contextsecoes) | 277 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
-| [`context/tokenizacao.py`](#contexttokenizacao) | 110 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
+| [`context/tokenizacao.py`](#contexttokenizacao) | 113 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
 | [`context/vizinhanca.py`](#contextvizinhanca) | 83 | Montagem da seção de vizinhos: ordem por relevância e corte por tipo. |
 
 ## `context/aprendizados_aplicaveis.py`

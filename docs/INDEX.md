@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 169 módulos · 21170 linhas · 331 classes**
+**15 alas · 169 módulos · 21197 linhas · 331 classes**
 
 ---
 
@@ -62,14 +62,14 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 11 | 1346 | 31 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 12 | 1762 | 22 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 881 | 14 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 17 | 2291 | 30 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 17 | 2294 | 30 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 12 | 1220 | 15 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2256 | 26 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 7 | 1068 | 10 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 24 | 2788 | 48 |
-| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 11 | 1689 | 20 |
+| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 11 | 1713 | 20 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 10 | 1377 | 30 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 
@@ -99,7 +99,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 **12. Canvas e API REST** — Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas.
 
-**13. Harness de Avaliação** — Corpus de tarefas gravadas e medição de tokens por tarefa bem-sucedida, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação.
+**13. Harness de Avaliação** — Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da sessão, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação, e declara o que ela não mede: sucesso de tarefa exige um agente real.
 
 **14. Geração deste Catálogo** — Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Existe para que a documentação não seja mantida à mão.
 

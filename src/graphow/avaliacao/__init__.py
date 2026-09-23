@@ -1,4 +1,4 @@
-"""Harness de avaliação: mede tokens por tarefa bem-sucedida sobre um corpus gravado."""
+"""Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobre um corpus gravado."""
 
 from graphow.avaliacao.cenario_entre_projetos import montar_cenario_entre_projetos
 from graphow.avaliacao.cenario_memoria import montar_cenario_com_memoria

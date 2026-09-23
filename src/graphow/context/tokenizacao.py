@@ -6,10 +6,13 @@ todos custam mais que isso nos tokenizadores BPE atuais: um orçamento declarado
 de 1.500 chegava ao modelo maior do que o agente pediu, e qualquer métrica de
 "tokens por tarefa" herdaria o mesmo erro.
 
-O custo por classe abaixo é um limite superior deliberado. Errar para cima gasta
-orçamento; errar para baixo quebra a promessa da ferramenta, que é a única coisa
-que o agente não tem como conferir. Quando um tokenizador real estiver
-disponível, ele entra por `EstimadorTokens` sem tocar em quem chama.
+O custo por classe abaixo foi escolhido à mão para errar para cima: errar para
+baixo quebra a promessa da ferramenta, que é a única coisa que o agente não tem
+como conferir. Ele não foi ajustado contra o tokenizador do modelo que lê a
+vista, e comparado a tokenizadores BPE de referência contou de 30% a 55% a
+menos: o orçamento declarado pode chegar maior ao modelo. Não é um limite
+superior garantido. Quando um tokenizador real estiver disponível, ele entra por
+`EstimadorTokens` sem tocar em quem chama.
 """
 
 from abc import ABC, abstractmethod

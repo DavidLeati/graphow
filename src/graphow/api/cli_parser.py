@@ -120,7 +120,7 @@ def _registrar_comando_de_avaliacao(
     subparsers: argparse._SubParsersAction,
     parser_base: argparse.ArgumentParser,
 ) -> None:
-    """Registra a medição de tokens por tarefa bem-sucedida.
+    """Registra a medição do tamanho da vista contra o despejo da sessão.
 
     Ela vive fora dos comandos de manutenção porque não cuida do banco do
     usuário: monta o próprio cenário gravado e não escreve nada.
@@ -128,7 +128,7 @@ def _registrar_comando_de_avaliacao(
     subparsers.add_parser(
         "avaliar",
         parents=[parser_base],
-        help="Mede tokens por tarefa bem-sucedida sobre o corpus gravado",
+        help="Mede o tamanho da vista contra o despejo da sessao sobre o corpus gravado (nenhum agente executa as tarefas)",
     )
 
 
