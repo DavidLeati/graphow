@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2221 linhas · 26 classes
+17 módulos · 2256 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,9 +25,9 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 232 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 78 | O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões. |
-| [`mcp/server.py`](#mcpserver) | 114 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
-| [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 178 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
-| [`mcp/stdio_server.py`](#mcpstdioserver) | 104 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
+| [`mcp/server.py`](#mcpserver) | 128 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
+| [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 193 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
+| [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
 | [`mcp/tool_definitions.py`](#mcptooldefinitions) | 302 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
@@ -311,6 +311,8 @@ Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `VERSAO_PROTOCOLO_MCP` | `str` | `'2024-11-05'` |
+| `CODIGO_ERRO_DE_PARSE` | `int` | `-32700` |
+| `CODIGO_REQUISICAO_INVALIDA` | `int` | `-32600` |
 | `CODIGO_METODO_NAO_ENCONTRADO` | `int` | `-32601` |
 | `METODOS_DE_NOTIFICACAO` | `frozenset[str]` | `frozenset({'notifications/initialized', 'notifications/cancelled'})` |
 
@@ -346,6 +348,7 @@ Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio.
 *serviço* — Roteia requisições JSON-RPC para as capacidades do servidor MCP.
 
 - `despachar(requisicao: Mapping[str, Any]) -> None` — Encaminha a requisição ao método correspondente do protocolo.
+- `responder_erro_de_transporte(codigo: int, mensagem: str) -> None` — Responde a uma linha que não chegou a ser requisição: sem id legível, vai com id nulo.
 
 ## `mcp/stdio_server.py`
 

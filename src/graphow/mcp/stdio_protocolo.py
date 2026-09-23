@@ -10,6 +10,8 @@ from graphow.context.protocolo import montar_protocolo
 from graphow.mcp.server import GraphowMCPServer
 
 VERSAO_PROTOCOLO_MCP: str = "2024-11-05"
+CODIGO_ERRO_DE_PARSE: int = -32700
+CODIGO_REQUISICAO_INVALIDA: int = -32600
 CODIGO_METODO_NAO_ENCONTRADO: int = -32601
 
 METODOS_DE_NOTIFICACAO: frozenset[str] = frozenset(
@@ -101,9 +103,12 @@ class DespachanteJsonRpc:
 
     def despachar(self, requisicao: Mapping[str, Any]) -> None:
         """Encaminha a requisição ao método correspondente do protocolo."""
-        metodo = str(requisicao.get("method", ""))
+        metodo = requisicao.get("method")
         identificador = requisicao.get("id")
         if metodo in METODOS_DE_NOTIFICACAO or identificador is None:
+            return
+        if not isinstance(metodo, str) or not metodo:
+            self._responder_erro(identificador, "Requisicao sem 'method'", codigo=CODIGO_REQUISICAO_INVALIDA)
             return
         manipulador = self._obter_manipuladores().get(metodo)
         if manipulador is None:
@@ -161,18 +166,28 @@ class DespachanteJsonRpc:
             argumentos if isinstance(argumentos, Mapping) else {},
         )
         texto = json.dumps(resultado, indent=2, ensure_ascii=False)
-        self._responder_sucesso(identificador, {"content": [{"type": "text", "text": texto}]})
+        # A falha da ferramenta vai no resultado, com isError, e não como erro
+        # JSON-RPC: é assim que o cliente a mostra ao modelo e a registra como falha.
+        falhou = resultado.get("sucesso") is False
+        self._responder_sucesso(identificador, {"content": [{"type": "text", "text": texto}], "isError": falhou})
 
     def _responder_sucesso(self, identificador: Any, resultado: Mapping[str, Any]) -> None:
         """Emite uma resposta JSON-RPC bem-sucedida."""
         self._canal.escrever_mensagem({"jsonrpc": "2.0", "id": identificador, "result": dict(resultado)})
 
-    def _responder_erro(self, identificador: Any, mensagem: str) -> None:
-        """Emite uma resposta JSON-RPC de erro de método."""
+    def responder_erro_de_transporte(self, codigo: int, mensagem: str) -> None:
+        """Responde a uma linha que não chegou a ser requisição: sem id legível, vai com id nulo.
+
+        Calar deixava pendurado o cliente que esperava resposta àquela linha.
+        """
+        self._responder_erro(None, mensagem, codigo=codigo)
+
+    def _responder_erro(self, identificador: Any, mensagem: str, *, codigo: int = CODIGO_METODO_NAO_ENCONTRADO) -> None:
+        """Emite uma resposta JSON-RPC de erro, de método desconhecido por padrão."""
         self._canal.escrever_mensagem(
             {
                 "jsonrpc": "2.0",
                 "id": identificador,
-                "error": {"code": CODIGO_METODO_NAO_ENCONTRADO, "message": mensagem},
+                "error": {"code": codigo, "message": mensagem},
             }
         )

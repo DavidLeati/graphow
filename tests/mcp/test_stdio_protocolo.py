@@ -84,7 +84,10 @@ def test_loop_ignora_linhas_vazias_e_registra_json_invalido_edge_case() -> None:
     executar_loop_stdio(DespachanteJsonRpc(_montar_servidor(), canal_de_entrada), canal_de_entrada)
     assert len(canal_de_entrada.falhas) == 1
     assert "malformada" in canal_de_entrada.falhas[0]
-    assert canal_de_entrada.mensagens[0]["id"] == 9
+    erro_de_parse, pong = canal_de_entrada.mensagens
+    assert erro_de_parse["id"] is None
+    assert erro_de_parse["error"]["code"] == -32700
+    assert pong["id"] == 9
 
 
 def test_requisicao_que_nao_e_objeto_e_registrada_edge_case() -> None:
@@ -92,6 +95,40 @@ def test_requisicao_que_nao_e_objeto_e_registrada_edge_case() -> None:
     canal_de_entrada = CanalJsonRpcEmMemoria(linhas_de_entrada=("[1, 2, 3]",))
     executar_loop_stdio(DespachanteJsonRpc(_montar_servidor(), canal_de_entrada), canal_de_entrada)
     assert canal_de_entrada.falhas == ("Requisicao JSON-RPC deve ser um objeto",)
+    assert canal_de_entrada.mensagens[0]["error"]["code"] == -32600
+
+
+def test_requisicao_sem_metodo_recebe_requisicao_invalida_edge_case() -> None:
+    """Caso de borda: sem 'method', a resposta é -32600, não 'método não suportado'."""
+    despachante, canal = _montar_despachante()
+    despachante.despachar({"jsonrpc": "2.0", "id": 8})
+    assert canal.mensagens[0]["error"]["code"] == -32600
+
+
+def test_argumento_de_tipo_errado_nao_derruba_o_servidor_edge_case() -> None:
+    """Caso de borda: `operacoes` como texto dava TypeError e matava o processo MCP inteiro."""
+    chamada = {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "tools/call",
+        "params": {"name": "propor_patch", "arguments": {"operacoes": "nao-lista", "justificativa": "j"}},
+    }
+    canal_de_entrada = CanalJsonRpcEmMemoria(
+        linhas_de_entrada=(json.dumps(chamada), '{"jsonrpc":"2.0","id":6,"method":"ping"}')
+    )
+    executar_loop_stdio(DespachanteJsonRpc(_montar_servidor(), canal_de_entrada), canal_de_entrada)
+    falha, pong = canal_de_entrada.mensagens
+    assert falha["result"]["isError"] is True
+    assert pong["id"] == 6
+
+
+def test_ferramenta_bem_sucedida_nao_marca_erro_nominal() -> None:
+    """A marca isError só vai quando a ferramenta falhou."""
+    despachante, canal = _montar_despachante()
+    despachante.despachar(
+        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "buscar", "arguments": {"termo": "x"}}}
+    )
+    assert canal.mensagens[0]["result"]["isError"] is False
 
 
 def test_initialize_declara_o_protocolo_da_memoria_em_instructions_nominal() -> None:

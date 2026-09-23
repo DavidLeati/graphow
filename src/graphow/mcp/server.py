@@ -1,6 +1,7 @@
 """Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes."""
 
 from collections.abc import Callable, Mapping
+import sqlite3
 from typing import Any
 
 from graphow.context.materializer import MaterializadorContexto
@@ -103,12 +104,25 @@ class GraphowMCPServer:
         nome_ferramenta: str,
         argumentos: Mapping[str, Any],
     ) -> dict[str, Any]:
-        """Invoca o manipulador convertendo falhas conhecidas em respostas estruturadas."""
+        """Invoca o manipulador convertendo falhas conhecidas em respostas estruturadas.
+
+        Só GraphowError, KeyError e ValueError viravam resposta; qualquer outra
+        exceção subia até o laço stdio e matava o processo. `operacoes` enviado
+        como texto, erro comum de LLM, dava TypeError, e um banco travado por
+        outro escritor dava sqlite3.OperationalError: o agente perdia o servidor
+        inteiro. As duas famílias, argumento mal formado e ambiente, voltam como
+        falha da chamada, e o agente corrige ou tenta de novo.
+        """
         try:
             return manipulador(argumentos)
         except GraphowError as erro:
             return {"sucesso": False, "erro": erro.formatar_para_llm()}
         except KeyError as erro:
             return {"sucesso": False, "erro": f"Argumento obrigatorio ausente em '{nome_ferramenta}': {erro}"}
-        except ValueError as erro:
-            return {"sucesso": False, "erro": f"Argumento invalido em '{nome_ferramenta}': {erro}"}
+        except (ValueError, TypeError, AttributeError, IndexError) as erro:
+            return {"sucesso": False, "erro": f"Argumento invalido em '{nome_ferramenta}': {type(erro).__name__}: {erro}"}
+        except (sqlite3.Error, OSError) as erro:
+            return {
+                "sucesso": False,
+                "erro": f"Falha do banco ao executar '{nome_ferramenta}': {erro}. Tente de novo em instantes",
+            }

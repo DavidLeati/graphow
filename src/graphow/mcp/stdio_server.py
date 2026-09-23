@@ -12,6 +12,8 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, autor_da_conexao
 from graphow.mcp.server import GraphowMCPServer
 from graphow.mcp.stdio_protocolo import (
+    CODIGO_ERRO_DE_PARSE,
+    CODIGO_REQUISICAO_INVALIDA,
     CanalJsonRpc,
     CanalJsonRpcStdio,
     DespachanteJsonRpc,
@@ -39,9 +41,13 @@ def _processar_linha(texto: str, despachante: DespachanteJsonRpc, canal: CanalJs
         dados = json.loads(texto)
     except json.JSONDecodeError as erro:
         canal.registrar_falha(f"Linha JSON-RPC malformada: {erro}")
+        despachante.responder_erro_de_transporte(CODIGO_ERRO_DE_PARSE, f"JSON malformado: {erro}")
         return
     if not isinstance(dados, Mapping):
         canal.registrar_falha("Requisicao JSON-RPC deve ser um objeto")
+        despachante.responder_erro_de_transporte(
+            CODIGO_REQUISICAO_INVALIDA, "Requisicao deve ser um objeto JSON; lotes nao sao aceitos"
+        )
         return
     despachante.despachar(dados)
 
