@@ -26,6 +26,12 @@ const ALTURA_DE_PASSAGEM = 14;
 const LARGURA_PADRAO = 220;
 const RELAXACOES = 40;
 const PESO_DO_CORREDOR = 2;
+// Um corredor mais alto que quatro cartões não é mais uma faixa de passagem.
+// Sem teto, a altura do corredor alimentava a si mesma: ele afastava os
+// vizinhos, a curva ficava mais íngreme, o corredor crescia de novo. Numa
+// sessão de mil nós isso crescia uma vez e meia por relaxação e saía com y
+// na casa de 7e12.
+const ALTURA_MAXIMA_DO_CORREDOR = 600;
 
 /**
  * Posiciona o grafo em camadas e devolve um bloco { largura, altura, itens },
@@ -133,7 +139,7 @@ function desejoDoCorredor(estado, { v, cadeia, indiceCamada }) {
   const inicio = estado.colunas.x[indiceCamada];
   const yEntrada = alturaDaCurvaEm(curva, inicio);
   const ySaida = alturaDaCurvaEm(curva, inicio + estado.colunas.largura[indiceCamada]);
-  estado.medidas.altura[v] = Math.abs(ySaida - yEntrada) + FOLGA_DO_CORREDOR;
+  estado.medidas.altura[v] = Math.min(ALTURA_MAXIMA_DO_CORREDOR, Math.abs(ySaida - yEntrada) + FOLGA_DO_CORREDOR);
   return { alvo: (yEntrada + ySaida) / 2, peso: PESO_DO_CORREDOR };
 }
 
