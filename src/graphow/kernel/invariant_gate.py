@@ -51,7 +51,7 @@ class InvariantGate:
         resultado_localizacao = self._validar_localizacao_de_evidencia(proposta, estado)
         if not resultado_localizacao.aprovado:
             return resultado_localizacao
-        resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estado)
+        resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estrutura.antes)
         if not resultado_bloqueio.aprovado:
             return resultado_bloqueio
         resultado_posse = self._validar_posse_da_tarefa(proposta, estado, locks)
@@ -212,7 +212,13 @@ class InvariantGate:
         proposta: PropostaPatch,
         estado: GrafoEstado,
     ) -> ResultadoValidacao:
-        """Impede que uma Task seja marcada como 'concluido' se tiver Question aberta."""
+        """Impede que uma Task seja marcada como 'concluido' se tiver Question aberta.
+
+        O estado recebido é a antevisão do lote, com a Question e a `bloqueia`
+        que o próprio lote cria: lendo só o estado de antes, abrir a dúvida e
+        concluir a Task no mesmo lote passava. Remoções e respostas do lote não
+        contam a favor: responder e concluir seguem sendo dois passos.
+        """
         for item in proposta.operacoes:
             if not self._eh_fechamento_task(item):
                 continue

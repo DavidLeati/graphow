@@ -299,6 +299,36 @@ def test_remover_a_tarefa_nao_leva_a_restricao_junto_edge_case(papel: PapelAutor
     assert kernel.obter_view().contem_aresta("esc-1") is True
 
 
+@pytest.mark.parametrize("papel", [PapelAutor.HUMANO, PapelAutor.EXECUTOR])
+def test_duvida_aberta_no_mesmo_lote_que_conclui_trava_a_tarefa_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: a regra lia o estado de antes do lote, e a dúvida nova não travava nada."""
+    kernel = _montar_tarefa_bloqueada()
+    resposta = _submeter(
+        kernel,
+        [ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/quest-1/propriedades/status", value=StatusQuestion.RESPONDIDA.value)],
+    )
+    assert resposta.sucesso is True, resposta.mensagem
+    assert kernel.adquirir_lock_task("task-1", "autor-de-teste") is True
+
+    recibo = _submeter(
+        kernel,
+        [
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/quest-2",
+                value={"id": "quest-2", "tipo": TipoNo.QUESTION.value, "rotulo": "E agora?"},
+            ),
+            _aresta("p-quest-2", "sess-1", "quest-2", TipoAresta.PRODUZ),
+            _aresta("bloq-2", "quest-2", "task-1", TipoAresta.BLOQUEIA),
+            ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/task-1/propriedades/status", value=StatusTask.CONCLUIDO.value),
+        ],
+        papel,
+    )
+
+    assert recibo.sucesso is False
+    assert recibo.modo_de_falha == "fechamento_com_bloqueio_pendente"
+
+
 def test_agente_remove_o_proprio_registro_com_as_arestas_dele_nominal() -> None:
     """A regra não fecha a remoção: o executor apaga a Note que criou, com a `produz` que a pendura."""
     kernel = _montar_tarefa_bloqueada()
