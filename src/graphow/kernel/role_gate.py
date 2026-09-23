@@ -11,10 +11,11 @@ from dataclasses import dataclass
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado, NoGrafo
-from graphow.core.types import PapelAutor, StatusTask, TipoNo
+from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, StatusQuestion, StatusTask, TipoNo
 from graphow.kernel.matriz_papeis import (
     PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
-    STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO,
+    PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO,
+    STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES,
     TIPOS_CUJA_REMOCAO_EXIGE_HUMANO,
     TIPOS_EDITAVEIS_PELO_SISTEMA,
     TIPOS_EXCLUSIVOS_DO_HUMANO,
@@ -126,8 +127,9 @@ class RoleGate:
                 modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
             )
         tipo_no = TipoNo(item.value["tipo"])
-        if tipo_no == TipoNo.APRENDIZADO and self._escreve_propriedade_reservada(item):
-            return self._recusar_alcance(contexto.proposta.papel)
+        resultado_reservadas = self._validar_propriedades_na_criacao(tipo_no, item, contexto.proposta.papel)
+        if not resultado_reservadas.aprovado:
+            return resultado_reservadas
         if tipo_no in self._tipos_permitidos_para(item, contexto):
             return ResultadoValidacao.sucesso()
         return ResultadoValidacao.falha(
@@ -135,6 +137,30 @@ class RoleGate:
             "RoleGate",
             modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
         )
+
+    def _validar_propriedades_na_criacao(
+        self,
+        tipo_no: TipoNo,
+        item: ItemPatch,
+        papel: PapelAutor,
+    ) -> ResultadoValidacao:
+        """O nó nasce sem o que só o humano escreve: alcance, status fechado, autonomia.
+
+        O Projeto que um agente criasse com autonomia ilimitada se julgava sob
+        a própria autonomia: a antevisão do lote já o continha, e o RoleGate
+        liberava a criação que ela mesma tornava possível.
+        """
+        propriedades = item.value.get("propriedades") if isinstance(item.value, dict) else None
+        declaradas = propriedades if isinstance(propriedades, dict) else {}
+        if tipo_no == TipoNo.APRENDIZADO and PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO & set(declaradas):
+            return self._recusar_alcance(papel)
+        status = str(declaradas.get("status", StatusQuestion.ABERTA.value))
+        if tipo_no == TipoNo.QUESTION and status not in STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES:
+            return self._recusar_encerramento_de_questao(str(item.value.get("id")), papel)
+        nivel = str(declaradas.get("nivel_autonomia", NivelAutonomiaProjeto.ESTRITO.value))
+        if tipo_no == TipoNo.PROJETO and nivel != NivelAutonomiaProjeto.ESTRITO.value:
+            return self._recusar_autonomia(papel)
+        return ResultadoValidacao.sucesso()
 
     def _tipos_permitidos_para(self, item: ItemPatch, contexto: ContextoPapel) -> frozenset[TipoNo]:
         """Determina o conjunto de tipos criáveis, considerando a autonomia do projeto."""
@@ -176,7 +202,24 @@ class RoleGate:
         resultado_alcance = self._validar_alcance_de_aprendizado(no_existente, ctx.item, papel)
         if not resultado_alcance.aprovado:
             return resultado_alcance
+        reservadas_do_projeto = PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO
+        if no_existente.tipo == TipoNo.PROJETO and self._escreve_propriedade(ctx.segmentos, reservadas_do_projeto):
+            return self._recusar_autonomia(papel)
         return self._validar_regras_especificas_papel(no_existente, ctx.item, papel)
+
+    def _escreve_propriedade(self, segmentos: Sequence[str], chaves: frozenset[str]) -> bool:
+        """Reconhece a operação em `/nos/<id>/propriedades/<chave>` sobre uma das chaves."""
+        return len(segmentos) == SEGMENTOS_DE_UMA_PROPRIEDADE and segmentos[-1] in chaves
+
+    def _recusar_autonomia(self, papel: PapelAutor) -> ResultadoValidacao:
+        """Explica que ampliar a autonomia do projeto é gesto do humano."""
+        return ResultadoValidacao.falha(
+            f"Papel '{papel.value}' nao pode escrever 'nivel_autonomia' num Projeto. "
+            "Ajustar a autonomia e prerrogativa do humano: use 'configurar_autonomia_projeto'",
+            "RoleGate",
+            {"propriedades_reservadas": ", ".join(sorted(PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO))},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
 
     def _validar_alcance_de_aprendizado(
         self,
@@ -185,20 +228,12 @@ class RoleGate:
         papel: PapelAutor,
     ) -> ResultadoValidacao:
         """Só o humano escreve o alcance de um Aprendizado: promover é dele."""
-        if no.tipo != TipoNo.APRENDIZADO or not self._escreve_propriedade_reservada(item):
+        segmentos = item.path.split("/")[1:]
+        if no.tipo != TipoNo.APRENDIZADO:
+            return ResultadoValidacao.sucesso()
+        if not self._escreve_propriedade(segmentos, PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO):
             return ResultadoValidacao.sucesso()
         return self._recusar_alcance(papel)
-
-    def _escreve_propriedade_reservada(self, item: ItemPatch) -> bool:
-        """Reconhece a escrita de `alcance` na propriedade isolada ou no nó inteiro."""
-        segmentos = [seg for seg in item.path.split("/") if seg]
-        reservadas = PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO
-        if len(segmentos) == SEGMENTOS_DE_UMA_PROPRIEDADE and segmentos[-1] in reservadas:
-            return True
-        if not isinstance(item.value, dict):
-            return False
-        propriedades = item.value.get("propriedades")
-        return isinstance(propriedades, dict) and bool(reservadas & set(propriedades))
 
     def _recusar_alcance(self, papel: PapelAutor) -> ResultadoValidacao:
         """Explica que promover um aprendizado é prerrogativa do humano."""
@@ -244,13 +279,7 @@ class RoleGate:
                 modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
             )
         if self._encerra_questao(no, item):
-            return ResultadoValidacao.falha(
-                f"Papel '{papel.value}' não pode encerrar a Question '{no.id}'. "
-                "Use 'abrir_questao' e aguarde a resposta humana",
-                "RoleGate",
-                {"id_questao": no.id},
-                modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-            )
+            return self._recusar_encerramento_de_questao(no.id, papel)
         if not self._eh_fechamento_de_task(no, item):
             return ResultadoValidacao.sucesso()
         if papel in (PapelAutor.PLANEJADOR, PapelAutor.REVISOR):
@@ -262,21 +291,24 @@ class RoleGate:
         return ResultadoValidacao.sucesso()
 
     def _encerra_questao(self, no: NoGrafo, item: ItemPatch) -> bool:
-        """Identifica a gravação de um status que dá a dúvida por encerrada."""
-        if no.tipo != TipoNo.QUESTION:
-            return False
-        return self._extrair_status_proposto(item) in STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO
+        """Identifica a escrita de status que tira a dúvida do estado aberto.
 
-    def _extrair_status_proposto(self, item: ItemPatch) -> str | None:
-        """Lê o status escrito, seja na propriedade isolada, seja no nó inteiro."""
-        if item.path.endswith("/propriedades/status"):
-            return str(item.value) if item.value is not None else None
-        if not isinstance(item.value, dict):
-            return None
-        propriedades = item.value.get("propriedades")
-        if not isinstance(propriedades, dict) or "status" not in propriedades:
-            return None
-        return str(propriedades["status"])
+        Remover o status também encerra: sem ele o InvariantGate não acha
+        status 'aberta' e deixa concluir a Task.
+        """
+        if no.tipo != TipoNo.QUESTION or not item.path.endswith("/propriedades/status"):
+            return False
+        return item.op == OperacaoPatch.REMOVE or str(item.value) not in STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES
+
+    def _recusar_encerramento_de_questao(self, id_questao: str, papel: PapelAutor) -> ResultadoValidacao:
+        """Explica que só a resposta humana tira uma dúvida do estado aberto."""
+        return ResultadoValidacao.falha(
+            f"Papel '{papel.value}' não pode encerrar a Question '{id_questao}'. "
+            "Use 'abrir_questao' e aguarde a resposta humana",
+            "RoleGate",
+            {"id_questao": id_questao},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
 
     def _eh_fechamento_de_task(self, no: NoGrafo, item: ItemPatch) -> bool:
         """Identifica a operação que marca uma Task como concluída."""

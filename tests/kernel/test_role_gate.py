@@ -188,3 +188,55 @@ def test_role_gate_sistema_cria_o_ambiente_padrao_mas_nada_do_trabalho_nominal()
     assert gate.validar(PropostaPatch.criar(ambiente), GrafoEstado()).aprovado is True
     assert gate.validar(PropostaPatch.criar(trabalho), GrafoEstado()).aprovado is False
 
+
+
+def test_role_gate_agente_nao_amplia_a_propria_autonomia_edge_case() -> None:
+    """Caso de borda: `nivel_autonomia` é do humano, por `configurar_autonomia_projeto`.
+
+    O executor escrevia 'ilimitado' no Projeto e, no lote seguinte, criava Tasks.
+    """
+    estado = _montar_estado_com_projeto("estrito")
+    for op in (OperacaoPatch.REPLACE, OperacaoPatch.REMOVE):
+        dados = DadosPropostaPatch(
+            autor="executor-1",
+            papel=PapelAutor.EXECUTOR,
+            operacoes=[ItemPatch(op=op, path="/nos/proj-1/propriedades/nivel_autonomia", value="ilimitado")],
+        )
+        res = RoleGate().validar(PropostaPatch.criar(dados), estado)
+        assert res.aprovado is False, op
+        assert "nivel_autonomia" in str(res.mensagem_erro)
+
+
+def test_role_gate_projeto_criado_por_agente_nao_se_declara_ilimitado_edge_case() -> None:
+    """Caso de borda: o Projeto novo se julgava sob a autonomia que ele mesmo declarava."""
+    dados = DadosPropostaPatch(
+        autor="planejador-1",
+        papel=PapelAutor.PLANEJADOR,
+        operacoes=[
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/proj-9",
+                value={"id": "proj-9", "tipo": TipoNo.PROJETO.value, "propriedades": {"nivel_autonomia": "ilimitado"}},
+            ),
+        ],
+    )
+    res = RoleGate().validar(PropostaPatch.criar(dados), GrafoEstado())
+    assert res.aprovado is False
+
+
+def test_role_gate_agente_nao_cria_question_ja_encerrada_edge_case() -> None:
+    """Caso de borda: a Question de um agente nasce aberta; fechá-la é do humano."""
+    estado = _montar_estado_com_projeto("estrito")
+    dados = DadosPropostaPatch(
+        autor="executor-1",
+        papel=PapelAutor.EXECUTOR,
+        operacoes=[
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/q9",
+                value={"id": "q9", "tipo": TipoNo.QUESTION.value, "propriedades": {"status": "respondida"}},
+            ),
+        ],
+    )
+    res = RoleGate().validar(PropostaPatch.criar(dados), estado)
+    assert res.aprovado is False

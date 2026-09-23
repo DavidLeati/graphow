@@ -26,11 +26,18 @@ TIPOS_CUJA_REMOCAO_EXIGE_HUMANO: frozenset[TipoNo] = frozenset(
 # promoção: um agente que escrevesse `alcance` promoveria o próprio aprendizado.
 PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset({"alcance"})
 
-# Fechar a dúvida é prerrogativa de quem foi consultado. 'aberta' segue livre:
-# reabrir uma pergunta não anula garantia alguma.
-STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO: frozenset[str] = frozenset(
-    {StatusQuestion.RESPONDIDA.value, StatusQuestion.DESCARTADA.value}
-)
+# Fechar a dúvida é prerrogativa de quem foi consultado. O agente escreve só
+# 'aberta': reabrir uma pergunta não anula garantia alguma. É lista branca, e
+# não a lista dos status que fecham, porque o InvariantGate só trava a Task
+# enquanto o status é exatamente 'aberta': um 'resolvida' inventado passava
+# pela lista negra e destravava a tarefa do mesmo jeito.
+STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES: frozenset[str] = frozenset({StatusQuestion.ABERTA.value})
+
+# O nível de autonomia amplia o que os agentes criam no projeto. Quem o escreve
+# é o humano, por `configurar_autonomia_projeto`; um agente que o escrevesse se
+# daria a camada que estrutura o trabalho. Na criação de um Projeto o agente
+# só declara o nível estrito.
+PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset({"nivel_autonomia"})
 
 SO_HUMANO: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO})
 HUMANO_E_PLANEJADOR: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.PLANEJADOR}

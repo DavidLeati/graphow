@@ -47,6 +47,10 @@ CAMINHOS_DE_FUGA: tuple[ItemPatch, ...] = (
         path="//nos//quest-1//propriedades//status",
         value=StatusQuestion.RESPONDIDA.value,
     ),
+    # Status fora do vocabulário, ou nenhum: o InvariantGate só trava a Task
+    # enquanto o status é exatamente 'aberta'.
+    ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/quest-1/propriedades/status", value="resolvida"),
+    ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/quest-1/propriedades/status"),
     # A remoção declarando outro tipo: o RoleGate lia o tipo do valor enviado.
     ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/bloq-1", value={"tipo": TipoAresta.JUSTIFICA.value}),
     ItemPatch(

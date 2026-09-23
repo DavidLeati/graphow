@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-16 módulos · 2642 linhas · 27 classes
+16 módulos · 2681 linhas · 27 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,12 +20,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 352 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 151 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 158 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 167 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 291 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 323 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 283 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
@@ -185,7 +185,8 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `TIPOS_EDITAVEIS_PELO_SISTEMA` | `frozenset[TipoNo]` | `frozenset({TipoNo.RUN, TipoNo.SESSAO})` |
 | `TIPOS_CUJA_REMOCAO_EXIGE_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.QUESTION, TipoNo.APRENDIZADO})` |
 | `PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'alcance'})` |
-| `STATUS_DE_QUESTION_RESERVADOS_AO_HUMANO` | `frozenset[str]` | `frozenset({StatusQuestion.RESPONDIDA.value, StatusQuestion.DESCARTADA.v…` |
+| `STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES` | `frozenset[str]` | `frozenset({StatusQuestion.ABERTA.value})` |
+| `PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'nivel_autonomia'})` |
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
 | `HUMANO_E_TRABALHO` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}` |
