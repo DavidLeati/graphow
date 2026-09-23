@@ -10,7 +10,7 @@
 O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre desenvolvedores humanos e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores).
 
 A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
-1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* bitemporal (SQLite local-first ou memória); o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
+1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
 2. **Caminho Único de Escrita (*PatchBoard*):** Humanos e IAs submetem mutações utilizando o mesmo protocolo JSON Patch ([RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902)), avaliado rigorosamente por um **Kernel de 4 Portões**.
 3. **Divulgação Progressiva (*Progressive Disclosure*):** Agentes de IA consom recortes de contexto otimizados sob orçamento estrito de tokens, expandindo nós vizinhos sob demanda.
 4. **Linhagem Causal e Reversibilidade:** Rastreabilidade reversa integral do `Artifact` até a intenção raiz (`Goal`), com ramificações históricas (*forks*) registradas como ponteiro `(ramo_base, seq_corte)`, sem cópia de prefixo.
@@ -232,7 +232,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, bitemporalidade, separação Navegação vs Trabalho e matriz das 13 arestas permitidas.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho e matriz das 13 arestas permitidas.
 
 ---
 

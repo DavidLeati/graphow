@@ -10,11 +10,11 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-12 módulos · 1762 linhas · 22 classes
+12 módulos · 1758 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`projection/acumulador.py`](#projectionacumulador) | 219 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
+| [`projection/acumulador.py`](#projectionacumulador) | 215 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/ambito.py`](#projectionambito) | 67 | O âmbito de cada nó: os projetos de trabalho ou as sessões que o hook abre. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |

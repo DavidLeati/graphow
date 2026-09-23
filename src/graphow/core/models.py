@@ -67,34 +67,27 @@ class OrdemNoLog:
 
 @dataclass(frozen=True)
 class MetadadosTemporais:
-    """Estrutura bitemporal de rastreabilidade de validade e log."""
+    """Tempo de transação do nó: quando o log o registrou e quando o tocou por último.
+
+    O grafo tem um eixo de tempo só, o do log. Os campos `registrado_em`,
+    `valido_de` e `valido_ate` que estavam aqui recebiam sempre o mesmo instante
+    do evento e ninguém os lia: chamavam o modelo de bitemporal sem que existisse
+    um tempo de validade declarado por quem escreve. A vigência que o produto
+    tem é outra: `valido_ate` como propriedade do Aprendizado, lida pela vista, e
+    a aresta `substitui`.
+    """
 
     criado_em: str
-    registrado_em: str
-    valido_de: str | None = None
-    valido_ate: str | None = None
     atualizado_em: str | None = None
 
     def com_atualizacao(self, momento: str) -> "MetadadosTemporais":
         """Registra quando o nó foi alterado, sem mexer em quando ele nasceu."""
-        return MetadadosTemporais(
-            criado_em=self.criado_em,
-            registrado_em=self.registrado_em,
-            valido_de=self.valido_de,
-            valido_ate=self.valido_ate,
-            atualizado_em=momento,
-        )
+        return MetadadosTemporais(criado_em=self.criado_em, atualizado_em=momento)
 
     @classmethod
-    def agora(cls, valido_de: str | None = None) -> "MetadadosTemporais":
+    def agora(cls) -> "MetadadosTemporais":
         """Cria metadados temporais com timestamp UTC atual."""
-        momento_atual: str = datetime.now(timezone.utc).isoformat()
-        return cls(
-            criado_em=momento_atual,
-            registrado_em=momento_atual,
-            valido_de=valido_de or momento_atual,
-            valido_ate=None,
-        )
+        return cls(criado_em=datetime.now(timezone.utc).isoformat())
 
 
 @dataclass(frozen=True)

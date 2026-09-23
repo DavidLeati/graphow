@@ -10,14 +10,14 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-8 módulos · 710 linhas · 33 classes
+8 módulos · 703 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 73 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/models.py`](#coremodels) | 203 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
+| [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 66 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 39 | Propriedades que a orquestração grava na Task, no Goal e na Evidence de revisão. |
 | [`core/types.py`](#coretypes) | 115 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
@@ -151,12 +151,12 @@ Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais.
 
 ### `MetadadosTemporais`
 
-*DTO imutável* — Estrutura bitemporal de rastreabilidade de validade e log.
+*DTO imutável* — Tempo de transação do nó: quando o log o registrou e quando o tocou por último.
 
-**Campos:** `criado_em: str`, `registrado_em: str`, `valido_de: str | None`, `valido_ate: str | None`, `atualizado_em: str | None`
+**Campos:** `criado_em: str`, `atualizado_em: str | None`
 
 - `com_atualizacao(momento: str) -> 'MetadadosTemporais'` — Registra quando o nó foi alterado, sem mexer em quando ele nasceu.
-- `agora(valido_de: str | None) -> 'MetadadosTemporais'` — Cria metadados temporais com timestamp UTC atual.
+- `agora() -> 'MetadadosTemporais'` — Cria metadados temporais com timestamp UTC atual.
 
 ### `NoGrafo`
 

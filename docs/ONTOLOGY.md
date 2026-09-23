@@ -14,10 +14,10 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
    - **Leitura de código diz onde leu**: a `Evidence` do planejador é o que ele leu no código para decidir, e nasce com o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Toda `Evidence` que cite `linhas` ou `trecho`, de qualquer papel, cita os três. O `InvariantGate` recusa na criação e na edição com `evidencia_sem_localizacao`; o portão não lê o disco, para o replay dar o mesmo veredito anos depois, e garante a forma que torna a conferência possível.
    - **A Sessão tem ciclo de vida** (`ativa`, `concluida`). Encerrada, a vista dela abre pelo fechamento determinístico (decisões vigentes, dúvidas abertas, restrições, último artefato), que é projeção do log e nunca é gravado, e o motor reativo abre nela a `Task` de condensação.
 
-2. **Temporalidade Bitemporal**:
-   - `criado_em` (ISO 8601 UTC): Momento em que o fato/evento ocorreu ou foi gerado.
-   - `registrado_em` (ISO 8601 UTC): Momento em que o sistema logou o evento.
-   - `valido_de` / `valido_ate` (Opcional): Período de vigência do fato no mundo real (suporte a substituição não-destrutiva).
+2. **Temporalidade**: o grafo tem um eixo de tempo, o do log (tempo de transação). Não é bitemporal: ninguém declara quando um fato passou a valer no mundo.
+   - `criado_em` / `atualizado_em` (ISO 8601 UTC): instante do evento que criou o nó e do último que o tocou, tirados do log e nunca do relógio de quem projeta. A ordem total é o `seq`.
+   - O estado em qualquer ponto passado sai do replay até um `seq` ou um instante.
+   - Vigência é dita de dois jeitos: a propriedade `valido_ate` do `Aprendizado`, que a vista lê para não trazer memória vencida, e a aresta `substitui`, que marca o substituído sem apagá-lo.
 
 3. **Imutabilidade e Evolução**:
    - Nenhum nó ou aresta é destruído fisicamente; modificações geram novos eventos de patch.

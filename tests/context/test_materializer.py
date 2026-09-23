@@ -86,7 +86,7 @@ def test_expandir_no_entrega_idade_e_ordem_ao_agente_nominal() -> None:
         "t9",
         TipoNo.TASK,
         "Tarefa datada",
-        metadados=MetadadosTemporais(criado_em=momento, registrado_em=momento),
+        metadados=MetadadosTemporais(criado_em=momento),
         ordem=OrdemNoLog(seq_criacao=5, seq_atualizacao=8),
     )
     view = GrafoView(GrafoEstado(nos={"t9": no}))

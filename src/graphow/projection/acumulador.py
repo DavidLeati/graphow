@@ -32,11 +32,7 @@ def metadados_do_evento(evento: EventoLog) -> MetadadosTemporais:
     Um nó datado no momento da projeção envelhece a cada replay: o mesmo log
     reconstruído amanhã diria que tudo nasceu amanhã.
     """
-    return MetadadosTemporais(
-        criado_em=evento.timestamp_utc,
-        registrado_em=evento.timestamp_utc,
-        valido_de=evento.timestamp_utc,
-    )
+    return MetadadosTemporais(criado_em=evento.timestamp_utc)
 
 
 def ordem_do_evento(evento: EventoLog) -> OrdemNoLog:
@@ -46,7 +42,7 @@ def ordem_do_evento(evento: EventoLog) -> OrdemNoLog:
 
 def marca_da_aresta(evento: EventoLog) -> MetadadosTemporais:
     """Marca temporal da aresta, tirada do log pelo mesmo motivo que a do nó."""
-    return MetadadosTemporais(criado_em=evento.timestamp_utc, registrado_em=evento.timestamp_utc)
+    return MetadadosTemporais(criado_em=evento.timestamp_utc)
 
 
 class AcumuladorProjecao:
