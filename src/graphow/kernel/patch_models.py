@@ -132,10 +132,22 @@ class SanitizadorPatch:
 
     @classmethod
     def _validar_caminho(cls, path: str) -> None:
-        """Checa se os segmentos do path RFC 6902 são seguros."""
+        """Checa se o path RFC 6902 está na forma canônica e se os segmentos são seguros.
+
+        Os portões descartam segmentos vazios ao ler o caminho, e parte das
+        regras compara o texto do caminho: `.../propriedades/status/` escapava
+        do `endswith` do RoleGate e encerrava a Question de um agente. Com um
+        único caminho aceito por elemento, ler por segmento e ler por texto
+        voltam a dizer a mesma coisa.
+        """
         if not path.startswith("/"):
             raise ErroPatchInvalido("O caminho do patch deve iniciar com '/'", {"path": path})
-        segmentos: list[str] = [seg for seg in path.split("/") if seg]
+        segmentos: list[str] = path.split("/")[1:]
+        if "" in segmentos:
+            raise ErroPatchInvalido(
+                "O caminho do patch nao pode ter segmento vazio ('//' ou '/' no final)",
+                {"path": path},
+            )
         for seg in segmentos:
             if seg in cls.CHAVES_PROIBIDAS:
                 raise ErroSegurancaPatch(

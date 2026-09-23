@@ -35,6 +35,18 @@ CAMINHOS_DE_FUGA: tuple[ItemPatch, ...] = (
     ),
     ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/quest-1"),
     ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/bloq-1"),
+    # O caminho fora da forma canônica: os portões descartam o segmento vazio,
+    # e a barra no final escapava da comparação por texto do RoleGate.
+    ItemPatch(
+        op=OperacaoPatch.REPLACE,
+        path="/nos/quest-1/propriedades/status/",
+        value=StatusQuestion.RESPONDIDA.value,
+    ),
+    ItemPatch(
+        op=OperacaoPatch.REPLACE,
+        path="//nos//quest-1//propriedades//status",
+        value=StatusQuestion.RESPONDIDA.value,
+    ),
 )
 
 

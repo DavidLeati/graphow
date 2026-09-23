@@ -91,7 +91,7 @@ def test_caminho_sem_identificador_recusa_em_vez_de_estourar_edge_case() -> None
 
     assert not resultado.aprovado
     assert resultado.portao_falha == "SchemaGate"
-    assert "nao identifica" in (resultado.mensagem_erro or "")
+    assert "segmento vazio" in (resultado.mensagem_erro or "")
 
 
 def test_caminho_de_aresta_sem_identificador_tambem_recusa_edge_case() -> None:
@@ -99,7 +99,7 @@ def test_caminho_de_aresta_sem_identificador_tambem_recusa_edge_case() -> None:
     resultado = _validar_caminho("/arestas/")
 
     assert not resultado.aprovado
-    assert "nao identifica" in (resultado.mensagem_erro or "")
+    assert "segmento vazio" in (resultado.mensagem_erro or "")
 
 
 def _validar_lote(operacao: ItemPatch, estado: GrafoEstado) -> ResultadoValidacao:
