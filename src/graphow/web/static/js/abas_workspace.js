@@ -206,10 +206,10 @@ export class AbasWorkspace {
   montarAba(aba) {
     const titulo = this.tituloDe(aba);
     return `
-      <div class="aba ${aba.id === this.idAtiva ? "is-ativa" : ""}" data-aba="${aba.id}" title="${escapeHtml(titulo)}" role="tab">
+      <div class="aba ${aba.id === this.idAtiva ? "is-ativa" : ""}" data-aba="${escapeHtml(aba.id)}" title="${escapeHtml(titulo)}" role="tab">
         <span class="aba-icone">${icone(this.iconeDe(aba), { tamanho: 14 })}</span>
         <span class="aba-titulo">${escapeHtml(titulo)}</span>
-        <button class="aba-fechar" data-fechar-aba="${aba.id}" aria-label="Fechar aba">${icone("x", { tamanho: 13 })}</button>
+        <button class="aba-fechar" data-fechar-aba="${escapeHtml(aba.id)}" aria-label="Fechar aba">${icone("x", { tamanho: 13 })}</button>
       </div>`;
   }
 

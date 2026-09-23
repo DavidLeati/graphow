@@ -87,14 +87,18 @@ export class CanvasRenderer {
       el.style.left = `${pos.x}px`;
       el.style.top = `${pos.y}px`;
 
-      const statusBadge = node.propriedades?.status ? `<span class="badge badge-status">${node.propriedades.status}</span>` : "";
-      const lockBadge = node.lock_ativo ? `<span class="badge badge-locked">🔒 ${node.lock_ativo}</span>` : "";
+      const statusBadge = node.propriedades?.status ? `<span class="badge badge-status">${escapeHtml(node.propriedades.status)}</span>` : "";
+      const lockBadge = node.lock_ativo ? `<span class="badge badge-locked">🔒 ${escapeHtml(node.lock_ativo)}</span>` : "";
       const blockBadge = node.esta_bloqueado ? `<span class="badge badge-blocked">⚠️ Bloqueado</span>` : "";
 
+      // Tudo o que vem do grafo passa por escapeHtml: status, posse, tipo e id
+      // são escritos por agentes, e o card roda na origem que escreve como humano.
+      const tipoSeguro = escapeHtml(node.tipo);
+      const idSeguro = escapeHtml(id);
       el.innerHTML = `
-        <div class="node-header node-type-${node.tipo}">
-          <span class="node-type-label">${node.tipo}</span>
-          <span class="node-id-badge">#${id.slice(-6)}</span>
+        <div class="node-header node-type-${tipoSeguro}">
+          <span class="node-type-label">${tipoSeguro}</span>
+          <span class="node-id-badge">#${escapeHtml(id.slice(-6))}</span>
         </div>
         <div class="node-body">
           <div class="node-title" title="${escapeHtml(node.rotulo)}">${escapeHtml(node.rotulo)}</div>
@@ -106,10 +110,10 @@ export class CanvasRenderer {
           ${this.montarProgressoDaSubarvore(node)}
           ${this.montarRodapeDeIdade(node)}
         </div>
-        <div class="port port-in" data-port-in="${id}" title="Entrada"></div>
-        <div class="port port-out" data-port-out="${id}" title="Saída"></div>
-        <div class="port port-top" data-port-top="${id}" title="Superior"></div>
-        <div class="port port-bottom" data-port-bottom="${id}" title="Inferior"></div>
+        <div class="port port-in" data-port-in="${idSeguro}" title="Entrada"></div>
+        <div class="port port-out" data-port-out="${idSeguro}" title="Saída"></div>
+        <div class="port port-top" data-port-top="${idSeguro}" title="Superior"></div>
+        <div class="port port-bottom" data-port-bottom="${idSeguro}" title="Inferior"></div>
       `;
 
       // Selection on click
