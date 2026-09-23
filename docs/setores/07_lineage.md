@@ -10,12 +10,12 @@ Rastreio causal reverso até o Goal raiz, replay pontual com instantâneos e for
 
 ## Inventário
 
-4 módulos · 292 linhas · 7 classes
+4 módulos · 282 linhas · 7 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`lineage/fork_manager.py`](#lineageforkmanager) | 80 | Gerenciador de ramificações (Forks) sem cópia de prefixo de eventos. |
-| [`lineage/lineage_tracer.py`](#lineagelineagetracer) | 101 | Rastreamento de linhagem reversa de artefatos até objetivos raiz (Goals). |
+| [`lineage/lineage_tracer.py`](#lineagelineagetracer) | 91 | Rastreamento de linhagem reversa de artefatos até objetivos raiz (Goals). |
 | [`lineage/replay_engine.py`](#lineagereplayengine) | 104 | Motor de Replay determinístico e cálculo de Diff entre ramificações. |
 
 ## `lineage/fork_manager.py`
@@ -51,9 +51,9 @@ Rastreamento de linhagem reversa de artefatos até objetivos raiz (Goals).
 
 ### `LineageTracer`
 
-*serviço* — Localiza a trilha causal completa de um nó folha até o Goal raiz.
+*serviço* — Localiza a trilha causal mais curta de um nó folha até o Goal raiz.
 
-- `rastrear_linhagem(id_no_alvo: str, view: GrafoView) -> CaminhoLinhagem` — Sobe a hierarquia de arestas partindo do nó alvo até encontrar o Goal correspondente.
+- `rastrear_linhagem(id_no_alvo: str, view: GrafoView) -> CaminhoLinhagem` — Sobe em largura a partir do alvo; sem Goal alcançável, a trilha é só o alvo.
 
 ## `lineage/replay_engine.py`
 
