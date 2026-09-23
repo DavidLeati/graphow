@@ -10,7 +10,7 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 
 ## Inventário
 
-11 módulos · 1346 linhas · 31 classes
+11 módulos · 1361 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 | [`storage/lock_store.py`](#storagelockstore) | 112 | Repositórios de locks exclusivos de escrita sobre tarefas. |
 | [`storage/migrador_banco.py`](#storagemigradorbanco) | 134 | Migração segura do banco de eventos entre localizações, preservando o WAL. |
 | [`storage/reparo_sequencia.py`](#storagereparosequencia) | 229 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
-| [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 74 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
+| [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 89 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
 | [`storage/sqlite_store.py`](#storagesqlitestore) | 261 | Implementação SQLite append-only do repositório de eventos. |
 
 ## `storage/composicao.py`
