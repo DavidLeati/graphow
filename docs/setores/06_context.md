@@ -10,21 +10,21 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2250 linhas · 30 classes
+17 módulos · 2291 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 247 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
-| [`context/corte.py`](#contextcorte) | 78 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/corte.py`](#contextcorte) | 94 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 333 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/politicas.py`](#contextpoliticas) | 348 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/protocolo.py`](#contextprotocolo) | 87 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
-| [`context/renderizacao.py`](#contextrenderizacao) | 143 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
+| [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
 | [`context/secoes.py`](#contextsecoes) | 277 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
@@ -89,6 +89,7 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LIMITES_DE_VIZINHOS_POR_TIPO` | `tuple[int, ...]` | `(8, 4, 2, 1)` |
+| `LIMITES_DE_RESTRICOES` | `tuple[int, ...]` | `(1024, 64, 32, 16, 8, 4, 2, 1)` |
 | `_CONTEXTO` | `frozenset[PrioridadeRetencao]` | `frozenset({PrioridadeRetencao.CONTEXTO})` |
 | `_APOIO` | `frozenset[PrioridadeRetencao]` | `_CONTEXTO | {PrioridadeRetencao.APOIO}` |
 | `_MAIS_DECISOES` | `frozenset[PrioridadeRetencao]` | `_APOIO | {PrioridadeRetencao.DECISOES}` |
@@ -100,7 +101,7 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 
 *DTO imutável* — Um degrau da escada: o que se abre mão, se a memória vai resumida e quanto a vizinhança encolhe.
 
-**Campos:** `prioridades_descartadas: frozenset[PrioridadeRetencao]`, `limite_de_vizinhos: int | None`, `memoria_resumida: bool`
+**Campos:** `prioridades_descartadas: frozenset[PrioridadeRetencao]`, `limite_de_vizinhos: int | None`, `memoria_resumida: bool`, `limite_de_restricoes: int | None`
 
 - `houve_corte() -> bool` `[property]` — Indica se algo foi omitido, para o aviso de truncagem no texto.
 
@@ -315,7 +316,7 @@ Renderização em Markdown de um recorte de contexto sob orçamento de tokens.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `AVISO_DE_TRUNCAGEM` | `str` | `'[AVISO: secoes secundarias omitidas por limite de tokens]'` |
+| `AVISO_DE_TRUNCAGEM` | `str` | `'[AVISO: vista cortada pelo limite de tokens]'` |
 
 ### `CandidatoRenderizado`
 

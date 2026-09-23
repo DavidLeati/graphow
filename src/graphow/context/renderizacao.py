@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from graphow.context.corte import PlanoDeCorte, montar_escada_de_corte
 from graphow.context.secoes import (
+    PrioridadeRetencao,
     RecorteContexto,
     SecaoContexto,
     anotar_ordem,
@@ -22,7 +23,7 @@ from graphow.context.secoes import (
 from graphow.context.tokenizacao import ESTIMADOR_PADRAO, EstimadorTokens
 from graphow.core.exceptions import ErroOrcamentoExcedido
 
-AVISO_DE_TRUNCAGEM: str = "[AVISO: secoes secundarias omitidas por limite de tokens]"
+AVISO_DE_TRUNCAGEM: str = "[AVISO: vista cortada pelo limite de tokens]"
 
 
 @dataclass(frozen=True)
@@ -85,15 +86,24 @@ class RenderizadorContexto:
         plano: PlanoDeCorte,
     ) -> tuple[SecaoContexto, ...]:
         """Descarta as prioridades do degrau, resume a memória se ele pede e encolhe o que ainda pode."""
-        sobreviventes = [
+        sobreviventes = (
             secao for secao in secoes if secao.prioridade_retencao not in plano.prioridades_descartadas
-        ]
-        if plano.memoria_resumida:
-            sobreviventes = [secao.resumida() for secao in sobreviventes]
-        if plano.limite_de_vizinhos is None:
-            return tuple(sobreviventes)
-        reduzidas = [secao.reduzida(plano.limite_de_vizinhos) for secao in sobreviventes]
-        return tuple(secao for secao in reduzidas if not secao.esta_vazia)
+        )
+        encolhidas = (self._encolher(secao, plano) for secao in sobreviventes)
+        return tuple(secao for secao in encolhidas if not secao.esta_vazia)
+
+    def _encolher(self, secao: SecaoContexto, plano: PlanoDeCorte) -> SecaoContexto:
+        """Aplica à seção o encolhimento do degrau: as restrições têm o delas, à parte.
+
+        As restrições não encolhem junto da memória nem da vizinhança: só depois
+        que as duas caíram, e primeiro perdendo as propriedades, depois itens.
+        """
+        if secao.prioridade_retencao == PrioridadeRetencao.RESTRICOES:
+            if plano.limite_de_restricoes is None:
+                return secao
+            return secao.resumida().reduzida(plano.limite_de_restricoes)
+        resumida = secao.resumida() if plano.memoria_resumida else secao
+        return resumida if plano.limite_de_vizinhos is None else resumida.reduzida(plano.limite_de_vizinhos)
 
     def _montar_resultado(
         self,

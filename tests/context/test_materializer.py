@@ -96,3 +96,36 @@ def test_expandir_no_entrega_idade_e_ordem_ao_agente_nominal() -> None:
     assert detalhe["criado_em"] == momento
     assert detalhe["seq_criacao"] == 5
     assert detalhe["seq_atualizacao"] == 8
+
+
+def _tarefa_com_restricoes(quantidade: int) -> GrafoView:
+    """Uma Task escopada por muitas Constraints longas, com um vizinho de dependência."""
+    nos = {"t1": NoGrafo("t1", TipoNo.TASK, "Construir Kernel", {"status": "em_andamento"})}
+    arestas: dict[str, ArestaGrafo] = {}
+    for indice in range(quantidade):
+        id_no = f"c{indice:02d}"
+        nos[id_no] = NoGrafo(id_no, TipoNo.CONSTRAINT, f"Regra {indice}", {"descricao": "texto longo da regra " * 6})
+        arestas[f"e{indice}"] = ArestaGrafo(f"e{indice}", id_no, "t1", TipoAresta.ESCOPA)
+    return GrafoView(GrafoEstado(nos=nos, arestas=arestas))
+
+
+def test_muitas_restricoes_encolhem_em_vez_de_sumir_edge_case() -> None:
+    """Caso de borda: com sessenta Constraints a vista saía só com o cabeçalho até 3200 tokens."""
+    req = RequisicaoVista(id_alvo="t1", papel=PapelAutor.EXECUTOR, orcamento_tokens=300)
+
+    vista = MaterializadorContexto().materializar(req, _tarefa_com_restricoes(60))
+
+    assert "Restricoes Inviolaveis (resumidas" in vista.conteudo_formatado
+    assert "[c00] Regra 0" in vista.conteudo_formatado
+    assert "do tipo Constraint" in vista.conteudo_formatado
+    assert "texto longo" not in vista.conteudo_formatado
+
+
+def test_restricoes_com_folga_seguem_inteiras_nominal() -> None:
+    """Com orçamento para tudo, as restrições vão com as propriedades."""
+    req = RequisicaoVista(id_alvo="t1", papel=PapelAutor.EXECUTOR, orcamento_tokens=1500)
+
+    vista = MaterializadorContexto().materializar(req, _tarefa_com_restricoes(3))
+
+    assert "texto longo" in vista.conteudo_formatado
+    assert "resumidas" not in vista.conteudo_formatado

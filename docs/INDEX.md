@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 169 módulos · 21074 linhas · 331 classes**
+**15 alas · 169 módulos · 21115 linhas · 331 classes**
 
 ---
 
@@ -62,7 +62,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 11 | 1326 | 31 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 12 | 1762 | 22 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 881 | 14 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 17 | 2250 | 30 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 17 | 2291 | 30 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 292 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 12 | 1220 | 15 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |

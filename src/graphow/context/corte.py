@@ -23,6 +23,14 @@ from graphow.context.secoes import PrioridadeRetencao
 # Quantos vizinhos por tipo sobrevivem em cada degrau de aperto.
 LIMITES_DE_VIZINHOS_POR_TIPO: tuple[int, ...] = (8, 4, 2, 1)
 
+# Quantas restrições, já sem as propriedades, sobrevivem em cada degrau depois
+# que a navegação e a memória caíram; o primeiro número cobre qualquer caso real.
+# Um vizinho perdido se reencontra por busca, uma Constraint ignorada vira
+# trabalho invalidado. Quando a seção caía inteira, uma tarefa com sessenta
+# Constraints saía só com o cabeçalho em qualquer orçamento abaixo de 3200
+# tokens, e o agente nem sabia que havia restrição.
+LIMITES_DE_RESTRICOES: tuple[int, ...] = (1024, 64, 32, 16, 8, 4, 2, 1)
+
 
 @dataclass(frozen=True)
 class PlanoDeCorte:
@@ -33,11 +41,15 @@ class PlanoDeCorte:
     # Os grupos que declaram a forma curta de suas linhas passam a usá-la: hoje,
     # os aprendizados aplicáveis, que ficam só com a afirmação e as marcas.
     memoria_resumida: bool = False
+    # As restrições vão em uma linha cada, sem propriedades, e no máximo N
+    # delas, com as demais anunciadas. None, vão inteiras.
+    limite_de_restricoes: int | None = None
 
     @property
     def houve_corte(self) -> bool:
         """Indica se algo foi omitido, para o aviso de truncagem no texto."""
-        return bool(self.prioridades_descartadas) or self.limite_de_vizinhos is not None or self.memoria_resumida
+        encolheu = self.limite_de_vizinhos is not None or self.limite_de_restricoes is not None
+        return bool(self.prioridades_descartadas) or encolheu or self.memoria_resumida
 
 
 _CONTEXTO: frozenset[PrioridadeRetencao] = frozenset({PrioridadeRetencao.CONTEXTO})
@@ -69,10 +81,14 @@ def montar_escada_de_corte() -> tuple[PlanoDeCorte, ...]:
         PlanoDeCorte(prioridades_descartadas=_MAIS_BLOQUEIOS, limite_de_vizinhos=limite, memoria_resumida=True)
         for limite in LIMITES_DE_VIZINHOS_POR_TIPO
     )
-    # As restrições invioláveis são as últimas a cair: um vizinho perdido se
-    # reencontra por busca, uma Constraint ignorada vira trabalho invalidado.
+    # As restrições invioláveis são as últimas a cair, e antes encolhem.
+    restricoes_encolhidas = tuple(
+        PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True, limite_de_restricoes=limite)
+        for limite in LIMITES_DE_RESTRICOES
+    )
     ultimos_recursos = (
         PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True),
+        *restricoes_encolhidas,
         PlanoDeCorte(prioridades_descartadas=_TUDO_MENOS_O_ALVO, memoria_resumida=True),
     )
     return degraus_por_descarte + degraus_por_reducao + ultimos_recursos

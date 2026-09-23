@@ -21,10 +21,12 @@ from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechament
 from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (
+    GrupoDeLinhas,
     PrioridadeRetencao,
     RecorteContexto,
     SecaoContexto,
     formatar_no_com_propriedades,
+    formatar_no_em_linha,
     montar_secao_de_nos,
 )
 from graphow.context.vizinhanca import montar_secao_de_vizinhos
@@ -154,12 +156,25 @@ class PoliticaBase(PoliticaContexto):
         trabalho invalidado, e o recorte existe para poupar tokens, não garantias.
         """
         restricoes = self._coletar_restricoes(alvo, ambiente.explorador)
+        linhas = tuple(formatar_no_com_propriedades(no) for no in restricoes)
+        ids = tuple(no.id for no in restricoes)
         return SecaoContexto(
             titulo="Restricoes Inviolaveis",
-            linhas=tuple(formatar_no_com_propriedades(no) for no in restricoes),
+            linhas=linhas,
             ordem_exibicao=1,
             prioridade_retencao=PrioridadeRetencao.RESTRICOES,
-            ids_incluidos=tuple(no.id for no in restricoes),
+            ids_incluidos=ids,
+            # Sob pressão extrema, cada restrição encolhe para uma linha sem
+            # propriedades antes de a seção perder itens (context/corte.py).
+            grupos=(
+                GrupoDeLinhas(
+                    rotulo="Constraint",
+                    linhas=linhas,
+                    ids=ids,
+                    linhas_curtas=tuple(formatar_no_em_linha(no) for no in restricoes),
+                ),
+            ),
+            titulo_resumido="Restricoes Inviolaveis (resumidas: use expandir_no em cada uma antes de agir)",
         )
 
     def _coletar_restricoes(self, alvo: NoGrafo, explorador: ExploradorSubgrafo) -> tuple[NoGrafo, ...]:
