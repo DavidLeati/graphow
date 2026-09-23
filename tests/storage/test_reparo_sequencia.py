@@ -113,3 +113,40 @@ def test_diagnostico_de_todos_os_ramos_cobre_o_banco_inteiro(tmp_path: Path) -> 
     _montar_banco_com_fork_duplicado(caminho)
     diagnosticos = AnalisadorSequencias(AcessoSequenciasSQLite(caminho)).diagnosticar_todos_os_ramos()
     assert {diagnostico.ramo_id for diagnostico in diagnosticos} == {"main", "experimento"}
+
+
+def _montar_banco_com_fork_por_ponteiro(caminho: Path) -> None:
+    """Estado saudável de hoje: o fork aponta para o seq 41 do main e numera os próprios eventos depois dele."""
+    conexao = sqlite3.connect(str(caminho), isolation_level=None)
+    conexao.execute(DDL_MINIMO)
+    conexao.execute("CREATE TABLE ramos (ramo_id TEXT PRIMARY KEY, ramo_base TEXT NOT NULL, seq_corte INTEGER NOT NULL);")
+    conexao.execute("INSERT INTO ramos VALUES ('exp', 'main', 41);")
+    for posicao in range(1, 51):
+        _inserir(conexao, f"main-{posicao}", posicao, "main", None)
+    for posicao in range(42, 46):
+        _inserir(conexao, f"exp-{posicao}", posicao, "exp", None)
+    conexao.close()
+
+
+def test_fork_por_ponteiro_saudavel_nao_pede_reparo_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o reparo numerava o ramo derivado a partir de 1 e o reescrevia antes do corte."""
+    caminho = tmp_path / "graphow.db"
+    _montar_banco_com_fork_por_ponteiro(caminho)
+
+    diagnostico = AnalisadorSequencias(AcessoSequenciasSQLite(caminho)).diagnosticar("exp")
+
+    assert diagnostico.precisa_reparo is False
+
+
+def test_reparo_de_fork_por_ponteiro_numera_depois_do_corte_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: uma lacuna no ramo derivado se fecha a partir de seq_corte + 1, não de 1."""
+    caminho = tmp_path / "graphow.db"
+    _montar_banco_com_fork_por_ponteiro(caminho)
+    conexao = sqlite3.connect(str(caminho), isolation_level=None)
+    conexao.execute("UPDATE eventos SET seq = 60 WHERE id = 'exp-45';")
+    conexao.close()
+    acesso = AcessoSequenciasSQLite(caminho)
+
+    ReparadorSequencias(acesso).reparar(AnalisadorSequencias(acesso).diagnosticar("exp"))
+
+    assert [registro.seq for registro in acesso.listar_registros("exp")] == [42, 43, 44, 45]

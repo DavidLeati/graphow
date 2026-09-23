@@ -10,7 +10,7 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 
 ## Inventário
 
-11 módulos · 1326 linhas · 31 classes
+11 módulos · 1346 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,7 +21,7 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 | [`storage/localizador_banco.py`](#storagelocalizadorbanco) | 158 | Resolução do caminho do banco de eventos fora de pastas sincronizadas por nuvem. |
 | [`storage/lock_store.py`](#storagelockstore) | 112 | Repositórios de locks exclusivos de escrita sobre tarefas. |
 | [`storage/migrador_banco.py`](#storagemigradorbanco) | 134 | Migração segura do banco de eventos entre localizações, preservando o WAL. |
-| [`storage/reparo_sequencia.py`](#storagereparosequencia) | 209 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
+| [`storage/reparo_sequencia.py`](#storagereparosequencia) | 229 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
 | [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 74 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
 | [`storage/sqlite_store.py`](#storagesqlitestore) | 261 | Implementação SQLite append-only do repositório de eventos. |
 
@@ -270,6 +270,7 @@ Diagnóstico e reparo de sequências duplicadas no log de eventos.
 - `listar_ramos() -> tuple[str, ...]` `[abstract]` — Enumera os ramos presentes no log.
 - `listar_registros(ramo_id: str) -> tuple[RegistroEvento, ...]` `[abstract]` — Lê os registros do ramo em ordem determinística de sequência e tempo.
 - `aplicar_reparo(diagnostico: DiagnosticoRamo) -> None` `[abstract]` — Remove duplicatas e renumera o ramo em uma única transação.
+- `obter_seq_corte(ramo_id: str) -> int` `[abstract]` — O ponto de corte do ramo derivado; zero no ramo raiz e nos forks antigos por cópia.
 
 ### `AcessoSequenciasSQLite` (AcessoSequencias)
 
@@ -278,6 +279,7 @@ Diagnóstico e reparo de sequências duplicadas no log de eventos.
 - `listar_ramos() -> tuple[str, ...]` — Enumera os ramos distintos registrados na tabela de eventos.
 - `listar_registros(ramo_id: str) -> tuple[RegistroEvento, ...]` — Lê o ramo ordenado por sequência, tempo e identificador, nesta ordem.
 - `aplicar_reparo(diagnostico: DiagnosticoRamo) -> None` — Aplica remoção e renumeração dentro de uma transação única e reversível.
+- `obter_seq_corte(ramo_id: str) -> int` — Lê o corte da tabela `ramos`; um banco anterior a ela não tem fork por ponteiro.
 
 ### `AnalisadorSequencias`
 

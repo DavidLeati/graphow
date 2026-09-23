@@ -3,6 +3,12 @@
 Forks criados mais de uma vez sobre o mesmo ramo reiniciavam a numeração em 1 e,
 sem índice único, duplicavam posições. Com seq repetido, ORDER BY seq deixa de ser
 uma ordem total e o replay perde o determinismo.
+
+Um fork de hoje é um ponteiro (ramo_base, seq_corte): os eventos próprios do ramo
+começam em seq_corte + 1, e o prefixo vem do ramo base. O reparo numerava todo
+ramo de 1 a N e, num banco saudável com um fork no seq 41, reescrevia os eventos
+42 a 70 como 1 a 29: o ramo passava a ler 29 posições duplicadas, com eventos
+dele antes do ponto de corte. A numeração do ramo derivado começa depois do corte.
 """
 
 from abc import ABC, abstractmethod
@@ -71,6 +77,11 @@ class AcessoSequencias(ABC):
         """Remove duplicatas e renumera o ramo em uma única transação."""
         raise NotImplementedError
 
+    @abstractmethod
+    def obter_seq_corte(self, ramo_id: str) -> int:
+        """O ponto de corte do ramo derivado; zero no ramo raiz e nos forks antigos por cópia."""
+        raise NotImplementedError
+
 
 class AcessoSequenciasSQLite(AcessoSequencias):
     """Adaptador que opera diretamente no arquivo, mesmo quando ele está inconsistente."""
@@ -118,6 +129,15 @@ class AcessoSequenciasSQLite(AcessoSequencias):
                     f"Falha ao reparar sequencias do ramo: {erro}", {"ramo_id": diagnostico.ramo_id}
                 ) from erro
 
+    def obter_seq_corte(self, ramo_id: str) -> int:
+        """Lê o corte da tabela `ramos`; um banco anterior a ela não tem fork por ponteiro."""
+        with self._abrir() as conexao:
+            existe = conexao.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ramos';").fetchone()
+            if existe is None:
+                return 0
+            linha = conexao.execute("SELECT seq_corte FROM ramos WHERE ramo_id = ?;", (ramo_id,)).fetchone()
+        return int(linha[0]) if linha is not None else 0
+
     def _executar_passos_de_reparo(self, cursor: sqlite3.Cursor, diagnostico: DiagnosticoRamo) -> None:
         """Remove as cópias e renumera em duas fases, evitando colisão transitória."""
         cursor.executemany(
@@ -152,7 +172,7 @@ class AnalisadorSequencias:
         registros = self._acesso.listar_registros(ramo_id)
         ids_a_remover = self._identificar_copias(registros)
         sobreviventes = [registro for registro in registros if registro.id not in ids_a_remover]
-        renumeracao = self._montar_renumeracao(sobreviventes)
+        renumeracao = self._montar_renumeracao(sobreviventes, self._acesso.obter_seq_corte(ramo_id) + 1)
         return DiagnosticoRamo(
             ramo_id=ramo_id,
             total_eventos=len(registros),
@@ -191,9 +211,9 @@ class AnalisadorSequencias:
             ocupacoes[registro.seq] += 1
         return sum(1 for total in ocupacoes.values() if total > 1)
 
-    def _montar_renumeracao(self, sobreviventes: Sequence[RegistroEvento]) -> Mapping[str, int]:
-        """Atribui a todos os sobreviventes posições contíguas de 1 a N, em ordem."""
-        return {registro.id: posicao for posicao, registro in enumerate(sobreviventes, start=1)}
+    def _montar_renumeracao(self, sobreviventes: Sequence[RegistroEvento], inicio: int) -> Mapping[str, int]:
+        """Atribui aos sobreviventes posições contíguas a partir do início do ramo, em ordem."""
+        return {registro.id: posicao for posicao, registro in enumerate(sobreviventes, start=inicio)}
 
 
 class ReparadorSequencias:
