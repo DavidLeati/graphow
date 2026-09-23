@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from graphow.storage.in_memory_store import InMemoryEventStore
+from graphow.storage.instantaneos import RepositorioInstantaneos, RepositorioInstantaneosSQLite
 from graphow.storage.interfaces import RepositorioEventos, RepositorioLocks
 from graphow.storage.linhagem_ramo import (
     RepositorioRamos,
@@ -22,6 +23,7 @@ class ConjuntoRepositorios:
     eventos: RepositorioEventos
     ramos: RepositorioRamos
     locks: RepositorioLocks
+    instantaneos: RepositorioInstantaneos | None = None
 
 
 def montar_repositorios_em_memoria() -> ConjuntoRepositorios:
@@ -42,6 +44,7 @@ def montar_repositorios_sqlite(store: SQLiteEventStore) -> ConjuntoRepositorios:
         eventos=RepositorioEventosComLinhagem(store, ramos),
         ramos=ramos,
         locks=LockStoreSQLite(store.conexao),
+        instantaneos=RepositorioInstantaneosSQLite(store.conexao),
     )
 
 

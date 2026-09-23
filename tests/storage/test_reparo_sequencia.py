@@ -3,6 +3,7 @@
 from pathlib import Path
 import sqlite3
 
+from graphow.storage.instantaneos import DDL_TABELA_INSTANTANEOS
 from graphow.storage.reparo_sequencia import (
     AcessoSequenciasSQLite,
     AnalisadorSequencias,
@@ -150,3 +151,18 @@ def test_reparo_de_fork_por_ponteiro_numera_depois_do_corte_edge_case(tmp_path: 
     ReparadorSequencias(acesso).reparar(AnalisadorSequencias(acesso).diagnosticar("exp"))
 
     assert [registro.seq for registro in acesso.listar_registros("exp")] == [42, 43, 44, 45]
+
+
+def test_reparo_apaga_os_instantaneos_da_projecao_edge_case(tmp_path: Path) -> None:
+    """Os instantâneos foram dobrados sobre o log de antes do reparo e não podem sobreviver a ele."""
+    caminho = tmp_path / "banco.db"
+    _montar_banco_com_fork_duplicado(caminho)
+    conexao = sqlite3.connect(str(caminho), isolation_level=None)
+    conexao.execute(DDL_TABELA_INSTANTANEOS)
+    conexao.execute("INSERT INTO instantaneos VALUES ('experimento', 3, 'fork-a-3', 'x', '{}');")
+    acesso = AcessoSequenciasSQLite(caminho)
+
+    ReparadorSequencias(acesso).reparar(AnalisadorSequencias(acesso).diagnosticar("experimento"))
+
+    assert conexao.execute("SELECT COUNT(*) FROM instantaneos;").fetchone() == (0,)
+    conexao.close()

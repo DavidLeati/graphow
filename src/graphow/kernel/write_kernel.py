@@ -23,6 +23,7 @@ from graphow.observability.tracer import Tracer, TracerNulo
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.projecao_sincronizada import ProjecaoDoRamo, ProjecaoSincronizada
 from graphow.projection.reducer import GrafoReducer
+from graphow.storage.instantaneos import RepositorioInstantaneos
 from graphow.storage.interfaces import RepositorioEventos, RepositorioLocks
 from graphow.storage.linhagem_ramo import RepositorioRamos, RepositorioRamosEmMemoria
 from graphow.storage.lock_store import LockStoreEmMemoria
@@ -70,6 +71,7 @@ class DependenciasKernel:
     repositorio_locks: RepositorioLocks | None = None
     repositorio_ramos: RepositorioRamos | None = None
     tracer: Tracer | None = None
+    repositorio_instantaneos: RepositorioInstantaneos | None = None
 
 
 class WriteKernel:
@@ -88,7 +90,7 @@ class WriteKernel:
         self._locks: RepositorioLocks = recursos.repositorio_locks or LockStoreEmMemoria()
         self._ramos: RepositorioRamos = recursos.repositorio_ramos or RepositorioRamosEmMemoria()
         self._tracer: Tracer = recursos.tracer or TracerNulo()
-        self._projecoes: ProjecaoSincronizada = ProjecaoSincronizada(repositorio)
+        self._projecoes: ProjecaoSincronizada = ProjecaoSincronizada(repositorio, recursos.repositorio_instantaneos)
         self._conversor: ConversorPatchParaEventos = ConversorPatchParaEventos()
         self._observadores: DespachanteObservadores = DespachanteObservadores()
         self._lock_sincronizacao: threading.RLock = threading.RLock()

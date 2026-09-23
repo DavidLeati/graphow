@@ -19,6 +19,7 @@ from pathlib import Path
 import sqlite3
 
 from graphow.core.exceptions import GraphowError
+from graphow.storage.instantaneos import descartar_instantaneos
 
 DESLOCAMENTO_TEMPORARIO: int = 1_000_000_000
 
@@ -139,7 +140,13 @@ class AcessoSequenciasSQLite(AcessoSequencias):
         return int(linha[0]) if linha is not None else 0
 
     def _executar_passos_de_reparo(self, cursor: sqlite3.Cursor, diagnostico: DiagnosticoRamo) -> None:
-        """Remove as cópias e renumera em duas fases, evitando colisão transitória."""
+        """Remove as cópias e renumera em duas fases, evitando colisão transitória.
+
+        Os instantâneos da projeção saem junto: foram dobrados sobre o log de
+        antes, e a conferência pelo evento no corte não pega uma renumeração
+        que deixe aquele evento no mesmo lugar.
+        """
+        descartar_instantaneos(cursor.connection)
         cursor.executemany(
             "DELETE FROM eventos WHERE id = ?;", [(id_evento,) for id_evento in diagnostico.ids_a_remover]
         )

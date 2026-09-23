@@ -8,8 +8,10 @@ from dataclasses import dataclass
 import threading
 
 from graphow.core.models import GrafoEstado
+from graphow.projection.instantaneo import ReconstrucaoComInstantaneo
 from graphow.projection.reducer import GrafoReducer
 from graphow.projection.rollup import IndiceDeRollup
+from graphow.storage.instantaneos import RepositorioInstantaneos
 from graphow.storage.interfaces import RepositorioEventos
 
 
@@ -30,8 +32,11 @@ class ProjecaoDoRamo:
 class ProjecaoSincronizada:
     """Mantém projeções por ramo alinhadas ao log, aplicando apenas o delta pendente."""
 
-    def __init__(self, repositorio: RepositorioEventos) -> None:
+    def __init__(self, repositorio: RepositorioEventos, instantaneos: RepositorioInstantaneos | None = None) -> None:
         self._repositorio: RepositorioEventos = repositorio
+        self._reconstrucao: ReconstrucaoComInstantaneo | None = (
+            ReconstrucaoComInstantaneo(repositorio, instantaneos) if instantaneos is not None else None
+        )
         self._projecoes: dict[str, ProjecaoDoRamo] = {}
         self._lock: threading.RLock = threading.RLock()
 
@@ -48,7 +53,10 @@ class ProjecaoSincronizada:
             return self._aplicar_delta_pendente(ramo_id, projecao_atual)
 
     def _reconstruir_do_zero(self, ramo_id: str) -> ProjecaoDoRamo:
-        """Reconstrói o ramo inteiro a partir do log, na primeira consulta."""
+        """Reconstrói o ramo a partir do log, na primeira consulta; do instantâneo, se houver um que confira."""
+        if self._reconstrucao is not None:
+            estado, seq_aplicado = self._reconstrucao.reconstruir(ramo_id)
+            return self._registrar(ramo_id, ProjecaoDoRamo(estado=estado, ultimo_seq_aplicado=seq_aplicado))
         eventos = self._repositorio.ler_eventos(ramo_id)
         estado = GrafoReducer.reconstruir(eventos)
         seq_aplicado = eventos[-1].seq if eventos else 0

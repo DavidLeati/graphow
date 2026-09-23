@@ -10,18 +10,19 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 
 ## Inventário
 
-11 módulos · 1361 linhas · 31 classes
+12 módulos · 1497 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`storage/composicao.py`](#storagecomposicao) | 51 | Fábricas que montam o conjunto de repositórios usado pelo kernel. |
+| [`storage/composicao.py`](#storagecomposicao) | 54 | Fábricas que montam o conjunto de repositórios usado pelo kernel. |
 | [`storage/in_memory_store.py`](#storageinmemorystore) | 80 | Implementação em memória do repositório de eventos append-only. |
+| [`storage/instantaneos.py`](#storageinstantaneos) | 126 | Instantâneos da projeção guardados junto do log, para a abertura não refazer o replay inteiro. |
 | [`storage/interfaces.py`](#storageinterfaces) | 83 | Interfaces abstratas de contrato para persistência de eventos e locks. |
 | [`storage/linhagem_ramo.py`](#storagelinhagemramo) | 157 | Definição e persistência da linhagem entre ramos do log de eventos. |
 | [`storage/localizador_banco.py`](#storagelocalizadorbanco) | 158 | Resolução do caminho do banco de eventos fora de pastas sincronizadas por nuvem. |
 | [`storage/lock_store.py`](#storagelockstore) | 112 | Repositórios de locks exclusivos de escrita sobre tarefas. |
 | [`storage/migrador_banco.py`](#storagemigradorbanco) | 134 | Migração segura do banco de eventos entre localizações, preservando o WAL. |
-| [`storage/reparo_sequencia.py`](#storagereparosequencia) | 229 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
+| [`storage/reparo_sequencia.py`](#storagereparosequencia) | 236 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
 | [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 89 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
 | [`storage/sqlite_store.py`](#storagesqlitestore) | 261 | Implementação SQLite append-only do repositório de eventos. |
 
@@ -33,7 +34,7 @@ Fábricas que montam o conjunto de repositórios usado pelo kernel.
 
 *DTO imutável* — Repositórios já compostos e prontos para injeção no kernel.
 
-**Campos:** `eventos: RepositorioEventos`, `ramos: RepositorioRamos`, `locks: RepositorioLocks`
+**Campos:** `eventos: RepositorioEventos`, `ramos: RepositorioRamos`, `locks: RepositorioLocks`, `instantaneos: RepositorioInstantaneos | None`
 
 ### Funções do módulo
 
@@ -57,6 +58,45 @@ Implementação em memória do repositório de eventos append-only.
 - `obter_ultimo_seq(ramo_id: str) -> int` — Retorna a sequência do último evento persistido no ramo.
 - `listar_ramos() -> list[str]` — Lista identificadores de todos os ramos criados.
 - `obter_evento_por_id(id_evento: str) -> EventoLog | None` — Localiza um evento pelo identificador único.
+
+## `storage/instantaneos.py`
+
+Instantâneos da projeção guardados junto do log, para a abertura não refazer o replay inteiro.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `DDL_TABELA_INSTANTANEOS` | `str` | `'\n CREATE TABLE IF NOT EXISTS instantaneos (\n ramo_id TEXT PRIMARY KE…` |
+
+### `InstantaneoGravado`
+
+*DTO imutável* — O estado serializado de um ramo, com o que é preciso para conferi-lo contra o log.
+
+**Campos:** `ramo_id: str`, `seq: int`, `evento_id: str`, `impressao: str`, `estado: str`
+
+### `RepositorioInstantaneos` (ABC)
+
+*contrato* — Contrato de guarda dos instantâneos, um por ramo.
+
+- `obter(ramo_id: str) -> InstantaneoGravado | None` `[abstract]` — O instantâneo mais recente do ramo, se houver.
+- `gravar(instantaneo: InstantaneoGravado) -> bool` `[abstract]` — Substitui o instantâneo do ramo; devolve False se não conseguiu, sem levantar.
+
+### `RepositorioInstantaneosEmMemoria` (RepositorioInstantaneos)
+
+*serviço* — Instantâneos mantidos só em memória, para testes.
+
+- `obter(ramo_id: str) -> InstantaneoGravado | None` — Consulta o instantâneo do ramo.
+- `gravar(instantaneo: InstantaneoGravado) -> bool` — Guarda o instantâneo no lugar do anterior.
+
+### `RepositorioInstantaneosSQLite` (RepositorioInstantaneos)
+
+*serviço* — Instantâneos no mesmo arquivo do log de eventos.
+
+- `obter(ramo_id: str) -> InstantaneoGravado | None` — Lê o instantâneo do ramo.
+- `gravar(instantaneo: InstantaneoGravado) -> bool` — Grava por cima do anterior; banco ocupado só adia o instantâneo para a próxima abertura.
+
+### Funções do módulo
+
+- `descartar_instantaneos(conexao: sqlite3.Connection) -> None` — Apaga todos os instantâneos do arquivo; quem reescreve o log chama isto.
 
 ## `storage/interfaces.py`
 

@@ -10,11 +10,11 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-17 módulos · 2845 linhas · 28 classes
+17 módulos · 2848 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`kernel/composicao.py`](#kernelcomposicao) | 48 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
+| [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 115 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
@@ -29,7 +29,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/role_gate.py`](#kernelrolegate) | 335 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
-| [`kernel/write_kernel.py`](#kernelwritekernel) | 303 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
+| [`kernel/write_kernel.py`](#kernelwritekernel) | 305 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
 ## `kernel/composicao.py`
 
@@ -425,7 +425,7 @@ Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard).
 
 *DTO imutável* — Colaboradores injetáveis do kernel de escrita.
 
-**Campos:** `schema_gate: SchemaGate | None`, `role_gate: RoleGate | None`, `invariant_gate: InvariantGate | None`, `repositorio_locks: RepositorioLocks | None`, `repositorio_ramos: RepositorioRamos | None`, `tracer: Tracer | None`
+**Campos:** `schema_gate: SchemaGate | None`, `role_gate: RoleGate | None`, `invariant_gate: InvariantGate | None`, `repositorio_locks: RepositorioLocks | None`, `repositorio_ramos: RepositorioRamos | None`, `tracer: Tracer | None`, `repositorio_instantaneos: RepositorioInstantaneos | None`
 
 ### `ResultadoSubmissao`
 

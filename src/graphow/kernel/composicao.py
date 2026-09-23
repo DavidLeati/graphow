@@ -25,6 +25,7 @@ def montar_kernel(
         repositorio_locks=repositorios.locks,
         repositorio_ramos=repositorios.ramos,
         tracer=tracer,
+        repositorio_instantaneos=repositorios.instantaneos,
     )
     return WriteKernel(repositorios.eventos, dependencias)
 

@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-12 módulos · 1729 linhas · 21 classes
+13 módulos · 1893 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,8 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 240 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
-| [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 100 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
+| [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
+| [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
 | [`projection/rollup.py`](#projectionrollup) | 221 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
@@ -186,6 +187,27 @@ Camada de consulta e visualização imutável do grafo projetado (CQRS).
 - `buscar_ranqueado(criterio: CriterioBusca, escopo: EscopoAtivo | None) -> ResultadoDaBusca` — Busca ordenada por relevância e cortada no limite pedido.
 - `obter_questoes_bloqueantes(id_task: str) -> list[NoGrafo]` — Retorna nós do tipo Question com aresta 'bloqueia' aberta para a Task.
 - `esta_bloqueada(id_task: str) -> bool` — Determina se uma Task possui alguma questão aberta bloqueante.
+
+## `projection/instantaneo.py`
+
+Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `EVENTOS_ATE_NOVO_INSTANTANEO` | `int` | `1000` |
+| `MODULOS_QUE_DEFINEM_A_PROJECAO` | `tuple[str, ...]` | `('graphow.core.events', 'graphow.core.models', 'graphow.core.types', 'g…` |
+
+### `ReconstrucaoComInstantaneo`
+
+*serviço* — Reconstrói um ramo partindo do instantâneo válido e grava outro quando o delta cresce.
+
+- `reconstruir(ramo_id: str) -> tuple[GrafoEstado, int]` — O estado do ramo e o último seq aplicado, pelo caminho mais curto que confere.
+
+### Funções do módulo
+
+- `impressao_da_projecao() -> str` — Hash do código que transforma eventos em estado, lido uma vez por processo.
+- `serializar_estado(estado: GrafoEstado) -> str` — Estado completo em JSON, na ordem de inserção: a desserialização devolve um estado igual.
+- `desserializar_estado(texto: str) -> GrafoEstado` — Refaz o estado gravado por `serializar_estado`.
 
 ## `projection/projecao_sincronizada.py`
 
