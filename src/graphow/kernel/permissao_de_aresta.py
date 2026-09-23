@@ -14,6 +14,7 @@ from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import ArestaGrafo, GrafoEstado
+from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.matriz_papeis import (
     DonosDeAresta,
@@ -82,6 +83,39 @@ class PermissaoDeAresta:
         if obter_donos_de_aresta(aresta.tipo, par).autoriza(contexto.proposta.papel, True):
             return ResultadoValidacao.sucesso()
         return self._recusar(aresta.tipo, contexto.proposta.papel, True, par=par)
+
+    def validar_remocao_em_cascata(self, id_no: str, contexto: ContextoPapel) -> ResultadoValidacao:
+        """Remover um nó leva junto as arestas dele, e cada uma exige o poder de removê-la.
+
+        A projeção apaga toda aresta que toca o nó removido. Um executor
+        removia a Sessão e deixava a Question e a Constraint dela fora da
+        hierarquia; um planejador removia a Task e levava a `bloqueia` que só o
+        humano retira. A aresta de contenção que pendura o próprio nó sai com
+        ele sem deixar ninguém solto, e fica de fora.
+        """
+        for aresta in contexto.estado_com_lote.arestas.values():
+            if not self._sai_na_cascata(aresta, id_no):
+                continue
+            resultado = self.validar_remocao(aresta, contexto)
+            if not resultado.aprovado:
+                return self._recusar_cascata(id_no, aresta, contexto.proposta.papel)
+        return ResultadoValidacao.sucesso()
+
+    def _sai_na_cascata(self, aresta: ArestaGrafo, id_no: str) -> bool:
+        """A aresta toca o nó e não é a contenção que o pendura."""
+        if aresta.destino_id == id_no:
+            return aresta.tipo not in ARESTAS_DE_CONTENCAO
+        return aresta.origem_id == id_no
+
+    def _recusar_cascata(self, id_no: str, aresta: ArestaGrafo, papel: PapelAutor) -> ResultadoValidacao:
+        """Nomeia a aresta que a remoção do nó levaria junto."""
+        return ResultadoValidacao.falha(
+            f"Remover '{id_no}' removeria junto a aresta '{aresta.id}' ({aresta.tipo.value}), "
+            f"que o papel '{papel.value}' nao pode remover",
+            "RoleGate",
+            {"id_no": id_no, "id_aresta": aresta.id, "tipo_aresta": aresta.tipo.value},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
 
     def _donos_aplicaveis(
         self,

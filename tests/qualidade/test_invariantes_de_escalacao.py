@@ -51,6 +51,9 @@ CAMINHOS_DE_FUGA: tuple[ItemPatch, ...] = (
     # enquanto o status é exatamente 'aberta'.
     ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/quest-1/propriedades/status", value="resolvida"),
     ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/quest-1/propriedades/status"),
+    # A remoção em cascata: remover o nó leva junto as arestas dele.
+    ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/task-1"),
+    ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/sess-1"),
     # A remoção declarando outro tipo: o RoleGate lia o tipo do valor enviado.
     ItemPatch(op=OperacaoPatch.REMOVE, path="/arestas/bloq-1", value={"tipo": TipoAresta.JUSTIFICA.value}),
     ItemPatch(
@@ -281,3 +284,34 @@ def test_remocao_declarando_outro_tipo_nao_reescopa_a_tarefa_edge_case(papel: Pa
 
     assert remocao.sucesso is False
     assert kernel.obter_view().contem_aresta("esc-1") is True
+
+
+@pytest.mark.parametrize("papel", PAPEIS_DE_AGENTE)
+def test_remover_a_tarefa_nao_leva_a_restricao_junto_edge_case(papel: PapelAutor) -> None:
+    """Caso de borda: a `escopa` sairia na cascata da Task removida."""
+    kernel = _montar_tarefa_escopada()
+
+    remocao = _submeter(kernel, [ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/task-1")], papel)
+
+    assert remocao.sucesso is False
+    assert kernel.obter_view().contem_aresta("esc-1") is True
+
+
+def test_agente_remove_o_proprio_registro_com_as_arestas_dele_nominal() -> None:
+    """A regra não fecha a remoção: o executor apaga a Note que criou, com a `produz` que a pendura."""
+    kernel = _montar_tarefa_bloqueada()
+    criacao = _submeter(
+        kernel,
+        [
+            ItemPatch(op=OperacaoPatch.ADD, path="/nos/nota-1", value={"id": "nota-1", "tipo": TipoNo.NOTE.value, "rotulo": "Rascunho"}),
+            _aresta("p-nota-1", "sess-1", "nota-1", TipoAresta.PRODUZ),
+            _aresta("d-nota-1", "nota-1", "task-1", TipoAresta.DERIVA_DE),
+        ],
+        PapelAutor.EXECUTOR,
+    )
+    assert criacao.sucesso is True, criacao.mensagem
+
+    remocao = _submeter(kernel, [ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/nota-1")], PapelAutor.EXECUTOR)
+
+    assert remocao.sucesso is True, remocao.mensagem
+    assert kernel.obter_view().obter_no("nota-1") is None

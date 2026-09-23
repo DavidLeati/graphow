@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-16 módulos · 2681 linhas · 27 classes
+16 módulos · 2727 linhas · 27 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,9 +23,9 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 158 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
-| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 167 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
+| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 201 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 323 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 335 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 283 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
@@ -295,6 +295,7 @@ Permissão por papel na camada de arestas: quem cria e remove cada aresta, confo
 
 - `validar(segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Consulta a matriz de donos de aresta para a operação e o papel correntes.
 - `validar_remocao(aresta: ArestaGrafo, contexto: ContextoPapel) -> ResultadoValidacao` — Julga a remoção pela aresta como ela está no grafo, nunca pelo valor enviado.
+- `validar_remocao_em_cascata(id_no: str, contexto: ContextoPapel) -> ResultadoValidacao` — Remover um nó leva junto as arestas dele, e cada uma exige o poder de removê-la.
 
 ### Funções do módulo
 

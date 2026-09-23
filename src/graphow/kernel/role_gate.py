@@ -250,16 +250,28 @@ class RoleGate:
         no: NoGrafo,
         ctx: ContextoPermissaoEdicao,
     ) -> ResultadoValidacao:
-        """Impede que um agente apague o nó que registra a escalação ao humano."""
+        """Um agente remove só o tipo de nó que cria, e só se a cascata não levar o que ele não remove.
+
+        Sem isso o executor apagava qualquer Task, Decision ou Goal, e a
+        projeção levava junto as arestas do nó: a `bloqueia` que o travava, a
+        `escopa` da Constraint, a `produz` que pendura o trabalho da Sessão.
+        """
         eh_remocao_inteira = (
             ctx.item.op == OperacaoPatch.REMOVE
             and len(ctx.segmentos) == SEGMENTOS_DE_ELEMENTO_INTEIRO
         )
-        if not eh_remocao_inteira or no.tipo not in TIPOS_CUJA_REMOCAO_EXIGE_HUMANO:
+        if not eh_remocao_inteira:
             return ResultadoValidacao.sucesso()
+        if no.tipo in TIPOS_CUJA_REMOCAO_EXIGE_HUMANO:
+            return self._recusar_remocao(no, ctx, "Somente uma sessao humana encerra uma escalacao")
+        if no.tipo not in self._tipos_permitidos_para(ctx.item, ctx.contexto):
+            return self._recusar_remocao(no, ctx, "Um agente remove apenas o tipo de no que pode criar")
+        return self._arestas.validar_remocao_em_cascata(no.id, ctx.contexto)
+
+    def _recusar_remocao(self, no: NoGrafo, ctx: ContextoPermissaoEdicao, motivo: str) -> ResultadoValidacao:
+        """Diz que o papel não remove aquele tipo de nó, e por quê."""
         return ResultadoValidacao.falha(
-            f"Papel '{ctx.contexto.proposta.papel.value}' não pode remover nós de '{no.tipo.value}'. "
-            "Somente uma sessao humana encerra uma escalacao",
+            f"Papel '{ctx.contexto.proposta.papel.value}' não pode remover nós de '{no.tipo.value}'. {motivo}",
             "RoleGate",
             {"id_no": no.id, "tipo": no.tipo.value},
             modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
