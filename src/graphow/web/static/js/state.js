@@ -1,6 +1,7 @@
 /**
  * Central Reactive State for Graphow Client (ActiveGraph Store)
  */
+import { api } from "./api.js";
 import { gravarPreferencia, lerPreferencia } from "./dom.js";
 import { posicionarEmCamadas, PASSO_LINHA } from "./layout_camadas.js";
 
@@ -119,15 +120,8 @@ export class GraphowState {
   }
 
   async sendLayout(posicoes) {
-    try {
-      await fetch("/api/layout", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ posicoes, ramo_id: this.currentBranch }),
-      });
-    } catch (e) {
-      console.warn("Falha ao persistir o arranjo no grafo:", e);
-    }
+    const recibo = await api.salvarLayout({ posicoes, ramo_id: this.currentBranch });
+    if (!recibo.sucesso) console.warn("Falha ao persistir o arranjo no grafo:", recibo.mensagem);
   }
 
   loadSavedPositions() {

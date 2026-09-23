@@ -9,7 +9,7 @@
 
 async function pedir(url, opcoes = {}) {
   try {
-    const resposta = await fetch(url, opcoes);
+    const resposta = await fetch(url, await opcoes);
     const corpo = await resposta.json().catch(() => ({}));
     if (!resposta.ok && corpo.sucesso === undefined) {
       return { ...corpo, sucesso: false, mensagem: corpo.mensagem || corpo.erro || `HTTP ${resposta.status}` };
@@ -20,10 +20,25 @@ async function pedir(url, opcoes = {}) {
   }
 }
 
-function comCorpo(metodo, corpo) {
+/**
+ * O servidor escreve como o humano e só aceita escrita com o token desta sessão:
+ * sem ele, qualquer site aberto no navegador escreveria no grafo. O token vem de
+ * `/api/identity`, que só a própria página consegue ler, uma vez por carga.
+ */
+let tokenDaSessao = null;
+
+function obterToken() {
+  tokenDaSessao ??= fetch("/api/identity")
+    .then((resposta) => resposta.json())
+    .then((corpo) => corpo.token || "")
+    .catch(() => "");
+  return tokenDaSessao;
+}
+
+async function comCorpo(metodo, corpo) {
   return {
     method: metodo,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Graphow-Token": await obterToken() },
     body: JSON.stringify(corpo),
   };
 }
@@ -65,4 +80,5 @@ export const api = {
   memoria: (ramo) => pedir(`/api/memoria?${montarQuery({ ramo })}`),
   registrarAprendizado: (corpo) => pedir("/api/memoria/aprendizados", comCorpo("POST", corpo)),
   promoverAprendizado: (corpo) => pedir("/api/memoria/promocoes", comCorpo("POST", corpo)),
+  salvarLayout: (corpo) => pedir("/api/layout", comCorpo("PUT", corpo)),
 };

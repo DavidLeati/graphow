@@ -3,8 +3,7 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json
+from http.server import ThreadingHTTPServer
 import sys
 import threading
 from typing import Any
@@ -41,12 +40,14 @@ from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizad
 from graphow.reactive.engine import MotorReativo
 from graphow.web.composicao import montar_tempo_real, montar_vigia_do_log
 from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
+from graphow.web.guarda_http import GuardaHTTP
+from graphow.web.manipulador_base import ManipuladorProtegido
 from graphow.web.sse_controller import SSEWebController
 from graphow.web.vigia_do_log import VigiaDoLogExterno
 from graphow.web.static_assets_provider import StaticAssetsProvider
 
 
-class GraphowHTTPHandler(BaseHTTPRequestHandler):
+class GraphowHTTPHandler(ManipuladorProtegido):
     """Manipulador de requisições HTTP REST, SSE e arquivos estáticos."""
 
     server: "GraphowThreadingServer"
@@ -213,10 +214,11 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         self._responder_json(diff, HTTPStatus.OK)
 
     def _tratar_get_identity(self) -> None:
-        """Publica a identidade sob a qual esta sessão web escreve no grafo."""
+        """Publica a identidade sob a qual esta sessão web escreve, e o token que a escrita exige."""
         identidade = self.server.identidade
         self._responder_json(
-            {"autor": identidade.autor, "papel": identidade.papel_textual}, HTTPStatus.OK
+            {"autor": identidade.autor, "papel": identidade.papel_textual, "token": self.server.guarda.token},
+            HTTPStatus.OK,
         )
 
     def _tratar_get_simulation_expand(self, params: Mapping[str, list[str]]) -> None:
@@ -284,30 +286,6 @@ class GraphowHTTPHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(recurso.conteudo)
 
-    def _ler_payload_json(self) -> dict[str, Any]:
-        """Lê o corpo da requisição e desserializa em dicionário."""
-        comprimento = int(self.headers.get("Content-Length", 0))
-        if comprimento == 0:
-            return {}
-        corpo = self.rfile.read(comprimento)
-        try:
-            return json.loads(corpo.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return {}
-
-    def _responder_json(self, conteudo: Mapping[str, Any], status: HTTPStatus) -> None:
-        """Envia resposta JSON formatada com headers adequados."""
-        corpo_bytes = json.dumps(dict(conteudo), ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(corpo_bytes)))
-        self.end_headers()
-        self.wfile.write(corpo_bytes)
-
-    def log_message(self, format: str, *args: Any) -> None:
-        """Silencia logs padrões do BaseHTTPRequestHandler para não poluir terminal."""
-        pass
-
 
 class GraphowThreadingServer(ThreadingHTTPServer):
     """Servidor HTTP multithread contendo instâncias injetadas dos controladores."""
@@ -337,6 +315,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         identidade: IdentidadeSessaoWeb | None = None,
     ) -> None:
         self.identidade: IdentidadeSessaoWeb = identidade or IdentidadeSessaoWeb.do_usuario_local()
+        self.guarda: GuardaHTTP = GuardaHTTP.para_o_host(endereco[0])
         self.canvas_ctrl: CanvasWebController = CanvasWebController(kernel, self.identidade)
         self.busca_ctrl: BuscaWebController = BuscaWebController(kernel)
         self.timeline_ctrl: TimelineWebController = TimelineWebController(kernel.repositorio)

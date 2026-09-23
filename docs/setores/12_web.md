@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-22 módulos · 2663 linhas · 45 classes
+24 módulos · 2788 linhas · 48 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,9 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
 | [`web/dto.py`](#webdto) | 275 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
+| [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 89 | Mapeamento de cada nó do grafo à Sessão, ao Setor e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
 | [`web/ontologia_publica.py`](#webontologiapublica) | 39 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
@@ -31,7 +33,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
-| [`web/server.py`](#webserver) | 396 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/server.py`](#webserver) | 375 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
@@ -240,6 +242,33 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `id: str`, `rotulo: str`, `status: str`, `resumo: str`, `setor_id: str | None`, `fechamento: Sequence[str]`, `condensacao: str`, `id_condensacao: str | None`, `seq_criacao: int`
 
+## `web/guarda_http.py`
+
+Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CABECALHO_DO_TOKEN` | `str` | `'X-Graphow-Token'` |
+| `METODOS_DE_ESCRITA` | `frozenset[str]` | `frozenset({'POST', 'PUT', 'DELETE'})` |
+| `HOSTS_DE_LOOPBACK` | `frozenset[str]` | `frozenset({'127.0.0.1', 'localhost', '::1'})` |
+| `HOSTS_DE_TODAS_AS_INTERFACES` | `frozenset[str]` | `frozenset({'0.0.0.0', '::', ''})` |
+| `TIPO_JSON` | `str` | `'application/json'` |
+
+### `GuardaHTTP`
+
+*DTO imutável* — Confere Host, Origin e, na escrita, o token e o tipo do corpo.
+
+**Campos:** `hosts_aceitos: frozenset[str]`, `aceita_qualquer_host: bool`, `token: str`
+
+- `para_o_host(host: str) -> 'GuardaHTTP'` — A guarda do servidor aberto nesse host, com um token novo.
+- `avaliar(metodo: str, cabecalhos: Mapping[str, str]) -> RecusaDaGuarda | None` — Devolve a recusa da requisição, ou None quando ela pode seguir.
+
+### `RecusaDaGuarda`
+
+*DTO imutável* — Por que a requisição não passou, com o status que a resposta leva.
+
+**Campos:** `status: HTTPStatus`, `mensagem: str`
+
 ## `web/identidade_web.py`
 
 Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição.
@@ -262,6 +291,17 @@ Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisiç
 
 - `detectar_identidade_declarada(payload: Mapping[str, Any]) -> tuple[str, ...]` — Lista os campos de identidade que a requisição tentou declarar.
 - `montar_recusa_de_identidade(campos: tuple[str, ...], identidade: IdentidadeSessaoWeb) -> dict[str, Any]` — Recusa explícita, no mesmo espírito da mensagem do servidor MCP.
+
+## `web/manipulador_base.py`
+
+Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta.
+
+### `ManipuladorProtegido` (BaseHTTPRequestHandler)
+
+*serviço* — Manipulador que só despacha a requisição que a guarda do servidor aprova.
+
+- `parse_request() -> bool` — Lê a requisição e a submete à guarda antes de despachá-la.
+- `log_message(format: str) -> None` — Silencia logs padrões do BaseHTTPRequestHandler para não poluir terminal.
 
 ## `web/mapeamento_escopo.py`
 
@@ -469,7 +509,7 @@ Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface d
 
 **Campos:** `host: str`, `porta: int`
 
-### `GraphowHTTPHandler` (BaseHTTPRequestHandler)
+### `GraphowHTTPHandler` (ManipuladorProtegido)
 
 *serviço* — Manipulador de requisições HTTP REST, SSE e arquivos estáticos.
 
@@ -479,7 +519,6 @@ Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface d
 - `do_POST() -> None` — Despacha requisições POST para controladores de mutação, simulação e memória.
 - `do_PUT() -> None` — Despacha requisições PUT para edição de nós e persistência de layout.
 - `do_DELETE() -> None` — Despacha requisições DELETE para remoção de nós ou arestas.
-- `log_message(format: str) -> None` — Silencia logs padrões do BaseHTTPRequestHandler para não poluir terminal.
 
 ### `GraphowThreadingServer` (ThreadingHTTPServer)
 

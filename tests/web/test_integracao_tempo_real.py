@@ -20,6 +20,7 @@ from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.composicao import montar_tempo_real
 from graphow.web.identidade_web import IdentidadeSessaoWeb
 from graphow.web.server import EnderecoServidor, GraphowWebServer
+from tests.web.cliente_http import cabecalhos_de_escrita
 from graphow.web.sse_controller import NOME_EVENTO_DESCARTE, SSEWebController
 
 TEMPO_LIMITE_DE_ESPERA: float = 5.0
@@ -221,7 +222,7 @@ def _ler_stream_apos_mutacao(base_url: str) -> list[str]:
 
     corpo = json.dumps({"tipo": "Task", "rotulo": "Tarefa via HTTP", "sessao_id": ID_SESSAO}).encode("utf-8")
     requisicao = urllib.request.Request(
-        f"{base_url}/api/nodes", data=corpo, headers={"Content-Type": "application/json"}
+        f"{base_url}/api/nodes", data=corpo, headers=cabecalhos_de_escrita(base_url)
     )
     with urllib.request.urlopen(requisicao, timeout=TEMPO_LIMITE_DE_ESPERA) as resposta:
         assert resposta.status == 201

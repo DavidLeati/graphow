@@ -11,6 +11,7 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
 from graphow.web.server import EnderecoServidor, GraphowWebServer
+from tests.web.cliente_http import cabecalhos_de_escrita
 
 
 def _obter_porta_livre() -> int:
@@ -22,7 +23,7 @@ def _obter_porta_livre() -> int:
 
 def _postar_no(base_url: str, corpo: dict[str, str]) -> dict[str, object]:
     """Cria um nó por POST em /api/nodes e devolve o recibo, exigindo sucesso."""
-    req = urllib.request.Request(f"{base_url}/api/nodes", data=json.dumps(corpo).encode("utf-8"), headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(f"{base_url}/api/nodes", data=json.dumps(corpo).encode("utf-8"), headers=cabecalhos_de_escrita(base_url))
     with urllib.request.urlopen(req) as resp:
         assert resp.status == 201
         recibo = json.loads(resp.read().decode("utf-8"))
@@ -79,7 +80,7 @@ def test_servidor_http_publica_busca_ontologia_e_escopo_por_setor_nominal() -> N
     base_url = f"http://127.0.0.1:{porta}"
     try:
         for corpo in ({"tipo": "Projeto", "rotulo": "Alfa", "id_no": "p"}, {"tipo": "Setor", "rotulo": "Setor Alfa", "id_no": "s", "contido_em": "p"}):
-            req = urllib.request.Request(f"{base_url}/api/nodes", data=json.dumps(corpo).encode("utf-8"), headers={"Content-Type": "application/json"})
+            req = urllib.request.Request(f"{base_url}/api/nodes", data=json.dumps(corpo).encode("utf-8"), headers=cabecalhos_de_escrita(base_url))
             urllib.request.urlopen(req)
 
         with urllib.request.urlopen(f"{base_url}/api/busca?termo=alfa&limite=1") as resp:
@@ -131,7 +132,7 @@ def test_servidor_http_rota_desconhecida_retorna_404_edge_case() -> None:
 
     base_url = f"http://127.0.0.1:{porta}"
     try:
-        req = urllib.request.Request(f"{base_url}/api/rota_desconhecida", data=b"{}", headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(f"{base_url}/api/rota_desconhecida", data=b"{}", headers=cabecalhos_de_escrita(base_url))
         with urllib.request.urlopen(req) as resp:
             assert False, "Deveria ter falhado"
     except urllib.error.HTTPError as err:
@@ -157,7 +158,7 @@ def test_servidor_http_delete_elementos_edge_case() -> None:
 
         # Deleta nó via DELETE
         payload_del = json.dumps({"tipo": "nos", "id": "t-del"}).encode("utf-8")
-        req_del = urllib.request.Request(f"{base_url}/api/elements", data=payload_del, headers={"Content-Type": "application/json"}, method="DELETE")
+        req_del = urllib.request.Request(f"{base_url}/api/elements", data=payload_del, headers=cabecalhos_de_escrita(base_url), method="DELETE")
         with urllib.request.urlopen(req_del) as resp:
             assert resp.status == 200
             recibo = json.loads(resp.read().decode("utf-8"))

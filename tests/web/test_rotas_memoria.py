@@ -12,6 +12,7 @@ from typing import Any
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.in_memory_store import InMemoryEventStore
 from graphow.web.server import EnderecoServidor, GraphowWebServer
+from tests.web.cliente_http import cabecalhos_de_escrita
 
 
 def _obter_porta_livre() -> int:
@@ -36,7 +37,7 @@ def _servidor() -> Iterator[str]:
 
 def _postar(url: str, corpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     """POST com JSON, devolvendo status e corpo mesmo nas recusas."""
-    req = urllib.request.Request(url, data=json.dumps(corpo).encode("utf-8"), headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=json.dumps(corpo).encode("utf-8"), headers=cabecalhos_de_escrita(url))
     try:
         with urllib.request.urlopen(req) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
