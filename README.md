@@ -619,8 +619,9 @@ registra as decisões e despacha agentes, cada um com o próprio servidor MCP,
 porque o papel é fixado na abertura da conexão: executores no papel `executor`,
 revisores no papel `revisor`. Nenhum deles precisa de especificação em prosa: o
 despacho pode ser só o id da tarefa, e a vista dela traz o resto. É o que deixa
-o orquestrador encerrar a sessão a cada tarefa fechada e voltar pela vista de
-retomada.
+cada rodada do trabalho rodar num subagente novo, o condutor, que começa sem
+histórico e o descarta ao devolver. A sessão principal só despacha as rodadas e
+para nos portões humanos, sem `/clear` entre uma tarefa e outra.
 
 O kernel sustenta cinco peças desse arranjo:
 

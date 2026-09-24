@@ -1,99 +1,93 @@
 ---
 name: graphow-orquestracao
-description: Orquestração de agentes sobre o grafo do Graphow. O orquestrador (Opus, papel planejador) decompõe um Goal em Tasks e despacha exploradores que só apontam trechos, executores (Sonnet por padrão, Opus quando o erro não seria pego por teste) e revisores (Opus, sessão nova), com todo o estado no grafo e nada na conversa. Use quando pedirem para orquestrar um Goal, dividir trabalho grande entre subagentes, retomar uma orquestração depois de limpar a sessão ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-explorador, graphow-executor, graphow-executor-opus e graphow-revisor, em ~/.claude/agents.
+description: Orquestração de agentes sobre o grafo do Graphow, sem /clear entre tarefas. A sessão principal é a raiz. Ela recebe do humano um Goal, Setor ou Projeto e despacha rodadas em sequência para o subagente graphow-condutor (Opus, contexto novo a cada rodada). O condutor decompõe, testa o executor frio e despacha exploradores, executores e revisores. A raiz só para nos portões humanos, como a cadência combinada, o trabalho travado em Question e o teto de rodadas. Use quando pedirem para orquestrar um Goal, Setor ou Projeto, dividir trabalho grande entre subagentes, retomar uma orquestração ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-condutor, graphow-explorador, graphow-executor, graphow-executor-opus e graphow-revisor, em ~/.claude/agents.
 ---
 
 # Orquestração sobre o Graphow
 
-O estado da orquestração mora no grafo, não na conversa. Nenhum subagente recebe de você especificação em prosa: quem precisa de contexto chama `ler_vista` no nó da tarefa. Por isso você pode encerrar a própria sessão a cada tarefa fechada e voltar pela vista de retomada, sem carregar o histórico.
+O estado da orquestração mora no grafo, não na conversa. Por isso o trabalho pode ser cortado em rodadas, cada uma num contexto novo, e nenhuma precisa lembrar da anterior: toda rodada começa lendo o grafo.
 
-Você é o orquestrador: a sessão principal, no papel `planejador` (servidor `graphow-planejador`). Você lê os trechos de código que sustentam uma decisão, porque decidir em cima de resumo alheio é onde o sistema perde informação. O que você não faz é varrer o repositório: isso é do explorador.
+Você é a raiz, a sessão que conversa com o humano. Seu trabalho é despachar rodadas para o `graphow-condutor`, uma de cada vez, ler o que ele devolve e decidir entre seguir e parar. Cada rodada nasce sem histórico e o descarta ao devolver. É isso que substitui o `/clear`, então não peça `/clear` ao humano entre tarefas.
+
+Você não lê código de tarefa, não despacha executor nem revisor e não decide o desenho. Isso é do condutor, que lê as linhas que sustentam cada decisão; decidir em cima do resumo que ele devolve é onde o sistema perderia informação. O que você decide é o ritmo: seguir, parar e o que dizer ao humano.
 
 ## Quem faz o quê
 
 | Quem | Modelo | Escreve no grafo | Faz |
 | :--- | :--- | :--- | :--- |
-| você, orquestrador | Opus | `Task`, `Decision`, `Evidence` localizada, `Question`, `Note` | decompõe o Goal, decide, despacha, fecha |
-| `graphow-explorador` | Haiku; troque na definição se errar a localização | nada | devolve ponteiros: arquivo, linhas, trecho literal |
+| você, a raiz | o da sessão | nada | conversa com o humano, despacha rodadas, para nos portões |
+| `graphow-condutor` | Opus, contexto novo por rodada | `Task`, `Decision`, `Evidence` localizada, `Question`, `Note` | escolhe o Goal, decompõe, testa o executor frio, despacha e fecha |
+| `graphow-explorador` | Haiku | nada | devolve ponteiros: arquivo, linhas, trecho literal |
 | `graphow-executor` | Sonnet | `Artifact`, `Evidence`, `Decision`, `Aprendizado` | executa uma Task a partir da vista dela |
 | `graphow-executor-opus` | Opus | idem | a Task marcada `modelo: opus` |
 | `graphow-revisor` | Opus, sempre sessão nova | `Evidence` com `veredito`, `Question`, `Aprendizado` | revisa contra os critérios de aceite; não corrige |
 
-`Constraint` só o humano cria. Quando uma restrição fizer falta, proponha por `abrir_questao` na Task que ela escoparia, com o texto exato da restrição.
+O procedimento da rodada (decompor, explorar sem interpretar, escolher o modelo, paralelismo, revisar, fechar e corrigir) está na definição do subagente `graphow-condutor`, em `.agents/agents/graphow-condutor.md` no repositório do graphow.
 
-## O ciclo
+Goal e Constraint só o humano cria: ele diz o que quer, e os agentes decidem como. Quando uma restrição fizer falta, o condutor a propõe numa Question.
 
-1. **Entrar.** O id da sua sessão está na vista de retomada que o hook imprimiu (`Sessao <id>`). Leia o Goal com `ler_vista(id_goal)`: as propriedades trazem a `configuracao` de modelos (ver "Escolher o modelo"). Peça a fila com `proximas_tarefas(id_goal)`: ela percorre a decomposição do Goal, de qualquer sessão, e cada tarefa vem com `modelo`, `arquivos_alvo`, `criterio_pronto` e o motivo de cada impedida.
-2. **Decompor**, quando o Goal ainda não tem Tasks ou a próxima precisa de desenho:
-   - pergunte ao explorador onde está o que importa (ver "Explorar sem interpretar");
-   - leia você mesmo as linhas que vão sustentar a decisão e registre cada leitura como `Evidence` localizada, a `Decision` com `justifica` vindo dela, e `orienta` da Decision para o Goal ou a Task em que ela vale (a do Goal desce a toda a decomposição);
-   - crie cada Task com `criar_tarefa`: `id_tarefa_pai` do Goal, `criterio_pronto` verificável, `arquivos_alvo`, `modelo` com `motivo_modelo`, e em `decisoes` os ids das Decision que a orientam. Pré-requisito vira `depende_de`.
-3. **Testar o executor frio.** Obrigatório antes de todo despacho: `ler_vista(id_task, perspectiva="executor", orcamento_tokens=10000)`, o mesmo orçamento com que o executor lê. Pergunte-se se um agente que nunca viu esta conversa executaria a tarefa só com aquilo. O cabeçalho tem o `criterio_pronto` verificável e os `arquivos_alvo`? A seção `Decisoes Que Governam Esta Tarefa` traz cada decisão que você tomou sobre ela? Há algo que só existe na conversa? Se faltar, falta nó no grafo: registre a Decision, ligue por `orienta`, complete a propriedade. Nunca compense no texto do despacho.
-4. **Despachar.** Pela ferramenta de subagente, com o subagente de `modelo` da Task e um prompt que é só ponteiro:
+## O laço
 
-       Task: <id_task>
+1. **Entrar.** O id da sua sessão está na vista que o hook imprimiu (`Sessao <id>`). O alvo é o que o humano pediu: um Goal, um Setor ou um Projeto. Se ele não disse, pergunte. A cadência e o teto de rodadas valem nesta ordem: o que o humano disse agora, as propriedades `cadencia` e `teto_rodadas` que a rodada devolve (lidas do Goal, do Setor ou do Projeto) e, por fim, o padrão, que é `goal` e 20 rodadas.
+2. **Despachar uma rodada**, com o subagente `graphow-condutor`, em primeiro plano (`run_in_background: false`) e um prompt que é só ponteiro:
+
+       Alvo: <id>
        Sessao: <id_sessao>
 
-   Ver "Paralelismo" para despachar mais de uma de uma vez.
-5. **Revisar.** Se o executor devolveu `Decision:`, leia cada uma e decida se ela governa a tarefa; governando, ligue por `orienta` antes da revisão, para o revisor julgar contra ela. Com `RESULTADO: pronto_para_revisao`, despache o `graphow-revisor` com `Artifact: <id>` e `Sessao: <id>`. Nunca revise você mesmo o que despachou, e nunca mande ao revisor nada da conversa.
-6. **Fechar.**
-   - `VEREDITO: aprovado`: despache o `graphow-executor` com `Fechar: <id_task>` e `Sessao: <id>`. Várias tarefas aprovadas cabem num despacho só.
-   - `VEREDITO: rejeitado`: crie a Task de correção com `criar_tarefa`: `id_tarefa_pai` na tarefa rejeitada, `corrige` com o id da Evidence do veredito, `criterio_pronto` com o critério da original e o que a revisão apontou (o revisor da correção julga contra ele), `modelo: opus` com `motivo_modelo` "falhou uma revisao", e os mesmos `arquivos_alvo`. A correção herda pela decomposição as decisões da original, e o executor dela alcança o veredito e o trecho da falha na vista. A original passa a depender da correção e sai da fila até ela fechar. Volte ao passo 3. Aprovada a correção, feche as duas juntas: `Fechar: <correção>, <original>`.
-   - `VEREDITO: duvida` ou `RESULTADO: bloqueada`: a Question está aberta para o humano. Espere em `aguardar_resposta`, ou encerre a sessão dizendo o id da Question.
-7. **Encerrar a sessão.** Ao fechar uma Task, ou o lote despachado junto, e ao fechar cada Goal intermediário: termine o turno com uma linha ao humano, o que fechou e qual é a próxima, e peça `/clear`. Não siga para a próxima tarefa nesta sessão: o reflexo de manter tudo aberto é o que acumula centenas de milhares de tokens de histórico. A sessão seguinte volta pela vista de retomada e por `ler_vista` no Goal.
+   Uma rodada por vez, porque duas ao mesmo tempo disputariam o mesmo Goal. O paralelismo fica dentro da rodada, entre tarefas com arquivos disjuntos.
+3. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma, para ele ir respondendo enquanto o trabalho anda.
+4. **Seguir ou parar.** Volte ao passo 2 enquanto nenhum portão de "Onde parar" fechar.
+5. **Parar** é terminar o turno com um resumo curto ao humano, dizendo:
+   - por que parou;
+   - o que fechou desde a última parada;
+   - os Goals que ficaram sem tarefa aberta (fechar o Goal é dele);
+   - as Questions abertas, com id e uma linha, para responder na interface do graphow;
+   - o que roda quando ele disser "segue".
 
-## Explorar sem interpretar
+   Quando ele disser "segue", volte ao passo 2 na mesma conversa, com a contagem de rodadas zerada. Não peça `/clear`.
 
-O explorador recebe uma pergunta de localização, não de interpretação:
+## Cadência
 
-    Pergunta: onde a taxa de compra é convertida em fator de desconto?
-    Comece por: src/precos/
+| `cadencia` | Para quando |
+| :--- | :--- |
+| `tarefa` | toda rodada terminar, como antes, mas sem `/clear`: o humano só diz "segue" |
+| `goal` (padrão) | a rodada devolver `Goal concluido: sim` |
+| `setor` | o alvo não tiver mais trabalho pronto |
 
-Ele devolve ponteiros (arquivo, faixa de linhas, trecho literal e uma frase de relevância) e está proibido de concluir o que o código faz. O julgamento é seu: leia as linhas apontadas (`Read` com `offset` e `limit`) e só então registre a Evidence, com o que você leu:
+O humano grava a cadência no Goal, no Setor ou no Projeto (propriedade `cadencia`), ou a diz ao pedir a orquestração. O que ele diz na conversa vale só para aquela chamada.
 
-```json
-{"id": "evi-fator-base-252", "tipo": "Evidence", "rotulo": "O fator de desconto usa base 252",
- "propriedades": {"arquivo": "src/precos/fator.py", "linhas": "40-42",
-  "trecho": "<as linhas 40 a 42, literais>", "relevancia": "onde a taxa vira fator"}}
-```
+## Onde parar
 
-O portão recusa, com `evidencia_sem_localizacao`, Evidence sua sem `arquivo`, `linhas` e `trecho`, e trecho com mais linhas do que a faixa. É isso que impede uma interpretação errada de ganhar autoridade de fato registrado. Se o explorador errar até a localização com frequência, troque o `model` na definição dele, sem mudar o protocolo.
+Em qualquer cadência, pare quando:
 
-## Escolher o modelo
+- a rodada devolver `RODADA: nada_a_fazer`: o que resta espera Question, posse órfã ou dependência travada;
+- o teto de rodadas chegar;
+- o limite do plano ficar perto do fim: no app desktop, leia `mcp__ccd_session_mgmt__get_usage` (carregue pelo ToolSearch) depois de cada rodada e pare com a janela de 5 horas em 85% ou mais, ou com a semanal em 90% ou mais. Estourar no meio de uma rodada deixa posse presa e tarefa pela metade. Diga os percentuais no resumo da parada;
+- duas rodadas seguidas voltarem sem criar, fechar nem corrigir nada, ou fora do formato de saída do condutor;
+- o humano pedir. A mensagem dele chega entre rodadas.
 
-Marque na Task, com `modelo` e `motivo_modelo`; a escolha fica auditável no log.
+Question aberta não para o laço sozinha. A Task dela sai da fila, o resto segue, e o humano fica sabendo pela linha da rodada.
 
-- `sonnet` é o padrão.
-- `opus` quando o erro não seria pego por teste: lógica de domínio (precificação, apuração, convenções de calendário), mudança que atravessa vários módulos, ou tarefa que já falhou uma revisão.
+## O que só o humano faz
 
-A propriedade `configuracao` do Goal pode sobrepor a regra, para comparar arranjos: `tudo-opus` marca toda Task com `opus`; `opus-em-dominio` usa `opus` só nas de domínio; `padrao`, ou a ausência dela, segue a regra acima.
+- Criar Goal e Constraint.
+- Responder Question.
+- Promover Aprendizado.
+- Fechar o Goal.
+- Fazer commit e push, a menos que peça.
 
-## Paralelismo
+Nada disso muda se a sessão tiver um servidor do graphow com papel `humano`: a raiz não responde Question nem promove memória.
 
-Só roda em paralelo o que não tem `depende_de` entre si e tem `arquivos_alvo` disjuntos. Tarefa sem `arquivos_alvo` nunca roda em paralelo: complete a propriedade antes. Em código muito acoplado, uma tarefa depois da outra rende mais do que três executores disputando os mesmos módulos.
+## Higiene de contexto da raiz
 
-Despache as paralelas numa só mensagem, uma chamada de subagente por tarefa. Cada executor sobe o próprio servidor MCP, com posse própria (`--autor-por-conexao`), e `assumir_tarefa` impede a colisão no grafo. O que impede dois agentes no mesmo arquivo é a sua checagem de `arquivos_alvo`, feita antes do despacho. O executor que precisar de arquivo fora do alvo para e devolve `fora_do_alvo`: acerte a Task e despache de novo quando o arquivo estiver livre.
-
-## Higiene de contexto
-
-- Todo retorno de subagente cabe em cerca de 1.500 tokens; saída longa de teste ou de consulta vai para arquivo, e volta o caminho com um resumo. As definições dos subagentes já dizem isso.
-- Não cole retorno de subagente no grafo nem em outro despacho. O que vale guardar vira nó, com a proveniência de quem o registrou.
-- Não abra arquivos inteiros para "ter contexto". Leia as linhas que sustentam a decisão que você vai registrar.
-- Encerre a sessão a cada Task ou Goal fechado (passo 7).
-
-## Quando travar
-
-- Ambiguidade que você não resolve lendo código: `abrir_questao` na Task e `aguardar_resposta`.
-- `proximas_tarefas` mostra uma tarefa impedida por `posse_de_outro` cujo subagente já terminou: a posse ficou órfã. Abra uma Question pedindo ao humano que devolva a posse (`liberar_tarefa` numa sessão humana devolve a de qualquer autor).
-- Commit e push ficam com o humano, a menos que ele peça.
-
-## Fechamento e memória
-
-Executor e revisor registram `Aprendizado`, com `deriva_de`, quando algo vale além da tarefa. Você não registra: peça no despacho seguinte se notar um. Promover continua com o humano.
+- Não abra código, não chame explorador, executor nem revisor, e não leia a vista das tarefas: isso enche a conversa que devia ficar leve.
+- Não cole o retorno de uma rodada no despacho da seguinte. O condutor novo lê o grafo.
+- A raiz cresce perto de mil tokens por rodada. Quando o `context` do `get_usage` passar de 50% da janela, ou depois de umas 50 rodadas se a ferramenta não existir (no `claude -p`, por exemplo), pare no próximo portão e sugira limpar. A raiz nova volta pelo mesmo alvo, porque o estado está no grafo. A sessão não consegue se limpar e se chamar de novo sozinha: no app, o `clear_session("self")` encerra o processo ao fim do turno, e nada de dentro dela sobrevive para mandar a mensagem seguinte.
+- O protocolo de memória que o hook imprime vale para quem escreve no grafo. Aqui quem escreve são o condutor e os subagentes dele, com a proveniência de cada um. A raiz não registra Evidence, Decision nem Aprendizado.
 
 ## Medir a divisão de modelos
 
-Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por sessão (seus tokens) e um por subagente (tokens, modelo e as tarefas que ele assumiu). Para comparar arranjos:
+Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por sessão (os tokens da raiz) e um por subagente, inclusive os que o condutor despacha (tokens, modelo e as tarefas que ele assumiu). Para comparar arranjos:
 
 1. O humano cria um Goal por configuração, com a mesma descrição e `configuracao` igual a `tudo-opus`, `padrao` ou `opus-em-dominio`.
 2. Cada Goal é orquestrado a partir do mesmo commit, num worktree próprio do git, para os executores de um arranjo não pisarem nos do outro.
@@ -103,9 +97,10 @@ Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por s
 graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao --goal goal-opus-em-dominio
 ```
 
-O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão e os tokens por tarefa concluída.
+O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão e os tokens por tarefa concluída. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
 
 ## Referências
 
+- `graphow-condutor` (`.agents/agents/graphow-condutor.md` no repositório do graphow): o procedimento da rodada.
 - [Despacho](./references/despacho.md): o prompt de cada subagente e o formato do que ele devolve.
 - [Configuração](./references/configuracao.md): servidores MCP por papel, hooks, permissões e o laço sem interface.
