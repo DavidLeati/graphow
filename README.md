@@ -645,6 +645,12 @@ rejeições na revisão e os tokens por tarefa concluída. Os `Run` dos agentes
 despachados vêm do hook `SubagentStop`, que está na fiação de
 [`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
 
+A skill que conduz esse arranjo, `graphow-orquestracao`, está em
+[`.agents/skills/graphow-orquestracao`](.agents/skills/graphow-orquestracao/SKILL.md),
+e os subagentes que ela despacha em `.agents/agents`. O instalador cuida só da
+`graphow-mcp`; a orquestração se copia para `~/.claude`, como diz a
+[configuração](.agents/skills/graphow-orquestracao/references/configuracao.md).
+
 ---
 
 ## 📊 Métrica Número Um: Tokens por Tarefa Bem-Sucedida
