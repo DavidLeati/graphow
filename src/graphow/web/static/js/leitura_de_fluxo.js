@@ -48,7 +48,12 @@ export function ladoDoVizinho(tipoDaAresta, noEstaNaOrigem) {
 
 const porCriacao = (a, b) => (a.seq_criacao ?? 0) - (b.seq_criacao ?? 0);
 
-export function lerFluxo(nos, arestas) {
+/**
+ * `paiForaDoCanvas` responde o contêiner de um contêiner que o canvas não
+ * trouxe: aberto numa sessão, o canvas não tem o setor nem o projeto dela, e
+ * as raias por setor e por projeto precisam deles. Sem ele, só vale o canvas.
+ */
+export function lerFluxo(nos, arestas, { paiForaDoCanvas = () => null } = {}) {
   const porId = new Map();
   for (const no of nos) porId.set(no.id, no);
   const saidas = new Map();
@@ -91,10 +96,14 @@ export function lerFluxo(nos, arestas) {
 
   // A sessão vem no próprio nó; a aresta `produz` só cobre o nó sem o campo.
   const sessaoDe = (id) => porId.get(id)?.sessao_id || entradasDe(id).find((aresta) => aresta.tipo === "produz")?.origem_id || null;
-  const paiDoConteiner = (id) => entradasDe(id).find((aresta) => aresta.tipo === "contem")?.origem_id || null;
+  const paiDoConteiner = (id) => entradasDe(id).find((aresta) => aresta.tipo === "contem")?.origem_id || paiForaDoCanvas(id) || null;
   const setorDe = (id) => {
     const sessao = sessaoDe(id);
     return sessao ? paiDoConteiner(sessao) : null;
+  };
+  const projetoDe = (id) => {
+    const setor = setorDe(id);
+    return setor ? paiDoConteiner(setor) : null;
   };
 
   /**
@@ -106,6 +115,7 @@ export function lerFluxo(nos, arestas) {
     objetivo: (id) => objetivoDe(id) || sessaoDe(id),
     sessao: (id) => sessaoDe(id),
     setor: (id) => setorDe(id),
+    projeto: (id) => projetoDe(id),
   };
   const tarefaDe = (id) => subirAte(id, (no) => no?.tipo === "Task");
   const status = (id) => statusDe(porId.get(id));
@@ -141,12 +151,12 @@ export function lerFluxo(nos, arestas) {
     return resultado;
   }
 
-  /** Ordena as chaves pela criação do nó que as nomeia: objetivos antes de sessões, sessões antes de setores. */
-  const PRECEDENCIA = { Goal: 0, Sessao: 1, Setor: 2 };
+  /** Ordena as chaves pela criação do nó que as nomeia: objetivos, depois sessões, setores e projetos. */
+  const PRECEDENCIA = { Goal: 0, Sessao: 1, Setor: 2, Projeto: 3 };
   function ordenarChaves(chaves, idDaChave = (chave) => chave) {
     const peso = (chave) => {
       const no = porId.get(idDaChave(chave));
-      return no ? [PRECEDENCIA[no.tipo] ?? 3, no.seq_criacao ?? 0] : [9, 0];
+      return no ? [PRECEDENCIA[no.tipo] ?? 4, no.seq_criacao ?? 0] : [9, 0];
     };
     return [...chaves].sort((a, b) => {
       const [pa, sa] = peso(a);
@@ -187,5 +197,5 @@ export function lerFluxo(nos, arestas) {
     return [...nomeadas, "#solto", "#estrutura", "#memoria"].filter((chave) => mapa.has(chave)).map((chave) => ({ chave, nos: mapa.get(chave) }));
   }
 
-  return { porId, status, objetivoDe, sessaoDe, setorDe, tarefaDe, dependeDe, liberaQuem, perguntasAbertas, contextoDe, vizinhos, raias, grupos };
+  return { porId, status, objetivoDe, sessaoDe, setorDe, projetoDe, tarefaDe, dependeDe, liberaQuem, perguntasAbertas, contextoDe, vizinhos, raias, grupos };
 }

@@ -113,6 +113,26 @@ test("o setor vem do contêiner da sessão, e a sessão do campo do nó antes da
   assert.deepEqual(fluxo.raias("setor"), [{ chave: "setor", tarefas: ["t"] }]);
 });
 
+test("o projeto vem do contêiner do setor da sessão", () => {
+  const fluxo = lerFluxo(
+    [{ id: "proj", tipo: "Projeto" }, { id: "setor", tipo: "Setor" }, { id: "s1", tipo: "Sessao" }, { id: "t", tipo: "Task", sessao_id: "s1" }],
+    [
+      { id: "e1", origem_id: "proj", destino_id: "setor", tipo: "contem" },
+      { id: "e2", origem_id: "setor", destino_id: "s1", tipo: "contem" },
+    ],
+  );
+  assert.equal(fluxo.projetoDe("t"), "proj");
+  assert.deepEqual(fluxo.raias("projeto"), [{ chave: "proj", tarefas: ["t"] }]);
+});
+
+test("aberto numa sessão, setor e projeto vêm de fora do canvas", () => {
+  const pais = { s1: "setor", setor: "proj" };
+  const fluxo = lerFluxo([{ id: "t", tipo: "Task", sessao_id: "s1" }], [], { paiForaDoCanvas: (id) => pais[id] });
+  assert.equal(fluxo.setorDe("t"), "setor");
+  assert.equal(fluxo.projetoDe("t"), "proj");
+  assert.deepEqual(fluxo.raias("projeto"), [{ chave: "proj", tarefas: ["t"] }]);
+});
+
 test("o minimapa cobre cada nó exatamente uma vez", () => {
   const fluxo = montarFluxo();
   const grupos = fluxo.grupos();

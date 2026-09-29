@@ -1,10 +1,10 @@
 /**
  * Quadro: a vista paralela ao canvas, para fluxos grandes demais de ler como grafo.
  *
- * As tarefas ficam em raias — por objetivo, sessão ou setor — e colunas por
- * status; um minimapa à esquerda mostra todos os nós do escopo agrupados pela
- * mesma raia. É
- * a mesma fonte do canvas — o escopo e o recorte da aba — e a mesma seleção: o
+ * As tarefas ficam em raias — por objetivo, sessão, setor ou projeto — e em
+ * colunas por status; um minimapa à esquerda mostra todos os nós do escopo
+ * agrupados pela mesma raia. É a mesma fonte do canvas — o escopo e o recorte
+ * da aba — e a mesma seleção: o
  * que se escolhe aqui aparece nos painéis da direita, e o painel de impacto diz
  * o que afeta o nó e o que ele afeta.
  *
@@ -25,8 +25,8 @@ const ROTULO_DA_COLUNA = {
   bloqueado: "Bloqueado",
   concluido: "Concluído",
 };
-const MODOS_DE_RAIA = { objetivo: "Objetivo", sessao: "Sessão", setor: "Setor" };
-const RAIA_SEM_CHAVE = { objetivo: "Sem objetivo nem sessão", sessao: "Sem sessão", setor: "Sem setor" };
+const MODOS_DE_RAIA = { objetivo: "Objetivo", sessao: "Sessão", setor: "Setor", projeto: "Projeto" };
+const RAIA_SEM_CHAVE = { objetivo: "Sem objetivo nem sessão", sessao: "Sem sessão", setor: "Sem setor", projeto: "Sem projeto" };
 const ROTULO_DO_GRUPO = { "#solto": "Sem objetivo", "#estrutura": "Estrutura e execução", "#memoria": "Memória" };
 const FILTROS = {
   abertas: { rotulo: "Perguntas abertas", tom: "espera" },
@@ -80,7 +80,9 @@ export class QuadroView {
   render() {
     if (!this.visivel) return;
     const rolagens = [...this.raiz.querySelectorAll("[data-rolagem]")].map((el) => [el.dataset.rolagem, el.scrollTop, el.scrollLeft]);
-    this.fluxo = lerFluxo([...this.state.nodes.values()], [...this.state.edges.values()]);
+    this.fluxo = lerFluxo([...this.state.nodes.values()], [...this.state.edges.values()], {
+      paiForaDoCanvas: (id) => this.indice?.paiDe.get(id) || null,
+    });
     this.pairado = null;
     this.raiz.innerHTML = `
       <div class="quadro">
