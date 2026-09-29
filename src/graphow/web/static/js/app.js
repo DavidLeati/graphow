@@ -35,6 +35,7 @@ import { Minimap } from "./minimap.js";
 import { abrirModal, avisar } from "./modais.js";
 import { apresentarTipo, corDoTipo, definirVocabulario, ehConteiner, tiposDeTrabalho } from "./ontologia_ui.js";
 import { PatchConsoleView } from "./patch_console_view.js";
+import { QuadroView } from "./quadro_view.js";
 import { QuickFinder } from "./quick_finder.js";
 import { RecorteView } from "./recorte_view.js";
 import { SSEClient } from "./sse_client.js";
@@ -198,6 +199,16 @@ class GraphowApp {
     document.getElementById("aviso-viagem").addEventListener("click", (evento) => {
       if (evento.target.closest("[data-voltar-presente]")) this.voltarAoPresente();
     });
+    this.quadro = new QuadroView(document.getElementById("vista-quadro"), {
+      state: this.state,
+      indice: this.indice,
+      // Raia de sessão pode nomear um contêiner que o escopo não traz: ir até ele abre o escopo.
+      acoes: { ...this.acoesDosPaineis(), selecionar: (id) => (this.state.nodes.has(id) ? this.state.selectElement("node", id) : this.focarNo(id)) },
+    });
+    document.getElementById("alternador-modo").addEventListener("click", (evento) => {
+      const botao = evento.target.closest("[data-modo]");
+      if (botao) this.definirModo(botao.dataset.modo);
+    });
     this.sseClient = new SSEClient(this.state, (tipo, payload) => this.onSSEEvent(tipo, payload), () => this.ressincronizarAposReconexao());
     this.aplicarMinimapa();
   }
@@ -283,6 +294,7 @@ class GraphowApp {
 
   async aoAtivarAba(aba, { mudouEscopo = false, repetido = false } = {}) {
     this.mostrarFerramenta(aba.tipo === "grafo" ? null : aba.tipo);
+    this.aplicarModo();
     if (aba.tipo !== "grafo") return;
     if (repetido) {
       if (!this.consumirFocoPendente()) this.interactions.fitToView();
@@ -330,6 +342,50 @@ class GraphowApp {
     document.getElementById("ferramenta-patch").hidden = tipo !== "patch";
     document.querySelector(".vista-acoes").style.visibility = tipo ? "hidden" : "visible";
     if (tipo === "diff") this.forkDiffView.updateBranchOptions();
+  }
+
+  // ------------------------------------------------------------------ grafo ou quadro
+
+  /** Cada aba de grafo lembra se está como grafo ou como quadro; ferramentas não têm modo. */
+  modoDaVista() {
+    const aba = this.abas?.ativa;
+    if (aba?.tipo !== "grafo") return null;
+    return aba.modo === "quadro" ? "quadro" : "grafo";
+  }
+
+  definirModo(modo) {
+    const aba = this.abas.ativa;
+    if (aba.tipo !== "grafo" || this.modoDaVista() === modo) return;
+    aba.modo = modo;
+    this.abas.persistir();
+    this.aplicarModo();
+    if (modo === "quadro") {
+      // O quadro responde "onde está" e o painel de impacto, "o que isso muda":
+      // se a lateral está aberta, ele é o companheiro natural.
+      if (!this.lateralDireita.recolhida) this.abasDireita.ativar("impacto");
+      const selecao = this.state.selectedElement;
+      if (selecao?.type === "node") this.quadro.revelar(selecao.id);
+      return;
+    }
+    // O canvas ficou oculto e não acompanhou nada enquanto isso: redesenha e,
+    // se o enquadramento guardado não mostra nó, enquadra de novo.
+    this.renderer.render();
+    this.minimap.update();
+    if (!this.algumNoNaJanela()) this.interactions.fitToView();
+  }
+
+  alternarModo() {
+    const modo = this.modoDaVista();
+    if (modo) this.definirModo(modo === "quadro" ? "grafo" : "quadro");
+  }
+
+  aplicarModo() {
+    const modo = this.modoDaVista();
+    document.getElementById("vista-conteudo").classList.toggle("modo-quadro", modo === "quadro");
+    const alternador = document.getElementById("alternador-modo");
+    alternador.hidden = modo === null;
+    alternador.querySelectorAll("[data-modo]").forEach((botao) => botao.classList.toggle("is-ativo", botao.dataset.modo === modo));
+    this.quadro.mostrar(modo === "quadro");
   }
 
   descartarSelecaoForaDaTela() {
@@ -410,6 +466,12 @@ class GraphowApp {
 
   /** Ir até um nó é querer lê-lo: abaixo de 75% o cartão vira um risco, então o zoom sobe. */
   selecionarECentralizar(id) {
+    if (this.modoDaVista() === "quadro") {
+      this.state.selectElement("node", id);
+      this.quadro.revelar(id);
+      this.quickFinder.lembrar(id);
+      return;
+    }
     if (this.interactions.zoom < ZOOM_MINIMO_AO_FOCAR) this.interactions.zoom = ZOOM_MINIMO_AO_FOCAR;
     this.state.selectElement("node", id);
     this.interactions.centralizarNo(id);
@@ -436,7 +498,9 @@ class GraphowApp {
       this.recorteView.render();
       this.barraStatus.render();
       this.atualizarVazio();
+      this.quadro.render();
     } else if (tipo === "SELECTION_CHANGED") {
+      this.quadro.render();
       this.renderer.render();
       this.destacar(null);
       this.inspector.render();

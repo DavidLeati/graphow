@@ -385,6 +385,9 @@ export class CanvasInteractions {
   }
 
   fitToView() {
+    // Com o quadro na frente o canvas tem largura zero: enquadrar ali daria
+    // zoom mínimo e pan no vazio. A aplicação reenquadra quando o canvas volta.
+    if (!this.viewport.clientWidth) return;
     if (this.state.nodes.size === 0) {
       this.resetZoom();
       return;
@@ -421,6 +424,7 @@ export class CanvasInteractions {
   }
 
   zoomToSelection() {
+    if (!this.viewport.clientWidth) return;
     const sel = this.state.selectedElement;
     if (!sel || sel.type !== "node") return;
 

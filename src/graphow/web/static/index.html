@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles/paineis.css">
   <link rel="stylesheet" href="/styles/canvas.css">
   <link rel="stylesheet" href="/styles/sobreposicoes.css">
+  <link rel="stylesheet" href="/styles/quadro.css">
 </head>
 <body>
   <div id="app-container" class="moldura">
@@ -86,6 +87,10 @@
         </div>
         <div class="vista-trilha" id="vista-trilha"></div>
         <div class="vista-acoes">
+          <div class="alternador-modo" id="alternador-modo" role="group" aria-label="Modo da vista">
+            <button data-modo="grafo" data-icone="grafo" data-icone-tamanho="13" title="Ver como grafo">Grafo</button>
+            <button data-modo="quadro" data-icone="kanban" data-icone-tamanho="13" title="Ver como quadro: tarefas por objetivo e status (Q)">Quadro</button>
+          </div>
           <button class="clicavel-icone" data-comando="alternar-recorte" data-icone="sliders" title="Recorte e exibição"></button>
           <button class="clicavel-icone" data-comando="menu-vista" data-icone="more-vertical" title="Mais opções"></button>
         </div>
@@ -97,6 +102,7 @@
             <div id="nodes-layer"></div>
           </div>
         </section>
+        <section class="vista-quadro" id="vista-quadro" hidden aria-label="Quadro de tarefas"></section>
 
         <!-- Sobreposições: irmãs do viewport, para o pan e o zoom não as capturarem -->
         <div class="canvas-aviso" id="recorte-aviso" role="status" hidden></div>

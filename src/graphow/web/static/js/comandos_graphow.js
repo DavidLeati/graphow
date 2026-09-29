@@ -58,6 +58,7 @@ export function registrarComandos(app) {
     { id: "promover-aprendizado", nome: "Promover o aprendizado selecionado…", icone: "lightbulb", disponivel: () => noPresente() && selecionado()?.tipo === "Aprendizado", executar: () => app.dialogosDeMemoria.promover(selecionado()) },
 
     // Canvas
+    { id: "alternar-quadro", nome: "Alternar entre grafo e quadro", icone: "kanban", atalho: "q", disponivel: () => app.modoDaVista() !== null, executar: () => app.alternarModo() },
     { id: "enquadrar", nome: "Enquadrar tudo", icone: "maximize", atalhoExibido: "F", executar: () => app.interactions.fitToView() },
     { id: "zoom-selecao", nome: "Aproximar da seleção", icone: "crosshair", atalhoExibido: "Z", executar: () => app.interactions.zoomToSelection() },
     { id: "resetar-zoom", nome: "Zoom padrão", icone: "rotate-ccw", atalhoExibido: "0", executar: () => app.interactions.resetZoom() },
