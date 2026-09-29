@@ -23,6 +23,7 @@ import { ExploradorView } from "./explorador_view.js";
 import { ForkDiffView } from "./fork_diff_view.js";
 import { HistoricoView } from "./historico_view.js";
 import { hidratarIcones, icone } from "./icones.js";
+import { ImpactoView } from "./impacto_view.js";
 import { IndiceNavegacao } from "./indice_navegacao.js";
 import { InspectorView } from "./inspector_view.js";
 import { DivisorVertical, GrupoDeAbas, Lateral } from "./laterais.js";
@@ -41,7 +42,7 @@ import { appState } from "./state.js";
 import { TokenSimulatorView } from "./token_simulator_view.js";
 
 const SSE_COALESCE_DELAY_MS = 200;
-const PAINEIS_DA_SELECAO = ["conexoes", "linhagem", "agente"];
+const PAINEIS_DA_SELECAO = ["conexoes", "impacto", "linhagem", "agente"];
 const ZOOM_MINIMO_AO_FOCAR = 0.75;
 
 function resumirEventos(eventos) {
@@ -125,10 +126,11 @@ class GraphowApp {
     this.memoria = new MemoriaView(document.getElementById("painel-memoria"), dependencias);
     this.inspector = new InspectorView(document.getElementById("painel-propriedades"), dependencias);
     this.conexoes = new ConexoesView(document.getElementById("painel-conexoes"), dependencias);
+    this.impacto = new ImpactoView(document.getElementById("painel-impacto"), dependencias);
     this.linhagem = new LineageView(document.getElementById("painel-linhagem"), dependencias);
     this.agente = new TokenSimulatorView(document.getElementById("painel-agente"), dependencias);
     this.historico = new HistoricoView(document.getElementById("painel-historico"), dependencias);
-    this.paineisDaSelecao = { conexoes: this.conexoes, linhagem: this.linhagem, agente: this.agente };
+    this.paineisDaSelecao = { conexoes: this.conexoes, impacto: this.impacto, linhagem: this.linhagem, agente: this.agente };
     this.quickFinder = new QuickFinder({
       state: this.state,
       indice: this.indice,

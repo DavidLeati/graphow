@@ -37,6 +37,7 @@ export function registrarComandos(app) {
     { id: "alternar-painel-direito", nome: "Recolher ou expandir o painel direito", icone: "panel-right", executar: () => app.lateralDireita.alternar() },
     { id: "mostrar-propriedades", nome: "Mostrar propriedades", icone: "file-text", executar: () => app.mostrarPainelDireito("propriedades") },
     { id: "mostrar-conexoes", nome: "Mostrar conexões do nó", icone: "link", executar: () => app.mostrarPainelDireito("conexoes") },
+    { id: "mostrar-impacto", nome: "Mostrar o impacto do nó", icone: "arrow-right-left", executar: () => app.mostrarPainelDireito("impacto") },
     { id: "mostrar-linhagem", nome: "Mostrar linhagem causal", icone: "route", executar: () => app.mostrarPainelDireito("linhagem") },
     { id: "mostrar-agente", nome: "Mostrar a vista do agente", icone: "bot", executar: () => app.mostrarPainelDireito("agente") },
     { id: "abrir-historico", nome: "Abrir o histórico do log", icone: "history", executar: () => app.mostrarHistorico() },

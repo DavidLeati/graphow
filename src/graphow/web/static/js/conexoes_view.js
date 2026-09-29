@@ -33,7 +33,7 @@ export class ConexoesView {
     const selecao = this.state.selectedElement;
     if (!selecao || selecao.type !== "node") {
       this.idCarregado = null;
-      this.raiz.innerHTML = this.montarVazio("Selecione um nó para ver todas as arestas dele, dentro e fora do canvas.");
+      this.raiz.innerHTML = this.montarVazio(this.textoSemSelecao());
       return;
     }
     if (!forcar && this.idCarregado === selecao.id) return;
@@ -53,6 +53,10 @@ export class ConexoesView {
 
   invalidar() {
     this.idCarregado = null;
+  }
+
+  textoSemSelecao() {
+    return "Selecione um nó para ver todas as arestas dele, dentro e fora do canvas.";
   }
 
   vizinhos() {

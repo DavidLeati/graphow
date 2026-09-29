@@ -569,3 +569,10 @@
 .diff-coluna li[data-ir]:hover { background: var(--moldura-hover); }
 .diff-coluna li code { font-size: 10.5px; color: var(--texto-fraco); }
 .terminal-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Impacto: o que afeta o nó e o que ele afeta */
+.impacto-status { margin-left: auto; font-size: var(--fonte-menor); color: var(--tom-neutro); }
+.impacto-status.tom-ok { color: var(--tom-ok); }
+.impacto-status.tom-andamento { color: var(--tom-andamento); }
+.impacto-status.tom-espera { color: var(--tom-espera); }
+.impacto-status.tom-alerta { color: var(--tom-alerta); }
