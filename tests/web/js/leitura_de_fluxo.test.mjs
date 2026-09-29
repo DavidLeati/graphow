@@ -89,21 +89,42 @@ test("vizinhos separam o que afeta do que é afetado e escondem a sessão do tra
   assert.ok(fluxo.vizinhos("sess").jusante.some((v) => v.id === "goal"), "contêiner mostra o que produziu");
 });
 
-test("raias seguem os objetivos e juntam as órfãs no fim", () => {
+test("por objetivo, a tarefa órfã cai na raia da sessão que a produziu", () => {
   const fluxo = montarFluxo();
   assert.deepEqual(fluxo.raias(), [
-    { objetivo: "goal", tarefas: ["t1", "t2", "t3", "t2a"] },
-    { objetivo: null, tarefas: ["orfa"] },
+    { chave: "goal", tarefas: ["t1", "t2", "t3", "t2a"] },
+    { chave: "sess", tarefas: ["orfa"] },
   ]);
+});
+
+test("por sessão junta tudo que a sessão produziu; sem setor no canvas, a raia é nula", () => {
+  const fluxo = montarFluxo();
+  assert.deepEqual(fluxo.raias("sessao"), [{ chave: "sess", tarefas: ["t1", "t2", "t3", "t2a", "orfa"] }]);
+  assert.deepEqual(fluxo.raias("setor"), [{ chave: null, tarefas: ["t1", "t2", "t3", "t2a", "orfa"] }]);
+});
+
+test("o setor vem do contêiner da sessão, e a sessão do campo do nó antes da aresta", () => {
+  const fluxo = lerFluxo(
+    [{ id: "setor", tipo: "Setor" }, { id: "s1", tipo: "Sessao" }, { id: "t", tipo: "Task", sessao_id: "s1" }],
+    [{ id: "e", origem_id: "setor", destino_id: "s1", tipo: "contem" }],
+  );
+  assert.equal(fluxo.sessaoDe("t"), "s1");
+  assert.equal(fluxo.setorDe("t"), "setor");
+  assert.deepEqual(fluxo.raias("setor"), [{ chave: "setor", tarefas: ["t"] }]);
 });
 
 test("o minimapa cobre cada nó exatamente uma vez", () => {
   const fluxo = montarFluxo();
   const grupos = fluxo.grupos();
-  assert.deepEqual(grupos.map((g) => g.chave), ["goal", "solto", "estrutura", "memoria"]);
+  assert.deepEqual(grupos.map((g) => g.chave), ["goal", "sess", "#estrutura", "#memoria"]);
   const todos = grupos.flatMap((g) => g.nos);
   assert.equal(new Set(todos).size, todos.length);
   assert.equal(todos.length, fluxo.porId.size);
+});
+
+test("nó sem objetivo nem sessão fica no grupo solto", () => {
+  const fluxo = lerFluxo([{ id: "n", tipo: "Note" }], []);
+  assert.deepEqual(fluxo.grupos(), [{ chave: "#solto", nos: ["n"] }]);
 });
 
 test("ciclo de âncoras não trava a subida", () => {

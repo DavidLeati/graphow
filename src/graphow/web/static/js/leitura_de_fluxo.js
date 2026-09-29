@@ -88,6 +88,25 @@ export function lerFluxo(nos, arestas) {
   }
 
   const objetivoDe = (id) => subirAte(id, (no) => no?.tipo === "Goal");
+
+  // A sessão vem no próprio nó; a aresta `produz` só cobre o nó sem o campo.
+  const sessaoDe = (id) => porId.get(id)?.sessao_id || entradasDe(id).find((aresta) => aresta.tipo === "produz")?.origem_id || null;
+  const paiDoConteiner = (id) => entradasDe(id).find((aresta) => aresta.tipo === "contem")?.origem_id || null;
+  const setorDe = (id) => {
+    const sessao = sessaoDe(id);
+    return sessao ? paiDoConteiner(sessao) : null;
+  };
+
+  /**
+   * A raia de cada nó em cada modo. Por objetivo, o que não sobe a objetivo
+   * nenhum fica na raia da sessão que o produziu: num grafo em que poucas
+   * tarefas têm `decompoe`, uma raia única "sem objetivo" engoliria quase tudo.
+   */
+  const RAIA_POR_MODO = {
+    objetivo: (id) => objetivoDe(id) || sessaoDe(id),
+    sessao: (id) => sessaoDe(id),
+    setor: (id) => setorDe(id),
+  };
   const tarefaDe = (id) => subirAte(id, (no) => no?.tipo === "Task");
   const status = (id) => statusDe(porId.get(id));
 
@@ -122,39 +141,51 @@ export function lerFluxo(nos, arestas) {
     return resultado;
   }
 
-  /** Uma raia por objetivo com tarefa, na ordem de criação; as órfãs vão numa raia sem objetivo, no fim. */
-  function raias() {
-    const porObjetivo = new Map();
+  /** Ordena as chaves pela criação do nó que as nomeia: objetivos antes de sessões, sessões antes de setores. */
+  const PRECEDENCIA = { Goal: 0, Sessao: 1, Setor: 2 };
+  function ordenarChaves(chaves, idDaChave = (chave) => chave) {
+    const peso = (chave) => {
+      const no = porId.get(idDaChave(chave));
+      return no ? [PRECEDENCIA[no.tipo] ?? 3, no.seq_criacao ?? 0] : [9, 0];
+    };
+    return [...chaves].sort((a, b) => {
+      const [pa, sa] = peso(a);
+      const [pb, sb] = peso(b);
+      return pa - pb || sa - sb || String(a).localeCompare(String(b));
+    });
+  }
+
+  /** Uma raia por chave com tarefa; as tarefas sem chave vão numa raia nula, no fim. */
+  function raias(modo = "objetivo") {
+    const chaveDe = RAIA_POR_MODO[modo] || RAIA_POR_MODO.objetivo;
+    const porChave = new Map();
     for (const tarefa of nos.filter((no) => no.tipo === "Task").sort(porCriacao)) {
-      const objetivo = objetivoDe(tarefa.id);
-      if (!porObjetivo.has(objetivo)) porObjetivo.set(objetivo, []);
-      porObjetivo.get(objetivo).push(tarefa.id);
+      const chave = chaveDe(tarefa.id);
+      if (!porChave.has(chave)) porChave.set(chave, []);
+      porChave.get(chave).push(tarefa.id);
     }
-    const objetivos = nos.filter((no) => no.tipo === "Goal").sort(porCriacao).map((no) => no.id);
-    const lista = objetivos.filter((id) => porObjetivo.has(id)).map((id) => ({ objetivo: id, tarefas: porObjetivo.get(id) }));
-    if (porObjetivo.has(null)) lista.push({ objetivo: null, tarefas: porObjetivo.get(null) });
+    const nomeadas = ordenarChaves([...porChave.keys()].filter((chave) => chave !== null));
+    const lista = nomeadas.map((chave) => ({ chave, tarefas: porChave.get(chave) }));
+    if (porChave.has(null)) lista.push({ chave: null, tarefas: porChave.get(null) });
     return lista;
   }
 
-  /** Grupos do minimapa: cada objetivo com tudo que sobe até ele, depois estrutura, memória e o que ficou solto. */
-  function grupos() {
+  /** Grupos do minimapa: o trabalho pela mesma chave das raias, depois o que ficou solto, a estrutura e a memória. */
+  function grupos(modo = "objetivo") {
+    const chaveDe = RAIA_POR_MODO[modo] || RAIA_POR_MODO.objetivo;
     const mapa = new Map();
     const colocar = (chave, no) => {
       if (!mapa.has(chave)) mapa.set(chave, []);
-      mapa.get(chave).push(no);
+      mapa.get(chave).push(no.id);
     };
     for (const no of [...nos].sort(porCriacao)) {
-      const objetivo = objetivoDe(no.id);
-      if (objetivo) colocar(objetivo, no);
-      else if (TIPOS_DE_ESTRUTURA.has(no.tipo)) colocar("estrutura", no);
-      else if (no.tipo === "Aprendizado") colocar("memoria", no);
-      else colocar("solto", no);
+      if (TIPOS_DE_ESTRUTURA.has(no.tipo)) colocar("#estrutura", no);
+      else if (no.tipo === "Aprendizado") colocar("#memoria", no);
+      else colocar(chaveDe(no.id) ?? "#solto", no);
     }
-    const objetivos = nos.filter((no) => no.tipo === "Goal").sort(porCriacao).map((no) => no.id);
-    return [...objetivos, "solto", "estrutura", "memoria"]
-      .filter((chave) => mapa.has(chave))
-      .map((chave) => ({ chave, objetivo: porId.has(chave) ? chave : null, nos: mapa.get(chave).map((no) => no.id) }));
+    const nomeadas = ordenarChaves([...mapa.keys()].filter((chave) => !chave.startsWith("#")));
+    return [...nomeadas, "#solto", "#estrutura", "#memoria"].filter((chave) => mapa.has(chave)).map((chave) => ({ chave, nos: mapa.get(chave) }));
   }
 
-  return { porId, status, objetivoDe, tarefaDe, dependeDe, liberaQuem, perguntasAbertas, contextoDe, vizinhos, raias, grupos };
+  return { porId, status, objetivoDe, sessaoDe, setorDe, tarefaDe, dependeDe, liberaQuem, perguntasAbertas, contextoDe, vizinhos, raias, grupos };
 }
