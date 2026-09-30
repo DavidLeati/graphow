@@ -35,7 +35,7 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
 
 Uma rodada cuida de um Goal só, e no máximo de um lote de execução. Vale a primeira regra que servir:
 
-1. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor com o Artifact que deriva da Task (passo 5); com `aprovado`, feche (passo 6); com `rejeitado`, crie a correção (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4). Task impedida por `posse_de_outro` que já tem Artifact: é a entrega de um executor que perdeu a posse (`posse_perdida`); sem veredito, despache o revisor com o Artifact (passo 5); com `aprovado`, feche (passo 6).
+1. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor com o Artifact que deriva da Task (passo 5); com `aprovado`, feche (passo 6); com `rejeitado`, siga a rejeição (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4). Task impedida por `posse_de_outro` que já tem Artifact: é a entrega de um executor que perdeu a posse (`posse_perdida`); sem veredito, despache o revisor com o Artifact (passo 5); com `aprovado`, feche (passo 6).
 2. **Decompor**, quando o Goal não tem Task ou a próxima precisa de desenho: passo 3, e devolva ao fim dele. A execução fica para a rodada seguinte, que lê as tarefas sem nada desta conversa, e é esse o teste mais honesto do que você registrou.
 3. **Executar**, quando há Task pronta: passos 4 a 6, para uma Task ou um lote paralelo.
 4. Nada disso: devolva `RODADA: nada_a_fazer` com os motivos das impedidas.
@@ -62,7 +62,7 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 
 - `Decision:` no retorno do executor: leia cada uma e decida se ela governa a tarefa. Se governar, ligue por `orienta` antes da revisão, para o revisor julgar contra ela.
 - `RESULTADO: pronto_para_revisao`: despache o `graphow-revisor` com `Artifact: <id>` e `Sessao: <id>`. Nunca revise você mesmo o que despachou.
-- `RESULTADO: posse_perdida`: o servidor do executor reiniciou e ele perdeu a posse; o Artifact e a Evidence estão gravados, e a Task ficou `em_andamento` sob o autor antigo. Revise como em `pronto_para_revisao`. Aprovada, feche normalmente (passo 6): o executor de fechamento retoma a posse órfã. Rejeitada, a correção não se cria enquanto a posse antiga segura a Task: abra Question nela pedindo ao humano que devolva a posse, e crie a correção numa rodada seguinte.
+- `RESULTADO: posse_perdida`: o servidor do executor reiniciou e ele perdeu a posse; o Artifact e a Evidence estão gravados, e a Task ficou `em_andamento` sob o autor antigo. Revise como em `pronto_para_revisao`. Aprovada, feche normalmente (passo 6): o executor de fechamento retoma a posse órfã. Rejeitada, nem a correção nem o aceite pelo teto (passo 6) andam enquanto a posse antiga segura a Task: abra Question nela pedindo ao humano que devolva a posse, e siga a rejeição numa rodada seguinte.
 - `RESULTADO: fora_do_alvo`: acerte `arquivos_alvo` por `propor_patch`, e a Task volta numa rodada seguinte. Se ela já tinha voltado `fora_do_alvo` antes, abra Question.
 - `RESULTADO: falhou`: leia a Evidence da falha. Desenho novo vira Decision com `orienta`; modelo mais forte vira `modelo: opus` com `motivo_modelo`. Sem saída clara, abra Question.
 - `RESULTADO: bloqueada`: há Question aberta ou posse de outro. Siga com o resto.
@@ -70,8 +70,10 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 ## 6. Fechar
 
 - `VEREDITO: aprovado`: despache o `graphow-executor` com `Fechar: <id>, <id>` e `Sessao: <id>`, todas as aprovadas da rodada num despacho só.
-- `VEREDITO: rejeitado`: crie a Task de correção com `criar_tarefa`: `id_tarefa_pai` na rejeitada, `corrige` com o id da Evidence do veredito, `criterio_pronto` com o critério da original e o que a revisão apontou, `modelo: opus` com `motivo_modelo` "falhou uma revisao" e os mesmos `arquivos_alvo`. A original passa a depender da correção e sai da fila. A correção roda numa rodada seguinte; aprovada, feche as duas juntas: `Fechar: <correção>, <original>`.
-- Rejeição de uma Task que já é correção (tem `corrige`): não crie outra. Abra Question na original com o que as duas revisões apontaram e pergunte como seguir.
+- `VEREDITO: rejeitado` numa Task original (sem `corrige`): crie a Task de correção com `criar_tarefa`: `id_tarefa_pai` na rejeitada, `corrige` com o id da Evidence do veredito, `criterio_pronto` com o critério da original e o que a revisão apontou, `modelo: opus` com `motivo_modelo` "falhou uma revisao" e os mesmos `arquivos_alvo`. A original passa a depender da correção e sai da fila. A correção roda numa rodada seguinte; aprovada, feche as duas juntas: `Fechar: <correção>, <original>`.
+- `VEREDITO: rejeitado` numa Task que já é correção (tem `corrige`): é a segunda reprovação, e vale o teto de correções. Não crie outra correção: a terceira raramente aprova e custa caro. Decida pela `gravidade` das Evidence dos critérios não atendidos, que o revisor traz na linha `Criterios nao atendidos:`.
+  - Algum `bloqueante`, ou critério sem `gravidade`: abra Question na original com o que as revisões apontaram e pergunte como seguir.
+  - Só `acompanhamento`: aceite a entrega. Num único `propor_patch`, registre a Decision "aceite apos segunda reprovacao", com a propriedade `acao: aceite_apos_reprovacao` (é por ela que a medição conta os aceites), `produz` da Sessao, `justifica` vindo da Evidence do veredito e `orienta` para a original e para cada correção. Crie com `criar_tarefa` a Task de acompanhamento: `id_tarefa_pai` no Goal, não na original; sem `corrige`, que faria a original esperar por ela; `decisoes` com a Decision do aceite; `descricao` e `criterio_pronto` com os critérios `acompanhamento` que ficaram, citando os ids das Evidence; os `arquivos_alvo` da original. Por fim, feche a cadeia, da correção mais nova à original: `Fechar: <correção>, <original>`, com as correções do meio entre as duas, se houver. O veredito vigente é `rejeitado`, mas com a posse livre o fechamento não depende dele.
 - `VEREDITO: duvida`: a Question está aberta. Siga com o resto.
 
 ## Explorar sem interpretar
@@ -109,7 +111,7 @@ Não espere o humano em `aguardar_resposta`, ainda que a skill graphow-mcp e as 
 - ambiguidade que a leitura do código não resolve;
 - restrição que falta: proponha o texto exato da `Constraint`, que só o humano cria;
 - posse de outro numa Task que ninguém desta rodada assumiu e cujo veredito vigente não é `aprovado`: pode ser posse órfã, e quem a devolve é o humano. Com `aprovado`, não trave: feche (passo 6), e o fechamento retoma a posse;
-- segunda rejeição, segundo `fora_do_alvo` ou `falhou` sem saída.
+- segunda rejeição com critério `bloqueante` (sem ele, é o aceite do passo 6), segundo `fora_do_alvo` ou `falhou` sem saída.
 
 ## Nunca
 
@@ -130,6 +132,7 @@ A resposta inteira cabe em cerca de 800 tokens. Omita as linhas que não se apli
     Criadas: <ids das Task criadas>
     Fechadas: <ids>
     Correcoes: <id rejeitada> -> <id correção>
+    Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao

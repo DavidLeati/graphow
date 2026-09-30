@@ -68,6 +68,8 @@ Em qualquer cadência, pare quando:
 
 Question aberta não para o laço sozinha. A Task dela sai da fila, o resto segue, e o humano fica sabendo pela linha da rodada.
 
+A correção reprovada também não para. O condutor aplica o teto de correções: na segunda reprovação sem critério `bloqueante`, aceita a entrega, fecha a original e abre uma Task de acompanhamento com o que ficou (linha `Aceites`); com algum `bloqueante`, abre Question. Uma terceira correção só nasce se o humano a pedir na resposta, e custa caro: diga isso a ele ao apontar a Question.
+
 ## O que só o humano faz
 
 - Criar Goal e Constraint.

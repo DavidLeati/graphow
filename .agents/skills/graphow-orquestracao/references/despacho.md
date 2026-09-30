@@ -14,7 +14,7 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 | `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
-| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado` |
+| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, com a posse livre |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
 
@@ -29,6 +29,7 @@ Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (
     Criadas: <ids das Task criadas>
     Fechadas: <ids>
     Correcoes: <id rejeitada> -> <id correção>
+    Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
@@ -39,6 +40,8 @@ Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (
 | `decomposicao` ou `execucao` | conta ao humano numa linha e segue, salvo portão |
 | `Goal concluido: sim` | com cadência `goal`, para; com `setor`, segue para outro Goal do alvo |
 | `nada_a_fazer` | para e diz ao humano o que espera por ele |
+| `Correcoes` | diz ao humano na linha da rodada; não para por isso |
+| `Aceites` | a correção foi reprovada de novo só com critérios de acompanhamento: o condutor fechou a original e abriu a Task de acompanhamento com o que ficou. Diz as duas ao humano na linha da rodada; não para por isso |
 | `Questoes` | diz o id ao humano na linha da rodada; não para por isso |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
@@ -89,11 +92,11 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
     Artifact: <id>
     Task: <id>
     Evidence: <id do veredito>
-    Criterios nao atendidos: <um por linha, com o id da Evidence que prova>
+    Criterios nao atendidos: <um por linha: gravidade, o critério e o id da Evidence que prova>
     Questao: <id>
     Resumo: <no máximo três linhas>
 
-A Evidence do veredito deriva do Artifact e da Task, e cada critério não atendido tem uma Evidence localizada com o trecho que o prova. A Task de correção, criada com `id_tarefa_pai` na tarefa rejeitada, alcança essas Evidence em dois saltos: o executor da correção as lê na vista, sem que o condutor as repita no prompt.
+A Evidence do veredito deriva do Artifact e da Task, e cada critério não atendido tem uma Evidence localizada com o trecho que o prova e a `gravidade`: `bloqueante` (segurança, permissão, dado em produção ou o critério central da tarefa) ou `acompanhamento` (borda, caso raro, teste que falta, texto). A Task de correção, criada com `id_tarefa_pai` na tarefa rejeitada, alcança essas Evidence em dois saltos: o executor da correção as lê na vista, sem que o condutor as repita no prompt.
 
 ## Mais de um despacho por vez
 

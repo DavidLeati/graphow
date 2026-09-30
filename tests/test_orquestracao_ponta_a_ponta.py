@@ -104,8 +104,10 @@ def _executar(executor: GraphowMCPServer, id_task: str, id_artifact: str) -> Non
     _chamar(executor, "liberar_tarefa", id_task=id_task)
 
 
-def _revisar(revisor: GraphowMCPServer, id_artifact: str, id_task: str, *, aprovar: bool) -> str:
-    """O protocolo do revisor despachado: o veredito deriva do Artifact e da Task; a reprovação traz o trecho."""
+def _revisar(
+    revisor: GraphowMCPServer, id_artifact: str, id_task: str, *, aprovar: bool, gravidade: str = "bloqueante"
+) -> str:
+    """O protocolo do revisor despachado: o veredito deriva do Artifact e da Task; a reprovação traz o trecho e a gravidade."""
     vista = _chamar(revisor, "ler_vista", id_alvo=id_artifact)["conteudo"]
     assert "Decisoes Que Governam Esta Tarefa" in vista
     id_veredito = f"evi-veredito-{id_artifact}"
@@ -115,13 +117,33 @@ def _revisar(revisor: GraphowMCPServer, id_artifact: str, id_task: str, *, aprov
         _aresta(id_veredito, id_task, "deriva_de"),
     ]
     if not aprovar:
+        id_falha = f"evi-falha-{id_artifact}"
+        trecho = "fator = 1 / (1 + taxa)"
         lote += [
-            *_produzido("evi-falha", "Evidence", arquivo="src/precos/preco.py", linhas="12", trecho="fator = 1 / (1 + taxa)"),
-            _aresta("evi-falha", id_task, "deriva_de"),
-            _aresta("evi-falha", f"evi-verif-{id_task}", "contradiz"),
+            *_produzido(id_falha, "Evidence", arquivo="src/precos/preco.py", linhas="12", trecho=trecho, gravidade=gravidade),
+            _aresta(id_falha, id_task, "deriva_de"),
+            _aresta(id_falha, f"evi-verif-{id_task}", "contradiz"),
         ]
     _chamar(revisor, "propor_patch", operacoes=lote, justificativa="veredito")
     return id_veredito
+
+
+def _corrigir(orquestrador: GraphowMCPServer, rejeicao: str) -> None:
+    """A correção da t1, como o condutor a cria depois da primeira reprovação."""
+    _chamar(
+        orquestrador, "criar_tarefa", titulo="Corrigir o fator", id_task="t1c", id_sessao=SESSAO, id_tarefa_pai="t1",
+        corrige=rejeicao, modelo="opus", motivo_modelo="falhou uma revisao", arquivos_alvo=["src/precos/preco.py"],
+        criterio_pronto="o preco usa taxa_para_fator e o teste de base 252 passa; sem o fator 1/(1+taxa) da linha 12",
+    )
+
+
+def _fechar(kernel: WriteKernel, *ids_tasks: str) -> None:
+    """O executor de fechamento: posse, conclusão e devolução, uma tarefa por vez."""
+    fechador = _agente(kernel, "executor-sonnet#e5", "executor")
+    for id_task in ids_tasks:
+        _chamar(fechador, "assumir_tarefa", id_task=id_task)
+        _chamar(fechador, "concluir_tarefa", id_task=id_task, justificativa="revisao aprovada ou aceite pelo teto")
+        _chamar(fechador, "liberar_tarefa", id_task=id_task)
 
 
 def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
@@ -136,11 +158,7 @@ def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
 
     _executar(_agente(kernel, "executor-opus#a1", "executor"), "t1", "art-1")
     rejeicao = _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=False)
-    _chamar(
-        orquestrador, "criar_tarefa", titulo="Corrigir o fator", id_task="t1c", id_sessao=SESSAO, id_tarefa_pai="t1",
-        corrige=rejeicao, modelo="opus", motivo_modelo="falhou uma revisao", arquivos_alvo=["src/precos/preco.py"],
-        criterio_pronto="o preco usa taxa_para_fator e o teste de base 252 passa; sem o fator 1/(1+taxa) da linha 12",
-    )
+    _corrigir(orquestrador, rejeicao)
     assert "evi-falha" in _chamar(orquestrador, "ler_vista", id_alvo="t1c", perspectiva="executor")["conteudo"]
     fila = _chamar(orquestrador, "proximas_tarefas", id_sessao="goal")
     assert [tarefa["id"] for tarefa in fila["tarefas"]] == ["t1c"]
@@ -151,11 +169,7 @@ def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
     assert rejeicao in revisao_da_correcao
     _executar(_agente(kernel, "executor-opus#c3", "executor"), "t1c", "art-2")
     _revisar(_agente(kernel, "revisor-opus#d4", "revisor"), "art-2", "t1c", aprovar=True)
-    fechador = _agente(kernel, "executor-sonnet#e5", "executor")
-    for id_task in ("t1c", "t1"):
-        _chamar(fechador, "assumir_tarefa", id_task=id_task)
-        _chamar(fechador, "concluir_tarefa", id_task=id_task, justificativa="revisao aprovada")
-        _chamar(fechador, "liberar_tarefa", id_task=id_task)
+    _fechar(kernel, "t1c", "t1")
 
     pedido = PedidoDeExecucao(
         id_run="run-exec", id_sessao=SESSAO, tipo_evento=TipoEvento.EXECUCAO_CONCLUIDA,
@@ -191,6 +205,42 @@ def test_executor_que_reinicia_no_meio_da_tarefa_fecha_sem_o_humano_edge_case() 
     assert kernel.obter_dono_do_lock("t1") is None
     (medicao,) = MedidorDeOrquestracao(kernel.obter_view()).medir(["goal"])
     assert (medicao.concluidas_sem_retrabalho, medicao.rejeicoes, medicao.aprovacoes) == (1, 0, 1)
+
+
+def test_segunda_reprovacao_sem_bloqueante_fecha_pelo_teto_edge_case() -> None:
+    """Caso de borda: a correção reprovada só com acompanhamento fecha com a original, e o resto vira outra Task.
+
+    O veredito vigente das duas é `rejeitado`, e nenhum portão olha para ele no
+    fechamento: com a posse livre, o executor assume e conclui como sempre. A
+    tarefa de acompanhamento nasce no Goal e sem `corrige`, e por isso não
+    prende a original.
+    """
+    kernel = _montar_goal()
+    orquestrador = _agente(kernel, "orquestrador", "planejador")
+    _decompor(orquestrador)
+    _executar(_agente(kernel, "executor-opus#a1", "executor"), "t1", "art-1")
+    _corrigir(orquestrador, _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=False))
+    _executar(_agente(kernel, "executor-opus#c3", "executor"), "t1c", "art-2")
+    segunda = _revisar(_agente(kernel, "revisor-opus#d4", "revisor"), "art-2", "t1c", aprovar=False, gravidade="acompanhamento")
+
+    aceite = [
+        *_produzido("dec-aceite", "Decision", acao="aceite_apos_reprovacao", motivo="so ficou criterio de acompanhamento"),
+        _aresta(segunda, "dec-aceite", "justifica"),
+        _aresta("dec-aceite", "t1", "orienta"),
+        _aresta("dec-aceite", "t1c", "orienta"),
+    ]
+    _chamar(orquestrador, "propor_patch", operacoes=aceite, justificativa="aceite apos segunda reprovacao")
+    _chamar(
+        orquestrador, "criar_tarefa", titulo="Acompanhar o fator da linha 12", id_task="t1-acomp", id_sessao=SESSAO,
+        id_tarefa_pai="goal", decisoes=["dec-aceite"], arquivos_alvo=["src/precos/preco.py"],
+        criterio_pronto="sem o fator 1/(1+taxa) da linha 12 (evi-falha-art-2)",
+    )
+    _fechar(kernel, "t1c", "t1")
+
+    view = kernel.obter_view()
+    assert {view.obter_no(id_task).obter_propriedade("status") for id_task in ("t1", "t1c")} == {StatusTask.CONCLUIDO.value}
+    fila = _chamar(orquestrador, "proximas_tarefas", id_sessao="goal")
+    assert [tarefa["id"] for tarefa in fila["tarefas"]] == ["t1-acomp"]
 
 
 def test_executor_sem_posse_nao_entrega_a_tarefa_de_outro_edge_case() -> None:

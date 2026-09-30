@@ -43,9 +43,11 @@ ou, para fechar tarefas que a revisão já aprovou:
 
 ## Fechar
 
-Para cada id de `Fechar:`, `assumir_tarefa`, `concluir_tarefa` com a justificativa "revisao aprovada" e `liberar_tarefa`. Nada mais: nem código, nem nó novo.
+Para cada id de `Fechar:`, `assumir_tarefa`, `concluir_tarefa` com a justificativa "revisao aprovada ou aceite pelo teto" e `liberar_tarefa`. Nada mais: nem código, nem nó novo.
 
 Numa tarefa aprovada, `assumir_tarefa` retoma a posse de outro executor e diz de quem em `posse_retomada_de`: é a posse de quem entregou e não voltou para liberar. Siga normalmente. Recusado por posse de outro, a revisão vigente não é aprovação: não feche essa tarefa e diga no resumo quem é o dono.
+
+`Fechar:` também traz a tarefa que o condutor aceitou pelo teto de correções, depois da segunda reprovação, com uma Decision de aceite que a orienta. O veredito vigente dela é `rejeitado`, e isso não impede nada: com a posse livre, `assumir_tarefa` a concede como a qualquer outra. Não confira o veredito: quem decidiu fechar foi o condutor.
 
 ## Nunca
 
