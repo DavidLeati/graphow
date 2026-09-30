@@ -243,7 +243,7 @@ body.is-redimensionando-vertical .divisor-vertical::after {
 .painel-historico { padding-bottom: 36px; }
 /* A metade do histórico responde pela própria altura: os controles fixos dele
    soltam quando ela fica baixa demais para a lista. */
-.lateral-direita .grupo-abas.divisao > .grupo-conteudo { container: historico / size; }
+#grupo-direito-inferior > .grupo-conteudo { container: historico / size; }
 
 /* Seletor de ramo no pé da lateral esquerda. */
 .cofre {
