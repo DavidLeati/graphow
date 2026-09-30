@@ -217,6 +217,14 @@
 .entrada-propriedade:disabled { color: var(--texto-suave); }
 .propriedade.mod-nova { grid-template-columns: 18px minmax(70px, 34%) 1fr; }
 .propriedade.mod-nova .entrada-propriedade { background: var(--moldura-campo); border-color: var(--moldura-campo-borda); }
+/* Numa lateral estreita a coluna da chave, com seus 34%, cortava o nome no
+   meio: abaixo de 320 px a chave vem acima do valor, como no texto longo, e o
+   valor fica com a largura toda. Vale também para a linha da propriedade nova. */
+@container lateral-direita (max-width: 320px) {
+  .propriedade,
+  .propriedade.mod-nova { grid-template-columns: 18px minmax(0, 1fr); row-gap: 0; }
+  .propriedade > :last-child { grid-column: 1 / -1; }
+}
 .adicionar-propriedade {
   display: inline-flex;
   align-items: center;
