@@ -9,6 +9,7 @@
  * ocultos por padrão: são metade do log e não dizem nada sobre o trabalho.
  */
 import { api } from "./api.js";
+import { chaveDoDia, diasDaGradeDoMes, passarMes, tituloDoPeriodo } from "./calendario.js";
 import { debounce, escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
 
@@ -29,10 +30,7 @@ const ICONE_DO_EVENTO = {
   execucao_concluida: "activity",
 };
 
-const diaDe = (iso) => {
-  const data = new Date(iso);
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
+const diaDe = (iso) => chaveDoDia(new Date(iso));
 
 export class HistoricoView {
   constructor(raiz, { state, indice, acoes }) {
@@ -175,17 +173,10 @@ export class HistoricoView {
 
   renderCalendario() {
     const mes = this.mesVisivel || new Date();
-    const ano = mes.getFullYear();
     const indiceMes = mes.getMonth();
-    const primeiro = new Date(ano, indiceMes, 1);
-    const inicio = new Date(ano, indiceMes, 1 - primeiro.getDay());
-    const hoje = diaDe(new Date().toISOString());
-    const celulas = [];
-    for (let deslocamento = 0; deslocamento < 42; deslocamento++) {
-      const data = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + deslocamento);
-      celulas.push(this.montarDia(data, indiceMes, hoje));
-    }
-    const nomeDoMes = primeiro.toLocaleDateString("pt-BR", { month: "long" });
+    const hoje = chaveDoDia(new Date());
+    const celulas = diasDaGradeDoMes(mes).map((data) => this.montarDia(data, indiceMes, hoje));
+    const { mes: nomeDoMes, ano } = tituloDoPeriodo(mes, mes);
     this.raiz.querySelector("[data-calendario]").innerHTML = `
       <div class="calendario-topo">
         <span class="calendario-mes"><strong>${escapeHtml(nomeDoMes)}</strong> <span class="texto-fraco">${ano}</span></span>
@@ -201,7 +192,7 @@ export class HistoricoView {
   }
 
   montarDia(data, indiceMes, hoje) {
-    const chave = diaDe(data.toISOString());
+    const chave = chaveDoDia(data);
     const eventos = this.porDia.get(chave)?.length || 0;
     const pontos = eventos === 0 ? 0 : Math.min(3, String(eventos).length);
     const classes = [
@@ -224,7 +215,7 @@ export class HistoricoView {
     if (botaoMes) {
       const passo = Number(botaoMes.dataset.mes);
       const base = this.mesVisivel || new Date();
-      this.mesVisivel = passo === 0 ? new Date() : new Date(base.getFullYear(), base.getMonth() + passo, 1);
+      this.mesVisivel = passo === 0 ? new Date() : passarMes(base, passo);
       this.renderCalendario();
       return;
     }
