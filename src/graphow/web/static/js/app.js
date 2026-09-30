@@ -165,6 +165,7 @@ class GraphowApp {
       novoFilho: (no) => this.novoFilho(no),
       salvarNo: (dados) => this.salvarNo(dados),
       abrirLeitura: (no, opcoes) => this.abrirLeitura(no, opcoes),
+      mostrarNoCanvas: (id, dica) => this.mostrarNoCanvas(id, dica),
       responderQuestao: (no, resposta) => this.responderQuestao(no, resposta),
       alternarMarcador: (no) => this.alternarMarcador(no),
       ehMarcador: (id) => this.marcadores.contem(id),
@@ -593,6 +594,15 @@ class GraphowApp {
     if (!no) return;
     this.leituraView.lembrarRascunho(no.id, rascunho);
     this.abas.abrirFerramenta("leitura", { noId: no.id, titulo: no.rotulo });
+  }
+
+  /**
+   * De uma ferramenta, ir até um nó é voltar ao grafo primeiro: focar com a
+   * ferramenta na frente selecionaria o nó num canvas que ninguém está vendo.
+   */
+  async mostrarNoCanvas(id, dica) {
+    if (this.abas.ativa.tipo !== "grafo") await this.abas.ativarGrafo();
+    await this.focarNo(id, dica);
   }
 
   /**

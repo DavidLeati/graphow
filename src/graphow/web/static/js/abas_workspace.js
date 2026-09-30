@@ -111,6 +111,14 @@ export class AbasWorkspace {
     return this.trocarPara(aba, true);
   }
 
+  /** Volta à aba de grafo mais perto da ativa; se não sobrou nenhuma, abre uma. */
+  ativarGrafo() {
+    const posicao = this.abas.indexOf(this.ativa);
+    const distancia = (aba) => Math.abs(this.abas.indexOf(aba) - posicao);
+    const grafos = this.abas.filter((aba) => aba.tipo === "grafo").sort((a, b) => distancia(a) - distancia(b));
+    return grafos.length ? this.ativar(grafos[0].id) : this.novaAba();
+  }
+
   ativar(id) {
     const aba = this.abas.find((candidata) => candidata.id === id);
     if (!aba || aba.id === this.idAtiva) return Promise.resolve();

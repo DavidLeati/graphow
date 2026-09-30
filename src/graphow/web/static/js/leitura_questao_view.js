@@ -202,8 +202,8 @@ export class LeituraDaQuestaoView {
     if (!alvo) return;
     const tratadores = {
       responder: () => this.responder(),
-      focar: () => this.no && this.acoes.focarNo(this.no.id, this.no),
-      "ir-para": () => this.acoes.focarNo(alvo.dataset.id),
+      focar: () => this.no && this.acoes.mostrarNoCanvas(this.no.id, this.no),
+      "ir-para": () => this.acoes.mostrarNoCanvas(alvo.dataset.id),
     };
     tratadores[alvo.dataset.acao]?.();
   }
