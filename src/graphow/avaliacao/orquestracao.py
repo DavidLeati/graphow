@@ -34,6 +34,7 @@ from graphow.core.orquestracao import (
 )
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
 from graphow.harness.transcricao import CHAVES_DE_USO
+from graphow.projection.decomposicao import tarefas_da_decomposicao
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.revisao import artefatos_da_tarefa, vereditos_sobre
 
@@ -99,22 +100,12 @@ class MedidorDeOrquestracao:
 
     def _coletar_trabalho(self, id_goal: str) -> TrabalhoDoGoal:
         """A decomposição do Goal e o que deriva dela: artefatos, vereditos e sessões produtoras."""
-        tarefas = self._descendentes_por_decomposicao(id_goal)
+        tarefas = tarefas_da_decomposicao(self._view, id_goal)
         ids_tarefas = frozenset(no.id for no in tarefas)
         artefatos = frozenset(id_artefato for id_task in ids_tarefas for id_artefato in artefatos_da_tarefa(self._view, id_task))
         vereditos = vereditos_sobre(self._view, ids_tarefas | artefatos)
         produzidos = ids_tarefas | artefatos | {no.id for no in vereditos} | self._decisoes_que_orientam(ids_tarefas | {id_goal})
         return TrabalhoDoGoal(tarefas=tarefas, artefatos=artefatos, vereditos=vereditos, sessoes=self._sessoes_de(produzidos))
-
-    def _descendentes_por_decomposicao(self, id_raiz: str) -> tuple[NoGrafo, ...]:
-        """Todas as Tasks abaixo do nó por `decompoe`, em ordem estável."""
-        encontradas: dict[str, NoGrafo] = {}
-        fronteira = [id_raiz]
-        while fronteira:
-            filhos = [a.destino_id for id_no in fronteira for a in self._view.obter_arestas_saida(id_no, TipoAresta.DECOMPOE)]
-            fronteira = [id_no for id_no in filhos if id_no not in encontradas and self._eh_do_tipo(id_no, TipoNo.TASK)]
-            encontradas.update({id_no: self._view.obter_no(id_no) for id_no in fronteira})
-        return tuple(sorted(encontradas.values(), key=lambda no: no.id))
 
     def _decisoes_que_orientam(self, alvos: Iterable[str]) -> set[str]:
         """As Decision ligadas por `orienta` ao Goal ou às tarefas dele."""
@@ -179,7 +170,7 @@ class MedidorDeOrquestracao:
 
     def _tem_correcao(self, id_task: str) -> bool:
         """Alguma tarefa de correção abaixo desta pela decomposição."""
-        return any(ler_texto(no.propriedades, CAMPO_CORRIGE) for no in self._descendentes_por_decomposicao(id_task))
+        return any(ler_texto(no.propriedades, CAMPO_CORRIGE) for no in tarefas_da_decomposicao(self._view, id_task))
 
     def _custo(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> tuple[dict[str, int], int]:
         """Tokens por agente: subagentes pelas tarefas assumidas, o resto pela sessão, dividida entre Goals."""

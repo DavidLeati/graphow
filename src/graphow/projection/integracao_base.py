@@ -9,15 +9,27 @@ primeiro que a tiver.
 
 O Goal não pende do Setor por `contem`: ele é produzido por uma Sessao, que o
 Setor contém, e o Setor é contido pelo Projeto. A herança sobe esse caminho.
+
+Daqui saem também os caminhos que o Goal toca, contra os quais o que o ramo
+base ganhou é cruzado.
 """
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from graphow.core.models import NoGrafo
-from graphow.core.orquestracao import CAMPO_CAMINHOS_DE_COLISAO, CAMPO_RAMO_BASE, ler_texto, ler_textos
-from graphow.core.types import TipoAresta, TipoNo
+from graphow.core.orquestracao import (
+    CAMPO_ARQUIVOS,
+    CAMPO_ARQUIVOS_ALVO,
+    CAMPO_CAMINHOS_DE_COLISAO,
+    CAMPO_RAMO_BASE,
+    ler_texto,
+    ler_textos,
+)
+from graphow.core.types import StatusTask, TipoAresta, TipoNo
+from graphow.projection.decomposicao import tarefas_da_decomposicao
 from graphow.projection.graph_view import GrafoView
+from graphow.projection.revisao import artefatos_da_tarefa
 
 
 @dataclass(frozen=True)
@@ -49,6 +61,28 @@ def resolver_integracao(view: GrafoView, id_goal: str) -> IntegracaoDoGoal:
         caminhos_de_colisao=ler_textos(com_caminhos.propriedades.get(CAMPO_CAMINHOS_DE_COLISAO)) if com_caminhos else (),
         origem_dos_caminhos=com_caminhos.id if com_caminhos else "",
     )
+
+
+def caminhos_do_goal(view: GrafoView, id_goal: str) -> tuple[str, ...]:
+    """Os caminhos que o trabalho do Goal toca, sem repetição e em ordem.
+
+    São os `arquivos_alvo` das tarefas que ainda não fecharam, que é o que
+    o Goal vai tocar, e os `arquivos` dos Artifacts de todas as tarefas, que
+    é o que ele já tocou: a migration entregue numa tarefa concluída segue no
+    ramo do Goal até o merge, e é ela que colide.
+    """
+    tarefas = tarefas_da_decomposicao(view, id_goal)
+    abertas = (no for no in tarefas if no.obter_propriedade("status") != StatusTask.CONCLUIDO.value)
+    alvos = [caminho for no in abertas for caminho in ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO))]
+    artefatos = sorted({id_artefato for no in tarefas for id_artefato in artefatos_da_tarefa(view, no.id)})
+    entregues = [caminho for id_artefato in artefatos for caminho in _arquivos_do_artefato(view, id_artefato)]
+    return tuple(sorted(set(alvos) | set(entregues)))
+
+
+def _arquivos_do_artefato(view: GrafoView, id_artefato: str) -> tuple[str, ...]:
+    """Os arquivos que o executor declarou no Artifact; vazio quando ele sumiu."""
+    artefato = view.obter_no(id_artefato)
+    return ler_textos(artefato.propriedades.get(CAMPO_ARQUIVOS)) if artefato is not None else ()
 
 
 def cadeia_de_heranca(view: GrafoView, id_goal: str) -> tuple[NoGrafo, ...]:

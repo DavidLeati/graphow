@@ -5,7 +5,12 @@ from typing import Any
 from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento
 from graphow.core.types import PapelAutor, TipoAresta
 from graphow.projection.graph_view import GrafoView
-from graphow.projection.integracao_base import IntegracaoDoGoal, cadeia_de_heranca, resolver_integracao
+from graphow.projection.integracao_base import (
+    IntegracaoDoGoal,
+    cadeia_de_heranca,
+    caminhos_do_goal,
+    resolver_integracao,
+)
 from graphow.projection.reducer import GrafoReducer
 
 MIGRATIONS: list[str] = ["**/migrations/*.py"]
@@ -95,3 +100,34 @@ def test_cadeia_sobe_da_sessao_ao_projeto_nominal() -> None:
     view = _view({}, {}, {})
 
     assert [no.id for no in cadeia_de_heranca(view, "goal")] == ["goal", "setor", "proj"]
+
+
+def _view_com_tarefas() -> GrafoView:
+    """Um Goal com uma tarefa aberta, uma concluída com o Artifact dela e uma correção abaixo da aberta."""
+    eventos = [
+        _no(1, "goal", "Goal", {}),
+        _no(2, "t-aberta", "Task", {"status": "pendente", "arquivos_alvo": ["app/migrations/0002_goal.py", "app/views.py"]}),
+        _no(3, "t-feita", "Task", {"status": "concluido", "arquivos_alvo": ["app/antigo.py"]}),
+        _no(4, "art-feita", "Artifact", {"arquivos": ["app/migrations/0001_goal.py"]}),
+        _no(5, "t-correcao", "Task", {"status": "em_andamento", "arquivos_alvo": "app/correcao.py"}),
+        _aresta(6, "goal", "t-aberta", TipoAresta.DECOMPOE),
+        _aresta(7, "goal", "t-feita", TipoAresta.DECOMPOE),
+        _aresta(8, "art-feita", "t-feita", TipoAresta.DERIVA_DE),
+        _aresta(9, "t-aberta", "t-correcao", TipoAresta.DECOMPOE),
+    ]
+    return GrafoView(GrafoReducer.reconstruir(eventos))
+
+
+def test_caminhos_do_goal_juntam_alvos_abertos_e_arquivos_entregues_nominal() -> None:
+    """A tarefa concluída entra pelo que entregou, não pelo alvo; as abertas pelo alvo, em qualquer profundidade."""
+    assert caminhos_do_goal(_view_com_tarefas(), "goal") == (
+        "app/correcao.py",
+        "app/migrations/0001_goal.py",
+        "app/migrations/0002_goal.py",
+        "app/views.py",
+    )
+
+
+def test_goal_sem_tarefa_nao_toca_nada_edge_case() -> None:
+    """Caso de borda: Goal ainda sem decomposição não tem caminho nenhum."""
+    assert caminhos_do_goal(_view({}, {}, {}), "goal") == ()

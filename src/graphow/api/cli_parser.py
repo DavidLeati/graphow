@@ -153,6 +153,33 @@ def _registrar_comando_de_orquestracao(
         help="ID de um Goal a medir; repita para varios. Sem ele, todo Goal com tarefas decompostas",
     )
     parser_medir.add_argument("--ramo", default="main", help="Ramo do grafo lido (padrao: main)")
+    _registrar_comando_de_colisoes(subparsers, parser_base)
+
+
+def _registrar_comando_de_colisoes(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra a conferência do Goal contra o ramo base em que ele vai ser integrado.
+
+    Lê o banco e roda git no repositório, sem escrever em nenhum dos dois: o
+    condutor só pode rodar comandos de leitura.
+    """
+    parser_colisoes = subparsers.add_parser(
+        "base-colisoes",
+        parents=[parser_base],
+        help=(
+            "Lista o que o ramo_base do Goal ganhou desde o merge-base, nos caminhos_de_colisao, "
+            "e que colide com o que o Goal toca. Sai com 1 se colidir e 2 se nao der para conferir"
+        ),
+    )
+    parser_colisoes.add_argument("--goal", required=True, help="ID do Goal conferido")
+    parser_colisoes.add_argument("--repo", default=".", help="Repositorio git conferido (padrao: diretorio atual)")
+    parser_colisoes.add_argument(
+        "--sem-fetch",
+        action="store_true",
+        help="Nao roda git fetch quando o ramo_base e de um remoto; compara com a copia local",
+    )
 
 
 def _registrar_comando_de_skill(

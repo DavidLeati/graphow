@@ -10,18 +10,19 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-15 módulos · 2090 linhas · 23 classes
+16 módulos · 2151 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`projection/acumulador.py`](#projectionacumulador) | 215 | Acumulador mutável usado para dobrar muitos eventos em uma passada só. |
 | [`projection/ambito.py`](#projectionambito) | 67 | O âmbito de cada nó: os projetos de trabalho ou as sessões que o hook abre. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
+| [`projection/decomposicao.py`](#projectiondecomposicao) | 27 | As tarefas de um Goal: todas as Tasks abaixo dele pela decomposição, em qualquer profundidade. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 252 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
-| [`projection/integracao_base.py`](#projectionintegracaobase) | 78 | O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança. |
+| [`projection/integracao_base.py`](#projectionintegracaobase) | 112 | O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança. |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
@@ -96,6 +97,14 @@ Caminho crítico: quem trava quem, e quanto cada gargalo destrava.
 **Campos:** `id: str`, `rotulo: str`, `tipo: str`, `status: str`, `desbloqueia_diretamente: int`, `desbloqueia_no_total: int`
 
 - `em_dicionario() -> dict[str, object]` — Forma serializável para a resposta REST e para a ferramenta MCP.
+
+## `projection/decomposicao.py`
+
+As tarefas de um Goal: todas as Tasks abaixo dele pela decomposição, em qualquer profundidade.
+
+### Funções do módulo
+
+- `tarefas_da_decomposicao(view: GrafoView, id_raiz: str) -> tuple[NoGrafo, ...]` — Todas as Tasks abaixo do nó por `decompoe`, correções incluídas, em ordem de identificador.
 
 ## `projection/fechamento.py`
 
@@ -224,6 +233,7 @@ O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por heran
 ### Funções do módulo
 
 - `resolver_integracao(view: GrafoView, id_goal: str) -> IntegracaoDoGoal` — Cada propriedade vem do primeiro nó que a tem: o Goal, depois o Setor, depois o Projeto.
+- `caminhos_do_goal(view: GrafoView, id_goal: str) -> tuple[str, ...]` — Os caminhos que o trabalho do Goal toca, sem repetição e em ordem.
 - `cadeia_de_heranca(view: GrafoView, id_goal: str) -> tuple[NoGrafo, ...]` — O Goal, os Setores que contêm as sessões que o produziram e os Projetos desses Setores.
 
 ## `projection/projecao_sincronizada.py`

@@ -300,6 +300,10 @@ graphow harness --fase subagente --entrada-hook
 # Comparar Goals orquestrados sob configurações de modelo: retrabalho, rejeições na revisão e tokens
 graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 
+# Conferir o Goal contra o ramo_base dele: o que o ramo base ganhou desde o merge-base,
+# nos caminhos_de_colisao, e que colide com o que o Goal toca (sai com 1 se colidir, 2 se não der para conferir)
+graphow base-colisoes --goal goal-migrations --repo . --sem-fetch
+
 # Medir o tamanho da vista contra o despejo da sessão sobre o corpus gravado
 graphow avaliar
 

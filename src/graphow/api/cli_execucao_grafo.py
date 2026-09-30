@@ -52,6 +52,7 @@ class ManipuladorComandosGrafo:
             "print": self._executar_print,
             "medir-escala": self._executar_medir_escala,
             "orquestracao-medir": self._executar_orquestracao_medir,
+            "base-colisoes": self._executar_base_colisoes,
             "notas-gerar": self._executar_notas_gerar,
             "web": self._executar_web,
             "mcp": self._executar_mcp,
@@ -111,6 +112,16 @@ class ManipuladorComandosGrafo:
         for linha in formatar_relatorio(medicoes):
             self._console.escrever_linha(linha)
         return CODIGO_SUCESSO
+
+    def _executar_base_colisoes(self, argumentos: argparse.Namespace) -> int:
+        """Confere o Goal contra o ramo base: 0 sem colisão, 1 com colisão, 2 sem conferência. Ver api/conferencia_base.py."""
+        from graphow.api.conferencia_base import PedidoDeConferencia, conferir_colisoes
+
+        pedido = PedidoDeConferencia(argumentos.goal, Path(argumentos.repo), buscar=not argumentos.sem_fetch)
+        relatorio = conferir_colisoes(self._kernel.obter_view(), pedido)
+        for linha in relatorio.linhas:
+            self._console.escrever_linha(linha)
+        return relatorio.codigo
 
     def _executar_notas_gerar(self, argumentos: argparse.Namespace) -> int:
         """Projeta os aprendizados promovidos num diretorio de notas, ou confere a deriva.
