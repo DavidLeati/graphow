@@ -10,18 +10,18 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-13 módulos · 1468 linhas · 17 classes
+13 módulos · 1471 linhas · 17 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 205 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
-| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 85 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
+| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 83 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
-| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 48 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
+| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 53 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 194 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
@@ -86,8 +86,6 @@ O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e 
 | `TIPO_DE_AGENTE_DESCONHECIDO` | `str` | `'subagente'` |
 | `MOTIVO_SEM_AGENT_ID` | `str` | `'sem_agent_id'` |
 | `MOTIVO_SEM_TRANSCRIPT_PATH` | `str` | `'sem_transcript_path'` |
-| `MOMENTO_DO_DESPACHO` | `str` | `'inicio'` |
-| `MOMENTO_DA_PARADA` | `str` | `'fim'` |
 
 ### Funções do módulo
 
@@ -188,6 +186,10 @@ A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transc
 | :--- | :--- | :--- |
 | `PADRAO_DA_COTA` | `re.Pattern[str]` | `re.compile('cota\\s*:\\s*\\**\\s*5\\s*h\\s*(?P<cinco_horas>\\d+(?:[.,]\…` |
 | `MARCAS_DA_COTA` | `tuple[str, ...]` | `('Cota', 'cota', 'COTA')` |
+| `PREFIXO_COTA_5H` | `str` | `'cota_5h_'` |
+| `PREFIXO_COTA_SEMANAL` | `str` | `'cota_semanal_'` |
+| `MOMENTO_DO_DESPACHO` | `str` | `'inicio'` |
+| `MOMENTO_DA_PARADA` | `str` | `'fim'` |
 
 ### `CotaDeclarada`
 
@@ -321,4 +323,5 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 - `ler_consumo(caminho: Path) -> ConsumoDaTranscricao | None` — O consumo da transcrição no caminho; None quando o arquivo não existe ou não se lê.
 - `ler_transcricao(caminho: Path) -> LeituraDaTranscricao` — O consumo da transcrição no caminho, ou o motivo de não haver um.
 - `localizar_transcricao_do_subagente(caminhos: Mapping[str, str], id_agente: str) -> Path | None` — A transcrição do subagente: a que o hook indicar, ou a pasta `subagents` da sessão.
+- `ler_instante(valor: object) -> datetime | None` — O instante ISO 8601 de uma entrada, em UTC; o que não se lê como instante vira None.
 

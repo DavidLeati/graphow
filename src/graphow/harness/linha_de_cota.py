@@ -19,6 +19,11 @@ PADRAO_DA_COTA: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 MARCAS_DA_COTA: tuple[str, ...] = ("Cota", "cota", "COTA")
+# As chaves no Run são o prefixo mais o momento: cota_5h_inicio, cota_semanal_fim.
+PREFIXO_COTA_5H: str = "cota_5h_"
+PREFIXO_COTA_SEMANAL: str = "cota_semanal_"
+MOMENTO_DO_DESPACHO: str = "inicio"
+MOMENTO_DA_PARADA: str = "fim"
 
 
 @dataclass(frozen=True)
@@ -30,7 +35,7 @@ class CotaDeclarada:
 
     def em_propriedades(self, momento: str) -> dict[str, float]:
         """As propriedades do Run para o momento dado: `inicio` no despacho, `fim` na parada."""
-        return {f"cota_5h_{momento}": self.cinco_horas, f"cota_semanal_{momento}": self.semanal}
+        return {f"{PREFIXO_COTA_5H}{momento}": self.cinco_horas, f"{PREFIXO_COTA_SEMANAL}{momento}": self.semanal}
 
 
 def ultima_cota(texto: str) -> CotaDeclarada | None:

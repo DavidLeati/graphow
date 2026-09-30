@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from graphow.harness.entrada_hook import EntradaDeHook
+from graphow.harness.linha_de_cota import MOMENTO_DA_PARADA, MOMENTO_DO_DESPACHO
 from graphow.harness.servico_harness import FaseDoHarness
 from graphow.harness.transcricao import (
     CAMPO_MOTIVO_SEM_CONSUMO,
@@ -32,9 +33,6 @@ from graphow.harness.transcricao import (
 TIPO_DE_AGENTE_DESCONHECIDO: str = "subagente"
 MOTIVO_SEM_AGENT_ID: str = "sem_agent_id"
 MOTIVO_SEM_TRANSCRIPT_PATH: str = "sem_transcript_path"
-# Sufixos das chaves de cota no Run: cota_5h_inicio, cota_semanal_fim.
-MOMENTO_DO_DESPACHO: str = "inicio"
-MOMENTO_DA_PARADA: str = "fim"
 
 
 def ler_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> LeituraDaTranscricao:

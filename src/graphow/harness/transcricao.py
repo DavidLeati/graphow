@@ -129,7 +129,7 @@ class AcumuladorDeConsumo:
 
     def marcar_instante(self, entrada: Mapping[str, Any]) -> bool:
         """Estende a janela da execução até o instante da entrada; False quando ela não traz um válido."""
-        instante = _instante(entrada.get("timestamp"))
+        instante = ler_instante(entrada.get("timestamp"))
         if instante is None:
             return False
         self._inicio = min(self._inicio or instante, instante)
@@ -283,7 +283,7 @@ def _carregar(linha: str) -> Mapping[str, Any]:
     return valor if isinstance(valor, dict) else {}
 
 
-def _instante(valor: object) -> datetime | None:
+def ler_instante(valor: object) -> datetime | None:
     """O instante ISO 8601 de uma entrada, em UTC; o que não se lê como instante vira None."""
     if not isinstance(valor, str) or not valor:
         return None

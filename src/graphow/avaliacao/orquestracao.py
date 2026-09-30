@@ -11,12 +11,19 @@ correção reprovada de novo que o condutor aceitou, sem critério bloqueante,
 por uma Decision marcada com `acao`. E separa as tarefas da trilha leve na
 contagem de modelos: elas rodam em Sonnet sob qualquer configuração, e contadas
 junto fariam um arranjo parecer mais Sonnet só por ter mais tarefa trivial.
+
+A leitura de cache fica à parte do total: ela domina a soma e custa uma fração
+do token de entrada, e comparar arranjos só pelo total é comparar quanto
+contexto cada um releu. Os Run sem tokens se contam pelo motivo que o harness
+gravou, e as rodadas do condutor dão a duração e a cota; ver rodadas.py.
 """
 
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
+from graphow.avaliacao.rodadas import Rodada, eh_condutor, eh_run_da_sessao, montar_rodadas
 from graphow.core.models import NoGrafo
 from graphow.core.orquestracao import (
     ACAO_ACEITE_APOS_REPROVACAO,
@@ -33,7 +40,7 @@ from graphow.core.orquestracao import (
     ler_textos,
 )
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
-from graphow.harness.transcricao import CHAVES_DE_USO
+from graphow.harness.transcricao import CAMPO_MOTIVO_SEM_CONSUMO, CHAVES_DE_USO
 from graphow.projection.decomposicao import tarefas_da_decomposicao
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.revisao import artefatos_da_tarefa, vereditos_sobre
@@ -42,6 +49,8 @@ SEM_CONFIGURACAO: str = "sem configuracao"
 SEM_MODELO: str = "sem modelo"
 AGENTE_ORQUESTRADOR: str = "orquestrador"
 CAMPOS_DE_TOKENS: tuple[str, ...] = tuple(CHAVES_DE_USO.values())
+CAMPO_CACHE_LEITURA: str = CHAVES_DE_USO["cache_read_input_tokens"]
+SEM_MOTIVO: str = "sem motivo"
 
 
 @dataclass(frozen=True)
@@ -62,12 +71,35 @@ class MedicaoDeGoal:
     modelos_por_tarefa: Mapping[str, int] = field(default_factory=dict)
     tarefas_leves: int = 0
     tokens_por_agente: Mapping[str, int] = field(default_factory=dict)
-    runs_sem_tokens: int = 0
+    tokens_cache_leitura: int = 0
+    runs_sem_tokens_por_motivo: Mapping[str, int] = field(default_factory=dict)
+    rodadas: tuple[Rodada, ...] = ()
 
     @property
     def tokens(self) -> int:
         """Todos os tokens atribuídos ao Goal, de todos os agentes."""
         return sum(self.tokens_por_agente.values())
+
+    @property
+    def tokens_sem_cache_leitura(self) -> int:
+        """Os tokens sem a leitura de cache, que domina o total e custa bem menos que os outros."""
+        return self.tokens - self.tokens_cache_leitura
+
+    @property
+    def runs_sem_tokens(self) -> int:
+        """Quantos Run atribuídos ao Goal não trouxeram token nenhum, por qualquer motivo."""
+        return sum(self.runs_sem_tokens_por_motivo.values())
+
+    @property
+    def segundos_de_rodada(self) -> float:
+        """A soma das durações conhecidas dos condutores, na parte que cabe ao Goal."""
+        return sum(rodada.duracao_s / rodada.divisor for rodada in self.rodadas if rodada.duracao_s is not None)
+
+    @property
+    def pontos_de_cota_semanal(self) -> float | None:
+        """A soma das variações conhecidas da cota semanal, na parte do Goal; None sem nenhuma conhecida."""
+        conhecidas = [rodada.cota.semanal / rodada.divisor for rodada in self.rodadas if rodada.cota.semanal is not None]
+        return sum(conhecidas) if conhecidas else None
 
 
 @dataclass(frozen=True)
@@ -134,7 +166,6 @@ class MedidorDeOrquestracao:
         concluidas = [no for no in originais if no.obter_propriedade("status") == StatusTask.CONCLUIDO.value]
         retrabalhadas = {no.id for no in originais if self._tem_correcao(no.id)}
         vereditos = Counter(ler_texto(no.propriedades, CAMPO_VEREDITO) for no in trabalho.vereditos)
-        tokens, sem_tokens = self._custo(trabalho, goals_por_sessao)
         return MedicaoDeGoal(
             id_goal=id_goal,
             rotulo=goal.rotulo if goal is not None else id_goal,
@@ -149,8 +180,7 @@ class MedidorDeOrquestracao:
             aceites_pelo_teto=self._aceites_pelo_teto(trabalho.ids_tarefas | {id_goal}),
             modelos_por_tarefa=_modelos_da_trilha_completa(originais),
             tarefas_leves=sum(1 for no in originais if _eh_leve(no)),
-            tokens_por_agente=tokens,
-            runs_sem_tokens=sem_tokens,
+            **self._custo(trabalho, goals_por_sessao),
         )
 
     def _aceites_pelo_teto(self, alvos: Iterable[str]) -> int:
@@ -172,18 +202,29 @@ class MedidorDeOrquestracao:
         """Alguma tarefa de correção abaixo desta pela decomposição."""
         return any(ler_texto(no.propriedades, CAMPO_CORRIGE) for no in tarefas_da_decomposicao(self._view, id_task))
 
-    def _custo(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> tuple[dict[str, int], int]:
-        """Tokens por agente: subagentes pelas tarefas assumidas, o resto pela sessão, dividida entre Goals."""
+    def _custo(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> dict[str, Any]:
+        """Os campos de custo da medição: tokens por agente, cache, Run sem tokens por motivo e rodadas.
+
+        Subagentes entram pelas tarefas assumidas, o resto pela sessão,
+        dividida entre os Goals que ela serviu.
+        """
+        atribuidos = self._runs_atribuidos(trabalho, goals_por_sessao)
         tokens: dict[str, int] = defaultdict(int)
-        sem_tokens = 0
-        for run in self._view.listar_nos_por_tipo(TipoNo.RUN):
-            divisor = self._divisor_do_run(run, trabalho, goals_por_sessao)
-            if divisor == 0:
-                continue
-            total = _tokens_do_run(run)
-            sem_tokens += 1 if total is None else 0
-            tokens[str(run.obter_propriedade("agente") or AGENTE_ORQUESTRADOR)] += (total or 0) // divisor
-        return dict(sorted(tokens.items())), sem_tokens
+        for run, divisor in atribuidos:
+            tokens[str(run.obter_propriedade("agente") or AGENTE_ORQUESTRADOR)] += (_tokens_do_run(run) or 0) // divisor
+        sem_tokens = Counter(_motivo_sem_consumo(run) for run, _ in atribuidos if _tokens_do_run(run) is None)
+        raizes = {ler_texto(run.propriedades, "id_sessao"): run for run, _ in atribuidos if eh_run_da_sessao(run)}
+        return {
+            "tokens_por_agente": dict(sorted(tokens.items())),
+            "tokens_cache_leitura": sum(_inteiro(run.propriedades.get(CAMPO_CACHE_LEITURA)) // divisor for run, divisor in atribuidos),
+            "runs_sem_tokens_por_motivo": dict(sorted(sem_tokens.items())),
+            "rodadas": montar_rodadas([par for par in atribuidos if eh_condutor(par[0])], raizes),
+        }
+
+    def _runs_atribuidos(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> list[tuple[NoGrafo, int]]:
+        """Cada Run que cabe ao Goal, com o divisor da parte dele."""
+        pares = ((run, self._divisor_do_run(run, trabalho, goals_por_sessao)) for run in self._view.listar_nos_por_tipo(TipoNo.RUN))
+        return [(run, divisor) for run, divisor in pares if divisor > 0]
 
     def _divisor_do_run(self, run: NoGrafo, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> int:
         """1 para o Run que assumiu tarefa do Goal; o número de Goals da sessão para o Run sem tarefa; 0 fora."""
@@ -221,3 +262,13 @@ def _tokens_do_run(run: NoGrafo) -> int | None:
     valores = [run.propriedades.get(campo) for campo in CAMPOS_DE_TOKENS]
     numeros = [valor for valor in valores if isinstance(valor, int) and not isinstance(valor, bool)]
     return sum(numeros) if numeros else None
+
+
+def _motivo_sem_consumo(run: NoGrafo) -> str:
+    """Por que o harness não leu tokens; o Run gravado antes do motivo existir fica sem motivo."""
+    return ler_texto(run.propriedades, CAMPO_MOTIVO_SEM_CONSUMO) or SEM_MOTIVO
+
+
+def _inteiro(valor: object) -> int:
+    """Contagem de tokens como inteiro; o que não é número conta zero."""
+    return valor if isinstance(valor, int) and not isinstance(valor, bool) else 0
