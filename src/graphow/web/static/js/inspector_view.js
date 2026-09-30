@@ -110,10 +110,13 @@ export class InspectorView {
   /**
    * A altura dos campos segue o texto, e muda quando a letra ou a largura da
    * lateral mudam. Com o painel oculto não há o que medir: a altura sairia zero.
+   * Medir encolhe o campo por um instante, e o painel rolado perderia o lugar.
    */
   reajustarCampos() {
     if (this.raiz.clientWidth === 0) return;
+    const rolagem = this.raiz.scrollTop;
     this.raiz.querySelectorAll("textarea:not([hidden])").forEach((campo) => ajustarCampo(campo));
+    this.raiz.scrollTop = rolagem;
   }
 
   // ---------------------------------------------------------------- nó

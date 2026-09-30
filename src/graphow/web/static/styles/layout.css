@@ -78,7 +78,8 @@ body.is-redimensionando-vertical * {
 }
 .lateral.is-recolhida { border: none !important; }
 .lateral-esquerda { border-right: 1px solid var(--moldura-divisor); }
-.lateral-direita { border-left: 1px solid var(--moldura-divisor); }
+/* A lateral direita é contêiner de consulta: o título do inspetor mede-se pela largura dela. */
+.lateral-direita { border-left: 1px solid var(--moldura-divisor); container: lateral-direita / inline-size; }
 
 .alca-redimensionar {
   position: relative;

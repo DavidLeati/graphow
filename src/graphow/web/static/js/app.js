@@ -107,7 +107,8 @@ class GraphowApp {
     });
     this.lateralDireita = new Lateral(document.getElementById("right-sidebar"), {
       chave: "direita", alca: document.getElementById("alca-direita"), larguraPadrao: 340, minimo: 260, maximo: 620, ladoDaAlca: "esquerda",
-      aoMudar: () => { redesenharCanvas(); this.atualizarPaineisDaSelecao(); },
+      // Outra largura é outra letra no título do inspetor e outra quebra nos campos.
+      aoMudar: () => { redesenharCanvas(); this.atualizarPaineisDaSelecao(); this.inspector.reajustarCampos(); },
     });
     this.abasEsquerda = new GrupoDeAbas(document.getElementById("grupo-esquerdo"), {
       chave: "esquerda", padrao: "explorador", aoMudar: (nome) => this.aoMostrarPainelEsquerdo(nome),

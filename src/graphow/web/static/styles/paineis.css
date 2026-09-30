@@ -50,7 +50,10 @@
   margin: 0 0 4px;
   padding: 2px 4px;
   font-family: var(--font-sans);
-  font-size: 19px;
+  /* Acompanha a largura da lateral: 15 px na mais estreita, 19 px a partir
+     de uns 400 px. Fixo em 19 px, quebrava em cinco linhas numa lateral de
+     340 px, antes de qualquer conteúdo. */
+  font-size: calc(clamp(15px, 7.5px + 2.85cqi, 19px) * var(--escala-lateral));
   font-weight: 650;
   line-height: 1.3;
   color: var(--texto-normal);
@@ -311,7 +314,7 @@
 .aresta-verbo .svg-icone { transform: rotate(90deg); }
 .aresta-pontas .botao.mod-pequeno { align-self: center; }
 
-.inspetor.mod-panorama .inspetor-titulo { font-size: 18px; }
+.inspetor.mod-panorama .inspetor-titulo { font-size: calc(clamp(15px, 6.5px + 2.85cqi, 18px) * var(--escala-lateral)); }
 .panorama-bloco { margin-bottom: 14px; }
 .panorama-rotulo {
   margin: 12px 0 6px;
