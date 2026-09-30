@@ -3,7 +3,8 @@
 A pergunta é se a divisão de modelos compensa: quantas tarefas fecharam sem
 retrabalho, quantas vezes a revisão rejeitou, quantas entregas o teto de
 correções aceitou e quanto custou cada tarefa concluída, lado a lado para cada
-arranjo de modelos.
+arranjo de modelos. As tarefas da trilha leve aparecem à parte na linha de
+modelos, porque rodam em Sonnet sob qualquer arranjo.
 """
 
 from collections import defaultdict
@@ -26,7 +27,6 @@ def formatar_relatorio(medicoes: Sequence[MedicaoDeGoal]) -> tuple[str, ...]:
 
 def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:
     """Três linhas: a contagem de tarefas e revisões, os modelos marcados e o custo."""
-    modelos = ", ".join(f"{modelo} {total}" for modelo, total in sorted(medicao.modelos_por_tarefa.items()))
     agentes = ", ".join(f"{agente} {_numero(total)}" for agente, total in medicao.tokens_por_agente.items())
     sem_tokens = f" | {medicao.runs_sem_tokens} Run sem tokens" if medicao.runs_sem_tokens else ""
     return (
@@ -34,9 +34,20 @@ def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:
         f"  tarefas {medicao.tarefas} | concluidas {medicao.concluidas} | sem retrabalho "
         f"{medicao.concluidas_sem_retrabalho} | com retrabalho {medicao.com_retrabalho} ({medicao.correcoes} correcoes)"
         f" | revisao: {medicao.rejeicoes} rejeitadas, {medicao.aprovacoes} aprovadas{_aceites(medicao.aceites_pelo_teto)}",
-        f"  modelo por tarefa: {modelos or 'nenhuma tarefa'}",
+        f"  modelo por tarefa: {_modelos(medicao)}",
         f"  tokens {_numero(medicao.tokens)} ({agentes or 'nenhum Run atribuido'}){sem_tokens}",
     )
+
+
+def _modelos(medicao: MedicaoDeGoal) -> str:
+    """Os modelos da trilha completa e, quando houve, as tarefas da leve à parte.
+
+    Sem tarefa leve, a linha fica como sempre foi.
+    """
+    modelos = ", ".join(f"{modelo} {total}" for modelo, total in sorted(medicao.modelos_por_tarefa.items()))
+    if not medicao.tarefas_leves:
+        return modelos or "nenhuma tarefa"
+    return f"{modelos or 'nenhuma na trilha completa'} | trilha leve {medicao.tarefas_leves}"
 
 
 def _agrupar(medicoes: Sequence[MedicaoDeGoal]) -> tuple[tuple[str, tuple[MedicaoDeGoal, ...]], ...]:

@@ -174,3 +174,42 @@ def test_relatorio_omite_o_aceite_quando_nao_houve_edge_case() -> None:
     linhas = formatar_relatorio((medicao,))
     assert any(linha.endswith("revisao: 1 rejeitadas, 1 aprovadas") for linha in linhas)
     assert not any("aceites pelo teto" in linha for linha in linhas)
+
+
+def _montar_trilha_leve() -> WriteKernel:
+    """Um Goal sob tudo-opus com uma tarefa completa e duas leves, uma delas corrigida."""
+    kernel = montar_kernel_em_memoria()
+    operacoes = (
+        _no("proj", TipoNo.PROJETO), _no("setor", TipoNo.SETOR), _aresta("proj", "setor", TipoAresta.CONTEM),
+        _no("sess-orq", TipoNo.SESSAO), _aresta("setor", "sess-orq", TipoAresta.CONTEM),
+        _no("goal-d", TipoNo.GOAL, configuracao="tudo-opus"), _aresta("sess-orq", "goal-d", TipoAresta.PRODUZ),
+        *_tarefa("t-codigo", "goal-d", modelo="opus", status=StatusTask.CONCLUIDO.value),
+        *_tarefa("t-comentario", "goal-d", modelo="sonnet", trilha="leve", status=StatusTask.CONCLUIDO.value),
+        *_tarefa("t-readme", "goal-d", modelo="sonnet", trilha="leve", status=StatusTask.CONCLUIDO.value),
+        *_derivado("evi-rej", TipoNo.EVIDENCE, ("t-readme",), veredito="rejeitado"),
+        *_tarefa("t-readme-c", "t-readme", modelo="opus", corrige="evi-rej", status=StatusTask.CONCLUIDO.value),
+    )
+    dados = DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="cenario")
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+    assert recibo.sucesso, recibo.mensagem
+    return kernel
+
+
+def test_relatorio_separa_a_trilha_leve_na_linha_de_modelos_nominal() -> None:
+    """As leves saem da contagem de modelos e aparecem à parte; a correção continua fora das duas."""
+    (medicao,) = MedidorDeOrquestracao(_montar_trilha_leve().obter_view()).medir(["goal-d"])
+
+    assert medicao.tarefas == 3
+    assert medicao.modelos_por_tarefa == {"opus": 1}
+    assert medicao.tarefas_leves == 2
+    assert "  modelo por tarefa: opus 1 | trilha leve 2" in formatar_relatorio((medicao,))
+
+
+def test_relatorio_sem_trilha_leve_fica_como_era_edge_case() -> None:
+    """Caso de borda: sem tarefa leve, a linha de modelos não ganha trecho nenhum."""
+    medicao = _por_goal(_montar())["goal-a"]
+
+    assert medicao.tarefas_leves == 0
+    linhas = formatar_relatorio((medicao,))
+    assert "  modelo por tarefa: opus 1, sonnet 1" in linhas
+    assert not any("trilha leve" in linha for linha in linhas)

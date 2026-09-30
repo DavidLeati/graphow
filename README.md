@@ -680,7 +680,9 @@ graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao
 ```
 
 O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as
-rejeições na revisão e os tokens por tarefa concluída. Os `Run` dos agentes
+rejeições na revisão e os tokens por tarefa concluída. As tarefas da trilha
+leve, que rodam em Sonnet sob qualquer configuração, aparecem à parte na linha
+de modelos de cada Goal. Os `Run` dos agentes
 despachados vêm do hook `SubagentStop`, que está na fiação de
 [`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
 

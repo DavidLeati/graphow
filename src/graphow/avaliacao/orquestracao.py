@@ -8,7 +8,9 @@ tarefas que ele assumiu, e o do orquestrador pelas sessões em que o trabalho do
 Goal foi produzido. Uma sessão que serviu a vários Goals divide o custo entre
 eles em partes iguais. Conta também os aceites pelo teto de correções: a
 correção reprovada de novo que o condutor aceitou, sem critério bloqueante,
-por uma Decision marcada com `acao`.
+por uma Decision marcada com `acao`. E separa as tarefas da trilha leve na
+contagem de modelos: elas rodam em Sonnet sob qualquer configuração, e contadas
+junto fariam um arranjo parecer mais Sonnet só por ter mais tarefa trivial.
 """
 
 from collections import Counter, defaultdict
@@ -22,7 +24,9 @@ from graphow.core.orquestracao import (
     CAMPO_CONFIGURACAO,
     CAMPO_CORRIGE,
     CAMPO_MODELO,
+    CAMPO_TRILHA,
     CAMPO_VEREDITO,
+    TRILHA_LEVE,
     VEREDITO_APROVADO,
     VEREDITO_REJEITADO,
     ler_texto,
@@ -55,6 +59,7 @@ class MedicaoDeGoal:
     aprovacoes: int = 0
     aceites_pelo_teto: int = 0
     modelos_por_tarefa: Mapping[str, int] = field(default_factory=dict)
+    tarefas_leves: int = 0
     tokens_por_agente: Mapping[str, int] = field(default_factory=dict)
     runs_sem_tokens: int = 0
 
@@ -151,7 +156,8 @@ class MedidorDeOrquestracao:
             rejeicoes=vereditos[VEREDITO_REJEITADO],
             aprovacoes=vereditos[VEREDITO_APROVADO],
             aceites_pelo_teto=self._aceites_pelo_teto(trabalho.ids_tarefas | {id_goal}),
-            modelos_por_tarefa=dict(Counter(ler_texto(no.propriedades, CAMPO_MODELO).lower() or SEM_MODELO for no in originais)),
+            modelos_por_tarefa=_modelos_da_trilha_completa(originais),
+            tarefas_leves=sum(1 for no in originais if _eh_leve(no)),
             tokens_por_agente=tokens,
             runs_sem_tokens=sem_tokens,
         )
@@ -206,6 +212,17 @@ def _configuracao(goal: NoGrafo | None) -> str:
     """O rótulo da configuração declarado no Goal, ou a marca de que ninguém o declarou."""
     declarada = ler_texto(goal.propriedades, CAMPO_CONFIGURACAO) if goal is not None else ""
     return declarada or SEM_CONFIGURACAO
+
+
+def _eh_leve(tarefa: NoGrafo) -> bool:
+    """A Task marcada na trilha leve; a sem trilha é da completa."""
+    return ler_texto(tarefa.propriedades, CAMPO_TRILHA).lower() == TRILHA_LEVE
+
+
+def _modelos_da_trilha_completa(originais: Iterable[NoGrafo]) -> dict[str, int]:
+    """Quantas tarefas originais da trilha completa marcaram cada modelo."""
+    completas = (no for no in originais if not _eh_leve(no))
+    return dict(Counter(ler_texto(no.propriedades, CAMPO_MODELO).lower() or SEM_MODELO for no in completas))
 
 
 def _tokens_do_run(run: NoGrafo) -> int | None:

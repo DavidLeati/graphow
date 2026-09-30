@@ -102,7 +102,7 @@ Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por s
 graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao --goal goal-opus-em-dominio
 ```
 
-O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão, os aceites pelo teto de correções e os tokens por tarefa concluída. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
+O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão, os aceites pelo teto de correções e os tokens por tarefa concluída. A linha de modelo de cada Goal conta à parte as tarefas da trilha leve (`modelo por tarefa: sonnet 3, opus 2 | trilha leve 2`), que rodam em Sonnet sob qualquer configuração. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
 
 ## Referências
 
