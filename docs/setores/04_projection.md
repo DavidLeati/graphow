@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-14 módulos · 2012 linhas · 22 classes
+15 módulos · 2090 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,6 +21,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 252 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
+| [`projection/integracao_base.py`](#projectionintegracaobase) | 78 | O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança. |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
@@ -209,6 +210,21 @@ Reconstrução de um ramo a partir do último instantâneo guardado, conferido c
 - `impressao_da_projecao() -> str` — Hash do código que transforma eventos em estado, lido uma vez por processo.
 - `serializar_estado(estado: GrafoEstado) -> str` — Estado completo em JSON, na ordem de inserção: a desserialização devolve um estado igual.
 - `desserializar_estado(texto: str) -> GrafoEstado` — Refaz o estado gravado por `serializar_estado`.
+
+## `projection/integracao_base.py`
+
+O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança.
+
+### `IntegracaoDoGoal`
+
+*DTO imutável* — O ramo base e os globs de colisão que valem para o Goal, com o nó de onde cada um veio.
+
+**Campos:** `ramo_base: str`, `origem_do_ramo: str`, `caminhos_de_colisao: tuple[str, ...]`, `origem_dos_caminhos: str`
+
+### Funções do módulo
+
+- `resolver_integracao(view: GrafoView, id_goal: str) -> IntegracaoDoGoal` — Cada propriedade vem do primeiro nó que a tem: o Goal, depois o Setor, depois o Projeto.
+- `cadeia_de_heranca(view: GrafoView, id_goal: str) -> tuple[NoGrafo, ...]` — O Goal, os Setores que contêm as sessões que o produziram e os Projetos desses Setores.
 
 ## `projection/projecao_sincronizada.py`
 

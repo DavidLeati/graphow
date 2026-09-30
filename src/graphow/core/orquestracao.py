@@ -30,6 +30,17 @@ TRILHAS: frozenset[str] = frozenset({TRILHA_LEVE, TRILHA_COMPLETA})
 # para a medição comparar o mesmo conjunto de tarefas sob arranjos diferentes.
 CAMPO_CONFIGURACAO: str = "configuracao"
 
+# No Goal, no Setor ou no Projeto, gravadas pelo humano: o ramo do git em que
+# o trabalho do Goal vai ser integrado (`origin/stage` ou `stage`) e os globs
+# dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo, como as
+# migrations numeradas de um mesmo diretório. O Goal herda cada uma do Setor e
+# depois do Projeto quando não a traz.
+CAMPO_RAMO_BASE: str = "ramo_base"
+CAMPO_CAMINHOS_DE_COLISAO: str = "caminhos_de_colisao"
+
+# No Artifact: os arquivos que o executor alterou para entregar a tarefa.
+CAMPO_ARQUIVOS: str = "arquivos"
+
 # Na Evidence do revisor: o que ele concluiu contra os critérios da tarefa.
 CAMPO_VEREDITO: str = "veredito"
 VEREDITO_APROVADO: str = "aprovado"

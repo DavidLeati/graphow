@@ -63,6 +63,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca. Só rodam em paralelo tarefas com arquivos-alvo disjuntos. |
 | `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
 | `Goal` | `configuracao` | O rótulo do arranjo de modelos com que o Goal foi orquestrado, para comparar configurações. |
+| `Goal`, `Setor`, `Projeto` | `ramo_base`, `caminhos_de_colisao` | Gravadas pelo humano: o ramo do git em que o trabalho do Goal vai ser integrado (`origin/stage` ou `stage`) e a lista de globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo (`**/migrations/*.py`). O Goal herda cada uma do Setor que contém a sessão que o produziu e depois do Projeto. |
 | `Evidence` | `veredito` | O que o revisor concluiu contra os critérios da tarefa: `aprovado` ou `rejeitado`. |
 | `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, no diff de uma Task da trilha leve, mudança de comportamento. Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
 

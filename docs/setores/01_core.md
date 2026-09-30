@@ -10,7 +10,7 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-8 módulos · 724 linhas · 33 classes
+8 módulos · 735 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 | [`core/falhas.py`](#corefalhas) | 73 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 66 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
-| [`core/orquestracao.py`](#coreorquestracao) | 60 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
+| [`core/orquestracao.py`](#coreorquestracao) | 71 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
 | [`core/types.py`](#coretypes) | 115 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/events.py`
@@ -219,6 +219,9 @@ Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisã
 | `TRILHA_COMPLETA` | `str` | `'completa'` |
 | `TRILHAS` | `frozenset[str]` | `frozenset({TRILHA_LEVE, TRILHA_COMPLETA})` |
 | `CAMPO_CONFIGURACAO` | `str` | `'configuracao'` |
+| `CAMPO_RAMO_BASE` | `str` | `'ramo_base'` |
+| `CAMPO_CAMINHOS_DE_COLISAO` | `str` | `'caminhos_de_colisao'` |
+| `CAMPO_ARQUIVOS` | `str` | `'arquivos'` |
 | `CAMPO_VEREDITO` | `str` | `'veredito'` |
 | `VEREDITO_APROVADO` | `str` | `'aprovado'` |
 | `VEREDITO_REJEITADO` | `str` | `'rejeitado'` |
