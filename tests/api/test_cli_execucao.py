@@ -439,6 +439,7 @@ def test_subagente_sem_transcricao_legivel_fica_sem_tokens_edge_case(tmp_path: P
     run, _ = _run(tmp_path, "run-sess-1-zz99")
     assert run.obter_propriedade("agente") == "Explore"
     assert run.obter_propriedade("tokens_entrada") is None
+    assert run.obter_propriedade("motivo_sem_consumo") == "transcricao_ausente"
 
 
 def test_orquestracao_medir_sem_goal_orquestrado_diz_que_nao_ha_o_que_medir_edge_case(tmp_path: Path) -> None:

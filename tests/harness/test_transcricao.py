@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from graphow.harness.transcricao import ler_consumo, localizar_transcricao_do_subagente
+from graphow.harness.transcricao import ler_consumo, ler_transcricao, localizar_transcricao_do_subagente
 
 
 def _resposta(id_mensagem: str, uso: dict[str, int], modelo: str = "claude-sonnet-5", conteudo: list | None = None) -> str:
@@ -134,3 +134,63 @@ def test_resposta_de_outra_ferramenta_nao_da_autor_edge_case(tmp_path: Path) -> 
 
     assert consumo is not None
     assert consumo.autores_mcp == ()
+
+
+def _datada(tipo: str, instante: object) -> str:
+    """Uma entrada qualquer, sem uso, só com o instante em que o ambiente a gravou."""
+    return json.dumps({"type": tipo, "timestamp": instante, "message": {"role": tipo, "content": "..."}})
+
+
+def test_duracao_sai_da_primeira_e_da_ultima_entrada_datada_nominal(tmp_path: Path) -> None:
+    """A janela vai da primeira à última entrada com instante, ainda que nenhuma das duas traga uso."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _datada("user", "2026-09-29T14:03:11.123Z"),
+        _resposta("msg-1", {"input_tokens": 1}),
+        _datada("assistant", "2026-09-29T14:20:00Z"),
+        _datada("user", "2026-09-29T15:03:12.123+00:00"),
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    propriedades = consumo.em_propriedades()
+    assert propriedades["inicio"] == "2026-09-29T14:03:11.123Z"
+    assert propriedades["fim"] == "2026-09-29T15:03:12.123Z"
+    assert propriedades["duracao_s"] == 3601
+
+
+def test_ponta_com_instante_ilegivel_cede_a_vizinha_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a ponta sem instante válido não zera a janela; vale a vizinha."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _datada("user", "ontem"),
+        _datada("user", "2026-09-29T10:00:00Z"),
+        _datada("assistant", "2026-09-29T10:00:42Z"),
+        _datada("assistant", 12345),
+        '{"type": "assistant", "timestamp": ',
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert consumo.em_propriedades()["duracao_s"] == 42
+
+
+def test_transcricao_sem_instante_nao_grava_duracao_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: sem timestamp nenhum, o Run fica sem as chaves de tempo, e a leitura não quebra."""
+    caminho = _gravar(tmp_path / "t.jsonl", [_resposta("msg-1", {"input_tokens": 1})])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert not {"inicio", "fim", "duracao_s"} & set(consumo.em_propriedades())
+
+
+def test_leitura_separa_o_arquivo_ausente_do_ilegivel_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: ausente e ilegível são motivos diferentes; a leitura boa não traz motivo."""
+    pasta = tmp_path / "pasta.jsonl"
+    pasta.mkdir()
+    boa = _gravar(tmp_path / "t.jsonl", [_resposta("msg-1", {"input_tokens": 1})])
+
+    assert ler_transcricao(tmp_path / "nao-existe.jsonl").motivo_sem_consumo == "transcricao_ausente"
+    assert ler_transcricao(pasta).motivo_sem_consumo == "erro_de_leitura"
+    assert ler_transcricao(boa).motivo_sem_consumo == ""

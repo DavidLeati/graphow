@@ -10,12 +10,12 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-12 módulos · 1264 linhas · 15 classes
+12 módulos · 1373 linhas · 16 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 205 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
-| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 39 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
+| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 68 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
@@ -24,7 +24,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 194 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
-| [`harness/transcricao.py`](#harnesstranscricao) | 194 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
+| [`harness/transcricao.py`](#harnesstranscricao) | 274 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -83,11 +83,14 @@ O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `TIPO_DE_AGENTE_DESCONHECIDO` | `str` | `'subagente'` |
+| `MOTIVO_SEM_AGENT_ID` | `str` | `'sem_agent_id'` |
+| `MOTIVO_SEM_TRANSCRIPT_PATH` | `str` | `'sem_transcript_path'` |
 
 ### Funções do módulo
 
-- `ler_consumo_do_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> ConsumoDaTranscricao | None` — No fim da sessão, a transcrição dela; no fim de um subagente, a dele; nas outras fases, nada.
-- `descrever_disparo(fase: FaseDoHarness, entrada: EntradaDeHook, consumo: ConsumoDaTranscricao | None) -> dict[str, Any]` — As propriedades extras do Run; sem transcrição legível, o Run fica sem tokens, não com zero.
+- `ler_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> LeituraDaTranscricao` — No fim da sessão, a transcrição dela; no fim de um subagente, a dele; nas outras fases, nada.
+- `ler_consumo_do_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> ConsumoDaTranscricao | None` — Só o consumo do disparo, para quem não precisa do motivo.
+- `descrever_disparo(fase: FaseDoHarness, entrada: EntradaDeHook, consumo: ConsumoDaTranscricao | None) -> dict[str, Any]` — As propriedades extras do Run; sem transcrição legível, o Run fica sem tokens, não com zero, e diz por quê.
 
 ## `harness/convention_adapter.py`
 
@@ -259,11 +262,16 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 | `SUFIXO_DE_ASSUMIR_TAREFA` | `str` | `'__assumir_tarefa'` |
 | `CAMPO_AUTOR_DO_RECIBO` | `str` | `'autor'` |
 | `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"')` |
+| `MARCA_DE_INSTANTE` | `str` | `'"timestamp"'` |
+| `CAMPO_MOTIVO_SEM_CONSUMO` | `str` | `'motivo_sem_consumo'` |
+| `MOTIVO_TRANSCRICAO_AUSENTE` | `str` | `'transcricao_ausente'` |
+| `MOTIVO_ERRO_DE_LEITURA` | `str` | `'erro_de_leitura'` |
 
 ### `AcumuladorDeConsumo`
 
 *serviço* — Soma a transcrição entrada por entrada, contando cada mensagem do modelo uma vez só.
 
+- `marcar_instante(entrada: Mapping[str, Any]) -> bool` — Estende a janela da execução até o instante da entrada; False quando ela não traz um válido.
 - `acrescentar(entrada: Mapping[str, Any]) -> None` — Registra o uso, o modelo e as tarefas de uma resposta do modelo, e o autor que a ferramenta devolveu.
 - `consolidar() -> ConsumoDaTranscricao` — Os totais do que foi acrescentado.
 
@@ -271,13 +279,20 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 
 *DTO imutável* — O que uma execução gastou e em que trabalhou, pronto para virar propriedades do Run.
 
-**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`
+**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`, `inicio: datetime | None`, `fim: datetime | None`
 
 - `modelo_principal() -> str` `[property]` — O modelo que mais respondeu; vazio quando nenhum respondeu.
-- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas e com que autores.
+- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores e quando.
+
+### `LeituraDaTranscricao`
+
+*DTO imutável* — O consumo lido ou, sem ele, o motivo: quem mede separa o arquivo ausente do ilegível.
+
+**Campos:** `consumo: ConsumoDaTranscricao | None`, `motivo_sem_consumo: str`
 
 ### Funções do módulo
 
 - `ler_consumo(caminho: Path) -> ConsumoDaTranscricao | None` — O consumo da transcrição no caminho; None quando o arquivo não existe ou não se lê.
+- `ler_transcricao(caminho: Path) -> LeituraDaTranscricao` — O consumo da transcrição no caminho, ou o motivo de não haver um.
 - `localizar_transcricao_do_subagente(caminhos: Mapping[str, str], id_agente: str) -> Path | None` — A transcrição do subagente: a que o hook indicar, ou a pasta `subagents` da sessão.
 

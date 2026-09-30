@@ -9,7 +9,7 @@ import sys
 
 from graphow.api.cli import GraphowCLI
 from graphow.api.console import EscritorConsole
-from graphow.harness.consumo_do_disparo import descrever_disparo, ler_consumo_do_disparo
+from graphow.harness.consumo_do_disparo import descrever_disparo, ler_disparo
 from graphow.harness.entrada_hook import (
     MODELO_DESCONHECIDO,
     EntradaDeHook,
@@ -204,7 +204,8 @@ class ManipuladorComandosGrafo:
         if not id_sessao:
             return None
         fase = FaseDoHarness(argumentos.fase)
-        consumo = ler_consumo_do_disparo(fase, entrada)
+        leitura = ler_disparo(fase, entrada)
+        consumo = leitura.consumo
         lido = consumo.modelo_principal if consumo is not None else ""
         return PedidoDeCicloDeVida(
             fase=fase,
@@ -213,7 +214,7 @@ class ManipuladorComandosGrafo:
             modelo=self._resolver_modelo(argumentos.modelo, entrada.modelo, lido),
             resumo=argumentos.resumo,
             motivo=entrada.motivo,
-            metadados=descrever_disparo(fase, entrada, consumo),
+            metadados=descrever_disparo(fase, entrada, consumo, motivo_sem_consumo=leitura.motivo_sem_consumo),
             # O hook diz de onde rodou; fora de um hook, vale a pasta do processo.
             diretorio_de_trabalho=entrada.diretorio or os.getcwd(),
             id_agente=entrada.id_agente if fase == FaseDoHarness.SUBAGENTE else "",
