@@ -18,6 +18,7 @@ const RAIZ_DOS_PROJETOS = { id: "__todos__", rotulo: "Todos os projetos" };
 const FERRAMENTAS = {
   diff: { titulo: "Comparar ramos", icone: "git-compare" },
   patch: { titulo: "Terminal de patch", icone: "terminal" },
+  leitura: { titulo: "Leitura", icone: "help-circle" },
 };
 
 let contadorDeAbas = 0;
@@ -87,10 +88,19 @@ export class AbasWorkspace {
     return this.trocarPara(atual, true);
   }
 
-  abrirFerramenta(tipo) {
+  /**
+   * Cada ferramenta tem uma aba só. `dados` diz o que ela mostra — a leitura
+   * guarda a dúvida e o título dela — e reabri-la com outros dados reaproveita
+   * a aba, mesmo ativa, para a vista trocar de conteúdo.
+   */
+  abrirFerramenta(tipo, dados = null) {
     const existente = this.abas.find((aba) => aba.tipo === tipo);
-    if (existente) return this.ativar(existente.id);
-    const aba = { id: novoId(), tipo };
+    if (existente && !dados) return this.ativar(existente.id);
+    if (existente) {
+      Object.assign(existente, dados);
+      return this.trocarPara(existente, false);
+    }
+    const aba = { id: novoId(), tipo, ...dados };
     this.abas.splice(this.abas.indexOf(this.ativa) + 1, 0, aba);
     return this.trocarPara(aba, false);
   }
@@ -187,8 +197,17 @@ export class AbasWorkspace {
     this.render();
   }
 
+  /** Uma dúvida renomeada muda o título da aba de leitura sem reabri-la. */
+  renomearFerramenta(tipo, titulo) {
+    const aba = this.abas.find((candidata) => candidata.tipo === tipo);
+    if (!aba || !titulo || aba.titulo === titulo) return;
+    aba.titulo = titulo;
+    this.persistir();
+    this.render();
+  }
+
   tituloDe(aba) {
-    if (aba.tipo !== "grafo") return FERRAMENTAS[aba.tipo]?.titulo || aba.tipo;
+    if (aba.tipo !== "grafo") return aba.titulo || FERRAMENTAS[aba.tipo]?.titulo || aba.tipo;
     return aba.escopo?.rotulo || "Todos os projetos";
   }
 

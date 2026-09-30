@@ -27,6 +27,7 @@ import { ImpactoView } from "./impacto_view.js";
 import { IndiceNavegacao } from "./indice_navegacao.js";
 import { InspectorView } from "./inspector_view.js";
 import { DivisorVertical, GrupoDeAbas, Lateral } from "./laterais.js";
+import { LeituraDaQuestaoView } from "./leitura_questao_view.js";
 import { LineageView } from "./lineage_view.js";
 import { MarcadoresView } from "./marcadores_view.js";
 import { MemoriaView } from "./memoria_view.js";
@@ -142,6 +143,10 @@ class GraphowApp {
     });
     this.forkDiffView = new ForkDiffView(document.getElementById("ferramenta-diff"), dependencias);
     this.patchConsoleView = new PatchConsoleView(document.getElementById("ferramenta-patch"), { state: this.state, aoGravar: () => this.aposGravar() });
+    this.leituraView = new LeituraDaQuestaoView(document.getElementById("ferramenta-leitura"), {
+      ...dependencias,
+      aoCarregar: (no) => this.abas.renomearFerramenta("leitura", no.rotulo),
+    });
     this.barraStatus = new BarraDeStatus(document.getElementById("barra-status"), {
       state: this.state,
       acoes: { aoClicar: (item, evento) => this.aoClicarNoStatus(item, evento), zoom: () => this.interactions.zoom },
@@ -159,6 +164,8 @@ class GraphowApp {
       novoConteiner: (tipo) => this.dialogos.novoConteiner({ tipo: tipo || this.tipoDeConteinerSugerido() }),
       novoFilho: (no) => this.novoFilho(no),
       salvarNo: (dados) => this.salvarNo(dados),
+      abrirLeitura: (no, opcoes) => this.abrirLeitura(no, opcoes),
+      responderQuestao: (no, resposta) => this.responderQuestao(no, resposta),
       alternarMarcador: (no) => this.alternarMarcador(no),
       ehMarcador: (id) => this.marcadores.contem(id),
       mostrarPainel: (nome) => this.mostrarPainelDireito(nome),
@@ -275,6 +282,7 @@ class GraphowApp {
     this.atualizarPaineisDaSelecao();
     this.memoria.invalidar();
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
+    if (this.abas.ativa.tipo === "leitura") this.leituraView.atualizar();
   }
 
   async aposGravar({ ramoNovo = null } = {}) {
@@ -293,7 +301,7 @@ class GraphowApp {
   }
 
   async aoAtivarAba(aba, { mudouEscopo = false, repetido = false } = {}) {
-    this.mostrarFerramenta(aba.tipo === "grafo" ? null : aba.tipo);
+    this.mostrarFerramenta(aba.tipo === "grafo" ? null : aba.tipo, aba);
     this.aplicarModo();
     if (aba.tipo !== "grafo") return;
     if (repetido) {
@@ -337,11 +345,13 @@ class GraphowApp {
     this.abas.persistir();
   }
 
-  mostrarFerramenta(tipo) {
+  mostrarFerramenta(tipo, aba) {
     document.getElementById("ferramenta-diff").hidden = tipo !== "diff";
     document.getElementById("ferramenta-patch").hidden = tipo !== "patch";
+    document.getElementById("ferramenta-leitura").hidden = tipo !== "leitura";
     document.querySelector(".vista-acoes").style.visibility = tipo ? "hidden" : "visible";
     if (tipo === "diff") this.forkDiffView.updateBranchOptions();
+    if (tipo === "leitura") this.leituraView.abrir(aba.noId);
   }
 
   // ------------------------------------------------------------------ grafo ou quadro
@@ -576,6 +586,23 @@ class GraphowApp {
     avisar("Nó atualizado", "sucesso");
     await this.recarregarTudo();
     return recibo;
+  }
+
+  /** Abre a dúvida na aba de leitura do centro, começando do rascunho de resposta que o inspetor tinha. */
+  abrirLeitura(no, { rascunho = "" } = {}) {
+    if (!no) return;
+    this.leituraView.lembrarRascunho(no.id, rascunho);
+    this.abas.abrirFerramenta("leitura", { noId: no.id, titulo: no.rotulo });
+  }
+
+  /**
+   * Responder pela leitura é o mesmo gesto do inspetor. Se ele mostra a mesma
+   * dúvida, é ele quem responde, e o que estiver editado lá — título, pergunta —
+   * vai junto no patch; senão vão só o status e a resposta.
+   */
+  responderQuestao(no, resposta) {
+    if (this.inspector.noRenderizado?.id === no.id) return this.inspector.responder(resposta);
+    return this.salvarNo({ id_no: no.id, novas_propriedades: { status: "respondida", resposta } });
   }
 
   // ------------------------------------------------------------------ canvas

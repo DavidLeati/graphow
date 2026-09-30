@@ -120,6 +120,7 @@ export class InspectorView {
           ${TIPOS_COM_STATUS_NO_TOPO.has(no.tipo) ? this.montarSeletorDeStatus(no, somenteLeitura ? "disabled" : "", "mod-compacto") : ""}
           <button class="inspetor-id" data-acao="copiar-id" title="Copiar o ID">${escapeHtml(no.id)}</button>
           <span class="inspetor-topo-acoes">
+            ${no.tipo === "Question" ? `<button class="clicavel-icone" data-acao="abrir-leitura" title="Abrir em leitura no centro">${icone("maximize")}</button>` : ""}
             <button class="clicavel-icone ${marcado ? "is-ativo" : ""}" data-acao="marcar" title="${marcado ? "Remover dos marcadores" : "Fixar nos marcadores"}">${icone("bookmark")}</button>
             <button class="clicavel-icone" data-acao="focar" title="Centralizar no canvas">${icone("crosshair")}</button>
             <button class="clicavel-icone" data-acao="menu" title="Mais ações">${icone("more-horizontal")}</button>
@@ -646,18 +647,19 @@ export class InspectorView {
   /**
    * Responder leva junto o que mais estiver editado no painel — título e corpo
    * da pergunta inclusive. Enviar só o status e a resposta descartava, em
-   * silêncio, a correção que a pessoa tinha acabado de digitar acima.
+   * silêncio, a correção que a pessoa tinha acabado de digitar acima. A
+   * leitura no centro responde por aqui, com a resposta escrita lá.
    */
-  async responder() {
-    const resposta = this.raiz.querySelector("[data-prop=resposta]")?.value.trim();
+  async responder(respostaDeFora = null) {
+    const resposta = (respostaDeFora ?? this.raiz.querySelector("[data-prop=resposta]")?.value ?? "").trim();
     if (!resposta) {
       avisar("Escreva a resposta antes de encerrar a dúvida.", "erro");
-      return;
+      return null;
     }
     const alteracoes = this.lerAlteracoes();
-    if (!alteracoes) return;
+    if (!alteracoes) return null;
     const propriedades = { ...alteracoes.novas_propriedades, status: "respondida", resposta };
-    await this.enviar({ id_no: this.noRenderizado.id, novo_rotulo: alteracoes.novo_rotulo, novas_propriedades: propriedades });
+    return this.enviar({ id_no: this.noRenderizado.id, novo_rotulo: alteracoes.novo_rotulo, novas_propriedades: propriedades });
   }
 
   /** Recusa mantém o formulário como está, para a pessoa corrigir; sucesso redesenha com o grafo novo. */
@@ -665,9 +667,10 @@ export class InspectorView {
     this.salvando = true;
     const recibo = await this.acoes.salvarNo(dados);
     this.salvando = false;
-    if (!recibo?.sucesso) return;
+    if (!recibo?.sucesso) return recibo;
     this.sujo = false;
     this.render();
+    return recibo;
   }
 
   avisarMudancaExterna(no) {
@@ -705,6 +708,7 @@ export class InspectorView {
       descartar: () => this.renderNo(this.state.nodes.get(this.noRenderizado.id) || this.noRenderizado),
       responder: () => this.responder(),
       "separar-duvida": () => this.separarDuvida(),
+      "abrir-leitura": () => this.acoes.abrirLeitura(this.noRenderizado, { rascunho: this.raiz.querySelector("[data-prop=resposta]")?.value }),
       "alternar-pergunta": () => {
         const campo = this.raiz.querySelector("[data-prop=pergunta]");
         this.alternarEdicaoDaPergunta(campo.hidden);
