@@ -36,12 +36,16 @@ ou, para fechar tarefas que a revisão já aprovou:
    - a `Evidence` da verificação, com `produz` da sessão e `deriva_de` para o Artifact e para a Task, e as propriedades `comando`, `resultado` e, havendo saída longa, `arquivo`;
    - a `Decision` que você tomou no meio do caminho, se tomou alguma, só com o `produz`: devolva o id em `Decision:`, e o condutor decide se ela passa a governar a tarefa;
    - a troca de `/nos/<id_task>/propriedades/status` para `pronto_para_revisao`.
+
+   Se esse `propor_patch` voltar com `conflito_concorrencia_lock` ou `posse_de_tarefa_ausente`, você perdeu a posse que assumiu: o servidor MCP reiniciou no meio da tarefa e voltou com outro autor. Não tente reassumir nem liberar. Regrave o mesmo lote sem a troca de status (o Artifact, a Evidence e a Decision, se houver), pule o passo 7 e devolva `RESULTADO: posse_perdida`. A revisão segue normal sobre o Artifact, e o executor que fechar a tarefa aprovada retoma a posse.
 7. `liberar_tarefa(id_task)`, sempre, antes de terminar: posse esquecida trava a tarefa até o humano.
 8. Se aprendeu algo que vale além desta tarefa, `registrar_aprendizado`, com as origens.
 
 ## Fechar
 
 Para cada id de `Fechar:`, `assumir_tarefa`, `concluir_tarefa` com a justificativa "revisao aprovada" e `liberar_tarefa`. Nada mais: nem código, nem nó novo.
+
+Numa tarefa aprovada, `assumir_tarefa` retoma a posse de outro executor e diz de quem em `posse_retomada_de`: é a posse de quem entregou e não voltou para liberar. Siga normalmente. Recusado por posse de outro, a revisão vigente não é aprovação: não feche essa tarefa e diga no resumo quem é o dono.
 
 ## Nunca
 
@@ -54,7 +58,7 @@ Para cada id de `Fechar:`, `assumir_tarefa`, `concluir_tarefa` com a justificati
 
 A resposta inteira cabe em cerca de 1.500 tokens. Omita as linhas que não se aplicam:
 
-    RESULTADO: pronto_para_revisao | bloqueada | fora_do_alvo | falhou | fechadas
+    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falhou | fechadas
     Task: <id>
     Artifact: <ids>
     Evidence: <ids>

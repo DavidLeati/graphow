@@ -35,7 +35,7 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
 
 Uma rodada cuida de um Goal só, e no máximo de um lote de execução. Vale a primeira regra que servir:
 
-1. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor com o Artifact que deriva da Task (passo 5); com `aprovado`, feche (passo 6); com `rejeitado`, crie a correção (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4).
+1. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor com o Artifact que deriva da Task (passo 5); com `aprovado`, feche (passo 6); com `rejeitado`, crie a correção (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4). Task impedida por `posse_de_outro` que já tem Artifact: é a entrega de um executor que perdeu a posse (`posse_perdida`); sem veredito, despache o revisor com o Artifact (passo 5); com `aprovado`, feche (passo 6).
 2. **Decompor**, quando o Goal não tem Task ou a próxima precisa de desenho: passo 3, e devolva ao fim dele. A execução fica para a rodada seguinte, que lê as tarefas sem nada desta conversa, e é esse o teste mais honesto do que você registrou.
 3. **Executar**, quando há Task pronta: passos 4 a 6, para uma Task ou um lote paralelo.
 4. Nada disso: devolva `RODADA: nada_a_fazer` com os motivos das impedidas.
@@ -62,6 +62,7 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 
 - `Decision:` no retorno do executor: leia cada uma e decida se ela governa a tarefa. Se governar, ligue por `orienta` antes da revisão, para o revisor julgar contra ela.
 - `RESULTADO: pronto_para_revisao`: despache o `graphow-revisor` com `Artifact: <id>` e `Sessao: <id>`. Nunca revise você mesmo o que despachou.
+- `RESULTADO: posse_perdida`: o servidor do executor reiniciou e ele perdeu a posse; o Artifact e a Evidence estão gravados, e a Task ficou `em_andamento` sob o autor antigo. Revise como em `pronto_para_revisao`. Aprovada, feche normalmente (passo 6): o executor de fechamento retoma a posse órfã. Rejeitada, a correção não se cria enquanto a posse antiga segura a Task: abra Question nela pedindo ao humano que devolva a posse, e crie a correção numa rodada seguinte.
 - `RESULTADO: fora_do_alvo`: acerte `arquivos_alvo` por `propor_patch`, e a Task volta numa rodada seguinte. Se ela já tinha voltado `fora_do_alvo` antes, abra Question.
 - `RESULTADO: falhou`: leia a Evidence da falha. Desenho novo vira Decision com `orienta`; modelo mais forte vira `modelo: opus` com `motivo_modelo`. Sem saída clara, abra Question.
 - `RESULTADO: bloqueada`: há Question aberta ou posse de outro. Siga com o resto.
@@ -107,7 +108,7 @@ Não espere o humano em `aguardar_resposta`, ainda que a skill graphow-mcp e as 
 
 - ambiguidade que a leitura do código não resolve;
 - restrição que falta: proponha o texto exato da `Constraint`, que só o humano cria;
-- posse de outro numa Task que ninguém desta rodada assumiu: pode ser posse órfã, e quem a devolve é o humano;
+- posse de outro numa Task que ninguém desta rodada assumiu e cujo veredito vigente não é `aprovado`: pode ser posse órfã, e quem a devolve é o humano. Com `aprovado`, não trave: feche (passo 6), e o fechamento retoma a posse;
 - segunda rejeição, segundo `fora_do_alvo` ou `falhou` sem saída.
 
 ## Nunca

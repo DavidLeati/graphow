@@ -14,7 +14,7 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 | `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
-| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas` |
+| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado` |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
 
@@ -65,7 +65,7 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 
 ## O retorno do executor
 
-    RESULTADO: pronto_para_revisao | bloqueada | fora_do_alvo | falhou | fechadas
+    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falhou | fechadas
     Task: <id>
     Artifact: <ids>
     Evidence: <ids>
@@ -77,6 +77,7 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 | Resultado | O que o condutor faz |
 | :--- | :--- |
 | `pronto_para_revisao` | despacha o revisor com o Artifact |
+| `posse_perdida` | o servidor do executor reiniciou e a posse ficou com o autor antigo; Artifact e Evidence estão gravados. Despacha o revisor com o Artifact, como em `pronto_para_revisao`; aprovada, o fechamento retoma a posse órfã; rejeitada, Question para o humano devolver a posse antes da correção |
 | `bloqueada` | há Question aberta, ou a posse é de outro; segue com o resto do lote |
 | `fora_do_alvo` | acerta `arquivos_alvo` na Task (por `propor_patch`); ela volta numa rodada seguinte |
 | `falhou` | lê a Evidence da falha; desenho novo vira Decision, modelo mais forte vira `modelo: opus`; sem saída, Question |
