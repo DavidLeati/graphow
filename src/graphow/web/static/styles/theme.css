@@ -31,7 +31,9 @@
   /* Typography Colors */
   --text-main: #f1f5f9;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  /* Metadados dos cartões do canvas: 5,6:1 no cartão e 5,1:1 no hover; o
+     antigo, #64748b, ficava em 3,7:1 e 3,4:1. */
+  --text-muted: #8391a7;
   --text-faint: #475569;
   --text-inverse: #0f172a;
   --text-accent: #60a5fa;
@@ -117,7 +119,9 @@
 
   --texto-normal: #d6dae1;
   --texto-suave: #a4aab5;
-  --texto-fraco: #6c7380;
+  /* O fraco dá 5,3:1 sobre o fundo da moldura; o antigo, #6c7380, dava 3,8:1,
+     abaixo dos 4,5:1 que texto pequeno pede. Ainda fica a meio caminho do suave. */
+  --texto-fraco: #848b97;
   --texto-acento: #7fb2ff;
   --acento: #3b82f6;
   --acento-hover: #5a96f8;
@@ -166,9 +170,6 @@
   --fonte-corpo: max(11.5px, calc(14px * var(--escala-lateral)));
   --fonte-destaque: calc(16px * var(--escala-lateral));
   --entrelinha-corpo: 1.55;
-  /* O fraco da moldura dá 3,8:1 sobre o fundo, abaixo dos 4,5:1 que texto
-     pequeno pede; este dá 5,3:1 e ainda fica a meio caminho do suave. */
-  --texto-fraco: #848b97;
   font-size: var(--fonte-ui);
 }
 
