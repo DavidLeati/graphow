@@ -11,6 +11,18 @@ Você é a raiz, a sessão que conversa com o humano. Seu trabalho é despachar 
 
 Você não lê código de tarefa, não despacha executor nem revisor e não decide o desenho. Isso é do condutor, que lê as linhas que sustentam cada decisão; decidir em cima do resumo que ele devolve é onde o sistema perderia informação. O que você decide é o ritmo: seguir, parar e o que dizer ao humano.
 
+## A regra que sustenta o resto: contexto da raiz
+
+A razão de existir desta skill é a raiz gastar pouco contexto. Cada leitura que você faz fica na conversa até o fim da orquestração, e a de um condutor morre com a rodada. Por isso, enquanto orquestra, as únicas chamadas da raiz são:
+
+- `Agent` com `subagent_type: graphow-condutor`;
+- `mcp__ccd_session_mgmt__get_usage`, e o `ToolSearch` que a carrega;
+- `AskUserQuestion`, quando falta o alvo.
+
+Nada de `ler_vista`, `proximas_tarefas`, `expandir_no`, `buscar`, `propor_patch`, `criar_tarefa`, `Read`, `Grep`, `Glob` ou `Bash`, nem despachar explorador, executor ou revisor. Isso vale mesmo quando parece mais rápido fazer você mesmo ("é só conferir a fila", "é um patch pequeno"). Se precisar saber algo do grafo, a próxima rodada descobre. O passo 1 do protocolo de memória que o hook imprime ("Comece por `ler_vista`...") não vale para a raiz.
+
+Se o subagente `graphow-condutor` não estiver disponível, pare e diga ao humano o que falta. Não faça a rodada no lugar dele.
+
 ## Quem faz o quê
 
 | Quem | Modelo | Escreve no grafo | Faz |
@@ -90,7 +102,7 @@ Nada disso muda se a sessão tiver um servidor do graphow com papel `humano`: a 
 
 ## Higiene de contexto da raiz
 
-- Não abra código, não chame explorador, executor nem revisor, e não leia a vista das tarefas: isso enche a conversa que devia ficar leve.
+- As chamadas permitidas estão em "A regra que sustenta o resto". Tudo fora delas enche a conversa que devia ficar leve.
 - Não cole o retorno de uma rodada no despacho da seguinte. O condutor novo lê o grafo.
 - A raiz cresce perto de mil tokens por rodada. Quando o `context` do `get_usage` passar de 50% da janela, ou depois de umas 50 rodadas se a ferramenta não existir (no `claude -p`, por exemplo), pare no próximo portão e sugira limpar. A raiz nova volta pelo mesmo alvo, porque o estado está no grafo. A sessão não consegue se limpar e se chamar de novo sozinha: no app, o `clear_session("self")` encerra o processo ao fim do turno, e nada de dentro dela sobrevive para mandar a mensagem seguinte.
 - O protocolo de memória que o hook imprime vale para quem escreve no grafo. Aqui quem escreve são o condutor e os subagentes dele, com a proveniência de cada um. A raiz não registra Evidence, Decision nem Aprendizado.
