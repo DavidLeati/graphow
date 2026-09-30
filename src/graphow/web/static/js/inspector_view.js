@@ -29,6 +29,10 @@ const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
 // Propriedades que o bloco do tipo já edita com um controle próprio.
 const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"], Sessao: ["status", "resumo"], Aprendizado: ["como_aplicar", "alcance", "valido_ate"] };
 
+// Tipos cujo status vai para a linha do topo, junto da pílula: uma linha
+// inteira só para ele empurrava a pergunta e a descrição para baixo.
+const TIPOS_COM_STATUS_NO_TOPO = new Set(["Task", "Question"]);
+
 // O mesmo teto que `abrir_questao` aplica no servidor, para o título derivado
 // aqui sair igual ao que o agente teria mandado.
 const LIMITE_DO_TITULO_DA_QUESTAO = 80;
@@ -113,11 +117,13 @@ export class InspectorView {
         ${fora ? `<div class="chamada mod-neutra">${icone("eye-off", { tamanho: 14 })}<span>Este nó não está no canvas atual.</span></div>` : ""}
         <div class="inspetor-topo">
           <span class="pilula-tipo" style="--cor-tipo:${corDoTipo(no.tipo)}">${icone(tipo.icone, { tamanho: 13 })}${escapeHtml(tipo.nome)}</span>
+          ${TIPOS_COM_STATUS_NO_TOPO.has(no.tipo) ? this.montarSeletorDeStatus(no, somenteLeitura ? "disabled" : "", "mod-compacto") : ""}
           <button class="inspetor-id" data-acao="copiar-id" title="Copiar o ID">${escapeHtml(no.id)}</button>
-          <span class="espacador"></span>
-          <button class="clicavel-icone ${marcado ? "is-ativo" : ""}" data-acao="marcar" title="${marcado ? "Remover dos marcadores" : "Fixar nos marcadores"}">${icone("bookmark")}</button>
-          <button class="clicavel-icone" data-acao="focar" title="Centralizar no canvas">${icone("crosshair")}</button>
-          <button class="clicavel-icone" data-acao="menu" title="Mais ações">${icone("more-horizontal")}</button>
+          <span class="inspetor-topo-acoes">
+            <button class="clicavel-icone ${marcado ? "is-ativo" : ""}" data-acao="marcar" title="${marcado ? "Remover dos marcadores" : "Fixar nos marcadores"}">${icone("bookmark")}</button>
+            <button class="clicavel-icone" data-acao="focar" title="Centralizar no canvas">${icone("crosshair")}</button>
+            <button class="clicavel-icone" data-acao="menu" title="Mais ações">${icone("more-horizontal")}</button>
+          </span>
         </div>
         <textarea class="inspetor-titulo" data-campo-rotulo rows="1" spellcheck="false" ${somenteLeitura ? "disabled" : ""}>${escapeHtml(no.rotulo)}</textarea>
         ${this.montarCaminho(no)}
@@ -180,7 +186,6 @@ export class InspectorView {
   }
 
   montarBlocoEspecifico(no, desabilitado) {
-    if (no.tipo === "Task") return this.montarCampoDeStatus(no, desabilitado);
     if (no.tipo === "Question") return this.montarBlocoDaQuestao(no, desabilitado);
     if (no.tipo === "Projeto") return this.montarBlocoDoProjeto(no, desabilitado);
     if (no.tipo === "Sessao") return this.montarBlocoDaSessao(no, desabilitado);
@@ -295,17 +300,23 @@ export class InspectorView {
   }
 
   montarCampoDeStatus(no, desabilitado) {
+    return `
+      <div class="bloco-campo">
+        <span class="bloco-campo-rotulo">${icone("circle-dot", { tamanho: 14 })} Status</span>
+        ${this.montarSeletorDeStatus(no, desabilitado)}
+      </div>`;
+  }
+
+  /** O seletor é o mesmo no topo e no bloco: `data-prop` e `data-original` levam a troca ao patch. */
+  montarSeletorDeStatus(no, desabilitado, modificador = "") {
     const opcoes = statusDoTipo(no.tipo) || [];
     const atual = no.propriedades?.status || "";
     const lista = atual && !opcoes.includes(atual) ? [atual, ...opcoes] : opcoes;
     return `
-      <div class="bloco-campo">
-        <span class="bloco-campo-rotulo">${icone("circle-dot", { tamanho: 14 })} Status</span>
-        <select class="seletor mod-status tom-${tomDoStatus(atual)}" data-prop="status" data-original="${escapeHtml(atual)}" ${desabilitado}>
+        <select class="seletor mod-status ${modificador} tom-${tomDoStatus(atual)}" data-prop="status" data-original="${escapeHtml(atual)}" title="Status" aria-label="Status" ${desabilitado}>
           ${atual ? "" : '<option value="" selected>—</option>'}
           ${lista.map((valor) => `<option value="${escapeHtml(valor)}" ${valor === atual ? "selected" : ""}>${escapeHtml(apresentarStatus(valor))}</option>`).join("")}
-        </select>
-      </div>`;
+        </select>`;
   }
 
   /**
@@ -317,7 +328,6 @@ export class InspectorView {
     const bloqueadas = [...this.state.edges.values()].filter((a) => a.tipo === "bloqueia" && a.origem_id === no.id);
     const alvo = bloqueadas.length ? `<div class="bloco-nota">Bloqueia: ${bloqueadas.map((a) => this.montarLinkDeNo(a.destino_id)).join(" ")}</div>` : "";
     return `
-      ${this.montarCampoDeStatus(no, desabilitado)}
       ${this.montarCampoDaPergunta(no.propriedades?.pergunta || "", desabilitado)}
       ${this.montarCampoDeTexto({
         chave: "resposta",

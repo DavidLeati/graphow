@@ -7,15 +7,32 @@
 .inspetor { display: flex; flex-direction: column; padding-bottom: 8px; }
 .inspetor-topo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
   margin-bottom: 8px;
   min-height: 28px;
 }
+/* Os botões andam juntos e à direita: se a linha não os comporta, descem
+   inteiros para a de baixo, em vez de um ícone por vez. */
+.inspetor-topo-acoes { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+/* Status de Task e Question no topo, do tamanho da pílula ao lado. */
+.seletor.mod-compacto {
+  width: auto;
+  height: 22px;
+  padding: 0 22px 0 8px;
+  font-size: var(--fonte-menor);
+  font-weight: 600;
+  background-position: right 6px center;
+  border-radius: 20px;
+}
+/* O ID fica com a sobra da linha: é ele que encolhe quando o status divide o topo. */
 .inspetor-id {
+  flex: 1 1 0;
   min-width: 0;
   max-width: 130px;
   padding: 2px 5px;
+  text-align: left;
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--texto-fraco);
