@@ -22,6 +22,10 @@ isto não tinha duração; a de um goal real foi lida à mão, rodada por rodada
 
 Sem consumo, a leitura diz por quê: arquivo ausente e arquivo que não se lê
 são problemas diferentes, e antes os dois viravam o mesmo None.
+
+Da transcrição sai também a cota do plano que a raiz declarou em texto: a do
+despacho, na primeira mensagem do usuário, e a última que o modelo escreveu.
+Qual delas vale depende de quem é o Run; ver harness/linha_de_cota.py.
 """
 
 from collections import Counter
@@ -31,6 +35,8 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any
+
+from graphow.harness.linha_de_cota import MARCAS_DA_COTA, CotaDeclarada, ultima_cota
 
 CHAVES_DE_USO: Mapping[str, str] = {
     "input_tokens": "tokens_entrada",
@@ -42,9 +48,11 @@ MODELO_SINTETICO: str = "<synthetic>"
 SUFIXO_DE_ASSUMIR_TAREFA: str = "__assumir_tarefa"
 CAMPO_AUTOR_DO_RECIBO: str = "autor"
 # Só estas linhas interessam; as outras nem passam pelo decodificador.
-MARCAS_DE_LINHA_UTIL: tuple[str, ...] = ('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"')
+MARCAS_DE_LINHA_UTIL: tuple[str, ...] = ('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"', *MARCAS_DA_COTA)
 # Toda linha traz o instante; só se decodificam as das pontas, até achar um válido.
 MARCA_DE_INSTANTE: str = '"timestamp"'
+# O prompt do despacho é a primeira entrada do usuário; só a cabeça é decodificada até achá-la.
+MARCA_DE_USUARIO: str = '"user"'
 CAMPO_MOTIVO_SEM_CONSUMO: str = "motivo_sem_consumo"
 MOTIVO_TRANSCRICAO_AUSENTE: str = "transcricao_ausente"
 MOTIVO_ERRO_DE_LEITURA: str = "erro_de_leitura"
@@ -61,6 +69,8 @@ class ConsumoDaTranscricao:
     autores_mcp: tuple[str, ...] = field(default_factory=tuple)
     inicio: datetime | None = None
     fim: datetime | None = None
+    cota_do_despacho: CotaDeclarada | None = None
+    ultima_cota_escrita: CotaDeclarada | None = None
 
     @property
     def modelo_principal(self) -> str:
@@ -108,6 +118,14 @@ class AcumuladorDeConsumo:
         self._autores: list[str] = []
         self._inicio: datetime | None = None
         self._fim: datetime | None = None
+        self._cota_do_despacho: CotaDeclarada | None = None
+        self._ultima_cota: CotaDeclarada | None = None
+
+    def abrir_com(self, despacho: Mapping[str, Any]) -> None:
+        """Lê a cota do prompt de despacho, a primeira entrada do usuário na transcrição do subagente."""
+        mensagem = despacho.get("message")
+        if isinstance(mensagem, dict):
+            self._cota_do_despacho = ultima_cota("\n".join(_textos_do_conteudo(mensagem.get("content"))))
 
     def marcar_instante(self, entrada: Mapping[str, Any]) -> bool:
         """Estende a janela da execução até o instante da entrada; False quando ela não traz um válido."""
@@ -138,6 +156,7 @@ class AcumuladorDeConsumo:
         chamadas = _chamadas_de_assumir(mensagem.get("content"))
         self._chamadas_de_assumir.update(id_chamada for id_chamada, _ in chamadas if id_chamada)
         self._tarefas.extend(id_task for _, id_task in chamadas)
+        self._ultima_cota = ultima_cota("\n".join(_textos_do_conteudo(mensagem.get("content")))) or self._ultima_cota
 
     def consolidar(self) -> ConsumoDaTranscricao:
         """Os totais do que foi acrescentado."""
@@ -154,6 +173,8 @@ class AcumuladorDeConsumo:
             autores_mcp=tuple(dict.fromkeys(self._autores)),
             inicio=self._inicio,
             fim=self._fim,
+            cota_do_despacho=self._cota_do_despacho,
+            ultima_cota_escrita=self._ultima_cota,
         )
 
 
@@ -176,6 +197,7 @@ def ler_transcricao(caminho: Path) -> LeituraDaTranscricao:
         if any(marca in linha for marca in MARCAS_DE_LINHA_UTIL):
             acumulador.acrescentar(_carregar(linha))
     _marcar_pontas(acumulador, linhas)
+    _abrir_com_o_despacho(acumulador, linhas)
     return LeituraDaTranscricao(consumo=acumulador.consolidar())
 
 
@@ -184,6 +206,14 @@ def _marcar_pontas(acumulador: AcumuladorDeConsumo, linhas: list[str]) -> None:
     for ordem in (linhas, reversed(linhas)):
         datadas = (linha for linha in ordem if MARCA_DE_INSTANTE in linha)
         next((linha for linha in datadas if acumulador.marcar_instante(_carregar(linha))), None)
+
+
+def _abrir_com_o_despacho(acumulador: AcumuladorDeConsumo, linhas: list[str]) -> None:
+    """A primeira entrada do usuário, decodificando da cabeça só até achá-la."""
+    candidatas = (_carregar(linha) for linha in linhas if MARCA_DE_USUARIO in linha)
+    despacho = next((entrada for entrada in candidatas if entrada.get("type") == "user"), None)
+    if despacho is not None:
+        acumulador.abrir_com(despacho)
 
 
 def localizar_transcricao_do_subagente(caminhos: Mapping[str, str], id_agente: str) -> Path | None:
@@ -231,12 +261,12 @@ def _autores_devolvidos(conteudo: object, chamadas: set[str]) -> tuple[str, ...]
         for bloco in conteudo
         if isinstance(bloco, dict) and bloco.get("type") == "tool_result" and str(bloco.get("tool_use_id", "")) in chamadas
     )
-    recibos = (_carregar(texto) for resposta in respostas for texto in _textos_da_resposta(resposta))
+    recibos = (_carregar(texto) for resposta in respostas for texto in _textos_do_conteudo(resposta))
     return tuple(str(recibo[CAMPO_AUTOR_DO_RECIBO]) for recibo in recibos if recibo.get(CAMPO_AUTOR_DO_RECIBO))
 
 
-def _textos_da_resposta(resposta: object) -> tuple[str, ...]:
-    """Os textos de uma resposta de ferramenta, que o ambiente grava como texto solto ou como blocos."""
+def _textos_do_conteudo(resposta: object) -> tuple[str, ...]:
+    """Os textos de uma mensagem ou de uma resposta de ferramenta, que o ambiente grava como texto solto ou como blocos."""
     if isinstance(resposta, str):
         return (resposta,)
     if not isinstance(resposta, list):

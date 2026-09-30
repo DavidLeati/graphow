@@ -8,6 +8,11 @@ trabalho. As outras fases não leem nada.
 Sem consumo, o Run grava por quê (`motivo_sem_consumo`). Antes todo caso virava
 o mesmo None, e o Run sem tokens não dizia se faltou o id do agente, o caminho,
 o arquivo ou a leitura: cada causa pede um conserto diferente.
+
+A cota do plano entra pelo mesmo caminho. A raiz a escreve no despacho do
+condutor, e o Run dele grava a do início da rodada; ela a escreve de novo ao
+parar o laço, e o Run da sessão grava a do fim. Um executor despachado pelo
+condutor não recebe a linha, e o Run dele fica sem cota.
 """
 
 from pathlib import Path
@@ -27,6 +32,9 @@ from graphow.harness.transcricao import (
 TIPO_DE_AGENTE_DESCONHECIDO: str = "subagente"
 MOTIVO_SEM_AGENT_ID: str = "sem_agent_id"
 MOTIVO_SEM_TRANSCRIPT_PATH: str = "sem_transcript_path"
+# Sufixos das chaves de cota no Run: cota_5h_inicio, cota_semanal_fim.
+MOMENTO_DO_DESPACHO: str = "inicio"
+MOMENTO_DA_PARADA: str = "fim"
 
 
 def ler_disparo(fase: FaseDoHarness, entrada: EntradaDeHook) -> LeituraDaTranscricao:
@@ -58,11 +66,20 @@ def descrever_disparo(
     motivo_sem_consumo: str = "",
 ) -> dict[str, Any]:
     """As propriedades extras do Run; sem transcrição legível, o Run fica sem tokens, não com zero, e diz por quê."""
-    propriedades = consumo.em_propriedades() if consumo is not None else {}
+    propriedades = {**consumo.em_propriedades(), **_cota(fase, consumo)} if consumo is not None else {}
     if consumo is None and motivo_sem_consumo:
         propriedades[CAMPO_MOTIVO_SEM_CONSUMO] = motivo_sem_consumo
     if fase != FaseDoHarness.SUBAGENTE:
         return propriedades
     tipo = entrada.tipo_agente or TIPO_DE_AGENTE_DESCONHECIDO
     return {**propriedades, "rotulo": f"Subagente {tipo}", "agente": tipo, "id_agente": entrada.id_agente}
+
+
+def _cota(fase: FaseDoHarness, consumo: ConsumoDaTranscricao) -> dict[str, float]:
+    """A cota que a raiz declarou: a do despacho no Run do subagente, a da parada no Run da sessão."""
+    if fase == FaseDoHarness.SUBAGENTE and consumo.cota_do_despacho is not None:
+        return consumo.cota_do_despacho.em_propriedades(MOMENTO_DO_DESPACHO)
+    if fase == FaseDoHarness.FIM and consumo.ultima_cota_escrita is not None:
+        return consumo.ultima_cota_escrita.em_propriedades(MOMENTO_DA_PARADA)
+    return {}
 

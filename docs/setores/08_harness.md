@@ -10,21 +10,22 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-12 módulos · 1373 linhas · 16 classes
+13 módulos · 1468 linhas · 17 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 205 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
-| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 68 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
+| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 85 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
+| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 48 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 194 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
-| [`harness/transcricao.py`](#harnesstranscricao) | 274 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
+| [`harness/transcricao.py`](#harnesstranscricao) | 304 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -85,6 +86,8 @@ O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e 
 | `TIPO_DE_AGENTE_DESCONHECIDO` | `str` | `'subagente'` |
 | `MOTIVO_SEM_AGENT_ID` | `str` | `'sem_agent_id'` |
 | `MOTIVO_SEM_TRANSCRIPT_PATH` | `str` | `'sem_transcript_path'` |
+| `MOMENTO_DO_DESPACHO` | `str` | `'inicio'` |
+| `MOMENTO_DA_PARADA` | `str` | `'fim'` |
 
 ### Funções do módulo
 
@@ -177,6 +180,27 @@ Interface abstrata para adaptadores de ciclo de vida do harness.
 - `registrar_reabertura_sessao(id_sessao: str) -> bool` `[abstract]` — Devolve a `ativa` uma sessão que o fim já encerrou e o ambiente retomou.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` `[abstract]` — Registra um nó Run associado à sessão e retorna o ID gerado.
 
+## `harness/linha_de_cota.py`
+
+A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PADRAO_DA_COTA` | `re.Pattern[str]` | `re.compile('cota\\s*:\\s*\\**\\s*5\\s*h\\s*(?P<cinco_horas>\\d+(?:[.,]\…` |
+| `MARCAS_DA_COTA` | `tuple[str, ...]` | `('Cota', 'cota', 'COTA')` |
+
+### `CotaDeclarada`
+
+*DTO imutável* — Os percentuais da janela de 5 horas e da semanal, como a raiz os leu.
+
+**Campos:** `cinco_horas: float`, `semanal: float`
+
+- `em_propriedades(momento: str) -> dict[str, float]` — As propriedades do Run para o momento dado: `inicio` no despacho, `fim` na parada.
+
+### Funções do módulo
+
+- `ultima_cota(texto: str) -> CotaDeclarada | None` — A última linha de cota do texto; None quando ele não traz nenhuma.
+
 ## `harness/repositorio.py`
 
 Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória.
@@ -261,8 +285,9 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 | `MODELO_SINTETICO` | `str` | `'<synthetic>'` |
 | `SUFIXO_DE_ASSUMIR_TAREFA` | `str` | `'__assumir_tarefa'` |
 | `CAMPO_AUTOR_DO_RECIBO` | `str` | `'autor'` |
-| `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"')` |
+| `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"', *MARCAS_DA_COTA)` |
 | `MARCA_DE_INSTANTE` | `str` | `'"timestamp"'` |
+| `MARCA_DE_USUARIO` | `str` | `'"user"'` |
 | `CAMPO_MOTIVO_SEM_CONSUMO` | `str` | `'motivo_sem_consumo'` |
 | `MOTIVO_TRANSCRICAO_AUSENTE` | `str` | `'transcricao_ausente'` |
 | `MOTIVO_ERRO_DE_LEITURA` | `str` | `'erro_de_leitura'` |
@@ -271,6 +296,7 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 
 *serviço* — Soma a transcrição entrada por entrada, contando cada mensagem do modelo uma vez só.
 
+- `abrir_com(despacho: Mapping[str, Any]) -> None` — Lê a cota do prompt de despacho, a primeira entrada do usuário na transcrição do subagente.
 - `marcar_instante(entrada: Mapping[str, Any]) -> bool` — Estende a janela da execução até o instante da entrada; False quando ela não traz um válido.
 - `acrescentar(entrada: Mapping[str, Any]) -> None` — Registra o uso, o modelo e as tarefas de uma resposta do modelo, e o autor que a ferramenta devolveu.
 - `consolidar() -> ConsumoDaTranscricao` — Os totais do que foi acrescentado.
@@ -279,7 +305,7 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 
 *DTO imutável* — O que uma execução gastou e em que trabalhou, pronto para virar propriedades do Run.
 
-**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`, `inicio: datetime | None`, `fim: datetime | None`
+**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`, `inicio: datetime | None`, `fim: datetime | None`, `cota_do_despacho: CotaDeclarada | None`, `ultima_cota_escrita: CotaDeclarada | None`
 
 - `modelo_principal() -> str` `[property]` — O modelo que mais respondeu; vazio quando nenhum respondeu.
 - `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores e quando.

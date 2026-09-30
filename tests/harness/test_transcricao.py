@@ -3,6 +3,9 @@
 import json
 from pathlib import Path
 
+import pytest
+
+from graphow.harness.linha_de_cota import CotaDeclarada, ultima_cota
 from graphow.harness.transcricao import ler_consumo, ler_transcricao, localizar_transcricao_do_subagente
 
 
@@ -194,3 +197,62 @@ def test_leitura_separa_o_arquivo_ausente_do_ilegivel_edge_case(tmp_path: Path) 
     assert ler_transcricao(tmp_path / "nao-existe.jsonl").motivo_sem_consumo == "transcricao_ausente"
     assert ler_transcricao(pasta).motivo_sem_consumo == "erro_de_leitura"
     assert ler_transcricao(boa).motivo_sem_consumo == ""
+
+
+def _pedido_do_usuario(conteudo: object) -> str:
+    """Uma entrada do usuário, como o prompt de despacho que abre a transcrição do subagente."""
+    return json.dumps({"type": "user", "message": {"role": "user", "content": conteudo}})
+
+
+def test_cota_do_despacho_sai_da_primeira_mensagem_do_usuario_nominal(tmp_path: Path) -> None:
+    """A raiz escreve a cota no despacho do condutor; a transcrição dele a traz na primeira entrada."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _pedido_do_usuario([{"type": "text", "text": "Alvo: goal-1\nSessao: sess-1\nCota: 5h 40%, semana 12%"}]),
+        _resposta("msg-1", {"input_tokens": 1}),
+        _pedido_do_usuario("Cota: 5h 99%, semana 99%"),
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert consumo.cota_do_despacho == CotaDeclarada(cinco_horas=40, semanal=12)
+    assert consumo.cota_do_despacho.em_propriedades("inicio") == {"cota_5h_inicio": 40, "cota_semanal_inicio": 12}
+
+
+def test_ultima_cota_escrita_pelo_modelo_vale_para_a_parada_nominal(tmp_path: Path) -> None:
+    """Na transcrição da raiz, vale a última linha de cota que ela escreveu em texto, não a do prompt de despacho."""
+    despacho = {"type": "tool_use", "id": "t1", "name": "Agent", "input": {"prompt": "Alvo: g\nCota: 5h 1%, semana 1%"}}
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _pedido_do_usuario("orquestre o goal-1"),
+        _resposta("msg-1", {"input_tokens": 1}, conteudo=[{"type": "text", "text": "Cota: 5h 50%, semana 20%"}]),
+        _resposta("msg-2", {"input_tokens": 1}, conteudo=[despacho]),
+        _resposta("msg-3", {"input_tokens": 1}, conteudo=[{"type": "text", "text": "Parei.\nCota: 5h 86%, semana 31%"}]),
+        _resposta("msg-4", {"input_tokens": 1}, conteudo=[{"type": "text", "text": "Mais alguma coisa?"}]),
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert consumo.ultima_cota_escrita == CotaDeclarada(cinco_horas=86, semanal=31)
+    assert consumo.cota_do_despacho is None
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperada"),
+    [
+        ("Cota: 5h 40%, semana 12%", CotaDeclarada(40, 12)),
+        ("cota:5h 40 , semana 12", CotaDeclarada(40, 12)),
+        ("Cota:  5 h 40,5 %,  semana 12,25%", CotaDeclarada(40.5, 12.25)),
+        ("**Cota:** 5h 7.5%; semanal 3%", CotaDeclarada(7.5, 3)),
+        ("Cota: 5h 10%, semana 2%\nCota: 5h 30%, semana 4%", CotaDeclarada(30, 4)),
+    ],
+)
+def test_linha_de_cota_tolera_o_formato_de_gente_nominal(texto: str, esperada: CotaDeclarada) -> None:
+    """O `%` é opcional, a vírgula decimal vale, e espaço e caixa não importam; vale a última linha."""
+    assert ultima_cota(texto) == esperada
+
+
+@pytest.mark.parametrize("texto", ["", "Cota: alta", "5h 40%, semana 12%", "Cota: 5h 40%"])
+def test_texto_sem_linha_de_cota_nao_inventa_numero_edge_case(texto: str) -> None:
+    """Caso de borda: sem os dois percentuais depois de `Cota:`, não há cota."""
+    assert ultima_cota(texto) is None

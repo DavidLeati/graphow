@@ -85,6 +85,55 @@ def test_transcricao_que_nao_se_le_grava_erro_de_leitura_edge_case(tmp_path: Pat
     assert propriedades["motivo_sem_consumo"] == "erro_de_leitura"
 
 
+def _texto_do_modelo(id_mensagem: str, texto: str) -> dict:
+    """Uma resposta do modelo só com texto."""
+    mensagem = {"id": id_mensagem, "model": "claude-opus-5", "usage": {"input_tokens": 1}, "content": [{"type": "text", "text": texto}]}
+    return {"type": "assistant", "message": mensagem}
+
+
+def test_condutor_grava_a_cota_do_despacho_e_ignora_a_que_escreve_nominal(tmp_path: Path) -> None:
+    """O Run do subagente leva a cota do início da rodada; uma linha de cota no texto dele não vira fim."""
+    principal = tmp_path / "sess-1.jsonl"
+    _gravar(tmp_path / "sess-1" / "subagents" / "agent-ab12.jsonl", [
+        {"type": "user", "message": {"role": "user", "content": "Alvo: goal-1\nSessao: sess-1\nCota: 5h 40%, semana 12%"}},
+        _texto_do_modelo("m1", "Cota: 5h 41%, semana 12%"),
+    ])
+    entrada = EntradaDeHook(id_sessao="sess-1", transcricao=str(principal), id_agente="ab12", tipo_agente="graphow-condutor")
+
+    propriedades = _gravar_run(FaseDoHarness.SUBAGENTE, entrada)
+
+    assert (propriedades["cota_5h_inicio"], propriedades["cota_semanal_inicio"]) == (40, 12)
+    assert "cota_5h_fim" not in propriedades
+
+
+def test_fim_da_sessao_grava_a_cota_da_parada_nominal(tmp_path: Path) -> None:
+    """O Run da raiz leva a última cota que ela escreveu, a da mensagem em que parou o laço."""
+    transcricao = _gravar(tmp_path / "sess-1.jsonl", [
+        {"type": "user", "message": {"role": "user", "content": "Cota: 5h 1%, semana 1%"}},
+        _texto_do_modelo("m1", "Rodada 1: fechou task-a."),
+        _texto_do_modelo("m2", "Parei: janela de 5 horas perto do fim.\nCota: 5h 86%, semana 31%"),
+    ])
+
+    propriedades = _gravar_run(FaseDoHarness.FIM, EntradaDeHook(id_sessao="sess-1", transcricao=str(transcricao)))
+
+    assert (propriedades["cota_5h_fim"], propriedades["cota_semanal_fim"]) == (86, 31)
+    assert "cota_5h_inicio" not in propriedades
+
+
+def test_executor_sem_linha_de_cota_fica_sem_cota_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o condutor não passa a linha adiante; o Run do executor não ganha cota inventada."""
+    principal = tmp_path / "sess-1.jsonl"
+    _gravar(tmp_path / "sess-1" / "subagents" / "agent-cd34.jsonl", [
+        {"type": "user", "message": {"role": "user", "content": "Task: task-a\nSessao: sess-1"}},
+        _texto_do_modelo("m1", "RESULTADO: pronto_para_revisao"),
+    ])
+    entrada = EntradaDeHook(id_sessao="sess-1", transcricao=str(principal), id_agente="cd34", tipo_agente="graphow-executor")
+
+    propriedades = _gravar_run(FaseDoHarness.SUBAGENTE, entrada)
+
+    assert not {chave for chave in propriedades if chave.startswith("cota_")}
+
+
 def test_fase_de_inicio_nao_le_nem_grava_motivo_edge_case() -> None:
     """Caso de borda: o início não lê transcrição, então não tem consumo a explicar."""
     leitura = ler_disparo(FaseDoHarness.INICIO, EntradaDeHook(id_sessao="sess-1"))

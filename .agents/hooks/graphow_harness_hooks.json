@@ -22,7 +22,12 @@
     "tokens por categoria, o modelo que de fato respondeu e as mensagens do modelo,",
     "cada mensagem contada uma vez. SubagentStop grava um Run por subagente, pendurado",
     "na sessao que o despachou, com os tokens, o modelo e as tarefas que ele assumiu:",
-    "e com esses Run que 'graphow orquestracao-medir' compara configuracoes de modelo."
+    "e com esses Run que 'graphow orquestracao-medir' compara configuracoes de modelo.",
+    "Da transcricao saem tambem inicio, fim e duracao_s (primeiro e ultimo timestamp)",
+    "e, sem tokens, o motivo_sem_consumo. A linha 'Cota: 5h <n>%, semana <n>%' que a",
+    "raiz escreve vira cota_5h_inicio e cota_semanal_inicio no Run do condutor (do",
+    "prompt de despacho) e cota_5h_fim e cota_semanal_fim no Run da sessao (da ultima",
+    "linha que a raiz escreveu)."
   ],
   "hooks": {
     "SessionStart": [
