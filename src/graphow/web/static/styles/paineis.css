@@ -16,6 +16,14 @@
 /* Os botões andam juntos e à direita: se a linha não os comporta, descem
    inteiros para a de baixo, em vez de um ícone por vez. */
 .inspetor-topo-acoes { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+/* Com o status na linha, Task e Question pedem uns 370 px de lateral para os
+   quatro ícones caberem ao lado: o seletor mede a opção mais longa ("Pronto
+   para revisão"). Abaixo de 380 px, marcar e centralizar, que também estão no
+   Mais ações, saem do topo, e a linha cabe a partir de uns 300 px. Os outros
+   tipos cabem com tudo até a lateral mínima e ficam como estão. */
+@container lateral-direita (max-width: 380px) {
+  .inspetor-topo:has(.seletor.mod-compacto) .mod-tambem-no-menu { display: none; }
+}
 /* Status de Task e Question no topo, do tamanho da pílula ao lado. */
 .seletor.mod-compacto {
   width: auto;

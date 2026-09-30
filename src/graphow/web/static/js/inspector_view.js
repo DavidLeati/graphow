@@ -138,8 +138,8 @@ export class InspectorView {
           <button class="inspetor-id" data-acao="copiar-id" title="Copiar o ID">${escapeHtml(no.id)}</button>
           <span class="inspetor-topo-acoes">
             ${no.tipo === "Question" ? `<button class="clicavel-icone" data-acao="abrir-leitura" title="Abrir em leitura no centro">${icone("maximize")}</button>` : ""}
-            <button class="clicavel-icone ${marcado ? "is-ativo" : ""}" data-acao="marcar" title="${marcado ? "Remover dos marcadores" : "Fixar nos marcadores"}">${icone("bookmark")}</button>
-            <button class="clicavel-icone" data-acao="focar" title="Centralizar no canvas">${icone("crosshair")}</button>
+            <button class="clicavel-icone mod-tambem-no-menu ${marcado ? "is-ativo" : ""}" data-acao="marcar" title="${marcado ? "Remover dos marcadores" : "Fixar nos marcadores"}">${icone("bookmark")}</button>
+            <button class="clicavel-icone mod-tambem-no-menu" data-acao="focar" title="Centralizar no canvas">${icone("crosshair")}</button>
             <button class="clicavel-icone" data-acao="menu" title="Mais ações">${icone("more-horizontal")}</button>
           </span>
         </div>
