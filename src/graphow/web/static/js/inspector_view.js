@@ -22,6 +22,7 @@ import {
   ajustarAltura, CHAVES_OCULTAS, interpretarValorNovo, lerValorDaLinha,
   montarLinhaDePropriedade, ordenarChaves, valoresIguais,
 } from "./propriedades_editor.js";
+import { formatarTextoDeLeitura } from "./texto_formatado.js";
 
 const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
 
@@ -38,6 +39,15 @@ function resumirEmTitulo(texto) {
   if (primeiraLinha.length <= LIMITE_DO_TITULO_DA_QUESTAO) return primeiraLinha;
   const corte = primeiraLinha.slice(0, LIMITE_DO_TITULO_DA_QUESTAO).replace(/\s+\S*$/, "").replace(/[\s,;:.-]+$/, "");
   return `${corte || primeiraLinha.slice(0, LIMITE_DO_TITULO_DA_QUESTAO)}…`;
+}
+
+/** A pergunta formatada, ou o aviso de que ela não foi escrita por extenso. */
+function montarLeituraDaPergunta(texto) {
+  return formatarTextoDeLeitura(texto) || '<p class="texto-fraco">Sem pergunta por extenso.</p>';
+}
+
+function montarAlternadorDaPergunta(editando) {
+  return editando ? `${icone("eye", { tamanho: 13 })} Ler` : `${icone("pencil", { tamanho: 13 })} Editar`;
 }
 
 export class InspectorView {
@@ -284,14 +294,7 @@ export class InspectorView {
     const alvo = bloqueadas.length ? `<div class="bloco-nota">Bloqueia: ${bloqueadas.map((a) => this.montarLinkDeNo(a.destino_id)).join(" ")}</div>` : "";
     return `
       ${this.montarCampoDeStatus(no, desabilitado)}
-      ${this.montarCampoDeTexto({
-        chave: "pergunta",
-        rotulo: "Pergunta",
-        icone: "help-circle",
-        valor: no.propriedades?.pergunta || "",
-        dica: "O contexto e a ambiguidade, por extenso — o título acima é só a chamada.",
-        desabilitado,
-      })}
+      ${this.montarCampoDaPergunta(no.propriedades?.pergunta || "", desabilitado)}
       ${this.montarCampoDeTexto({
         chave: "resposta",
         rotulo: "Resposta humana",
@@ -323,8 +326,46 @@ export class InspectorView {
     if (!titulo || !corpo) return;
     corpo.value = titulo.value;
     titulo.value = resumirEmTitulo(titulo.value);
+    this.alternarEdicaoDaPergunta(true);
     [titulo, corpo].forEach((campo) => ajustarAltura(campo));
     this.aoEditar({ target: corpo });
+  }
+
+  /**
+   * A pergunta é texto para ler, não campo para preencher: fora da edição ela
+   * aparece formatada, sem teto de altura — quem rola é o painel. O textarea
+   * fica no DOM, oculto e igual ao original, então não conta como alteração;
+   * o Editar só o revela, e o que se digita nele entra no patch pelo `data-prop`.
+   * Pergunta vazia já abre na edição, porque não há o que ler.
+   */
+  montarCampoDaPergunta(valor, desabilitado) {
+    const editando = !desabilitado && !valor.trim();
+    const alternador = desabilitado
+      ? ""
+      : `<button class="link-acao" data-acao="alternar-pergunta" title="Alternar entre ler e editar a pergunta">${montarAlternadorDaPergunta(editando)}</button>`;
+    return `
+      <div class="bloco-resposta" data-bloco-pergunta>
+        <div class="bloco-resposta-cabecalho">
+          <span class="bloco-campo-rotulo">${icone("help-circle", { tamanho: 14 })} Pergunta</span>
+          ${alternador}
+        </div>
+        <div class="texto-leitura" data-leitura-pergunta ${editando ? "hidden" : ""}>${montarLeituraDaPergunta(valor)}</div>
+        <textarea class="entrada mod-area" data-prop="pergunta" data-original="${escapeHtml(valor)}" rows="3" placeholder="O contexto e a ambiguidade, por extenso — o título acima é só a chamada." ${desabilitado} ${editando ? "" : "hidden"}>${escapeHtml(valor)}</textarea>
+      </div>`;
+  }
+
+  /** Troca a leitura pelo textarea, ou volta a ler o que está nele, editado ou não. */
+  alternarEdicaoDaPergunta(editar) {
+    const bloco = this.raiz.querySelector("[data-bloco-pergunta]");
+    const campo = bloco?.querySelector("[data-prop=pergunta]");
+    if (!campo || campo.disabled) return;
+    const leitura = bloco.querySelector("[data-leitura-pergunta]");
+    const alternador = bloco.querySelector("[data-acao=alternar-pergunta]");
+    campo.hidden = !editar;
+    leitura.hidden = editar;
+    if (alternador) alternador.innerHTML = montarAlternadorDaPergunta(editar);
+    if (editar) ajustarAltura(campo);
+    else leitura.innerHTML = montarLeituraDaPergunta(campo.value);
   }
 
   /** Campo de texto longo de uma propriedade que o bloco do tipo já trata. */
@@ -622,6 +663,11 @@ export class InspectorView {
       descartar: () => this.renderNo(this.state.nodes.get(this.noRenderizado.id) || this.noRenderizado),
       responder: () => this.responder(),
       "separar-duvida": () => this.separarDuvida(),
+      "alternar-pergunta": () => {
+        const campo = this.raiz.querySelector("[data-prop=pergunta]");
+        this.alternarEdicaoDaPergunta(campo.hidden);
+        if (!campo.hidden) campo.focus();
+      },
       "nova-propriedade": () => this.revelarNovaPropriedade(alvo),
       "abrir-escopo": () => this.acoes.abrirEscopo(this.indice.escopoDe(alvo.dataset.id)),
       "novo-filho": () => this.acoes.novoFilho(this.noRenderizado),

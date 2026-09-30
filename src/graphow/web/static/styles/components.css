@@ -719,6 +719,32 @@ input:disabled + .alternador-trilho { opacity: 0.5; }
 }
 .bloco-codigo.mod-alto { height: 100%; min-height: 280px; max-height: none; }
 
+/* Texto corrido formatado para leitura: a linha para em ~65 caracteres, que é
+   onde o olho ainda acha o começo da próxima, e não há teto de altura. */
+.texto-leitura {
+  max-width: 65ch;
+  font-size: var(--fonte-ui);
+  line-height: 1.6;
+  color: var(--texto-normal);
+  overflow-wrap: anywhere;
+}
+.texto-leitura p,
+.texto-leitura ul,
+.texto-leitura ol { margin: 0 0 0.75em; }
+.texto-leitura > :last-child { margin-bottom: 0; }
+.texto-leitura ul,
+.texto-leitura ol { padding-left: 1.4em; }
+.texto-leitura li + li { margin-top: 0.3em; }
+.texto-leitura li::marker { color: var(--texto-fraco); }
+.texto-leitura code {
+  padding: 1px 4px;
+  font-size: 0.9em;
+  color: var(--texto-normal);
+  background: var(--moldura-campo);
+  border: 1px solid var(--moldura-divisor);
+  border-radius: var(--raio-sm);
+}
+
 .bloco-botoes {
   display: flex;
   flex-wrap: wrap;

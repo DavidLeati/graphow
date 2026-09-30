@@ -98,6 +98,7 @@
 .bloco-nota { font-size: var(--fonte-menor); color: var(--texto-fraco); line-height: 1.5; }
 .bloco-nota code { font-size: 10.5px; }
 .bloco-resposta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bloco-resposta-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .bloco-botoes { margin-bottom: 12px; }
 
 .cartao-resumo {
