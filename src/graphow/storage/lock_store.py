@@ -43,6 +43,14 @@ class LockStoreEmMemoria(RepositorioLocks):
             del self._donos_por_task[id_task]
             return True
 
+    def transferir(self, id_task: str, de: str, para: str) -> bool:
+        """Troca o detentor apenas se o lock ainda for de quem o cede."""
+        with self._lock:
+            if self._donos_por_task.get(id_task) != de:
+                return False
+            self._donos_por_task[id_task] = para
+            return True
+
     def obter_dono(self, id_task: str) -> str | None:
         """Consulta o detentor atual do lock da tarefa."""
         with self._lock:
@@ -94,6 +102,21 @@ class LockStoreSQLite(RepositorioLocks):
         with self._lock:
             cursor = self._conexao.execute(
                 "DELETE FROM locks_de_tarefa WHERE id_task = ? AND autor = ?;", (id_task, autor)
+            )
+            return cursor.rowcount > 0
+
+    def transferir(self, id_task: str, de: str, para: str) -> bool:
+        """Troca o detentor numa escrita só, condicionada ao detentor registrado.
+
+        Ler o dono e depois gravar o novo abriria uma janela em que outro
+        processo libera ou retoma o mesmo lock no meio; o UPDATE condicionado
+        decide a corrida dentro do SQLite.
+        """
+        with self._lock:
+            cursor = self._conexao.execute(
+                "UPDATE locks_de_tarefa SET autor = ?, adquirido_em = datetime('now') "
+                "WHERE id_task = ? AND autor = ?;",
+                (para, id_task, de),
             )
             return cursor.rowcount > 0
 

@@ -70,3 +70,36 @@ def test_lock_sqlite_e_compartilhado_entre_conexoes(tmp_path: Path) -> None:
 
         assert locks_a.liberar("task-1", "david") is True
         assert locks_b.obter_dono("task-1") is None
+
+
+def test_transferencia_por_quem_detem_passa_nominal(lock_store_em_memoria: RepositorioLocks) -> None:
+    """Quem detém o lock o passa adiante num gesto só, sem janela de lock livre."""
+    lock_store_em_memoria.tentar_adquirir("task-1", "executor#a1")
+
+    assert lock_store_em_memoria.transferir("task-1", "executor#a1", "executor#b2") is True
+    assert lock_store_em_memoria.obter_dono("task-1") == "executor#b2"
+
+
+def test_transferencia_por_quem_nao_detem_e_recusada_edge_case(lock_store_em_memoria: RepositorioLocks) -> None:
+    """Caso de borda: ceder o lock alheio, ou um lock que nem existe, não muda nada."""
+    lock_store_em_memoria.tentar_adquirir("task-1", "david")
+
+    assert lock_store_em_memoria.transferir("task-1", "agente", "invasor") is False
+    assert lock_store_em_memoria.transferir("task-fantasma", "agente", "invasor") is False
+    assert lock_store_em_memoria.listar_locks() == {"task-1": "david"}
+
+
+def test_transferencia_sqlite_e_vista_entre_conexoes_nominal(tmp_path: Path) -> None:
+    """A troca de detentor gravada por uma conexão vale para a outra, e o antigo dono já não cede."""
+    caminho = tmp_path / "graphow.db"
+    with SQLiteEventStore(str(caminho)) as store_a, SQLiteEventStore(str(caminho)) as store_b:
+        locks_a = LockStoreSQLite(store_a.conexao)
+        locks_b = LockStoreSQLite(store_b.conexao)
+        locks_a.tentar_adquirir("task-1", "executor#a1")
+
+        assert locks_b.transferir("task-1", "executor#a1", "executor#b2") is True
+        assert locks_a.obter_dono("task-1") == "executor#b2"
+        assert locks_a.transferir("task-1", "executor#a1", "executor#c3") is False
+        assert locks_a.transferir("task-fantasma", "executor#a1", "executor#c3") is False
+        assert locks_a.liberar("task-1", "executor#a1") is False
+        assert locks_b.listar_locks() == {"task-1": "executor#b2"}

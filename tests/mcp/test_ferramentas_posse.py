@@ -85,6 +85,24 @@ def _servidor(kernel: WriteKernel, autor: str, papel: str = "executor") -> Graph
     return GraphowMCPServer(kernel, IdentidadeSessaoMCP.criar(autor, papel))
 
 
+def _julgar(kernel: WriteKernel, id_evidencia: str, veredito: str) -> None:
+    """O revisor grava o veredito sobre a Task, produzido pela sessão."""
+    operacoes = [
+        {"op": "add", "path": f"/nos/{id_evidencia}", "value": {
+            "id": id_evidencia, "tipo": TipoNo.EVIDENCE.value, "rotulo": id_evidencia, "propriedades": {"veredito": veredito},
+        }},
+        {"op": "add", "path": f"/arestas/prod-{id_evidencia}", "value": {
+            "id": f"prod-{id_evidencia}", "origem_id": "sess-1", "destino_id": id_evidencia, "tipo": TipoAresta.PRODUZ.value,
+        }},
+        {"op": "add", "path": f"/arestas/deriva-{id_evidencia}", "value": {
+            "id": f"deriva-{id_evidencia}", "origem_id": id_evidencia, "destino_id": "t1", "tipo": TipoAresta.DERIVA_DE.value,
+        }},
+    ]
+    revisor = _servidor(kernel, "revisor#r1", "revisor")
+    recibo = revisor.executar_ferramenta("propor_patch", {"operacoes": operacoes, "justificativa": "veredito"})
+    assert recibo["sucesso"], recibo
+
+
 def test_assumir_tarefa_adquire_lock_e_move_status_nominal() -> None:
     """A posse e o status andam juntos: assumir é um gesto só."""
     kernel = _montar_sessao_com_tarefa()
@@ -214,3 +232,60 @@ def test_humano_liberando_tarefa_sem_posse_alguma_recusa_edge_case() -> None:
 
     assert recibo["sucesso"] is False
     assert recibo["dono_atual"] is None
+
+
+def test_executor_retoma_posse_orfa_de_tarefa_aprovada_nominal() -> None:
+    """O executor que vem fechar a tarefa aprovada tira a posse do autor que não voltou."""
+    kernel = _montar_sessao_com_tarefa()
+    _servidor(kernel, "executor#a1").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+    _julgar(kernel, "evi-ok", "aprovado")
+    fechador = _servidor(kernel, "executor#b2")
+
+    recibo = fechador.executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    assert recibo["sucesso"] is True, recibo
+    assert recibo["posse_retomada_de"] == "executor#a1"
+    assert kernel.obter_dono_do_lock("t1") == "executor#b2"
+    tarefa = kernel.obter_view().obter_no("t1")
+    assert tarefa.obter_propriedade("assumida_por") == "executor#b2"
+    assert tarefa.obter_propriedade("posse_retomada_de") == "executor#a1"
+    assert fechador.executar_ferramenta("concluir_tarefa", {"id_task": "t1"})["sucesso"] is True
+
+
+def test_executor_nao_retoma_posse_sem_veredito_edge_case() -> None:
+    """Caso de borda: sem revisão, a posse de outro segue sendo de outro."""
+    kernel = _montar_sessao_com_tarefa()
+    _servidor(kernel, "executor#a1").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    recibo = _servidor(kernel, "executor#b2").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    assert recibo["sucesso"] is False
+    assert recibo["dono_atual"] == "executor#a1"
+    assert kernel.obter_dono_do_lock("t1") == "executor#a1"
+
+
+def test_executor_nao_retoma_posse_com_rejeicao_mais_recente_edge_case() -> None:
+    """Caso de borda: a aprovação que uma rejeição posterior derrubou não libera a posse."""
+    kernel = _montar_sessao_com_tarefa()
+    _servidor(kernel, "executor#a1").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+    _julgar(kernel, "evi-ok", "aprovado")
+    _julgar(kernel, "evi-rej", "rejeitado")
+
+    recibo = _servidor(kernel, "executor#b2").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    assert recibo["sucesso"] is False
+    assert kernel.obter_dono_do_lock("t1") == "executor#a1"
+    assert kernel.obter_view().obter_no("t1").obter_propriedade("posse_retomada_de") is None
+
+
+def test_so_o_executor_retoma_posse_de_tarefa_aprovada_edge_case() -> None:
+    """Caso de borda: fechar é do executor; o revisor e o planejador não tiram a posse de ninguém."""
+    kernel = _montar_sessao_com_tarefa()
+    _servidor(kernel, "executor#a1").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+    _julgar(kernel, "evi-ok", "aprovado")
+
+    for autor, papel in (("revisor#r2", "revisor"), ("condutor#c1", "planejador")):
+        recibo = _servidor(kernel, autor, papel).executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+        assert recibo["sucesso"] is False
+
+    assert kernel.obter_dono_do_lock("t1") == "executor#a1"

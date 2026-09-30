@@ -84,7 +84,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "assumir_tarefa",
-        "description": "Adquire a posse exclusiva de uma Task e a move para 'em_andamento'. Exigido antes de qualquer mudança de status.",
+        "description": "Adquire a posse exclusiva de uma Task e a move para 'em_andamento'. Exigido antes de qualquer mudança de status. Posse de outro autor recusa, salvo para o executor numa Task cujo veredito de revisão vigente é 'aprovado': ele retoma a posse órfã para fechá-la, e o recibo diz de quem em 'posse_retomada_de'.",
         "inputSchema": {
             "type": "object",
             "properties": {

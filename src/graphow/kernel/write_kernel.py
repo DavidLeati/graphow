@@ -269,6 +269,10 @@ class WriteKernel:
         """Libera o lock exclusivo caso pertença ao autor solicitante."""
         return self._locks.liberar(id_task, autor)
 
+    def transferir_lock_task(self, id_task: str, de: str, para: str) -> bool:
+        """Passa o lock da Task de um autor a outro, se o primeiro ainda o detiver."""
+        return self._locks.transferir(id_task, de, para)
+
 
 def _recibo_de_recusa(validacao: ResultadoValidacao, versao_log: int) -> ResultadoSubmissao:
     """Recibo de um lote recusado, com o diagnóstico MAST do modo que a recusa declarou."""

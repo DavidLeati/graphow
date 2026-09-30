@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-17 módulos · 2848 linhas · 28 classes
+17 módulos · 2852 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -29,7 +29,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/role_gate.py`](#kernelrolegate) | 335 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 310 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
-| [`kernel/write_kernel.py`](#kernelwritekernel) | 305 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
+| [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
 ## `kernel/composicao.py`
 
@@ -453,6 +453,7 @@ Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard).
 - `listar_locks_ativos() -> dict[str, str]` — Instantâneo dos locks vigentes, para consultas que filtram por posse.
 - `adquirir_lock_task(id_task: str, autor: str) -> bool` — Adquire lock exclusivo de escrita sobre uma Task para o autor.
 - `liberar_lock_task(id_task: str, autor: str) -> bool` — Libera o lock exclusivo caso pertença ao autor solicitante.
+- `transferir_lock_task(id_task: str, de: str, para: str) -> bool` — Passa o lock da Task de um autor a outro, se o primeiro ainda o detiver.
 
 ### Funções do módulo
 

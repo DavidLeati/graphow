@@ -82,13 +82,10 @@ def _decompor(orquestrador: GraphowMCPServer) -> None:
     )
 
 
-def _executar(executor: GraphowMCPServer, id_task: str, id_artifact: str) -> None:
-    """O protocolo do executor despachado: posse, vista, um lote com Artifact, Evidence e status, e liberar."""
-    _chamar(executor, "assumir_tarefa", id_task=id_task)
-    vista = _chamar(executor, "ler_vista", id_alvo=id_task, orcamento_tokens=2500)["conteudo"]
-    assert "dec-fator" in vista
+def _entrega(id_task: str, id_artifact: str) -> list[dict[str, Any]]:
+    """O lote único do passo 6 do executor: Artifact, Evidence da verificação e a troca de status."""
     id_evidencia = f"evi-verif-{id_task}"
-    lote = [
+    return [
         *_produzido(id_artifact, "Artifact", arquivos=["src/precos/preco.py"], resumo="preco via taxa_para_fator"),
         _aresta(id_artifact, id_task, "deriva_de"),
         *_produzido(id_evidencia, "Evidence", comando="pytest tests/precos", resultado="3 passed"),
@@ -96,7 +93,14 @@ def _executar(executor: GraphowMCPServer, id_task: str, id_artifact: str) -> Non
         _aresta(id_evidencia, id_task, "deriva_de"),
         {"op": "replace", "path": f"/nos/{id_task}/propriedades/status", "value": StatusTask.PRONTO_PARA_REVISAO.value},
     ]
-    _chamar(executor, "propor_patch", operacoes=lote, justificativa="entrega")
+
+
+def _executar(executor: GraphowMCPServer, id_task: str, id_artifact: str) -> None:
+    """O protocolo do executor despachado: posse, vista, um lote com Artifact, Evidence e status, e liberar."""
+    _chamar(executor, "assumir_tarefa", id_task=id_task)
+    vista = _chamar(executor, "ler_vista", id_alvo=id_task, orcamento_tokens=2500)["conteudo"]
+    assert "dec-fator" in vista
+    _chamar(executor, "propor_patch", operacoes=_entrega(id_task, id_artifact), justificativa="entrega")
     _chamar(executor, "liberar_tarefa", id_task=id_task)
 
 
@@ -162,6 +166,31 @@ def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
     assert (medicao.tarefas, medicao.concluidas, medicao.concluidas_sem_retrabalho) == (1, 1, 0)
     assert (medicao.correcoes, medicao.rejeicoes, medicao.aprovacoes) == (1, 1, 1)
     assert medicao.tokens_por_agente == {"graphow-executor-opus": 1000}
+
+
+def test_executor_que_reinicia_no_meio_da_tarefa_fecha_sem_o_humano_edge_case() -> None:
+    """Caso de borda: o servidor do executor volta com outro sufixo e perde a posse; a revisão aprova e o fechamento a retoma."""
+    kernel = _montar_goal()
+    _decompor(_agente(kernel, "orquestrador", "planejador"))
+    _chamar(_agente(kernel, "executor-opus#a1", "executor"), "assumir_tarefa", id_task="t1")
+    reiniciado = _agente(kernel, "executor-opus#a2", "executor")
+
+    recusa = reiniciado.executar_ferramenta("propor_patch", {"operacoes": _entrega("t1", "art-1"), "justificativa": "entrega"})
+    assert recusa["modo_de_falha"] == "conflito_concorrencia_lock"
+    sem_status = [op for op in _entrega("t1", "art-1") if not op["path"].endswith("/status")]
+    _chamar(reiniciado, "propor_patch", operacoes=sem_status, justificativa="entrega sem a troca de status")
+    assert reiniciado.executar_ferramenta("liberar_tarefa", {"id_task": "t1"})["sucesso"] is False
+
+    _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=True)
+    fechador = _agente(kernel, "executor-sonnet#e5", "executor")
+    assert _chamar(fechador, "assumir_tarefa", id_task="t1")["posse_retomada_de"] == "executor-opus#a1"
+    _chamar(fechador, "concluir_tarefa", id_task="t1", justificativa="revisao aprovada")
+    _chamar(fechador, "liberar_tarefa", id_task="t1")
+
+    assert kernel.obter_view().obter_no("t1").obter_propriedade("status") == StatusTask.CONCLUIDO.value
+    assert kernel.obter_dono_do_lock("t1") is None
+    (medicao,) = MedidorDeOrquestracao(kernel.obter_view()).medir(["goal"])
+    assert (medicao.concluidas_sem_retrabalho, medicao.rejeicoes, medicao.aprovacoes) == (1, 0, 1)
 
 
 def test_executor_sem_posse_nao_entrega_a_tarefa_de_outro_edge_case() -> None:

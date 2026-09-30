@@ -9,7 +9,8 @@ executores na mesma tarefa não colidiam. Estas duas ferramentas realizam o item
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from graphow.core.types import StatusTask
+from graphow.core.orquestracao import VEREDITO_APROVADO
+from graphow.core.types import PapelAutor, StatusTask
 from graphow.mcp.construcao_operacoes import montar_operacao_definir_propriedade
 from graphow.mcp.submissao import (
     ContextoFerramentaMCP,
@@ -17,6 +18,10 @@ from graphow.mcp.submissao import (
     SubmissorPatchMCP,
     extrair_ramo,
 )
+from graphow.projection.revisao import veredito_vigente
+
+# Na Task e no recibo: de quem o executor retomou a posse órfã.
+CAMPO_POSSE_RETOMADA_DE: str = "posse_retomada_de"
 
 
 class FerramentasPosse:
@@ -39,11 +44,42 @@ class FerramentasPosse:
         autor = self._contexto.identidade.autor
         ja_era_nosso = self._contexto.kernel.obter_dono_do_lock(id_task) == autor
         if not self._contexto.kernel.adquirir_lock_task(id_task, autor):
-            return self._recusar_por_dono_atual(id_task)
+            return self._retomar_posse_orfa(id_task, argumentos)
         recibo = self._marcar_em_andamento(id_task, argumentos)
         if not recibo["sucesso"] and not ja_era_nosso:
             self._contexto.kernel.liberar_lock_task(id_task, autor)
         return recibo
+
+    def _retomar_posse_orfa(self, id_task: str, argumentos: Mapping[str, Any]) -> dict[str, Any]:
+        """Passa ao executor a posse de uma tarefa que a revisão já aprovou.
+
+        A posse é do autor da conexão, e o autor leva um sufixo aleatório por
+        conexão. O executor cujo servidor MCP reinicia no meio da tarefa volta
+        com outro nome e perde a própria posse; o executor que depois vem fechar
+        a tarefa aprovada encontrava o lock de um autor que não existe mais, e
+        só o humano o soltava. Com a revisão aprovada, o trabalho de quem
+        detinha o lock acabou: o executor retoma a posse, e o lote que marca a
+        tarefa diz de quem, na justificativa e na propriedade que fica no log.
+        """
+        kernel = self._contexto.kernel
+        autor = self._contexto.identidade.autor
+        dono = kernel.obter_dono_do_lock(id_task)
+        if not dono or not self._pode_retomar(id_task, argumentos):
+            return self._recusar_por_dono_atual(id_task)
+        if not kernel.transferir_lock_task(id_task, dono, autor):
+            return self._recusar_por_dono_atual(id_task)
+        recibo = self._marcar_em_andamento(id_task, argumentos, retomada_de=dono)
+        if not recibo["sucesso"]:
+            kernel.transferir_lock_task(id_task, autor, dono)
+            return recibo
+        return {**recibo, CAMPO_POSSE_RETOMADA_DE: dono}
+
+    def _pode_retomar(self, id_task: str, argumentos: Mapping[str, Any]) -> bool:
+        """Só o executor retoma, porque fechar é dele, e só a tarefa cujo veredito vigente aprova."""
+        if self._contexto.identidade.papel != PapelAutor.EXECUTOR:
+            return False
+        view = self._contexto.kernel.obter_view(extrair_ramo(dict(argumentos)))
+        return veredito_vigente(view, id_task) == VEREDITO_APROVADO
 
     def _recusar_por_dono_atual(self, id_task: str) -> dict[str, Any]:
         """Informa quem detém a tarefa, para o agente escolher outra da fila."""
@@ -62,16 +98,25 @@ class FerramentasPosse:
         self,
         id_task: str,
         argumentos: Mapping[str, Any],
+        *,
+        retomada_de: str = "",
     ) -> dict[str, Any]:
-        """Registra no grafo que a tarefa passou a ter um responsável ativo."""
+        """Registra no grafo que a tarefa passou a ter um responsável ativo.
+
+        A justificativa não chega ao log; a retomada vai também como
+        propriedade da Task, para quem lê o log saber de quem a posse saiu.
+        """
+        operacoes = [
+            montar_operacao_definir_propriedade(id_task, "status", StatusTask.EM_ANDAMENTO.value),
+            montar_operacao_definir_propriedade(id_task, "assumida_por", self._contexto.identidade.autor),
+        ]
+        justificativa = f"Posse da tarefa {id_task}"
+        if retomada_de:
+            operacoes.append(montar_operacao_definir_propriedade(id_task, CAMPO_POSSE_RETOMADA_DE, retomada_de))
+            justificativa += f": posse orfa retomada de {retomada_de}: revisao aprovada"
         pedido = PedidoSubmissaoMCP(
-            operacoes=(
-                montar_operacao_definir_propriedade(id_task, "status", StatusTask.EM_ANDAMENTO.value),
-                montar_operacao_definir_propriedade(
-                    id_task, "assumida_por", self._contexto.identidade.autor
-                ),
-            ),
-            justificativa=f"Posse da tarefa {id_task}",
+            operacoes=tuple(operacoes),
+            justificativa=justificativa,
             ramo_id=extrair_ramo(dict(argumentos)),
             identificadores_criados={"id_task": id_task},
         )
@@ -81,8 +126,10 @@ class FerramentasPosse:
         """Devolve o lock da Task, deixando o status como está.
 
         O humano devolve a posse de qualquer um. Um subagente que morre sem
-        liberar deixa a tarefa presa a um autor que não volta mais, e nenhum
-        agente a tira dali: só o dono do grafo.
+        liberar deixa a tarefa presa a um autor que não volta mais. Se a
+        revisão já aprovou a tarefa, o executor que vem fechá-la a retoma em
+        `assumir_tarefa`; fora disso nenhum agente a tira dali, só o dono do
+        grafo.
         """
         id_task = str(argumentos["id_task"])
         autor = self._autor_que_libera(id_task)

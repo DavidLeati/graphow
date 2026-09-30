@@ -10,17 +10,17 @@ Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, 
 
 ## Inventário
 
-12 módulos · 1497 linhas · 35 classes
+12 módulos · 1525 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`storage/composicao.py`](#storagecomposicao) | 54 | Fábricas que montam o conjunto de repositórios usado pelo kernel. |
 | [`storage/in_memory_store.py`](#storageinmemorystore) | 80 | Implementação em memória do repositório de eventos append-only. |
 | [`storage/instantaneos.py`](#storageinstantaneos) | 126 | Instantâneos da projeção guardados junto do log, para a abertura não refazer o replay inteiro. |
-| [`storage/interfaces.py`](#storageinterfaces) | 83 | Interfaces abstratas de contrato para persistência de eventos e locks. |
+| [`storage/interfaces.py`](#storageinterfaces) | 88 | Interfaces abstratas de contrato para persistência de eventos e locks. |
 | [`storage/linhagem_ramo.py`](#storagelinhagemramo) | 157 | Definição e persistência da linhagem entre ramos do log de eventos. |
 | [`storage/localizador_banco.py`](#storagelocalizadorbanco) | 158 | Resolução do caminho do banco de eventos fora de pastas sincronizadas por nuvem. |
-| [`storage/lock_store.py`](#storagelockstore) | 112 | Repositórios de locks exclusivos de escrita sobre tarefas. |
+| [`storage/lock_store.py`](#storagelockstore) | 135 | Repositórios de locks exclusivos de escrita sobre tarefas. |
 | [`storage/migrador_banco.py`](#storagemigradorbanco) | 134 | Migração segura do banco de eventos entre localizações, preservando o WAL. |
 | [`storage/reparo_sequencia.py`](#storagereparosequencia) | 236 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
 | [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 89 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
@@ -121,6 +121,7 @@ Interfaces abstratas de contrato para persistência de eventos e locks.
 
 - `tentar_adquirir(id_task: str, autor: str) -> bool` `[abstract]` — Adquire o lock para o autor, ou confirma que ele já é o dono.
 - `liberar(id_task: str, autor: str) -> bool` `[abstract]` — Libera o lock, se pertencer ao autor solicitante.
+- `transferir(id_task: str, de: str, para: str) -> bool` `[abstract]` — Passa o lock de `de` para `para` num gesto só, se `de` ainda for o detentor.
 - `obter_dono(id_task: str) -> str | None` `[abstract]` — Consulta quem detém o lock da tarefa, se houver alguém.
 - `listar_locks() -> dict[str, str]` `[abstract]` — Devolve um instantâneo do mapa de tarefa para autor detentor.
 
@@ -245,6 +246,7 @@ Repositórios de locks exclusivos de escrita sobre tarefas.
 
 - `tentar_adquirir(id_task: str, autor: str) -> bool` — Adquire o lock se estiver livre ou já pertencer ao mesmo autor.
 - `liberar(id_task: str, autor: str) -> bool` — Libera o lock apenas se o solicitante for o detentor.
+- `transferir(id_task: str, de: str, para: str) -> bool` — Troca o detentor apenas se o lock ainda for de quem o cede.
 - `obter_dono(id_task: str) -> str | None` — Consulta o detentor atual do lock da tarefa.
 - `listar_locks() -> dict[str, str]` — Devolve uma cópia do mapa de locks ativos.
 
@@ -254,6 +256,7 @@ Repositórios de locks exclusivos de escrita sobre tarefas.
 
 - `tentar_adquirir(id_task: str, autor: str) -> bool` — Insere o lock de forma atômica, respeitando um detentor preexistente.
 - `liberar(id_task: str, autor: str) -> bool` — Remove o lock apenas quando o autor informado é o detentor registrado.
+- `transferir(id_task: str, de: str, para: str) -> bool` — Troca o detentor numa escrita só, condicionada ao detentor registrado.
 - `obter_dono(id_task: str) -> str | None` — Consulta o detentor do lock diretamente no banco compartilhado.
 - `listar_locks() -> dict[str, str]` — Devolve um instantâneo de todos os locks ativos no banco.
 

@@ -73,6 +73,11 @@ class RepositorioLocks(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def transferir(self, id_task: str, de: str, para: str) -> bool:
+        """Passa o lock de `de` para `para` num gesto só, se `de` ainda for o detentor."""
+        raise NotImplementedError
+
+    @abstractmethod
     def obter_dono(self, id_task: str) -> str | None:
         """Consulta quem detém o lock da tarefa, se houver alguém."""
         raise NotImplementedError
