@@ -8,26 +8,70 @@
  */
 import { gravarPreferencia, lerPreferencia } from "./dom.js";
 
-/** Uma lateral inteira: pode recolher e tem a largura arrastável pela borda. */
+/** O que o centro guarda para si quando uma lateral que acompanha a janela divide a moldura com ele. */
+export const MINIMO_DO_CENTRO = 320;
+
+/** O teto do arraste: o máximo fixo, ou metade da janela quando ela é mais larga que o dobro dele. */
+export function tetoDaLargura(maximo, larguraDaJanela) {
+  return Math.max(maximo, Math.floor(larguraDaJanela / 2));
+}
+
+/**
+ * A largura que a lateral ocupa na janela de agora. A pedida vale até o teto e
+ * até onde o centro ainda fica com MINIMO_DO_CENTRO; `alheio` é o que o resto
+ * da moldura (a faixa de ícones, a outra lateral) toma fora do centro. O piso
+ * da lateral vence o do centro: abaixo dele o painel já não se lê.
+ */
+export function larguraNaJanela(pedida, { minimo, maximo, larguraDaJanela, alheio }) {
+  const livre = larguraDaJanela - alheio - MINIMO_DO_CENTRO;
+  return Math.max(minimo, Math.min(pedida, tetoDaLargura(maximo, larguraDaJanela), livre));
+}
+
+/**
+ * Uma lateral inteira: pode recolher e tem a largura arrastável pela borda.
+ * Com `espacoAlheio`, que diz quanto o resto da moldura toma fora do centro,
+ * ela acompanha a janela: o teto cresce com ela e o centro não é esmagado.
+ * A largura gravada é a que a pessoa escolheu; a da tela sai dela a cada
+ * janela, e ao alargar a janela a lateral volta à escolhida.
+ */
 export class Lateral {
-  constructor(elemento, { chave, alca, larguraPadrao, minimo = 200, maximo = 560, ladoDaAlca = "direita", aoMudar = null }) {
+  constructor(elemento, { chave, alca, larguraPadrao, minimo = 200, maximo = 560, ladoDaAlca = "direita", aoMudar = null, espacoAlheio = null }) {
     this.elemento = elemento;
     this.chave = chave;
     this.minimo = minimo;
     this.maximo = maximo;
     this.ladoDaAlca = ladoDaAlca;
     this.aoMudar = aoMudar;
+    this.espacoAlheio = espacoAlheio;
     const salvo = lerPreferencia(`lateral_${chave}`, {});
     this.largura = salvo.largura || larguraPadrao;
     this.recolhida = Boolean(salvo.recolhida);
     this.aplicar();
     if (alca) this.ligarAlca(alca);
+    if (espacoAlheio) window.addEventListener("resize", () => this.reajustar());
+  }
+
+  /** A largura pedida dentro dos limites: os fixos e, se a lateral acompanha a janela, os dela. */
+  limitar(largura) {
+    if (!this.espacoAlheio) return Math.min(this.maximo, Math.max(this.minimo, largura));
+    return larguraNaJanela(largura, { minimo: this.minimo, maximo: this.maximo, larguraDaJanela: window.innerWidth, alheio: this.espacoAlheio() });
   }
 
   aplicar() {
-    this.elemento.style.width = this.recolhida ? "0px" : `${this.largura}px`;
+    this.elemento.style.width = this.recolhida ? "0px" : `${this.limitar(this.largura)}px`;
     this.elemento.classList.toggle("is-recolhida", this.recolhida);
     document.body.classList.toggle(`lateral-${this.chave}-recolhida`, this.recolhida);
+  }
+
+  /**
+   * A janela ou o resto da moldura mudou. Reaplica e só avisa se a largura na
+   * tela mudou: redimensionar a janela dispara muitos eventos, e quem escuta
+   * redesenha painéis.
+   */
+  reajustar() {
+    const antes = this.elemento.style.width;
+    this.aplicar();
+    if (this.elemento.style.width !== antes) this.aoMudar?.();
   }
 
   alternar() {
@@ -52,12 +96,13 @@ export class Lateral {
       if (this.recolhida) return;
       evento.preventDefault();
       const inicioX = evento.clientX;
-      const larguraInicial = this.largura;
+      // Parte da largura na tela: a gravada pode ser maior que a janela de agora comporta.
+      const larguraInicial = this.limitar(this.largura);
       document.body.classList.add("is-redimensionando");
       const aoMover = (movimento) => {
         const delta = movimento.clientX - inicioX;
         const sinal = this.ladoDaAlca === "direita" ? 1 : -1;
-        this.largura = Math.min(this.maximo, Math.max(this.minimo, larguraInicial + delta * sinal));
+        this.largura = this.limitar(larguraInicial + delta * sinal);
         this.aplicar();
         this.aoMudar?.();
       };

@@ -1,13 +1,13 @@
-// Testes do recolhimento da metade de baixo da lateral direita (o histórico)
-// e do tamanho do texto das laterais,
+// Testes do recolhimento da metade de baixo da lateral direita (o histórico),
+// do tamanho do texto e da largura das laterais na janela,
 // rodados por `node --test`. tests/web/test_javascript.py os chama pela suíte do pytest.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  ALTURA_PARA_RECOLHER, formatarTamanhoDoTexto, proximoTamanhoDoTexto, recolhidaDeInicio, RecolhimentoDaMetade,
-  TAMANHO_PADRAO_DO_TEXTO, TAMANHOS_DO_TEXTO, tamanhoDoTextoValido,
+  ALTURA_PARA_RECOLHER, formatarTamanhoDoTexto, larguraNaJanela, MINIMO_DO_CENTRO, proximoTamanhoDoTexto, recolhidaDeInicio,
+  RecolhimentoDaMetade, TAMANHO_PADRAO_DO_TEXTO, TAMANHOS_DO_TEXTO, tamanhoDoTextoValido, tetoDaLargura,
 } from "../../../src/graphow/web/static/js/laterais.js";
 
 test("sem escolha gravada, a janela baixa começa com o histórico recolhido", () => {
@@ -126,4 +126,43 @@ test("o tamanho aparece como porcentagem inteira", () => {
   assert.equal(formatarTamanhoDoTexto(1), "100%");
   assert.equal(formatarTamanhoDoTexto(1.15), "115%");
   assert.equal(formatarTamanhoDoTexto(0.9), "90%");
+});
+
+// A lateral direita: mínimo 260, máximo fixo 620; a faixa (44) e a esquerda (272) ficam fora do centro.
+const DIREITA = { minimo: 260, maximo: 620 };
+const naJanela = (pedida, larguraDaJanela, alheio = 44 + 272) => larguraNaJanela(pedida, { ...DIREITA, larguraDaJanela, alheio });
+
+test("o teto é o máximo fixo até a janela passar do dobro dele, e metade dela depois", () => {
+  assert.equal(tetoDaLargura(620, 1280), 640);
+  assert.equal(tetoDaLargura(620, 1240), 620);
+  assert.equal(tetoDaLargura(620, 1000), 620);
+  assert.equal(tetoDaLargura(620, 2561), 1280);
+});
+
+test("numa janela larga a lateral cresce até metade dela", () => {
+  assert.equal(naJanela(900, 1920), 900);
+  assert.equal(naJanela(1200, 1920), 960);
+  assert.equal(naJanela(700, 1280), 640);
+});
+
+test("a largura pedida vale inteira quando cabe, e o piso vale abaixo do mínimo", () => {
+  assert.equal(naJanela(340, 1280), 340);
+  assert.equal(naJanela(100, 1280), 260);
+});
+
+test("ao encolher a janela a lateral cede para o centro não passar do mínimo dele", () => {
+  const larguraDaJanela = 1000;
+  const alheio = 44 + 272;
+  const largura = naJanela(620, larguraDaJanela, alheio);
+  assert.equal(largura, larguraDaJanela - alheio - MINIMO_DO_CENTRO);
+  assert.equal(larguraDaJanela - alheio - largura, MINIMO_DO_CENTRO);
+});
+
+test("sem espaço nem para o centro, a lateral fica no próprio mínimo", () => {
+  assert.equal(naJanela(340, 901, 44 + 560), 260);
+});
+
+test("com a esquerda recolhida o centro deixa mais para a direita", () => {
+  assert.equal(naJanela(620, 1000, 44), 620);
+  assert.equal(naJanela(620, 1000, 44 + 272), 364);
 });

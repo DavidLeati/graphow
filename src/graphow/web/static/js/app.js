@@ -102,11 +102,16 @@ class GraphowApp {
 
   montarLaterais() {
     const redesenharCanvas = () => this.minimap.updateFrustum();
-    this.lateralEsquerda = new Lateral(document.getElementById("left-sidebar"), {
-      chave: "esquerda", alca: document.getElementById("alca-esquerda"), larguraPadrao: 272, aoMudar: redesenharCanvas,
+    const esquerda = document.getElementById("left-sidebar");
+    const faixa = document.querySelector(".faixa-lateral");
+    this.lateralEsquerda = new Lateral(esquerda, {
+      chave: "esquerda", alca: document.getElementById("alca-esquerda"), larguraPadrao: 272,
+      // A esquerda mais larga tira espaço do centro, e a direita cede para ele.
+      aoMudar: () => { redesenharCanvas(); this.lateralDireita?.reajustar(); },
     });
     this.lateralDireita = new Lateral(document.getElementById("right-sidebar"), {
       chave: "direita", alca: document.getElementById("alca-direita"), larguraPadrao: 340, minimo: 260, maximo: 620, ladoDaAlca: "esquerda",
+      espacoAlheio: () => faixa.offsetWidth + esquerda.offsetWidth,
       // Outra largura é outra letra no título do inspetor e outra quebra nos campos.
       aoMudar: () => { redesenharCanvas(); this.atualizarPaineisDaSelecao(); this.inspector.reajustarCampos(); },
     });
