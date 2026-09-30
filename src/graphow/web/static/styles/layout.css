@@ -165,7 +165,35 @@ body.lateral-direita-recolhida #alca-direita {
   padding: 10px 12px 14px;
 }
 
+/* O título da metade de baixo é também o botão que a recolhe. */
+.grupo-recolher {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 4px 0 0;
+  color: var(--texto-fraco);
+  background: none;
+  border: none;
+  border-radius: var(--raio-sm);
+  cursor: pointer;
+  transition: background var(--transicao-rapida), color var(--transicao-rapida);
+}
+.grupo-recolher:hover { background: var(--moldura-hover); color: var(--texto-normal); }
+.grupo-recolher:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--acento); }
+.grupo-recolher .grupo-cabecalho-titulo { margin-left: 0; color: inherit; }
+.grupo-recolher-seta { display: inline-flex; transition: transform var(--transicao-rapida); }
+.grupo-recolher[aria-expanded="false"] .grupo-recolher-seta { transform: rotate(180deg); }
+
 .lateral-direita .grupo-abas.divisao { min-height: 110px; }
+/* Recolhida, a metade de baixo é só o cabeçalho, erguido acima da barra de status. */
+.lateral-direita .grupo-abas.divisao.is-recolhida {
+  min-height: 0;
+  padding-bottom: var(--altura-barra-status);
+}
+.grupo-abas.is-recolhida > .grupo-conteudo { display: none; }
+.grupo-abas.is-recolhida > .grupo-cabecalho { border-bottom: none; }
 .divisor-vertical {
   position: relative;
   flex-shrink: 0;
@@ -189,6 +217,13 @@ body.is-redimensionando-vertical .divisor-vertical::after {
   height: 2px;
   top: 2px;
   background: var(--acento);
+}
+/* Com a metade de baixo recolhida não há o que arrastar: sobra a linha. */
+.divisor-vertical.is-inerte { cursor: default; }
+.divisor-vertical.is-inerte:hover::after {
+  height: 1px;
+  top: 3px;
+  background: var(--moldura-divisor);
 }
 /* A barra de status flutua sobre o pé da lateral direita. */
 .painel-historico { padding-bottom: 36px; }

@@ -2,8 +2,9 @@
  * Painéis laterais da moldura: recolher, redimensionar e alternar entre vistas.
  *
  * Cada lateral tem um cabeçalho de ícones, um por
- * vista, e a lateral direita se divide em duas metades empilhadas. Largura, vista
- * ativa e altura da divisão ficam gravadas: a pessoa arruma a mesa uma vez.
+ * vista, e a lateral direita se divide em duas metades empilhadas, a de baixo
+ * recolhível. Largura, vista ativa, altura da divisão e recolhimento ficam
+ * gravados: a pessoa arruma a mesa uma vez.
  */
 import { gravarPreferencia, lerPreferencia } from "./dom.js";
 
@@ -113,21 +114,87 @@ export class GrupoDeAbas {
   }
 }
 
-/** Divisão entre as duas metades empilhadas da lateral direita. */
+/** Altura de janela abaixo da qual a metade de baixo nasce recolhida. */
+export const ALTURA_PARA_RECOLHER = 800;
+
+/**
+ * Se a metade de baixo começa recolhida. A escolha gravada vence sempre; sem
+ * ela, decide a altura da janela: numa janela baixa o histórico levava dois
+ * quintos da lateral e a dúvida aberta em cima ficava numa fresta.
+ */
+export function recolhidaDeInicio(salva, alturaDaJanela) {
+  if (typeof salva === "boolean") return salva;
+  return alturaDaJanela < ALTURA_PARA_RECOLHER;
+}
+
+/**
+ * O recolhimento da metade de baixo, sem DOM, para caber num teste. `escolhida`
+ * é o último gesto da pessoa ou, sem gesto nenhum, o padrão da janela.
+ */
+export class RecolhimentoDaMetade {
+  constructor(salva, alturaDaJanela) {
+    this.escolhida = recolhidaDeInicio(salva, alturaDaJanela);
+  }
+
+  get recolhida() {
+    return this.escolhida;
+  }
+
+  /** Um gesto da pessoa, que passa a valer mais que o padrão da janela. */
+  definir(recolhida) {
+    this.escolhida = Boolean(recolhida);
+  }
+}
+
+/**
+ * Divisão entre as duas metades empilhadas da lateral direita. A de baixo pode
+ * recolher até sobrar só o cabeçalho, e a de cima leva a altura inteira.
+ * Recolher não mexe na fração gravada: ao expandir, a divisão volta onde estava.
+ */
 export class DivisorVertical {
-  constructor(divisor, superior, inferior, { chave, fracaoPadrao = 0.58 }) {
+  constructor(divisor, superior, inferior, { chave, fracaoPadrao = 0.58, botaoRecolher = null }) {
+    this.divisor = divisor;
     this.superior = superior;
     this.inferior = inferior;
     this.chave = chave;
+    this.botaoRecolher = botaoRecolher;
     this.fracao = lerPreferencia(`divisao_${chave}`, fracaoPadrao);
+    this.recolhimento = new RecolhimentoDaMetade(lerPreferencia(`divisao_${chave}_recolhida`, null), window.innerHeight);
     this.aplicar();
-    divisor.addEventListener("mousedown", (evento) => this.arrastar(evento));
-    divisor.addEventListener("dblclick", () => this.definir(fracaoPadrao));
+    // Recolhida, não há o que dividir: o divisor fica só como linha.
+    divisor.addEventListener("mousedown", (evento) => { if (!this.recolhida) this.arrastar(evento); });
+    divisor.addEventListener("dblclick", () => { if (!this.recolhida) this.definir(fracaoPadrao); });
+    botaoRecolher?.addEventListener("click", () => this.alternar());
+  }
+
+  get recolhida() {
+    return this.recolhimento.recolhida;
   }
 
   aplicar() {
-    this.superior.style.flex = `${this.fracao} 1 0`;
-    this.inferior.style.flex = `${1 - this.fracao} 1 0`;
+    const recolhida = this.recolhida;
+    this.superior.style.flex = recolhida ? "1 1 0" : `${this.fracao} 1 0`;
+    this.inferior.style.flex = recolhida ? "0 0 auto" : `${1 - this.fracao} 1 0`;
+    this.inferior.classList.toggle("is-recolhida", recolhida);
+    this.divisor.classList.toggle("is-inerte", recolhida);
+    if (this.botaoRecolher) {
+      this.botaoRecolher.setAttribute("aria-expanded", String(!recolhida));
+      this.botaoRecolher.title = recolhida ? "Expandir o histórico" : "Recolher o histórico e dar a altura ao painel de cima";
+    }
+  }
+
+  alternar() {
+    this.escolher(!this.recolhida);
+  }
+
+  expandir() {
+    if (this.recolhida) this.escolher(false);
+  }
+
+  escolher(recolhida) {
+    this.recolhimento.definir(recolhida);
+    this.aplicar();
+    gravarPreferencia(`divisao_${this.chave}_recolhida`, this.recolhimento.escolhida);
   }
 
   definir(fracao) {

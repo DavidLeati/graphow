@@ -161,9 +161,12 @@
       <div class="grupo-abas divisao" id="grupo-direito-inferior">
         <div class="grupo-cabecalho">
           <button class="grupo-aba" data-aba="historico" data-icone="calendar" title="Histórico do log"></button>
-          <span class="grupo-cabecalho-titulo" data-titulo-grupo></span>
+          <button class="grupo-recolher" id="recolher-historico" aria-expanded="true" aria-controls="conteudo-historico">
+            <span class="grupo-cabecalho-titulo" data-titulo-grupo></span>
+            <span class="grupo-recolher-seta" data-icone="chevron-down" data-icone-tamanho="14"></span>
+          </button>
         </div>
-        <div class="grupo-conteudo">
+        <div class="grupo-conteudo" id="conteudo-historico">
           <section class="painel painel-historico" data-painel="historico" id="painel-historico"></section>
         </div>
       </div>

@@ -116,7 +116,9 @@ class GraphowApp {
       chave: "direita", padrao: "propriedades", aoMudar: (nome) => this.aoMostrarPainelDireito(nome),
     });
     this.abasDireitaInferior = new GrupoDeAbas(document.getElementById("grupo-direito-inferior"), { chave: "direita_inferior", padrao: "historico" });
-    new DivisorVertical(document.getElementById("divisor-direito"), document.getElementById("grupo-direito-superior"), document.getElementById("grupo-direito-inferior"), { chave: "direita" });
+    this.divisorDireito = new DivisorVertical(document.getElementById("divisor-direito"), document.getElementById("grupo-direito-superior"), document.getElementById("grupo-direito-inferior"), {
+      chave: "direita", botaoRecolher: document.getElementById("recolher-historico"),
+    });
   }
 
   montarPaineis() {
