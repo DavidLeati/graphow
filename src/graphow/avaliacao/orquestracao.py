@@ -27,6 +27,7 @@ from graphow.core.orquestracao import (
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
 from graphow.harness.transcricao import CHAVES_DE_USO
 from graphow.projection.graph_view import GrafoView
+from graphow.projection.revisao import artefatos_da_tarefa, vereditos_sobre
 
 SEM_CONFIGURACAO: str = "sem configuracao"
 SEM_MODELO: str = "sem modelo"
@@ -90,13 +91,8 @@ class MedidorDeOrquestracao:
         """A decomposição do Goal e o que deriva dela: artefatos, vereditos e sessões produtoras."""
         tarefas = self._descendentes_por_decomposicao(id_goal)
         ids_tarefas = frozenset(no.id for no in tarefas)
-        artefatos = frozenset(
-            aresta.origem_id
-            for id_task in ids_tarefas
-            for aresta in self._view.obter_arestas_entrada(id_task, TipoAresta.DERIVA_DE)
-            if self._eh_do_tipo(aresta.origem_id, TipoNo.ARTIFACT)
-        )
-        vereditos = self._vereditos_sobre(ids_tarefas | artefatos)
+        artefatos = frozenset(id_artefato for id_task in ids_tarefas for id_artefato in artefatos_da_tarefa(self._view, id_task))
+        vereditos = vereditos_sobre(self._view, ids_tarefas | artefatos)
         produzidos = ids_tarefas | artefatos | {no.id for no in vereditos} | self._decisoes_que_orientam(ids_tarefas | {id_goal})
         return TrabalhoDoGoal(tarefas=tarefas, artefatos=artefatos, vereditos=vereditos, sessoes=self._sessoes_de(produzidos))
 
@@ -109,16 +105,6 @@ class MedidorDeOrquestracao:
             fronteira = [id_no for id_no in filhos if id_no not in encontradas and self._eh_do_tipo(id_no, TipoNo.TASK)]
             encontradas.update({id_no: self._view.obter_no(id_no) for id_no in fronteira})
         return tuple(sorted(encontradas.values(), key=lambda no: no.id))
-
-    def _vereditos_sobre(self, alvos: frozenset[str]) -> tuple[NoGrafo, ...]:
-        """As Evidence com veredito que derivam de alguma tarefa ou artefato do Goal."""
-        candidatas = {
-            aresta.origem_id
-            for id_alvo in alvos
-            for aresta in self._view.obter_arestas_entrada(id_alvo, TipoAresta.DERIVA_DE)
-        }
-        nos = (self._view.obter_no(id_no) for id_no in sorted(candidatas))
-        return tuple(no for no in nos if no is not None and no.tipo == TipoNo.EVIDENCE and ler_texto(no.propriedades, CAMPO_VEREDITO))
 
     def _decisoes_que_orientam(self, alvos: Iterable[str]) -> set[str]:
         """As Decision ligadas por `orienta` ao Goal ou às tarefas dele."""

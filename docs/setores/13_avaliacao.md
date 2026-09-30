@@ -10,7 +10,7 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 
 ## Inventário
 
-11 módulos · 1713 linhas · 20 classes
+11 módulos · 1699 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
-| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 208 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
+| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 194 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
 | [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 65 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |

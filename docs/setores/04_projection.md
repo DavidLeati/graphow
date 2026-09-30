@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-13 módulos · 1893 linhas · 22 classes
+14 módulos · 1949 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,6 +24,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/ranking_busca.py`](#projectionrankingbusca) | 186 | Ordenação e corte dos resultados de busca textual no grafo. |
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
+| [`projection/revisao.py`](#projectionrevisao) | 56 | A revisão de uma tarefa lida do grafo: os vereditos que ela recebeu e o que vigora entre eles. |
 | [`projection/rollup.py`](#projectionrollup) | 221 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
 | [`projection/working_set.py`](#projectionworkingset) | 170 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
 
@@ -290,6 +291,16 @@ Redutor determinístico de eventos append-only para estado de grafo em memória.
 - `reconstruir(eventos: Sequence[EventoLog]) -> GrafoEstado` — Reconstrói o estado integral do grafo a partir de uma sequência de eventos.
 - `aplicar_eventos(estado_base: GrafoEstado, eventos: Sequence[EventoLog]) -> GrafoEstado` — Dobra a sequência sobre o estado base em uma passada, sem cópias intermediárias.
 - `reduzir(estado: GrafoEstado, evento: EventoLog) -> GrafoEstado` — Aplica um único evento de forma pura sobre o estado atual.
+
+## `projection/revisao.py`
+
+A revisão de uma tarefa lida do grafo: os vereditos que ela recebeu e o que vigora entre eles.
+
+### Funções do módulo
+
+- `artefatos_da_tarefa(view: GrafoView, id_task: str) -> frozenset[str]` — Os Artifacts que derivam da Task: o que o executor entregou para revisão.
+- `vereditos_sobre(view: GrafoView, alvos: Iterable[str]) -> tuple[NoGrafo, ...]` — As Evidence com veredito que derivam de algum dos alvos, em ordem de identificador.
+- `veredito_vigente(view: GrafoView, id_task: str) -> str` — O veredito mais recente sobre a Task ou os Artifacts dela; vazio quando ninguém revisou.
 
 ## `projection/rollup.py`
 
