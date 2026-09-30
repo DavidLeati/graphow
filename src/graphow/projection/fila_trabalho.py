@@ -21,6 +21,7 @@ from graphow.core.orquestracao import (
 )
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
+from graphow.projection.revisao import profundidade_da_correcao
 
 PROFUNDIDADE_MAXIMA_DA_SESSAO: int = 32
 
@@ -81,7 +82,8 @@ class TarefaExecutavel:
 
     Modelo e arquivos-alvo vêm junto porque é com eles que o orquestrador
     despacha: qual executor chamar, e o que pode rodar em paralelo sem dois
-    agentes editando o mesmo arquivo.
+    agentes editando o mesmo arquivo. A profundidade da correção diz quantas
+    reprovações a tarefa já carrega, que é o que o teto de correções conta.
     """
 
     id: str
@@ -92,6 +94,7 @@ class TarefaExecutavel:
     modelo: str = ""
     arquivos_alvo: tuple[str, ...] = field(default_factory=tuple)
     corrige: str = ""
+    profundidade_correcao: int = 0
 
     def em_dicionario(self) -> dict[str, object]:
         """Forma serializável para a resposta da ferramenta MCP."""
@@ -104,6 +107,7 @@ class TarefaExecutavel:
             "modelo": self.modelo,
             "arquivos_alvo": list(self.arquivos_alvo),
             "corrige": self.corrige,
+            "profundidade_correcao": self.profundidade_correcao,
         }
 
 
@@ -164,6 +168,7 @@ class FilaDeTrabalho:
             modelo=ler_texto(no.propriedades, CAMPO_MODELO),
             arquivos_alvo=ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO)),
             corrige=ler_texto(no.propriedades, CAMPO_CORRIGE),
+            profundidade_correcao=profundidade_da_correcao(self._view, no.id),
         )
 
     def _coletar_tarefas_da_sessao(self, id_sessao: str) -> tuple[NoGrafo, ...]:

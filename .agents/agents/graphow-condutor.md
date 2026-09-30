@@ -29,7 +29,7 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
 
 `ler_vista(id_goal)`: as propriedades trazem `configuracao` (ver "Modelo"), `cadencia` e `teto_rodadas`. Devolva as duas últimas como estão no Goal ou, na falta, no Setor ou no Projeto.
 
-`proximas_tarefas(id_goal)`: a fila percorre a decomposição do Goal, de qualquer sessão. Cada tarefa vem com `status`, `modelo`, `arquivos_alvo` e `criterio_pronto`, e cada impedida com o motivo (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`).
+`proximas_tarefas(id_goal)`: a fila percorre a decomposição do Goal, de qualquer sessão. Cada tarefa vem com `status`, `modelo`, `arquivos_alvo`, `criterio_pronto` e `profundidade_correcao` (0 na original, 1 na primeira correção, 2 na correção de uma correção), e cada impedida com o motivo (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`).
 
 ## 2. Escolher o que a rodada faz
 
@@ -70,8 +70,8 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 ## 6. Fechar
 
 - `VEREDITO: aprovado`: despache o `graphow-executor` com `Fechar: <id>, <id>` e `Sessao: <id>`, todas as aprovadas da rodada num despacho só.
-- `VEREDITO: rejeitado` numa Task original (sem `corrige`): crie a Task de correção com `criar_tarefa`: `id_tarefa_pai` na rejeitada, `corrige` com o id da Evidence do veredito, `criterio_pronto` com o critério da original e o que a revisão apontou, `modelo: opus` com `motivo_modelo` "falhou uma revisao" e os mesmos `arquivos_alvo`. A original passa a depender da correção e sai da fila. A correção roda numa rodada seguinte; aprovada, feche as duas juntas: `Fechar: <correção>, <original>`.
-- `VEREDITO: rejeitado` numa Task que já é correção (tem `corrige`): é a segunda reprovação, e vale o teto de correções. Não crie outra correção: a terceira raramente aprova e custa caro. Decida pela `gravidade` das Evidence dos critérios não atendidos, que o revisor traz na linha `Criterios nao atendidos:`.
+- `VEREDITO: rejeitado` numa Task original (`profundidade_correcao` 0): crie a Task de correção com `criar_tarefa`: `id_tarefa_pai` na rejeitada, `corrige` com o id da Evidence do veredito, `criterio_pronto` com o critério da original e o que a revisão apontou, `modelo: opus` com `motivo_modelo` "falhou uma revisao" e os mesmos `arquivos_alvo`. A original passa a depender da correção e sai da fila. A correção roda numa rodada seguinte; aprovada, feche as duas juntas: `Fechar: <correção>, <original>`.
+- `VEREDITO: rejeitado` numa Task que já é correção (`profundidade_correcao` 1 ou mais): é a segunda reprovação, e vale o teto de correções. Não crie outra correção: a terceira raramente aprova e custa caro. Decida pela `gravidade` das Evidence dos critérios não atendidos, que o revisor traz na linha `Criterios nao atendidos:`.
   - Algum `bloqueante`, ou critério sem `gravidade`: abra Question na original com o que as revisões apontaram e pergunte como seguir.
   - Só `acompanhamento`: aceite a entrega. Num único `propor_patch`, registre a Decision "aceite apos segunda reprovacao", com a propriedade `acao: aceite_apos_reprovacao` (é por ela que a medição conta os aceites), `produz` da Sessao, `justifica` vindo da Evidence do veredito e `orienta` para a original e para cada correção. Crie com `criar_tarefa` a Task de acompanhamento: `id_tarefa_pai` no Goal, não na original; sem `corrige`, que faria a original esperar por ela; `decisoes` com a Decision do aceite; `descricao` e `criterio_pronto` com os critérios `acompanhamento` que ficaram, citando os ids das Evidence; os `arquivos_alvo` da original. Por fim, feche a cadeia, da correção mais nova à original: `Fechar: <correção>, <original>`, com as correções do meio entre as duas, se houver. O veredito vigente é `rejeitado`, mas com a posse livre o fechamento não depende dele.
 - `VEREDITO: duvida`: a Question está aberta. Siga com o resto.

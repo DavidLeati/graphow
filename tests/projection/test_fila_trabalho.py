@@ -137,3 +137,82 @@ def test_toda_tarefa_da_sessao_aparece_em_um_dos_dois_lados_edge_case() -> None:
 
     assert executaveis | impedidas == {"t-livre", "t-dependente", "t-bloqueada"}
     assert executaveis & impedidas == set()
+
+
+def _estado_com_cadeia_de_correcoes() -> GrafoEstado:
+    """Original, a correção dela e a correção da correção, cada uma julgada por um veredito rejeitado.
+
+    Sem `depende_de` entre elas, para as três aparecerem na fila: o que se
+    confere aqui é só a profundidade de cada uma.
+    """
+    nos = {
+        "sess-1": _no("sess-1", TipoNo.SESSAO),
+        "goal-1": _no("goal-1", TipoNo.GOAL),
+        "t-orig": _no("t-orig", TipoNo.TASK, {"status": StatusTask.PRONTO_PARA_REVISAO.value}),
+        "art-orig": _no("art-orig", TipoNo.ARTIFACT),
+        "evi-orig": _no("evi-orig", TipoNo.EVIDENCE, {"veredito": "rejeitado"}),
+        "t-c1": _no("t-c1", TipoNo.TASK, {"status": StatusTask.PRONTO_PARA_REVISAO.value, "corrige": "evi-orig"}),
+        "art-c1": _no("art-c1", TipoNo.ARTIFACT),
+        "evi-c1": _no("evi-c1", TipoNo.EVIDENCE, {"veredito": "rejeitado"}),
+        "t-c2": _no("t-c2", TipoNo.TASK, {"status": StatusTask.PENDENTE.value, "corrige": "evi-c1"}),
+    }
+    arestas = {
+        "p1": _aresta("p1", "sess-1", "goal-1", TipoAresta.PRODUZ),
+        "dec-orig": _aresta("dec-orig", "goal-1", "t-orig", TipoAresta.DECOMPOE),
+        "dec-c1": _aresta("dec-c1", "t-orig", "t-c1", TipoAresta.DECOMPOE),
+        "dec-c2": _aresta("dec-c2", "t-c1", "t-c2", TipoAresta.DECOMPOE),
+        "a-orig": _aresta("a-orig", "art-orig", "t-orig", TipoAresta.DERIVA_DE),
+        "v-orig-art": _aresta("v-orig-art", "evi-orig", "art-orig", TipoAresta.DERIVA_DE),
+        "v-orig-task": _aresta("v-orig-task", "evi-orig", "t-orig", TipoAresta.DERIVA_DE),
+        "a-c1": _aresta("a-c1", "art-c1", "t-c1", TipoAresta.DERIVA_DE),
+        "v-c1-art": _aresta("v-c1-art", "evi-c1", "art-c1", TipoAresta.DERIVA_DE),
+        "v-c1-task": _aresta("v-c1-task", "evi-c1", "t-c1", TipoAresta.DERIVA_DE),
+    }
+    return GrafoEstado(nos=nos, arestas=arestas)
+
+
+def _profundidades(estado: GrafoEstado) -> dict[str, int]:
+    """A profundidade de correção de cada tarefa que a fila devolve."""
+    tarefas = FilaDeTrabalho(GrafoView(estado)).proximas_tarefas("sess-1")
+    return {tarefa.id: tarefa.profundidade_correcao for tarefa in tarefas}
+
+
+def test_fila_conta_a_profundidade_da_cadeia_de_correcoes_nominal() -> None:
+    """A original é 0, a correção é 1 e a correção da correção é 2: o teto conta a partir daí."""
+    estado = _estado_com_cadeia_de_correcoes()
+
+    assert _profundidades(estado) == {"t-orig": 0, "t-c1": 1, "t-c2": 2}
+    serializada = FilaDeTrabalho(GrafoView(estado)).proximas_tarefas("sess-1")[0].em_dicionario()
+    assert "profundidade_correcao" in serializada
+
+
+def test_profundidade_segue_o_veredito_pelo_artefato_edge_case() -> None:
+    """Caso de borda: sem a aresta direta do veredito para a Task, a julgada se acha pelo Artifact."""
+    estado = _estado_com_cadeia_de_correcoes()
+    arestas = {id_aresta: aresta for id_aresta, aresta in estado.arestas.items() if not id_aresta.endswith("-task")}
+
+    assert _profundidades(GrafoEstado(nos=estado.nos, arestas=arestas)) == {"t-orig": 0, "t-c1": 1, "t-c2": 2}
+
+
+def test_profundidade_para_onde_o_veredito_some_edge_case() -> None:
+    """Caso de borda: `corrige` para um veredito ausente ainda é correção, e a cadeia para ali."""
+    estado = _estado_com_cadeia_de_correcoes()
+    nos = {id_no: no for id_no, no in estado.nos.items() if id_no != "evi-c1"}
+    arestas = {id_aresta: aresta for id_aresta, aresta in estado.arestas.items() if not id_aresta.startswith("v-c1")}
+
+    assert _profundidades(GrafoEstado(nos=nos, arestas=arestas))["t-c2"] == 1
+
+
+def test_profundidade_nao_gira_em_ciclo_edge_case() -> None:
+    """Caso de borda: um veredito que julga a própria correção não prende a fila num laço."""
+    nos = {
+        "sess-1": _no("sess-1", TipoNo.SESSAO),
+        "t-ciclo": _no("t-ciclo", TipoNo.TASK, {"status": StatusTask.PENDENTE.value, "corrige": "evi-ciclo"}),
+        "evi-ciclo": _no("evi-ciclo", TipoNo.EVIDENCE, {"veredito": "rejeitado"}),
+    }
+    arestas = {
+        "p1": _aresta("p1", "sess-1", "t-ciclo", TipoAresta.PRODUZ),
+        "v1": _aresta("v1", "evi-ciclo", "t-ciclo", TipoAresta.DERIVA_DE),
+    }
+
+    assert _profundidades(GrafoEstado(nos=nos, arestas=arestas)) == {"t-ciclo": 1}

@@ -5,12 +5,16 @@ Artifact entregue e da Task. A medição da orquestração contava esses veredit
 por conta própria, e a posse de tarefa passou a precisar do mesmo dado para
 decidir se uma tarefa aprovada pode ser fechada por outro executor. As duas
 pontas leem daqui, para uma não achar veredito onde a outra não acha.
+
+Daqui sai também a cadeia de correções: a correção aponta por `corrige` o
+veredito que a motivou, e o veredito chega à tarefa julgada, que pode ser ela
+mesma uma correção.
 """
 
 from collections.abc import Iterable
 
 from graphow.core.models import NoGrafo
-from graphow.core.orquestracao import CAMPO_VEREDITO, ler_texto
+from graphow.core.orquestracao import CAMPO_CORRIGE, CAMPO_VEREDITO, ler_texto
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 
@@ -48,6 +52,53 @@ def veredito_vigente(view: GrafoView, id_task: str) -> str:
         return ""
     ultimo = max(vereditos, key=lambda no: (no.ordem.seq_atualizacao, no.ordem.seq_criacao, no.id))
     return ler_texto(ultimo.propriedades, CAMPO_VEREDITO)
+
+
+def tarefa_julgada(view: GrafoView, id_veredito: str) -> str:
+    """A Task que o veredito julgou; vazio quando o veredito não chega a nenhuma.
+
+    O revisor deriva o veredito da Task e do Artifact. Quando falta a aresta
+    direta para a Task, ela ainda se alcança pelo Artifact julgado.
+    """
+    diretas = _destinos_do_tipo(view, id_veredito, TipoNo.TASK)
+    if diretas:
+        return diretas[0]
+    pelo_artefato = sorted(
+        id_task for id_artefato in _destinos_do_tipo(view, id_veredito, TipoNo.ARTIFACT)
+        for id_task in _destinos_do_tipo(view, id_artefato, TipoNo.TASK)
+    )
+    return pelo_artefato[0] if pelo_artefato else ""
+
+
+def profundidade_da_correcao(view: GrafoView, id_task: str) -> int:
+    """Quantas correções há na cadeia até a Task original: 0 na original, 1 na primeira correção.
+
+    A cadeia segue o `corrige` até o veredito e dele até a tarefa julgada, e
+    repete enquanto essa também for correção. É pelo veredito, e não pelo
+    pai na decomposição, porque é o `corrige` que faz de uma Task uma
+    correção. Um `corrige` cujo veredito não chega a nenhuma tarefa ainda
+    conta um passo, e a cadeia para ali; um ciclo também para.
+    """
+    profundidade = 0
+    visitadas = {id_task}
+    no = view.obter_no(id_task)
+    while no is not None and ler_texto(no.propriedades, CAMPO_CORRIGE):
+        profundidade += 1
+        julgada = tarefa_julgada(view, ler_texto(no.propriedades, CAMPO_CORRIGE))
+        if not julgada or julgada in visitadas:
+            break
+        visitadas.add(julgada)
+        no = view.obter_no(julgada)
+    return profundidade
+
+
+def _destinos_do_tipo(view: GrafoView, id_origem: str, tipo: TipoNo) -> list[str]:
+    """Os nós do tipo pedido de que a origem deriva, em ordem de identificador."""
+    return sorted(
+        aresta.destino_id
+        for aresta in view.obter_arestas_saida(id_origem, TipoAresta.DERIVA_DE)
+        if _eh_do_tipo(view, aresta.destino_id, tipo)
+    )
 
 
 def _eh_do_tipo(view: GrafoView, id_no: str, tipo: TipoNo) -> bool:

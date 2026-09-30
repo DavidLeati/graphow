@@ -73,7 +73,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "proximas_tarefas",
-        "description": "Lista as tarefas executáveis de uma sessão ou de um Goal (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão. Cada tarefa traz modelo, arquivos_alvo e criterio_pronto: só rodam em paralelo tarefas com arquivos_alvo disjuntos.",
+        "description": "Lista as tarefas executáveis de uma sessão ou de um Goal (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão. Cada tarefa traz modelo, arquivos_alvo e criterio_pronto: só rodam em paralelo tarefas com arquivos_alvo disjuntos. Na correção, corrige traz a Evidence do veredito que a motivou, e profundidade_correcao conta as correções na cadeia até a original: 0 na original, 1 na primeira correção, 2 na correção de uma correção.",
         "inputSchema": {
             "type": "object",
             "properties": {

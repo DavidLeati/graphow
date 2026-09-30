@@ -161,7 +161,7 @@ def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
     _corrigir(orquestrador, rejeicao)
     assert "evi-falha" in _chamar(orquestrador, "ler_vista", id_alvo="t1c", perspectiva="executor")["conteudo"]
     fila = _chamar(orquestrador, "proximas_tarefas", id_sessao="goal")
-    assert [tarefa["id"] for tarefa in fila["tarefas"]] == ["t1c"]
+    assert [(tarefa["id"], tarefa["profundidade_correcao"]) for tarefa in fila["tarefas"]] == [("t1c", 1)]
     assert {"id": "t1", "motivo": "dependencia_pendente"}.items() <= fila["impedidas"][0].items()
 
     revisao_da_correcao = _chamar(_agente(kernel, "revisor-opus#x9", "revisor"), "ler_vista", id_alvo="t1c")["conteudo"]
