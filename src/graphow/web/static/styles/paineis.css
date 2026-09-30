@@ -69,16 +69,21 @@
 .inspetor-titulo:focus { border-color: var(--moldura-campo-borda); background: var(--moldura-campo); }
 .inspetor-titulo.mod-estatico { padding: 2px 0; }
 .inspetor-descricao { font-size: var(--fonte-pequena); color: var(--texto-suave); margin: 0 0 12px; line-height: 1.5; }
+/* Numa linha só. Os segmentos do meio encolhem primeiro, até sobrar a
+   reticência; as pontas, o projeto e o contêiner do nó, são o que situa e
+   encolhem por último. */
 .inspetor-caminho {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  min-width: 0;
   margin: 0 0 12px;
+  overflow: hidden;
   font-size: var(--fonte-pequena);
 }
 .caminho-parte {
-  max-width: 100%;
+  flex: 0 1000 auto;
+  min-width: 2.4em;
   padding: 1px 4px;
   color: var(--texto-fraco);
   background: none;
@@ -90,7 +95,9 @@
   white-space: nowrap;
 }
 .caminho-parte:hover { color: var(--texto-acento); background: var(--moldura-hover); }
-.caminho-separador { color: var(--texto-fraco); opacity: 0.5; }
+.caminho-parte:first-child,
+.caminho-parte:last-child { flex-shrink: 1; }
+.caminho-separador { flex-shrink: 0; color: var(--texto-fraco); opacity: 0.5; }
 
 .bloco-campo {
   display: flex;

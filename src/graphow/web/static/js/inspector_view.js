@@ -176,13 +176,18 @@ export class InspectorView {
       </div>`;
   }
 
+  /**
+   * O caminho cabe numa linha: os segmentos do meio encolhem com reticências.
+   * O caminho inteiro fica no title da linha, e o nome de cada segmento no dele.
+   */
   montarCaminho(no) {
     const cadeia = this.indice.ancestrais(no.id).filter((anc) => anc.id !== no.id);
     if (cadeia.length === 0) return "";
     const partes = cadeia.map(
-      (anc) => `<button class="caminho-parte" data-acao="abrir-escopo" data-id="${escapeHtml(anc.id)}" title="Abrir ${escapeHtml(apresentarTipo(anc.tipo).nome)} no canvas">${escapeHtml(anc.rotulo)}</button>`
+      (anc) => `<button class="caminho-parte" data-acao="abrir-escopo" data-id="${escapeHtml(anc.id)}" title="${escapeHtml(anc.rotulo)} — abrir ${escapeHtml(apresentarTipo(anc.tipo).nome)} no canvas">${escapeHtml(anc.rotulo)}</button>`
     );
-    return `<div class="inspetor-caminho">${partes.join('<span class="caminho-separador">/</span>')}</div>`;
+    const completo = cadeia.map((anc) => anc.rotulo).join(" / ");
+    return `<div class="inspetor-caminho" title="${escapeHtml(completo)}">${partes.join('<span class="caminho-separador">/</span>')}</div>`;
   }
 
   montarAlertas(no) {
