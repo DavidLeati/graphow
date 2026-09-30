@@ -9,7 +9,9 @@
  * ocultos por padrão: são metade do log e não dizem nada sobre o trabalho.
  */
 import { api } from "./api.js";
-import { chaveDoDia, diasDaGradeDoMes, passarMes, tituloDoPeriodo } from "./calendario.js";
+import {
+  chaveDoDia, dataDaChave, diasDaGradeDoMes, diasDaSemana, mesmoMes, passarMes, passarSemana, tituloDoPeriodo,
+} from "./calendario.js";
 import { debounce, escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
 
@@ -41,7 +43,9 @@ export class HistoricoView {
     this.eventos = [];
     this.porDia = new Map();
     this.diaSelecionado = null;
-    this.mesVisivel = null;
+    // A data que o calendário mostra: a semana dela na faixa, o mês dela na grade.
+    this.dataVisivel = null;
+    this.calendarioDoMes = lerPreferencia("historico_calendario_mes", false);
     this.limite = LIMITE_INICIAL_DA_LISTA;
     this.filtroPapel = "";
     this.filtroTexto = "";
@@ -119,7 +123,7 @@ export class HistoricoView {
       if (evento.payload?.rotulo && evento.tipo.startsWith("no_")) this.rotulosDoLog.set(evento.payload.id, evento.payload.rotulo);
     }
     const ultimo = this.eventos[this.eventos.length - 1];
-    if (!this.mesVisivel) this.mesVisivel = ultimo ? new Date(ultimo.timestamp) : new Date();
+    if (!this.dataVisivel) this.dataVisivel = ultimo ? new Date(ultimo.timestamp) : new Date();
     this.render();
   }
 
@@ -171,24 +175,41 @@ export class HistoricoView {
 
   // ---------------------------------------------------------------- calendário
 
+  /**
+   * Por padrão o calendário é uma faixa com a semana da data visível. A grade
+   * do mês tomava seis linhas antes do primeiro evento e escondia a lista, que
+   * é o que se consulta; ela continua a um clique, e a escolha fica gravada.
+   */
   renderCalendario() {
-    const mes = this.mesVisivel || new Date();
-    const indiceMes = mes.getMonth();
+    const referencia = this.dataVisivel || new Date();
+    const doMes = this.calendarioDoMes;
+    const dias = doMes ? diasDaGradeDoMes(referencia) : diasDaSemana(referencia);
     const hoje = chaveDoDia(new Date());
-    const celulas = diasDaGradeDoMes(mes).map((data) => this.montarDia(data, indiceMes, hoje));
-    const { mes: nomeDoMes, ano } = tituloDoPeriodo(mes, mes);
+    // Na faixa não há dia "de fora": a semana que vira o mês é uma semana só.
+    const indiceMes = doMes ? referencia.getMonth() : null;
+    const celulas = dias.map((data) => this.montarDia(data, indiceMes, hoje));
+    const { mes, ano } = doMes ? tituloDoPeriodo(referencia, referencia) : tituloDoPeriodo(dias[0], dias[6]);
     this.raiz.querySelector("[data-calendario]").innerHTML = `
       <div class="calendario-topo">
-        <span class="calendario-mes"><strong>${escapeHtml(nomeDoMes)}</strong> <span class="texto-fraco">${ano}</span></span>
+        <span class="calendario-mes"><strong>${escapeHtml(mes)}</strong> <span class="texto-fraco">${escapeHtml(ano)}</span></span>
         <span class="espacador"></span>
-        <button class="clicavel-icone" data-mes="-1" title="Mês anterior">${icone("chevron-left", { tamanho: 15 })}</button>
-        <button class="botao-texto" data-mes="0">HOJE</button>
-        <button class="clicavel-icone" data-mes="1" title="Próximo mês">${icone("chevron-right", { tamanho: 15 })}</button>
+        <button class="clicavel-icone" data-passo="-1" title="${doMes ? "Mês anterior" : "Semana anterior"}">${icone("chevron-left", { tamanho: 15 })}</button>
+        <button class="botao-texto" data-passo="0" title="${doMes ? "Ir para o mês de hoje" : "Ir para a semana de hoje"}">HOJE</button>
+        <button class="clicavel-icone" data-passo="1" title="${doMes ? "Próximo mês" : "Próxima semana"}">${icone("chevron-right", { tamanho: 15 })}</button>
+        <button class="clicavel-icone" data-alternar-mes aria-expanded="${doMes}" aria-label="Mês inteiro" title="${doMes ? "Mostrar só a semana" : "Mostrar o mês inteiro"}">${icone(doMes ? "chevrons-down-up" : "chevrons-up-down", { tamanho: 15 })}</button>
       </div>
       <div class="calendario-grade">
         ${DIAS_DA_SEMANA.map((dia) => `<span class="calendario-semana">${dia}</span>`).join("")}
         ${celulas.join("")}
       </div>`;
+  }
+
+  /** Redesenha o calendário devolvendo o foco ao botão equivalente: quem anda pelo teclado não perde o lugar a cada passo. */
+  redesenharCalendario(seletorDoFoco) {
+    const calendario = this.raiz.querySelector("[data-calendario]");
+    const tinhaFoco = calendario.contains(document.activeElement);
+    this.renderCalendario();
+    if (tinhaFoco) calendario.querySelector(seletorDoFoco)?.focus();
   }
 
   montarDia(data, indiceMes, hoje) {
@@ -197,7 +218,7 @@ export class HistoricoView {
     const pontos = eventos === 0 ? 0 : Math.min(3, String(eventos).length);
     const classes = [
       "calendario-dia",
-      data.getMonth() !== indiceMes ? "mod-fora" : "",
+      indiceMes !== null && data.getMonth() !== indiceMes ? "mod-fora" : "",
       chave === hoje ? "mod-hoje" : "",
       chave === this.diaSelecionado ? "is-selecionado" : "",
       eventos ? "mod-ativo" : "",
@@ -211,19 +232,31 @@ export class HistoricoView {
   }
 
   aoClicarNoCalendario(evento) {
-    const botaoMes = evento.target.closest("[data-mes]");
-    if (botaoMes) {
-      const passo = Number(botaoMes.dataset.mes);
-      const base = this.mesVisivel || new Date();
-      this.mesVisivel = passo === 0 ? new Date() : passarMes(base, passo);
-      this.renderCalendario();
+    if (evento.target.closest("[data-alternar-mes]")) {
+      this.calendarioDoMes = !this.calendarioDoMes;
+      gravarPreferencia("historico_calendario_mes", this.calendarioDoMes);
+      this.redesenharCalendario("[data-alternar-mes]");
+      return;
+    }
+    const botaoPasso = evento.target.closest("[data-passo]");
+    if (botaoPasso) {
+      const passo = Number(botaoPasso.dataset.passo);
+      const base = this.dataVisivel || new Date();
+      if (passo === 0) this.dataVisivel = new Date();
+      else this.dataVisivel = this.calendarioDoMes ? passarMes(base, passo) : passarSemana(base, passo);
+      this.redesenharCalendario(`[data-passo="${passo}"]`);
       return;
     }
     const dia = evento.target.closest("[data-dia]");
     if (!dia) return;
+    // O dia clicado vira a referência, e a faixa recolhida mostra a semana
+    // dele. Na grade, um dia do mês vizinho não: a grade trocaria de mês
+    // debaixo do ponteiro.
+    const data = dataDaChave(dia.dataset.dia);
+    if (!this.calendarioDoMes || mesmoMes(data, this.dataVisivel || new Date())) this.dataVisivel = data;
     this.diaSelecionado = this.diaSelecionado === dia.dataset.dia ? null : dia.dataset.dia;
     this.limite = LIMITE_INICIAL_DA_LISTA;
-    this.renderCalendario();
+    this.redesenharCalendario(`[data-dia="${dia.dataset.dia}"]`);
     this.renderLista();
   }
 

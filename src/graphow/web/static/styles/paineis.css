@@ -473,7 +473,8 @@
 
 .calendario { margin-bottom: 10px; }
 .calendario-topo { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; padding: 0 2px; }
-.calendario-mes { font-size: var(--fonte-destaque); text-transform: capitalize; }
+/* A semana que vira o mês leva os dois nomes; numa lateral estreita cortam no fim. */
+.calendario-mes { min-width: 0; overflow: hidden; font-size: var(--fonte-destaque); text-transform: capitalize; text-overflow: ellipsis; white-space: nowrap; }
 .calendario-mes strong { font-weight: 650; color: var(--texto-normal); }
 .calendario-grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
 .calendario-semana {
