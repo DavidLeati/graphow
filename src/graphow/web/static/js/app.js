@@ -565,6 +565,7 @@ class GraphowApp {
 
   mostrarHistorico() {
     this.lateralDireita.expandir();
+    this.divisorDireito.expandir();
     document.getElementById("painel-historico").scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -716,7 +717,12 @@ class GraphowApp {
     avisar(`Ramo “${ramo}”`, "info");
   }
 
-  /** Mostra o grafo como estava numa versão do log. Pedidos durante uma leitura se fundem no último. */
+  /**
+   * Mostra o grafo como estava numa versão do log. Pedidos durante uma leitura
+   * se fundem no último. A viagem se controla pelo histórico, então quem parte
+   * do presente, pelo inspetor inclusive, encontra o histórico aberto; durante a
+   * viagem ele não reabre, ou a reprodução desfaria o recolher da pessoa a cada passo.
+   */
   async viajarPara(versao) {
     const alvo = Math.max(0, Math.min(Math.round(versao), this.state.maxLogVersion));
     if (alvo >= this.state.maxLogVersion) {
@@ -727,6 +733,7 @@ class GraphowApp {
       this.proximaViagem = alvo;
       return;
     }
+    if (!this.state.isTimeTraveling) this.divisorDireito.expandir();
     this.viagemEmCurso = true;
     this.state.isTimeTraveling = true;
     const dados = await api.estadoNaVersao(alvo, this.state.currentBranch);

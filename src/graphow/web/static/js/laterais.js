@@ -165,6 +165,8 @@ export class DivisorVertical {
     divisor.addEventListener("mousedown", (evento) => { if (!this.recolhida) this.arrastar(evento); });
     divisor.addEventListener("dblclick", () => { if (!this.recolhida) this.definir(fracaoPadrao); });
     botaoRecolher?.addEventListener("click", () => this.alternar());
+    // O ícone da vista de baixo pede a vista: com a metade recolhida, expande.
+    inferior.querySelectorAll(":scope > .grupo-cabecalho [data-aba]").forEach((botao) => botao.addEventListener("click", () => this.expandir()));
   }
 
   get recolhida() {
