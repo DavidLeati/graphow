@@ -177,6 +177,7 @@ export class DivisorVertical {
     this.inferior = inferior;
     this.chave = chave;
     this.botaoRecolher = botaoRecolher;
+    this.dicaDoDivisor = divisor.title;
     this.fracao = lerPreferencia(`divisao_${chave}`, fracaoPadrao);
     this.recolhimento = new RecolhimentoDaMetade(lerPreferencia(`divisao_${chave}_recolhida`, null), window.innerHeight);
     this.aplicar();
@@ -198,6 +199,7 @@ export class DivisorVertical {
     this.inferior.style.flex = recolhida ? "0 0 auto" : `${1 - this.fracao} 1 0`;
     this.inferior.classList.toggle("is-recolhida", recolhida);
     this.divisor.classList.toggle("is-inerte", recolhida);
+    this.divisor.title = recolhida ? "" : this.dicaDoDivisor;
     if (this.botaoRecolher) {
       this.botaoRecolher.setAttribute("aria-expanded", String(!recolhida));
       this.botaoRecolher.title = recolhida ? "Expandir o histórico" : "Recolher o histórico e dar a altura ao painel de cima";
