@@ -10,7 +10,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-12 módulos · 1220 linhas · 15 classes
+12 módulos · 1264 linhas · 15 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,7 +24,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 194 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
-| [`harness/transcricao.py`](#harnesstranscricao) | 150 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
+| [`harness/transcricao.py`](#harnesstranscricao) | 194 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -257,23 +257,24 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 | `CHAVES_DE_USO` | `Mapping[str, str]` | `{'input_tokens': 'tokens_entrada', 'output_tokens': 'tokens_saida', 'ca…` |
 | `MODELO_SINTETICO` | `str` | `'<synthetic>'` |
 | `SUFIXO_DE_ASSUMIR_TAREFA` | `str` | `'__assumir_tarefa'` |
-| `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA)` |
+| `CAMPO_AUTOR_DO_RECIBO` | `str` | `'autor'` |
+| `MARCAS_DE_LINHA_UTIL` | `tuple[str, ...]` | `('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"')` |
 
 ### `AcumuladorDeConsumo`
 
 *serviço* — Soma a transcrição entrada por entrada, contando cada mensagem do modelo uma vez só.
 
-- `acrescentar(entrada: Mapping[str, Any]) -> None` — Registra o uso, o modelo e as tarefas assumidas de uma entrada de resposta do modelo.
+- `acrescentar(entrada: Mapping[str, Any]) -> None` — Registra o uso, o modelo e as tarefas de uma resposta do modelo, e o autor que a ferramenta devolveu.
 - `consolidar() -> ConsumoDaTranscricao` — Os totais do que foi acrescentado.
 
 ### `ConsumoDaTranscricao`
 
 *DTO imutável* — O que uma execução gastou e em que trabalhou, pronto para virar propriedades do Run.
 
-**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`
+**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`
 
 - `modelo_principal() -> str` `[property]` — O modelo que mais respondeu; vazio quando nenhum respondeu.
-- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos e as tarefas assumidas.
+- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas e com que autores.
 
 ### Funções do módulo
 

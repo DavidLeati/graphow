@@ -22,6 +22,8 @@ from graphow.projection.revisao import veredito_vigente
 
 # Na Task e no recibo: de quem o executor retomou a posse órfã.
 CAMPO_POSSE_RETOMADA_DE: str = "posse_retomada_de"
+# No recibo de assumir_tarefa: o autor da conexão que pediu a posse.
+CAMPO_AUTOR: str = "autor"
 
 
 class FerramentasPosse:
@@ -39,7 +41,16 @@ class FerramentasPosse:
         }
 
     def assumir_tarefa(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Adquire o lock da Task e a move para 'em_andamento' no mesmo gesto."""
+        """Adquire o lock da Task e a move para 'em_andamento' no mesmo gesto.
+
+        O recibo diz sempre o autor desta conexão, aceito ou recusado. É o que
+        o harness lê da transcrição para gravar no Run: dois autores no mesmo
+        Run mostram que o servidor MCP do subagente reiniciou no meio.
+        """
+        return {**self._assumir(argumentos), CAMPO_AUTOR: self._contexto.identidade.autor}
+
+    def _assumir(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
+        """A posse livre ou já nossa se adquire; a de outro só se retoma."""
         id_task = str(argumentos["id_task"])
         autor = self._contexto.identidade.autor
         ja_era_nosso = self._contexto.kernel.obter_dono_do_lock(id_task) == autor

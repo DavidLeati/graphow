@@ -12,9 +12,16 @@ def _resposta(id_mensagem: str, uso: dict[str, int], modelo: str = "claude-sonne
     return json.dumps({"type": "assistant", "message": mensagem})
 
 
-def _assumir(id_task: str) -> dict:
+def _assumir(id_task: str, id_chamada: str = "toolu_1") -> dict:
     """O bloco de chamada a `assumir_tarefa` de um servidor graphow."""
-    return {"type": "tool_use", "name": "mcp__graphow-executor__assumir_tarefa", "input": {"id_task": id_task}}
+    return {"type": "tool_use", "id": id_chamada, "name": "mcp__graphow-executor__assumir_tarefa", "input": {"id_task": id_task}}
+
+
+def _resposta_da_ferramenta(id_chamada: str, recibo: dict) -> str:
+    """A entrada com o resultado da ferramenta, como o ambiente grava a resposta de um servidor MCP."""
+    conteudo = [{"type": "text", "text": json.dumps(recibo, indent=2)}]
+    bloco = {"type": "tool_result", "tool_use_id": id_chamada, "content": conteudo}
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [bloco]}})
 
 
 def _gravar(caminho: Path, linhas: list[str]) -> Path:
@@ -91,3 +98,39 @@ def test_transcricao_principal_nunca_passa_pela_do_subagente_edge_case(tmp_path:
     principal = _gravar(tmp_path / "projeto" / "sess-1.jsonl", [_resposta("msg-1", {"input_tokens": 9})])
 
     assert localizar_transcricao_do_subagente({"transcript_path": str(principal)}, "abc123") is None
+
+
+def test_autores_mcp_mostram_o_servidor_que_reiniciou_nominal(tmp_path: Path) -> None:
+    """Cada resposta de `assumir_tarefa` traz o autor da conexão; dois autores no Run são um reinício."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _resposta("msg-1", {"input_tokens": 1}, conteudo=[_assumir("task-a", "toolu_1")]),
+        _resposta_da_ferramenta("toolu_1", {"sucesso": True, "id_task": "task-a", "autor": "executor-opus#a1b2c3"}),
+        _resposta("msg-2", {"input_tokens": 1}, conteudo=[_assumir("task-a", "toolu_2")]),
+        json.dumps({"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_2", "content": json.dumps({"sucesso": False, "autor": "executor-opus#d4e5f6"})},
+        ]}}),
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert consumo.autores_mcp == ("executor-opus#a1b2c3", "executor-opus#d4e5f6")
+    assert consumo.em_propriedades()["autores_mcp"] == ["executor-opus#a1b2c3", "executor-opus#d4e5f6"]
+    assert consumo.tarefas == ("task-a",)
+
+
+def test_resposta_de_outra_ferramenta_nao_da_autor_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: só a resposta de `assumir_tarefa` conta, e recibo sem autor ou ilegível não inventa um."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _resposta("msg-1", {"input_tokens": 1}, conteudo=[_assumir("task-a", "toolu_1")]),
+        _resposta_da_ferramenta("toolu_1", {"sucesso": True, "id_task": "task-a"}),
+        _resposta_da_ferramenta("toolu_9", {"sucesso": True, "autor": "revisor#000000"}),
+        json.dumps({"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_1", "content": "Error: servidor caiu"},
+        ]}}),
+    ])
+
+    consumo = ler_consumo(caminho)
+
+    assert consumo is not None
+    assert consumo.autores_mcp == ()

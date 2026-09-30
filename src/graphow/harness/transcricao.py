@@ -10,6 +10,11 @@ Aqui cada mensagem conta uma vez, pelo seu id.
 A forma da transcrição é interna ao ambiente e muda entre versões. A leitura é
 defensiva: linha ilegível é ignorada, arquivo ausente devolve None, e o Run fica
 sem tokens em vez de ficar com um número inventado.
+
+Das chamadas a `assumir_tarefa` saem também os autores MCP: a resposta da
+ferramenta traz o autor da conexão, que leva um sufixo por conexão. Um Run com
+dois autores é um subagente cujo servidor MCP reiniciou no meio do trabalho, e
+foi assim que a posse de uma tarefa ficou órfã.
 """
 
 from collections import Counter
@@ -27,8 +32,9 @@ CHAVES_DE_USO: Mapping[str, str] = {
 }
 MODELO_SINTETICO: str = "<synthetic>"
 SUFIXO_DE_ASSUMIR_TAREFA: str = "__assumir_tarefa"
+CAMPO_AUTOR_DO_RECIBO: str = "autor"
 # Só estas linhas interessam; as outras nem passam pelo decodificador.
-MARCAS_DE_LINHA_UTIL: tuple[str, ...] = ('"usage"', SUFIXO_DE_ASSUMIR_TAREFA)
+MARCAS_DE_LINHA_UTIL: tuple[str, ...] = ('"usage"', SUFIXO_DE_ASSUMIR_TAREFA, '"tool_result"')
 
 
 @dataclass(frozen=True)
@@ -39,6 +45,7 @@ class ConsumoDaTranscricao:
     mensagens_de_modelo: int = 0
     modelos: tuple[str, ...] = field(default_factory=tuple)
     tarefas: tuple[str, ...] = field(default_factory=tuple)
+    autores_mcp: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def modelo_principal(self) -> str:
@@ -46,12 +53,13 @@ class ConsumoDaTranscricao:
         return self.modelos[0] if self.modelos else ""
 
     def em_propriedades(self) -> dict[str, Any]:
-        """As propriedades do Run: tokens por categoria, modelos e as tarefas assumidas."""
+        """As propriedades do Run: tokens por categoria, modelos, tarefas assumidas e com que autores."""
         return {
             **dict(self.tokens),
             "mensagens_de_modelo": self.mensagens_de_modelo,
             "modelos_usados": list(self.modelos),
             "tarefas": list(self.tarefas),
+            "autores_mcp": list(self.autores_mcp),
         }
 
 
@@ -62,11 +70,18 @@ class AcumuladorDeConsumo:
         self._usos: dict[str, Mapping[str, Any]] = {}
         self._modelos: dict[str, str] = {}
         self._tarefas: list[str] = []
+        self._chamadas_de_assumir: set[str] = set()
+        self._autores: list[str] = []
 
     def acrescentar(self, entrada: Mapping[str, Any]) -> None:
-        """Registra o uso, o modelo e as tarefas assumidas de uma entrada de resposta do modelo."""
+        """Registra o uso, o modelo e as tarefas de uma resposta do modelo, e o autor que a ferramenta devolveu."""
         mensagem = entrada.get("message")
-        if entrada.get("type") != "assistant" or not isinstance(mensagem, dict):
+        if not isinstance(mensagem, dict):
+            return
+        if entrada.get("type") == "user":
+            self._autores.extend(_autores_devolvidos(mensagem.get("content"), self._chamadas_de_assumir))
+            return
+        if entrada.get("type") != "assistant":
             return
         identificador = str(mensagem.get("id") or entrada.get("uuid") or len(self._usos))
         if isinstance(mensagem.get("usage"), dict):
@@ -74,7 +89,9 @@ class AcumuladorDeConsumo:
         modelo = mensagem.get("model")
         if isinstance(modelo, str) and modelo and modelo != MODELO_SINTETICO:
             self._modelos[identificador] = modelo
-        self._tarefas.extend(_tarefas_assumidas(mensagem.get("content")))
+        chamadas = _chamadas_de_assumir(mensagem.get("content"))
+        self._chamadas_de_assumir.update(id_chamada for id_chamada, _ in chamadas if id_chamada)
+        self._tarefas.extend(id_task for _, id_task in chamadas)
 
     def consolidar(self) -> ConsumoDaTranscricao:
         """Os totais do que foi acrescentado."""
@@ -88,6 +105,7 @@ class AcumuladorDeConsumo:
             mensagens_de_modelo=len(self._usos),
             modelos=modelos,
             tarefas=tuple(dict.fromkeys(self._tarefas)),
+            autores_mcp=tuple(dict.fromkeys(self._autores)),
         )
 
 
@@ -123,21 +141,47 @@ def _eh_do_agente(candidato: str, id_agente: str) -> bool:
     return bool(id_agente) and id_agente in Path(candidato).name
 
 
-def _tarefas_assumidas(conteudo: object) -> tuple[str, ...]:
-    """Os ids de Task das chamadas a `assumir_tarefa`, de qualquer servidor graphow."""
+def _chamadas_de_assumir(conteudo: object) -> tuple[tuple[str, str], ...]:
+    """O id de cada chamada a `assumir_tarefa`, de qualquer servidor graphow, com o id da Task."""
     if not isinstance(conteudo, list):
         return ()
-    chamadas = (
-        bloco.get("input")
+    blocos = (
+        bloco
         for bloco in conteudo
         if isinstance(bloco, dict) and bloco.get("type") == "tool_use"
         and str(bloco.get("name", "")).endswith(SUFIXO_DE_ASSUMIR_TAREFA)
     )
-    return tuple(str(entrada["id_task"]) for entrada in chamadas if isinstance(entrada, dict) and entrada.get("id_task"))
+    return tuple(
+        (str(bloco.get("id") or ""), str(bloco["input"]["id_task"]))
+        for bloco in blocos
+        if isinstance(bloco.get("input"), dict) and bloco["input"].get("id_task")
+    )
+
+
+def _autores_devolvidos(conteudo: object, chamadas: set[str]) -> tuple[str, ...]:
+    """O autor que cada resposta de `assumir_tarefa` devolveu, pelo id da chamada que ela responde."""
+    if not isinstance(conteudo, list):
+        return ()
+    respostas = (
+        bloco.get("content")
+        for bloco in conteudo
+        if isinstance(bloco, dict) and bloco.get("type") == "tool_result" and str(bloco.get("tool_use_id", "")) in chamadas
+    )
+    recibos = (_carregar(texto) for resposta in respostas for texto in _textos_da_resposta(resposta))
+    return tuple(str(recibo[CAMPO_AUTOR_DO_RECIBO]) for recibo in recibos if recibo.get(CAMPO_AUTOR_DO_RECIBO))
+
+
+def _textos_da_resposta(resposta: object) -> tuple[str, ...]:
+    """Os textos de uma resposta de ferramenta, que o ambiente grava como texto solto ou como blocos."""
+    if isinstance(resposta, str):
+        return (resposta,)
+    if not isinstance(resposta, list):
+        return ()
+    return tuple(str(bloco.get("text", "")) for bloco in resposta if isinstance(bloco, dict) and bloco.get("type") == "text")
 
 
 def _carregar(linha: str) -> Mapping[str, Any]:
-    """Uma entrada da transcrição; a linha que não é objeto JSON vira entrada vazia."""
+    """Uma entrada da transcrição, ou o recibo que uma ferramenta devolveu; o que não é objeto JSON vira vazio."""
     try:
         valor = json.loads(linha)
     except json.JSONDecodeError:

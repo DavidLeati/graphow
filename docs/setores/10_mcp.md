@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2303 linhas · 26 classes
+17 módulos · 2314 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,7 +21,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 145 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 222 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
-| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 153 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
+| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 164 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 232 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 78 | O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões. |
@@ -204,6 +204,7 @@ Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CAMPO_POSSE_RETOMADA_DE` | `str` | `'posse_retomada_de'` |
+| `CAMPO_AUTOR` | `str` | `'autor'` |
 
 ### `FerramentasPosse`
 

@@ -111,6 +111,7 @@ def test_assumir_tarefa_adquire_lock_e_move_status_nominal() -> None:
     recibo = executor.executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
 
     assert recibo["sucesso"] is True
+    assert recibo["autor"] == "agente-a"
     assert kernel.obter_dono_do_lock("t1") == "agente-a"
     tarefa = kernel.obter_view().obter_no("t1")
     assert tarefa.obter_propriedade("status") == StatusTask.EM_ANDAMENTO.value
@@ -126,6 +127,7 @@ def test_segundo_executor_nao_assume_tarefa_ocupada_edge_case() -> None:
 
     assert recibo["sucesso"] is False
     assert recibo["dono_atual"] == "agente-a"
+    assert recibo["autor"] == "agente-b"
     assert kernel.obter_dono_do_lock("t1") == "agente-a"
 
 
