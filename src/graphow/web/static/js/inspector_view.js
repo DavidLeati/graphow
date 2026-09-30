@@ -41,6 +41,15 @@ function resumirEmTitulo(texto) {
   return `${corte || primeiraLinha.slice(0, LIMITE_DO_TITULO_DA_QUESTAO)}…`;
 }
 
+/**
+ * Os campos do inspetor crescem com o texto até boa parte da janela. O teto
+ * fixo de 260 px deixava resposta e descrição rolando numa caixa pequena
+ * dentro do painel, que também rola; acima deste teto, rola o campo.
+ */
+function ajustarCampo(campo) {
+  ajustarAltura(campo, Math.max(260, Math.round(window.innerHeight * 0.7)));
+}
+
 /** A pergunta formatada, ou o aviso de que ela não foi escrita por extenso. */
 function montarLeituraDaPergunta(texto) {
   return formatarTextoDeLeitura(texto) || '<p class="texto-fraco">Sem pergunta por extenso.</p>';
@@ -123,7 +132,7 @@ export class InspectorView {
           <button class="botao mod-cta" data-acao="salvar">Salvar</button>
         </div>
       </div>`;
-    this.raiz.querySelectorAll("textarea").forEach((campo) => ajustarAltura(campo));
+    this.raiz.querySelectorAll("textarea").forEach((campo) => ajustarCampo(campo));
     if (no.tipo === "Aprendizado") this.completarAprendizado(no);
   }
 
@@ -302,6 +311,8 @@ export class InspectorView {
         valor: no.propriedades?.resposta || "",
         dica: "Escreva a resposta que destrava a tarefa…",
         desabilitado,
+        // Responder costuma pedir mais que uma frase: o campo já nasce com espaço.
+        linhas: 5,
       })}
       ${this.montarConviteDeSeparacao(no, desabilitado)}
       ${alvo}
@@ -327,7 +338,7 @@ export class InspectorView {
     corpo.value = titulo.value;
     titulo.value = resumirEmTitulo(titulo.value);
     this.alternarEdicaoDaPergunta(true);
-    [titulo, corpo].forEach((campo) => ajustarAltura(campo));
+    [titulo, corpo].forEach((campo) => ajustarCampo(campo));
     this.aoEditar({ target: corpo });
   }
 
@@ -364,16 +375,16 @@ export class InspectorView {
     campo.hidden = !editar;
     leitura.hidden = editar;
     if (alternador) alternador.innerHTML = montarAlternadorDaPergunta(editar);
-    if (editar) ajustarAltura(campo);
+    if (editar) ajustarCampo(campo);
     else leitura.innerHTML = montarLeituraDaPergunta(campo.value);
   }
 
   /** Campo de texto longo de uma propriedade que o bloco do tipo já trata. */
-  montarCampoDeTexto({ chave, rotulo, icone: nomeDoIcone, valor, dica, desabilitado }) {
+  montarCampoDeTexto({ chave, rotulo, icone: nomeDoIcone, valor, dica, desabilitado, linhas = 3 }) {
     return `
       <div class="bloco-resposta">
         <span class="bloco-campo-rotulo">${icone(nomeDoIcone, { tamanho: 14 })} ${escapeHtml(rotulo)}</span>
-        <textarea class="entrada mod-area" data-prop="${escapeHtml(chave)}" data-original="${escapeHtml(valor)}" rows="3" placeholder="${escapeHtml(dica)}" ${desabilitado}>${escapeHtml(valor)}</textarea>
+        <textarea class="entrada mod-area" data-prop="${escapeHtml(chave)}" data-original="${escapeHtml(valor)}" rows="${linhas}" placeholder="${escapeHtml(dica)}" ${desabilitado}>${escapeHtml(valor)}</textarea>
       </div>`;
   }
 
@@ -552,7 +563,7 @@ export class InspectorView {
 
   aoEditar(evento) {
     if (!this.noRenderizado) return;
-    if (evento.target.tagName === "TEXTAREA") ajustarAltura(evento.target);
+    if (evento.target.tagName === "TEXTAREA") ajustarCampo(evento.target);
     this.sujo = this.temAlteracoes();
     const rodape = this.raiz.querySelector("[data-rodape]");
     if (rodape) rodape.hidden = !this.sujo;
