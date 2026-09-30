@@ -57,28 +57,34 @@ export class HistoricoView {
   }
 
   montarEstrutura() {
+    // Viagem e filtros ficam presos no topo do painel enquanto a lista rola;
+    // o calendário vem depois deles e rola junto, para o bloco fixo não comer
+    // uma metade baixa.
     this.raiz.innerHTML = `
-      <div class="viagem">
-        <div class="viagem-linha">
-          <button class="clicavel-icone" data-viagem="-1" title="Voltar um evento">${icone("skip-back", { tamanho: 15 })}</button>
-          <button class="clicavel-icone" data-tocar title="Reproduzir o log a partir daqui">${icone("play", { tamanho: 15 })}</button>
-          <button class="clicavel-icone" data-viagem="1" title="Avançar um evento">${icone("skip-forward", { tamanho: 15 })}</button>
-          <span class="viagem-versao" data-versao></span>
-          <button class="botao mod-pequeno mod-cta" data-presente hidden>Voltar ao presente</button>
+      <div class="historico-controles" data-controles>
+        <div class="viagem">
+          <div class="viagem-linha">
+            <button class="clicavel-icone" data-viagem="-1" title="Voltar um evento">${icone("skip-back", { tamanho: 15 })}</button>
+            <button class="clicavel-icone" data-tocar title="Reproduzir o log a partir daqui">${icone("play", { tamanho: 15 })}</button>
+            <button class="clicavel-icone" data-viagem="1" title="Avançar um evento">${icone("skip-forward", { tamanho: 15 })}</button>
+            <span class="viagem-versao" data-versao></span>
+            <button class="botao mod-pequeno mod-cta" data-presente hidden>Voltar ao presente</button>
+          </div>
+          <input type="range" class="deslizador" data-deslizador min="0" max="0" value="0" step="1" aria-label="Versão do log">
         </div>
-        <input type="range" class="deslizador" data-deslizador min="0" max="0" value="0" step="1" aria-label="Versão do log">
+        <div class="eventos-filtros">
+          <input type="search" class="entrada mod-busca" data-filtro-texto placeholder="Filtrar eventos…" aria-label="Filtrar eventos">
+          <select class="seletor mod-pequeno" data-filtro-papel aria-label="Filtrar por papel">
+            <option value="">Todos os papéis</option>
+            ${["humano", "planejador", "executor", "revisor", "sistema"].map((papel) => `<option value="${papel}">${papel}</option>`).join("")}
+          </select>
+          <button class="clicavel-icone" data-ocultar-arranjo aria-label="Ocultar movimentos no canvas"></button>
+        </div>
       </div>
       <div class="calendario" data-calendario></div>
-      <div class="eventos-filtros">
-        <input type="search" class="entrada mod-busca" data-filtro-texto placeholder="Filtrar eventos…">
-        <select class="seletor mod-pequeno" data-filtro-papel>
-          <option value="">Todos os papéis</option>
-          ${["humano", "planejador", "executor", "revisor", "sistema"].map((papel) => `<option value="${papel}">${papel}</option>`).join("")}
-        </select>
-      </div>
-      <label class="alternador-rotulado"><input type="checkbox" data-ocultar-arranjo ${this.ocultarArranjo ? "checked" : ""}><span class="alternador-trilho"></span><span>Ocultar movimentos no canvas</span></label>
       <div class="eventos-cabecalho" data-cabecalho-eventos></div>
       <div class="eventos-lista" data-lista></div>`;
+    this.atualizarBotaoDeArranjo();
     this.ligarEventos();
   }
 
@@ -96,14 +102,29 @@ export class HistoricoView {
     });
     $("[data-filtro-texto]").addEventListener("input", debounce((evento) => { this.filtroTexto = evento.target.value.toLowerCase(); this.renderLista(); }, 150));
     $("[data-filtro-papel]").addEventListener("change", (evento) => { this.filtroPapel = evento.target.value; this.renderLista(); });
-    $("[data-ocultar-arranjo]").addEventListener("change", (evento) => {
-      this.ocultarArranjo = evento.target.checked;
+    $("[data-ocultar-arranjo]").addEventListener("click", () => {
+      this.ocultarArranjo = !this.ocultarArranjo;
       gravarPreferencia("historico_ocultar_arranjo", this.ocultarArranjo);
+      this.atualizarBotaoDeArranjo();
       this.renderLista();
     });
     $("[data-calendario]").addEventListener("click", (evento) => this.aoClicarNoCalendario(evento));
     $("[data-lista]").addEventListener("click", (evento) => this.aoClicarNaLista(evento));
     $("[data-cabecalho-eventos]").addEventListener("click", (evento) => this.aoClicarNaLista(evento));
+  }
+
+  /**
+   * O interruptor com rótulo não cabia ao lado dos filtros e somava uma linha
+   * ao bloco fixo; virou botão de alternância. O nome acessível fica o mesmo e
+   * `aria-pressed` diz o estado; o ícone e o title dizem o mesmo a quem vê.
+   */
+  atualizarBotaoDeArranjo() {
+    const botao = this.raiz.querySelector("[data-ocultar-arranjo]");
+    botao.setAttribute("aria-pressed", String(this.ocultarArranjo));
+    botao.innerHTML = icone(this.ocultarArranjo ? "eye-off" : "eye", { tamanho: 15 });
+    botao.title = this.ocultarArranjo
+      ? "Movimentos no canvas ocultos; clique para mostrá-los"
+      : "Movimentos no canvas à mostra; clique para ocultá-los";
   }
 
   async carregar() {

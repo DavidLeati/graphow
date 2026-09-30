@@ -458,16 +458,31 @@
 .lateral-direita .bloco-codigo { font-size: var(--fonte-pequena); }
 
 /* Histórico ----------------------------------------------------------------- */
+/* Viagem e filtros presos no topo enquanto a lista rola. As margens negativas
+   cobrem o recuo do painel, e o fundo opaco esconde a lista que passa por baixo. */
+.historico-controles {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -10px -12px 8px;
+  padding: 10px 12px 6px;
+  background: var(--moldura-fundo);
+  border-bottom: 1px solid var(--moldura-divisor);
+}
+/* Numa metade baixa demais o bloco fixo comeria a lista: ali tudo rola junto. */
+@container historico (max-height: 220px) {
+  .historico-controles { position: static; }
+}
 .viagem {
-  padding: 6px 8px 10px;
-  margin-bottom: 8px;
+  padding: 4px 8px 8px;
+  margin-bottom: 6px;
   background: var(--moldura-campo);
   border: 1px solid var(--moldura-divisor);
   border-radius: var(--raio-md);
 }
 .painel-historico.is-viajando .viagem,
 .is-viajando > .viagem { border-color: rgba(245, 181, 71, 0.4); background: rgba(245, 181, 71, 0.06); }
-.viagem-linha { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+.viagem-linha { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
 .viagem-versao { margin-left: 6px; font-family: var(--font-mono); font-size: var(--fonte-pequena); color: var(--texto-normal); white-space: nowrap; }
 .viagem-linha .botao { margin-left: auto; }
 
@@ -508,9 +523,10 @@
 .calendario-pontos i { width: 4px; height: 4px; border-radius: 50%; background: var(--texto-suave); }
 .calendario-dia.mod-hoje .calendario-pontos i { background: var(--texto-acento); }
 
-.eventos-filtros { display: flex; gap: 6px; margin-bottom: 8px; }
-.eventos-filtros .entrada { flex: 1; }
-.painel-historico .alternador-rotulado { margin-bottom: 10px; }
+.eventos-filtros { display: flex; align-items: center; gap: 6px; }
+.eventos-filtros .entrada { flex: 1; min-width: 0; }
+.eventos-filtros .seletor { min-width: 0; max-width: 40%; }
+.eventos-filtros .clicavel-icone:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--acento); }
 .eventos-cabecalho {
   display: flex;
   align-items: center;
