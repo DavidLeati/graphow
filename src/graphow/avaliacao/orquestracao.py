@@ -21,9 +21,20 @@ gravou, e as rodadas do condutor dão a duração e a cota; ver rodadas.py.
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
-from graphow.avaliacao.rodadas import Rodada, eh_condutor, eh_run_da_sessao, montar_rodadas
+from graphow.avaliacao.rodadas import (
+    MarcasNoTempo,
+    Rodada,
+    RunNoTempo,
+    eh_condutor,
+    eh_run_da_sessao,
+    montar_rodadas,
+    nascimento,
+    situar,
+    ultimo_toque,
+)
 from graphow.core.models import NoGrafo
 from graphow.core.orquestracao import (
     ACAO_ACEITE_APOS_REPROVACAO,
@@ -40,7 +51,7 @@ from graphow.core.orquestracao import (
     ler_textos,
 )
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
-from graphow.harness.transcricao import CAMPO_MOTIVO_SEM_CONSUMO, CHAVES_DE_USO
+from graphow.harness.transcricao import CAMPO_MOTIVO_SEM_CONSUMO, CHAVES_DE_USO, ler_instante
 from graphow.projection.decomposicao import tarefas_da_decomposicao
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.revisao import artefatos_da_tarefa, vereditos_sobre
@@ -218,7 +229,7 @@ class MedidorDeOrquestracao:
             "tokens_por_agente": dict(sorted(tokens.items())),
             "tokens_cache_leitura": sum(_inteiro(run.propriedades.get(CAMPO_CACHE_LEITURA)) // divisor for run, divisor in atribuidos),
             "runs_sem_tokens_por_motivo": dict(sorted(sem_tokens.items())),
-            "rodadas": montar_rodadas([par for par in atribuidos if eh_condutor(par[0])], raizes),
+            "rodadas": situar(montar_rodadas([par for par in atribuidos if eh_condutor(par[0])], raizes), _marcas(trabalho, atribuidos)),
         }
 
     def _runs_atribuidos(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> list[tuple[NoGrafo, int]]:
@@ -238,6 +249,40 @@ class MedidorDeOrquestracao:
         """O nó existe e é do tipo pedido."""
         no = self._view.obter_no(id_no)
         return no is not None and no.tipo == tipo
+
+
+def _marcas(trabalho: TrabalhoDoGoal, atribuidos: Iterable[tuple[NoGrafo, int]]) -> MarcasNoTempo:
+    """Quando as tarefas originais fecharam, quando saiu cada veredito e quando cada Run do Goal começou."""
+    concluidas = (
+        no for no in trabalho.tarefas
+        if not ler_texto(no.propriedades, CAMPO_CORRIGE) and no.obter_propriedade("status") == StatusTask.CONCLUIDO.value
+    )
+    return MarcasNoTempo(
+        conclusoes=_instantes(ultimo_toque(no) for no in concluidas),
+        aprovacoes=_instantes(nascimento(no) for no in _com_veredito(trabalho, VEREDITO_APROVADO)),
+        rejeicoes=_instantes(nascimento(no) for no in _com_veredito(trabalho, VEREDITO_REJEITADO)),
+        runs=tuple(filter(None, (_run_no_tempo(run, divisor) for run, divisor in atribuidos))),
+    )
+
+
+def _com_veredito(trabalho: TrabalhoDoGoal, veredito: str) -> tuple[NoGrafo, ...]:
+    """As Evidence do Goal com o veredito pedido."""
+    return tuple(no for no in trabalho.vereditos if ler_texto(no.propriedades, CAMPO_VEREDITO) == veredito)
+
+
+def _instantes(instantes: Iterable[datetime | None]) -> tuple[datetime, ...]:
+    """Os instantes que se leram."""
+    return tuple(instante for instante in instantes if instante is not None)
+
+
+def _run_no_tempo(run: NoGrafo, divisor: int) -> RunNoTempo | None:
+    """O Run pelo instante em que começou, com a parte do Goal nos tokens; None sem início."""
+    inicio = ler_instante(run.propriedades.get("inicio"))
+    if inicio is None:
+        return None
+    total = _tokens_do_run(run) or 0
+    sem_cache = total - _inteiro(run.propriedades.get(CAMPO_CACHE_LEITURA))
+    return RunNoTempo(inicio=inicio, tokens=total // divisor, tokens_sem_cache_leitura=sem_cache // divisor)
 
 
 def _configuracao(goal: NoGrafo | None) -> str:

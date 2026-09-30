@@ -10,7 +10,7 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 
 ## Inventário
 
-12 módulos · 1984 linhas · 22 classes
+13 módulos · 2179 linhas · 25 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,11 +20,12 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
-| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 274 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
+| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 319 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
-| [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 132 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
+| [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 143 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
+| [`avaliacao/relatorio_rodadas.py`](#avaliacaorelatoriorodadas) | 69 | As linhas de `orquestracao-medir --por-rodada`: onde, dentro de um Goal, o tempo e a cota foram gastos. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
-| [`avaliacao/rodadas.py`](#avaliacaorodadas) | 138 | As rodadas de um Goal: cada Run do condutor, com quanto durou e quanto da cota gastou. |
+| [`avaliacao/rodadas.py`](#avaliacaorodadas) | 208 | As rodadas de um Goal: cada Run do condutor, com quanto durou e quanto da cota gastou. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
 
 ## `avaliacao/__init__.py`
@@ -254,6 +255,21 @@ O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação
 
 - `formatar_relatorio(medicoes: Sequence[MedicaoDeGoal]) -> tuple[str, ...]` — As linhas do relatório: cada Goal medido e, no fim, a soma por configuração.
 
+## `avaliacao/relatorio_rodadas.py`
+
+As linhas de `orquestracao-medir --por-rodada`: onde, dentro de um Goal, o tempo e a cota foram gastos.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEM_RODADAS` | `str` | `' rodadas: nenhum Run do condutor atribuido'` |
+| `DESCONHECIDO` | `str` | `'?'` |
+| `NOTA_DAS_RODADAS` | `tuple[str, ...]` | `('Rodadas: a janela vai do inicio ao fim do Run do condutor, e tokens s…` |
+
+### Funções do módulo
+
+- `linhas_das_rodadas(medicao: MedicaoDeGoal) -> tuple[str, ...]` — Uma linha por rodada do Goal, R1 a Rn, depois do bloco dele.
+- `nota_das_rodadas(medicoes: Sequence[MedicaoDeGoal]) -> tuple[str, ...]` — A explicação das colunas, uma vez no fim; some quando nenhum Goal teve rodada.
+
 ## `avaliacao/retomada.py`
 
 Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada.
@@ -287,11 +303,29 @@ As rodadas de um Goal: cada Run do condutor, com quanto durou e quanto da cota g
 | :--- | :--- | :--- |
 | `AGENTE_CONDUTOR` | `str` | `'graphow-condutor'` |
 
+### `MarcasNoTempo`
+
+*DTO imutável* — Quando cada coisa do Goal aconteceu, para contar o que cai na janela de cada rodada.
+
+**Campos:** `conclusoes: tuple[datetime, ...]`, `aprovacoes: tuple[datetime, ...]`, `rejeicoes: tuple[datetime, ...]`, `runs: tuple[RunNoTempo, ...]`
+
+### `NaJanela`
+
+*DTO imutável* — O que aconteceu no Goal entre o início e o fim da rodada.
+
+**Campos:** `concluidas: int`, `aprovados: int`, `rejeitados: int`, `tokens: int`, `tokens_sem_cache_leitura: int`
+
 ### `Rodada`
 
 *DTO imutável* — Um Run do condutor situado no tempo, com a parte dele que cabe ao Goal.
 
-**Campos:** `id_run: str`, `id_sessao: str`, `inicio: datetime | None`, `fim: datetime | None`, `duracao_s: int | None`, `divisor: int`, `cota: VariacaoDeCota`
+**Campos:** `id_run: str`, `id_sessao: str`, `inicio: datetime | None`, `fim: datetime | None`, `duracao_s: int | None`, `divisor: int`, `cota: VariacaoDeCota`, `na_janela: NaJanela | None`
+
+### `RunNoTempo`
+
+*DTO imutável* — Um Run do Goal pelo instante em que começou, com os tokens da parte do Goal.
+
+**Campos:** `inicio: datetime`, `tokens: int`, `tokens_sem_cache_leitura: int`
 
 ### `VariacaoDeCota`
 
@@ -301,6 +335,9 @@ As rodadas de um Goal: cada Run do condutor, com quanto durou e quanto da cota g
 
 ### Funções do módulo
 
+- `situar(rodadas: Iterable[Rodada], marcas: MarcasNoTempo) -> tuple[Rodada, ...]` — Cada rodada com o que caiu na janela dela; a que não tem início e fim fica sem janela.
+- `ultimo_toque(no: NoGrafo) -> datetime | None` — O último toque do nó no log, ou o nascimento se ninguém o tocou depois.
+- `nascimento(no: NoGrafo) -> datetime | None` — Quando o log registrou o nó.
 - `eh_condutor(run: NoGrafo) -> bool` — O Run é de uma rodada: o subagente que terminou era o condutor.
 - `eh_run_da_sessao(run: NoGrafo) -> bool` — O Run é da sessão, não de um subagente: é nele que a cota da parada fica.
 - `montar_rodadas(condutores: Sequence[tuple[NoGrafo, int]], raizes: Mapping[str, NoGrafo]) -> tuple[Rodada, ...]` — As rodadas em ordem de início, as sem início no fim, cada uma com a variação de cota.

@@ -15,18 +15,29 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from graphow.avaliacao.orquestracao import SEM_MOTIVO, MedicaoDeGoal
+from graphow.avaliacao.relatorio_rodadas import linhas_das_rodadas, nota_das_rodadas
 
 SEM_GOALS: str = "Nenhum Goal com tarefas decompostas: nada a medir."
 
 
-def formatar_relatorio(medicoes: Sequence[MedicaoDeGoal]) -> tuple[str, ...]:
-    """As linhas do relatório: cada Goal medido e, no fim, a soma por configuração."""
+def formatar_relatorio(medicoes: Sequence[MedicaoDeGoal], *, por_rodada: bool = False) -> tuple[str, ...]:
+    """As linhas do relatório: cada Goal medido e, no fim, a soma por configuração.
+
+    Com `por_rodada`, cada Goal ganha uma linha por rodada do condutor, e o
+    relatório termina com a explicação das colunas.
+    """
     if not medicoes:
         return (SEM_GOALS,)
-    linhas = [linha for medicao in medicoes for linha in _linhas_do_goal(medicao)]
+    linhas = [linha for medicao in medicoes for linha in _bloco_do_goal(medicao, por_rodada)]
     linhas.extend(("", "Por configuracao:"))
     linhas.extend(_linha_da_configuracao(nome, grupo) for nome, grupo in _agrupar(medicoes))
+    linhas.extend(nota_das_rodadas(medicoes) if por_rodada else ())
     return tuple(linhas)
+
+
+def _bloco_do_goal(medicao: MedicaoDeGoal, por_rodada: bool) -> tuple[str, ...]:
+    """As linhas do Goal e, se pedidas, as das rodadas dele."""
+    return _linhas_do_goal(medicao) + (linhas_das_rodadas(medicao) if por_rodada else ())
 
 
 def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:

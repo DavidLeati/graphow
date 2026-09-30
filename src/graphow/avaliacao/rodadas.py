@@ -13,7 +13,7 @@ gasto real não se sabe.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from graphow.core.models import NoGrafo
@@ -38,6 +38,21 @@ class VariacaoDeCota:
 
 
 @dataclass(frozen=True)
+class NaJanela:
+    """O que aconteceu no Goal entre o início e o fim da rodada.
+
+    Os tokens são dos Run do Goal que começaram na janela, o do condutor
+    incluído, já na parte que cabe ao Goal.
+    """
+
+    concluidas: int = 0
+    aprovados: int = 0
+    rejeitados: int = 0
+    tokens: int = 0
+    tokens_sem_cache_leitura: int = 0
+
+
+@dataclass(frozen=True)
 class Rodada:
     """Um Run do condutor situado no tempo, com a parte dele que cabe ao Goal.
 
@@ -52,6 +67,61 @@ class Rodada:
     duracao_s: int | None = None
     divisor: int = 1
     cota: VariacaoDeCota = field(default_factory=VariacaoDeCota)
+    na_janela: NaJanela | None = None
+
+
+@dataclass(frozen=True)
+class RunNoTempo:
+    """Um Run do Goal pelo instante em que começou, com os tokens da parte do Goal."""
+
+    inicio: datetime
+    tokens: int
+    tokens_sem_cache_leitura: int
+
+
+@dataclass(frozen=True)
+class MarcasNoTempo:
+    """Quando cada coisa do Goal aconteceu, para contar o que cai na janela de cada rodada.
+
+    A Task não grava quando fechou. A conclusão é o último toque dela no log
+    (`atualizado_em`), que é o fechamento enquanto ninguém a mexe depois; o
+    veredito é o nascimento da Evidence.
+    """
+
+    conclusoes: tuple[datetime, ...] = ()
+    aprovacoes: tuple[datetime, ...] = ()
+    rejeicoes: tuple[datetime, ...] = ()
+    runs: tuple[RunNoTempo, ...] = ()
+
+
+def situar(rodadas: Iterable[Rodada], marcas: MarcasNoTempo) -> tuple[Rodada, ...]:
+    """Cada rodada com o que caiu na janela dela; a que não tem início e fim fica sem janela."""
+    return tuple(replace(rodada, na_janela=_na_janela(rodada, marcas)) for rodada in rodadas)
+
+
+def ultimo_toque(no: NoGrafo) -> datetime | None:
+    """O último toque do nó no log, ou o nascimento se ninguém o tocou depois."""
+    return ler_instante(no.metadados.atualizado_em or no.metadados.criado_em)
+
+
+def nascimento(no: NoGrafo) -> datetime | None:
+    """Quando o log registrou o nó."""
+    return ler_instante(no.metadados.criado_em)
+
+
+def _na_janela(rodada: Rodada, marcas: MarcasNoTempo) -> NaJanela | None:
+    """A contagem do que caiu entre o início e o fim da rodada, pontas incluídas."""
+    inicio, fim = rodada.inicio, rodada.fim
+    if inicio is None or fim is None:
+        return None
+    runs = [run for run in marcas.runs if inicio <= run.inicio <= fim]
+    return NaJanela(
+        concluidas=sum(1 for instante in marcas.conclusoes if inicio <= instante <= fim),
+        aprovados=sum(1 for instante in marcas.aprovacoes if inicio <= instante <= fim),
+        rejeitados=sum(1 for instante in marcas.rejeicoes if inicio <= instante <= fim),
+        tokens=sum(run.tokens for run in runs),
+        tokens_sem_cache_leitura=sum(run.tokens_sem_cache_leitura for run in runs),
+    )
 
 
 def eh_condutor(run: NoGrafo) -> bool:

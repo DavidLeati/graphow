@@ -456,3 +456,14 @@ def test_orquestracao_medir_aceita_varios_goals_nominal() -> None:
 
     assert parsed.goal == ["goal-a", "goal-b"]
     assert parsed.ramo == "main"
+    assert parsed.por_rodada is False
+
+
+def test_orquestracao_medir_por_rodada_vale_sem_goal_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: `--por-rodada` sem `--goal` mede todos, como sem a opção; banco vazio diz que não há o que medir."""
+    assert construir_parser().parse_args(["orquestracao-medir", "--por-rodada"]).por_rodada is True
+
+    codigo, console = _executar(["orquestracao-medir", "--por-rodada"], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    assert any("nada a medir" in linha for linha in console.linhas)

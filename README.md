@@ -300,6 +300,9 @@ graphow harness --fase subagente --entrada-hook
 # Comparar Goals orquestrados sob configurações de modelo: retrabalho, rejeições na revisão e tokens
 graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 
+# O mesmo, com uma linha por rodada do condutor: minutos, o que fechou e foi revisado na janela, tokens e cota
+graphow orquestracao-medir --goal goal-padrao --por-rodada
+
 # Conferir o Goal contra o ramo_base dele: o que o ramo base ganhou desde o merge-base,
 # nos caminhos_de_colisao, e que colide com o que o Goal toca (sai com 1 se colidir, 2 se não der para conferir)
 graphow base-colisoes --goal goal-migrations --repo . --sem-fetch
@@ -686,7 +689,13 @@ graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao
 O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as
 rejeições na revisão e os tokens por tarefa concluída. As tarefas da trilha
 leve, que rodam em Sonnet sob qualquer configuração, aparecem à parte na linha
-de modelos de cada Goal. Os `Run` dos agentes
+de modelos de cada Goal. Quando os `Run` trazem, o custo por tarefa concluída
+ganha os minutos de condutor, os pontos da cota semanal e os tokens sem a
+leitura de cache, e a linha de tokens do Goal mostra o total sem ela e os `Run`
+sem tokens pelo motivo (`transcricao_ausente`, `sem_agent_id`...). Com
+`--por-rodada`, com ou sem `--goal`, cada Goal ganha uma linha por rodada do
+condutor. A duração vem das transcrições, e a cota da linha
+`Cota: 5h <n>%, semana <n>%` que a raiz escreve no despacho e na parada. Os `Run` dos agentes
 despachados vêm do hook `SubagentStop`, que está na fiação de
 [`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
 

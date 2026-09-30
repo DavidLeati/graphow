@@ -153,6 +153,14 @@ def _registrar_comando_de_orquestracao(
         help="ID de um Goal a medir; repita para varios. Sem ele, todo Goal com tarefas decompostas",
     )
     parser_medir.add_argument("--ramo", default="main", help="Ramo do grafo lido (padrao: main)")
+    parser_medir.add_argument(
+        "--por-rodada",
+        action="store_true",
+        help=(
+            "Acrescenta a cada Goal uma linha por rodada do condutor: minutos, tarefas concluidas, "
+            "vereditos e tokens na janela dela e a variacao de cota. Vale com ou sem --goal"
+        ),
+    )
     _registrar_comando_de_colisoes(subparsers, parser_base)
 
 

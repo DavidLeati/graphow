@@ -109,7 +109,7 @@ class ManipuladorComandosGrafo:
         from graphow.avaliacao.relatorio_orquestracao import formatar_relatorio
 
         medicoes = MedidorDeOrquestracao(self._kernel.obter_view(argumentos.ramo)).medir(argumentos.goal)
-        for linha in formatar_relatorio(medicoes):
+        for linha in formatar_relatorio(medicoes, por_rodada=argumentos.por_rodada):
             self._console.escrever_linha(linha)
         return CODIGO_SUCESSO
 
