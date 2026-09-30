@@ -99,7 +99,7 @@ Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por s
 graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao --goal goal-opus-em-dominio
 ```
 
-O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão e os tokens por tarefa concluída. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
+O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão, os aceites pelo teto de correções e os tokens por tarefa concluída. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
 
 ## Referências
 

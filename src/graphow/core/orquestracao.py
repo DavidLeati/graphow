@@ -1,4 +1,4 @@
-"""Propriedades que a orquestração grava na Task, no Goal e na Evidence de revisão.
+"""Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite.
 
 Não são termos da ontologia: o SchemaGate não valida propriedades e a assinatura
 da ontologia não as cobre. São a convenção que o orquestrador escreve por
@@ -26,6 +26,12 @@ CAMPO_CONFIGURACAO: str = "configuracao"
 CAMPO_VEREDITO: str = "veredito"
 VEREDITO_APROVADO: str = "aprovado"
 VEREDITO_REJEITADO: str = "rejeitado"
+
+# Na Decision do condutor que aceita a entrega depois da segunda reprovação,
+# quando nenhum critério não atendido é bloqueante: é por ela que a medição
+# conta os aceites pelo teto de correções.
+CAMPO_ACAO: str = "acao"
+ACAO_ACEITE_APOS_REPROVACAO: str = "aceite_apos_reprovacao"
 
 
 def ler_textos(valor: object) -> tuple[str, ...]:

@@ -241,6 +241,8 @@ def test_segunda_reprovacao_sem_bloqueante_fecha_pelo_teto_edge_case() -> None:
     assert {view.obter_no(id_task).obter_propriedade("status") for id_task in ("t1", "t1c")} == {StatusTask.CONCLUIDO.value}
     fila = _chamar(orquestrador, "proximas_tarefas", id_sessao="goal")
     assert [tarefa["id"] for tarefa in fila["tarefas"]] == ["t1-acomp"]
+    (medicao,) = MedidorDeOrquestracao(view).medir(["goal"])
+    assert (medicao.rejeicoes, medicao.aprovacoes, medicao.aceites_pelo_teto) == (2, 0, 1)
 
 
 def test_executor_sem_posse_nao_entrega_a_tarefa_de_outro_edge_case() -> None:

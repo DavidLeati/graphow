@@ -129,3 +129,48 @@ def test_goal_sem_configuracao_e_sem_tarefas_edge_case() -> None:
 
     assert MedidorDeOrquestracao(kernel.obter_view()).medir() == ()
     assert formatar_relatorio(()) == (SEM_GOALS,)
+
+
+def _montar_aceite_pelo_teto() -> WriteKernel:
+    """Um Goal cuja correção foi reprovada de novo e aceita pelo teto, com uma decisão comum ao lado."""
+    kernel = montar_kernel_em_memoria()
+    operacoes = (
+        _no("proj", TipoNo.PROJETO), _no("setor", TipoNo.SETOR), _aresta("proj", "setor", TipoAresta.CONTEM),
+        _no("sess-orq", TipoNo.SESSAO), _aresta("setor", "sess-orq", TipoAresta.CONTEM),
+        _no("goal-c", TipoNo.GOAL, configuracao="padrao"), _aresta("sess-orq", "goal-c", TipoAresta.PRODUZ),
+        *_tarefa("t1", "goal-c", status=StatusTask.CONCLUIDO.value),
+        *_derivado("evi-rej-1", TipoNo.EVIDENCE, ("t1",), veredito="rejeitado"),
+        *_tarefa("t1c", "t1", corrige="evi-rej-1", status=StatusTask.CONCLUIDO.value),
+        *_derivado("evi-rej-2", TipoNo.EVIDENCE, ("t1c",), veredito="rejeitado"),
+        *_tarefa("t1-acomp", "goal-c", status=StatusTask.PENDENTE.value),
+        _no("dec-aceite", TipoNo.DECISION, acao="aceite_apos_reprovacao"), _aresta("sess-orq", "dec-aceite", TipoAresta.PRODUZ),
+        *(_aresta("dec-aceite", alvo, TipoAresta.ORIENTA) for alvo in ("t1", "t1c", "t1-acomp")),
+        _no("dec-comum", TipoNo.DECISION, motivo="reusar a funcao existente"), _aresta("sess-orq", "dec-comum", TipoAresta.PRODUZ),
+        _aresta("dec-comum", "t1", TipoAresta.ORIENTA),
+    )
+    dados = DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="cenario")
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+    assert recibo.sucesso, recibo.mensagem
+    return kernel
+
+
+def test_goal_conta_o_aceite_pelo_teto_uma_vez_nominal() -> None:
+    """A Decision de aceite orienta três tarefas e conta um aceite; a decisão comum não conta."""
+    (medicao,) = MedidorDeOrquestracao(_montar_aceite_pelo_teto().obter_view()).medir(["goal-c"])
+
+    assert (medicao.rejeicoes, medicao.aprovacoes, medicao.aceites_pelo_teto) == (2, 0, 1)
+    assert (medicao.tarefas, medicao.correcoes) == (2, 1)
+    linhas = formatar_relatorio((medicao,))
+    assert any("revisao: 2 rejeitadas, 0 aprovadas, 1 aceites pelo teto" in linha for linha in linhas)
+    padrao = next(linha for linha in linhas if linha.strip().startswith("padrao:"))
+    assert "2 rejeicoes, 1 aceites pelo teto" in padrao
+
+
+def test_relatorio_omite_o_aceite_quando_nao_houve_edge_case() -> None:
+    """Caso de borda: sem aceite pelo teto, a linha da revisão fica como sempre foi."""
+    medicao = _por_goal(_montar())["goal-a"]
+
+    assert medicao.aceites_pelo_teto == 0
+    linhas = formatar_relatorio((medicao,))
+    assert any(linha.endswith("revisao: 1 rejeitadas, 1 aprovadas") for linha in linhas)
+    assert not any("aceites pelo teto" in linha for linha in linhas)

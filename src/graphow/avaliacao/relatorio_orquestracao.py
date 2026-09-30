@@ -1,8 +1,9 @@
 """O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração.
 
 A pergunta é se a divisão de modelos compensa: quantas tarefas fecharam sem
-retrabalho, quantas vezes a revisão rejeitou e quanto custou cada tarefa
-concluída, lado a lado para cada arranjo de modelos.
+retrabalho, quantas vezes a revisão rejeitou, quantas entregas o teto de
+correções aceitou e quanto custou cada tarefa concluída, lado a lado para cada
+arranjo de modelos.
 """
 
 from collections import defaultdict
@@ -32,7 +33,7 @@ def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:
         f"[{medicao.id_goal}] {medicao.rotulo} | configuracao: {medicao.configuracao}",
         f"  tarefas {medicao.tarefas} | concluidas {medicao.concluidas} | sem retrabalho "
         f"{medicao.concluidas_sem_retrabalho} | com retrabalho {medicao.com_retrabalho} ({medicao.correcoes} correcoes)"
-        f" | revisao: {medicao.rejeicoes} rejeitadas, {medicao.aprovacoes} aprovadas",
+        f" | revisao: {medicao.rejeicoes} rejeitadas, {medicao.aprovacoes} aprovadas{_aceites(medicao.aceites_pelo_teto)}",
         f"  modelo por tarefa: {modelos or 'nenhuma tarefa'}",
         f"  tokens {_numero(medicao.tokens)} ({agentes or 'nenhum Run atribuido'}){sem_tokens}",
     )
@@ -56,8 +57,14 @@ def _linha_da_configuracao(nome: str, grupo: Sequence[MedicaoDeGoal]) -> str:
     por_tarefa = _numero(tokens // concluidas) if concluidas else "sem conclusao"
     return (
         f"  {nome}: {len(grupo)} Goals | {tarefas} tarefas | {concluidas} concluidas, {limpas} sem retrabalho ({taxa})"
-        f" | {sum(medicao.rejeicoes for medicao in grupo)} rejeicoes | {_numero(tokens)} tokens | {por_tarefa} por tarefa concluida"
+        f" | {sum(medicao.rejeicoes for medicao in grupo)} rejeicoes{_aceites(sum(medicao.aceites_pelo_teto for medicao in grupo))}"
+        f" | {_numero(tokens)} tokens | {por_tarefa} por tarefa concluida"
     )
+
+
+def _aceites(total: int) -> str:
+    """O trecho dos aceites pelo teto; some quando não houve nenhum, que é o caso comum."""
+    return f", {total} aceites pelo teto" if total else ""
 
 
 def _numero(valor: int) -> str:

@@ -6,7 +6,9 @@ da decomposição, quantas fecharam sem retrabalho, os vereditos da revisão e o
 tokens gastos, somados dos Run que o harness grava: o de cada subagente pelas
 tarefas que ele assumiu, e o do orquestrador pelas sessões em que o trabalho do
 Goal foi produzido. Uma sessão que serviu a vários Goals divide o custo entre
-eles em partes iguais.
+eles em partes iguais. Conta também os aceites pelo teto de correções: a
+correção reprovada de novo que o condutor aceitou, sem critério bloqueante,
+por uma Decision marcada com `acao`.
 """
 
 from collections import Counter, defaultdict
@@ -15,6 +17,8 @@ from dataclasses import dataclass, field
 
 from graphow.core.models import NoGrafo
 from graphow.core.orquestracao import (
+    ACAO_ACEITE_APOS_REPROVACAO,
+    CAMPO_ACAO,
     CAMPO_CONFIGURACAO,
     CAMPO_CORRIGE,
     CAMPO_MODELO,
@@ -49,6 +53,7 @@ class MedicaoDeGoal:
     correcoes: int = 0
     rejeicoes: int = 0
     aprovacoes: int = 0
+    aceites_pelo_teto: int = 0
     modelos_por_tarefa: Mapping[str, int] = field(default_factory=dict)
     tokens_por_agente: Mapping[str, int] = field(default_factory=dict)
     runs_sem_tokens: int = 0
@@ -145,9 +150,25 @@ class MedidorDeOrquestracao:
             correcoes=len(trabalho.tarefas) - len(originais),
             rejeicoes=vereditos[VEREDITO_REJEITADO],
             aprovacoes=vereditos[VEREDITO_APROVADO],
+            aceites_pelo_teto=self._aceites_pelo_teto(trabalho.ids_tarefas | {id_goal}),
             modelos_por_tarefa=dict(Counter(ler_texto(no.propriedades, CAMPO_MODELO).lower() or SEM_MODELO for no in originais)),
             tokens_por_agente=tokens,
             runs_sem_tokens=sem_tokens,
+        )
+
+    def _aceites_pelo_teto(self, alvos: Iterable[str]) -> int:
+        """As Decision de aceite pelo teto que orientam o Goal ou tarefas dele, cada uma contada uma vez.
+
+        A mesma Decision orienta a original, as correções e a tarefa de
+        acompanhamento: o que se conta é o aceite, não as arestas.
+        """
+        decisoes = (self._view.obter_no(id_no) for id_no in self._decisoes_que_orientam(alvos))
+        return sum(
+            1
+            for no in decisoes
+            if no is not None
+            and no.tipo == TipoNo.DECISION
+            and ler_texto(no.propriedades, CAMPO_ACAO) == ACAO_ACEITE_APOS_REPROVACAO
         )
 
     def _tem_correcao(self, id_task: str) -> bool:
