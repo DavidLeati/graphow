@@ -59,6 +59,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 |---|---|---|
 | `Task` | `criterio_pronto` | O critério de aceite, contra o qual o revisor julga. Já existia; a orquestração não criou outro nome para ele. |
 | `Task` | `modelo`, `motivo_modelo` | O modelo que deve executar a tarefa e por quê. `criar_tarefa` recusa o modelo sem o motivo, para a escolha ficar auditável no log. |
+| `Task` | `trilha` | `leve` ou `completa`; ausente vale `completa`. A leve é a da tarefa trivial de texto, comentário ou documentação: pula o teste do executor frio, roda em Sonnet e vai ao revisor Sonnet. `criar_tarefa` recusa outro valor e a leve com `modelo: opus`. |
 | `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca. Só rodam em paralelo tarefas com arquivos-alvo disjuntos. |
 | `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
 | `Goal` | `configuracao` | O rótulo do arranjo de modelos com que o Goal foi orquestrado, para comparar configurações. |

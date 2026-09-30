@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2314 linhas · 26 classes
+17 módulos · 2347 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,12 +24,12 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 164 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 232 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
-| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 78 | O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões. |
+| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 110 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões. |
 | [`mcp/server.py`](#mcpserver) | 128 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 193 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 302 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 303 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -279,16 +279,17 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 ## `mcp/orquestracao_tarefa.py`
 
-O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões.
+O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CAMPO_DECISOES` | `str` | `'decisoes'` |
 | `CAMPO_TAREFA_PAI` | `str` | `'id_tarefa_pai'` |
+| `MODELO_FORA_DA_TRILHA_LEVE` | `str` | `'opus'` |
 
 ### Funções do módulo
 
-- `recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None` — A recusa quando o modelo vem sem o motivo; None quando os dois vêm juntos ou nenhum vem.
+- `recusar_orquestracao_invalida(argumentos: Mapping[str, Any]) -> dict[str, Any] | None` — A primeira recusa entre modelo e trilha; None quando a chamada pode seguir.
 - `propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma.
 - `arestas_de_orientacao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — Uma aresta `orienta` de cada Decision declarada para a Task nova.
 - `aresta_de_espera_da_correcao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — A tarefa corrigida passa a depender da correção.

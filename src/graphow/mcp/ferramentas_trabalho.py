@@ -22,7 +22,7 @@ from graphow.mcp.orquestracao_tarefa import (
     aresta_de_espera_da_correcao,
     arestas_de_orientacao,
     propriedades_de_orquestracao,
-    recusar_modelo_sem_motivo,
+    recusar_orquestracao_invalida,
 )
 from graphow.mcp.submissao import (
     ContextoFerramentaMCP,
@@ -70,7 +70,7 @@ class FerramentasTrabalho:
 
     def criar_tarefa(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
         """Cria uma Task com aresta 'produz', hierarquias opcionais e o que a orquestração declara."""
-        recusa = recusar_modelo_sem_motivo(argumentos)
+        recusa = recusar_orquestracao_invalida(argumentos)
         if recusa is not None:
             return recusa
         id_task = str(argumentos.get("id_task") or gerar_identificador("task"))

@@ -1,4 +1,4 @@
-"""O que o orquestrador grava na Task e lê de volta: modelo, arquivos-alvo, decisões e a vista do executor frio."""
+"""O que o orquestrador grava na Task e lê de volta: modelo, trilha, arquivos-alvo, decisões e a vista do executor frio."""
 
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
@@ -72,6 +72,40 @@ def test_modelo_sem_motivo_e_recusado_edge_case() -> None:
 
     assert recibo["sucesso"] is False
     assert "motivo_modelo" in recibo["erro"]
+    assert kernel.obter_view().obter_no("t1") is None
+
+
+def test_criar_tarefa_grava_a_trilha_nominal() -> None:
+    """A trilha vai para a Task em minúsculas, e a fila a devolve."""
+    kernel, planejador = _montar()
+
+    recibo = _criar(planejador, "t1", trilha="Leve", modelo="sonnet", motivo_modelo="troca de comentario")
+
+    assert recibo["sucesso"] is True, recibo
+    assert kernel.obter_view().obter_no("t1").obter_propriedade("trilha") == "leve"
+    fila = planejador.executar_ferramenta("proximas_tarefas", {"id_sessao": "goal"})
+    assert [tarefa["trilha"] for tarefa in fila["tarefas"]] == ["leve"]
+
+
+def test_trilha_desconhecida_e_recusada_edge_case() -> None:
+    """Caso de borda: trilha fora de leve e completa não nasce, para o despacho não adivinhar."""
+    kernel, planejador = _montar()
+
+    recibo = _criar(planejador, "t1", trilha="expressa")
+
+    assert recibo["sucesso"] is False
+    assert "trilha" in recibo["erro"]
+    assert kernel.obter_view().obter_no("t1") is None
+
+
+def test_trilha_leve_em_opus_e_recusada_edge_case() -> None:
+    """Caso de borda: a trilha leve existe para não pagar Opus, e a regra não fica só no texto."""
+    kernel, planejador = _montar()
+
+    recibo = _criar(planejador, "t1", trilha="leve", modelo="opus", motivo_modelo="dominio")
+
+    assert recibo["sucesso"] is False
+    assert "opus" in recibo["erro"]
     assert kernel.obter_view().obter_no("t1") is None
 
 

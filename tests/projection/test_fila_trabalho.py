@@ -216,3 +216,21 @@ def test_profundidade_nao_gira_em_ciclo_edge_case() -> None:
     }
 
     assert _profundidades(GrafoEstado(nos=nos, arestas=arestas)) == {"t-ciclo": 1}
+
+
+def test_fila_expoe_a_trilha_da_tarefa_nominal() -> None:
+    """A trilha gravada vai na fila, e a Task sem ela vem como completa."""
+    nos = {
+        "sess-1": _no("sess-1", TipoNo.SESSAO),
+        "t-leve": _no("t-leve", TipoNo.TASK, {"status": StatusTask.PENDENTE.value, "trilha": "leve"}),
+        "t-antiga": _no("t-antiga", TipoNo.TASK, {"status": StatusTask.PENDENTE.value}),
+    }
+    arestas = {
+        "p1": _aresta("p1", "sess-1", "t-leve", TipoAresta.PRODUZ),
+        "p2": _aresta("p2", "sess-1", "t-antiga", TipoAresta.PRODUZ),
+    }
+
+    tarefas = FilaDeTrabalho(GrafoView(GrafoEstado(nos=nos, arestas=arestas))).proximas_tarefas("sess-1")
+
+    trilhas = {tarefa.id: tarefa.em_dicionario()["trilha"] for tarefa in tarefas}
+    assert trilhas == {"t-leve": "leve", "t-antiga": "completa"}

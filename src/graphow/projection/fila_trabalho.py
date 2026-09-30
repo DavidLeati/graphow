@@ -16,6 +16,8 @@ from graphow.core.orquestracao import (
     CAMPO_CORRIGE,
     CAMPO_CRITERIO_PRONTO,
     CAMPO_MODELO,
+    CAMPO_TRILHA,
+    TRILHA_COMPLETA,
     ler_texto,
     ler_textos,
 )
@@ -82,7 +84,9 @@ class TarefaExecutavel:
 
     Modelo e arquivos-alvo vêm junto porque é com eles que o orquestrador
     despacha: qual executor chamar, e o que pode rodar em paralelo sem dois
-    agentes editando o mesmo arquivo. A profundidade da correção diz quantas
+    agentes editando o mesmo arquivo. A trilha diz se a tarefa pula o teste do
+    executor frio e vai ao revisor Sonnet; a Task sem ela vem como completa,
+    para quem despacha não tratar ausência como caso à parte. A profundidade da correção diz quantas
     reprovações a tarefa já carrega, que é o que o teto de correções conta.
     """
 
@@ -92,6 +96,7 @@ class TarefaExecutavel:
     criterio_pronto: str = ""
     depende_de: tuple[str, ...] = field(default_factory=tuple)
     modelo: str = ""
+    trilha: str = TRILHA_COMPLETA
     arquivos_alvo: tuple[str, ...] = field(default_factory=tuple)
     corrige: str = ""
     profundidade_correcao: int = 0
@@ -105,6 +110,7 @@ class TarefaExecutavel:
             "criterio_pronto": self.criterio_pronto,
             "depende_de": list(self.depende_de),
             "modelo": self.modelo,
+            "trilha": self.trilha,
             "arquivos_alvo": list(self.arquivos_alvo),
             "corrige": self.corrige,
             "profundidade_correcao": self.profundidade_correcao,
@@ -166,6 +172,7 @@ class FilaDeTrabalho:
             criterio_pronto=ler_texto(no.propriedades, CAMPO_CRITERIO_PRONTO),
             depende_de=self._identificadores_de_dependencia(no.id),
             modelo=ler_texto(no.propriedades, CAMPO_MODELO),
+            trilha=ler_texto(no.propriedades, CAMPO_TRILHA).lower() or TRILHA_COMPLETA,
             arquivos_alvo=ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO)),
             corrige=ler_texto(no.propriedades, CAMPO_CORRIGE),
             profundidade_correcao=profundidade_da_correcao(self._view, no.id),

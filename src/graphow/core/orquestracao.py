@@ -18,6 +18,14 @@ CAMPO_ARQUIVOS_ALVO: str = "arquivos_alvo"
 CAMPO_CORRIGE: str = "corrige"
 CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 
+# Na Task: a trilha que ela percorre. A leve serve a tarefa trivial, só texto,
+# comentário ou documentação: pula o teste do executor frio, roda em Sonnet e
+# vai ao revisor Sonnet. Ausente vale como completa, que é a trilha de sempre.
+CAMPO_TRILHA: str = "trilha"
+TRILHA_LEVE: str = "leve"
+TRILHA_COMPLETA: str = "completa"
+TRILHAS: frozenset[str] = frozenset({TRILHA_LEVE, TRILHA_COMPLETA})
+
 # No Goal: o rótulo da configuração de modelos com que ele foi orquestrado,
 # para a medição comparar o mesmo conjunto de tarefas sob arranjos diferentes.
 CAMPO_CONFIGURACAO: str = "configuracao"

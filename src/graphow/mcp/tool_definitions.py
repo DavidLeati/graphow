@@ -180,7 +180,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "criar_tarefa",
-        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), os arquivos que ela toca e as decisões que a orientam.",
+        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), a trilha, os arquivos que ela toca e as decisões que a orientam.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -192,6 +192,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "depende_de": {"type": "string", "description": "ID de Task pré-requisito (depende_de)."},
                 "modelo": {"type": "string", "description": "Modelo que deve executar a tarefa, como 'sonnet' ou 'opus'. Exige motivo_modelo: a escolha fica auditável no log."},
                 "motivo_modelo": {"type": "string", "description": "Por que este modelo: lógica de domínio, mudança em vários módulos, tarefa que já falhou uma revisão."},
+                "trilha": {"type": "string", "enum": ["leve", "completa"], "description": "Trilha da tarefa. 'leve' só para tarefa trivial de texto, comentário ou documentação, sem linha de código com efeito: pula o teste do executor frio e vai ao revisor Sonnet. Recusada com modelo opus. Ausente vale 'completa'."},
                 "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do repositório. Só rodam em paralelo tarefas com arquivos_alvo disjuntos."},
                 "decisoes": {"type": "array", "items": {"type": "string"}, "description": "IDs das Decision que valem para esta tarefa. Cada uma ganha a aresta orienta, que é por onde o executor as encontra."},
                 "corrige": {"type": "string", "description": "Na tarefa de correção, o id da Evidence de revisão rejeitada que a motivou. Com id_tarefa_pai, a tarefa rejeitada passa a depender da correção e sai da fila até ela fechar."},

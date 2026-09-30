@@ -1,11 +1,12 @@
-"""O que `criar_tarefa` grava para a orquestração: modelo, arquivos-alvo, correção e decisões.
+"""O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões.
 
 Quem orquestra decide na própria Task qual modelo a executa, e o motivo vai
 junto para a escolha ficar auditável no log: um modelo sem motivo é recusado
-aqui, porque o SchemaGate não valida propriedades. Os arquivos-alvo são o que
-decide o paralelismo. E as decisões que valem para a tarefa viram arestas
-`orienta` no mesmo lote, que é por onde o executor que nunca viu a conversa as
-encontra.
+aqui, porque o SchemaGate não valida propriedades. Pelo mesmo motivo a trilha
+é conferida aqui: só `leve` ou `completa`, e a leve nunca em Opus, que é o
+custo que ela existe para evitar. Os arquivos-alvo são o que decide o
+paralelismo. E as decisões que valem para a tarefa viram arestas `orienta` no
+mesmo lote, que é por onde o executor que nunca viu a conversa as encontra.
 """
 
 from collections.abc import Mapping
@@ -16,6 +17,9 @@ from graphow.core.orquestracao import (
     CAMPO_CORRIGE,
     CAMPO_MODELO,
     CAMPO_MOTIVO_DO_MODELO,
+    CAMPO_TRILHA,
+    TRILHA_LEVE,
+    TRILHAS,
     ler_texto,
     ler_textos,
 )
@@ -26,7 +30,16 @@ CAMPO_DECISOES: str = "decisoes"
 CAMPO_TAREFA_PAI: str = "id_tarefa_pai"
 
 
-def recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
+# O modelo que a trilha leve recusa: ela existe para a tarefa trivial não pagar Opus.
+MODELO_FORA_DA_TRILHA_LEVE: str = "opus"
+
+
+def recusar_orquestracao_invalida(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A primeira recusa entre modelo e trilha; None quando a chamada pode seguir."""
+    return _recusar_modelo_sem_motivo(argumentos) or _recusar_trilha(argumentos)
+
+
+def _recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
     """A recusa quando o modelo vem sem o motivo; None quando os dois vêm juntos ou nenhum vem."""
     if not ler_texto(argumentos, CAMPO_MODELO) or ler_texto(argumentos, CAMPO_MOTIVO_DO_MODELO):
         return None
@@ -36,6 +49,22 @@ def recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] |
     }
 
 
+def _recusar_trilha(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A recusa da trilha desconhecida e da trilha leve em Opus; None quando a trilha serve ou falta."""
+    trilha = ler_texto(argumentos, CAMPO_TRILHA).lower()
+    if trilha and trilha not in TRILHAS:
+        return {
+            "sucesso": False,
+            "erro": f"'trilha' aceita {', '.join(sorted(TRILHAS))}; recebido '{trilha}'",
+        }
+    if trilha == TRILHA_LEVE and MODELO_FORA_DA_TRILHA_LEVE in ler_texto(argumentos, CAMPO_MODELO).lower():
+        return {
+            "sucesso": False,
+            "erro": "A trilha leve roda em sonnet: tarefa que pede opus vai na trilha completa",
+        }
+    return None
+
+
 def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]:
     """As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma."""
     propriedades: dict[str, Any] = {}
@@ -43,6 +72,9 @@ def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any
     if modelo:
         propriedades[CAMPO_MODELO] = modelo
         propriedades[CAMPO_MOTIVO_DO_MODELO] = ler_texto(argumentos, CAMPO_MOTIVO_DO_MODELO)
+    trilha = ler_texto(argumentos, CAMPO_TRILHA).lower()
+    if trilha:
+        propriedades[CAMPO_TRILHA] = trilha
     arquivos = ler_textos(argumentos.get(CAMPO_ARQUIVOS_ALVO))
     if arquivos:
         propriedades[CAMPO_ARQUIVOS_ALVO] = list(arquivos)

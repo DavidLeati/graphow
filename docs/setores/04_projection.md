@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-14 módulos · 2005 linhas · 22 classes
+14 módulos · 2012 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/ambito.py`](#projectionambito) | 67 | O âmbito de cada nó: os projetos de trabalho ou as sessões que o hook abre. |
 | [`projection/caminho_critico.py`](#projectioncaminhocritico) | 178 | Caminho crítico: quem trava quem, e quanto cada gargalo destrava. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
-| [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 245 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
+| [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 252 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
@@ -146,7 +146,7 @@ Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora
 
 *DTO imutável* — Tarefa liberada para trabalho, com o que o agente precisa para decidir.
 
-**Campos:** `id: str`, `rotulo: str`, `status: str`, `criterio_pronto: str`, `depende_de: tuple[str, ...]`, `modelo: str`, `arquivos_alvo: tuple[str, ...]`, `corrige: str`, `profundidade_correcao: int`
+**Campos:** `id: str`, `rotulo: str`, `status: str`, `criterio_pronto: str`, `depende_de: tuple[str, ...]`, `modelo: str`, `trilha: str`, `arquivos_alvo: tuple[str, ...]`, `corrige: str`, `profundidade_correcao: int`
 
 - `em_dicionario() -> dict[str, object]` — Forma serializável para a resposta da ferramenta MCP.
 
