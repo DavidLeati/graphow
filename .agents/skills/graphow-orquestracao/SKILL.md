@@ -1,6 +1,6 @@
 ---
 name: graphow-orquestracao
-description: Orquestração de agentes sobre o grafo do Graphow, sem /clear entre tarefas. A sessão principal é a raiz. Ela recebe do humano um Goal, Setor ou Projeto e despacha rodadas em sequência para o subagente graphow-condutor (Opus, contexto novo a cada rodada). O condutor decompõe, testa o executor frio e despacha exploradores, executores e revisores. A raiz só para nos portões humanos, como a cadência combinada, o trabalho travado em Question e o teto de rodadas. Use quando pedirem para orquestrar um Goal, Setor ou Projeto, dividir trabalho grande entre subagentes, retomar uma orquestração ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-condutor, graphow-explorador, graphow-executor, graphow-executor-opus e graphow-revisor, em ~/.claude/agents.
+description: Orquestração de agentes sobre o grafo do Graphow, sem /clear entre tarefas. A sessão principal é a raiz. Ela recebe do humano um Goal, Setor ou Projeto e despacha rodadas em sequência para o subagente graphow-condutor (Opus, contexto novo a cada rodada). O condutor decompõe, testa o executor frio e despacha exploradores, executores e revisores. A raiz só para nos portões humanos, como a cadência combinada, o trabalho travado em Question e o teto de rodadas. Use quando pedirem para orquestrar um Goal, Setor ou Projeto, dividir trabalho grande entre subagentes, retomar uma orquestração ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-condutor, graphow-explorador, graphow-executor, graphow-executor-opus, graphow-revisor e graphow-revisor-sonnet, em ~/.claude/agents.
 ---
 
 # Orquestração sobre o Graphow
@@ -21,8 +21,11 @@ Você não lê código de tarefa, não despacha executor nem revisor e não deci
 | `graphow-executor` | Sonnet | `Artifact`, `Evidence`, `Decision`, `Aprendizado` | executa uma Task a partir da vista dela |
 | `graphow-executor-opus` | Opus | idem | a Task marcada `modelo: opus` |
 | `graphow-revisor` | Opus, sempre sessão nova | `Evidence` com `veredito`, `Question`, `Aprendizado` | revisa contra os critérios de aceite; não corrige |
+| `graphow-revisor-sonnet` | Sonnet, sempre sessão nova | `Evidence` com `veredito` ou `triagem`, `Question`, `Aprendizado` | revisa a Task da trilha leve; se o diff muda comportamento, devolve `fora_da_trilha` e a entrega vai ao `graphow-revisor` |
 
-O procedimento da rodada (decompor, explorar sem interpretar, escolher o modelo, paralelismo, revisar, fechar e corrigir) está na definição do subagente `graphow-condutor`, em `.agents/agents/graphow-condutor.md` no repositório do graphow.
+O procedimento da rodada (decompor, explorar sem interpretar, escolher o modelo e a trilha, paralelismo, revisar, fechar e corrigir) está na definição do subagente `graphow-condutor`, em `.agents/agents/graphow-condutor.md` no repositório do graphow.
+
+A tarefa trivial, só texto, comentário ou documentação, vai na trilha leve (`trilha: leve` na Task): pula o teste do executor frio, roda em Sonnet mesmo sob `tudo-opus` e vai ao revisor Sonnet. Num goal real, trocar um comentário pagou o ciclo inteiro em Opus.
 
 Goal e Constraint só o humano cria: ele diz o que quer, e os agentes decidem como. Quando uma restrição fizer falta, o condutor a propõe numa Question.
 

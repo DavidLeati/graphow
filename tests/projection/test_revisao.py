@@ -1,6 +1,7 @@
 """O veredito vigente de uma tarefa: o último julgamento sobre ela ou sobre o que ela entregou."""
 
 from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento
+from graphow.core.orquestracao import CAMPO_TRIAGEM, TRIAGEM_FORA_DA_TRILHA
 from graphow.core.types import PapelAutor, TipoAresta
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.reducer import GrafoReducer
@@ -53,6 +54,16 @@ def test_veredito_trocado_no_mesmo_no_vigora_edge_case() -> None:
     view = _view(*_veredito(10, "evi-1", "aprovado", "t1"), *_veredito(20, "evi-2", "aprovado", "art-1"), troca)
 
     assert veredito_vigente(view, "t1") == "rejeitado"
+
+
+def test_triagem_fora_da_trilha_nao_e_veredito_edge_case() -> None:
+    """Caso de borda: o revisor Sonnet que devolve a Task ao Opus não julga, e o veredito não muda."""
+    triagem = _no(30, "evi-triagem", "Evidence", **{CAMPO_TRIAGEM: TRIAGEM_FORA_DA_TRILHA})
+    rejeitada = _view(*_veredito(10, "evi-rej", "rejeitado", "t1"), triagem, _deriva(31, "evi-triagem", "art-1"))
+    so_triagem = _view(triagem, _deriva(31, "evi-triagem", "art-1"))
+
+    assert veredito_vigente(rejeitada, "t1") == "rejeitado"
+    assert veredito_vigente(so_triagem, "t1") == ""
 
 
 def test_sem_revisao_nao_ha_veredito_edge_case() -> None:

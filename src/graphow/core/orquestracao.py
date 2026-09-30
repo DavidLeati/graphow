@@ -35,6 +35,13 @@ CAMPO_VEREDITO: str = "veredito"
 VEREDITO_APROVADO: str = "aprovado"
 VEREDITO_REJEITADO: str = "rejeitado"
 
+# Na Evidence do revisor Sonnet, quando o diff de uma Task da trilha leve muda
+# comportamento: ele não julga, e a Task vai ao revisor Opus. Fica fora de
+# `veredito` de propósito, para não virar o veredito vigente da tarefa nem
+# entrar na contagem de aprovações e rejeições da medição.
+CAMPO_TRIAGEM: str = "triagem"
+TRIAGEM_FORA_DA_TRILHA: str = "fora_da_trilha"
+
 # Na Decision do condutor que aceita a entrega depois da segunda reprovação,
 # quando nenhum critério não atendido é bloqueante: é por ela que a medição
 # conta os aceites pelo teto de correções.

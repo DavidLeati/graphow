@@ -4,7 +4,7 @@ O prompt de despacho é ponteiro, não especificação. Tudo o que o subagente p
 
 ## Quem despacha quem
 
-A raiz despacha só o condutor. O condutor despacha o explorador, os executores e o revisor. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
+A raiz despacha só o condutor. O condutor despacha o explorador, os executores e os revisores: o `graphow-revisor` para a Task da trilha completa e o `graphow-revisor-sonnet` para a da trilha leve. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
 
 ## O que vai em cada prompt
 
@@ -14,6 +14,7 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 | `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
+| `graphow-revisor-sonnet` | o condutor, para a Task `trilha: leve` | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...`, inclusive `fora_da_trilha` |
 | `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, com a posse livre |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
@@ -79,7 +80,7 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 
 | Resultado | O que o condutor faz |
 | :--- | :--- |
-| `pronto_para_revisao` | despacha o revisor com o Artifact |
+| `pronto_para_revisao` | despacha o revisor com o Artifact: o `graphow-revisor-sonnet` se a Task é `leve`, o `graphow-revisor` nas demais |
 | `posse_perdida` | o servidor do executor reiniciou e a posse ficou com o autor antigo; Artifact e Evidence estão gravados. Despacha o revisor com o Artifact, como em `pronto_para_revisao`; aprovada, o fechamento retoma a posse órfã; rejeitada, Question para o humano devolver a posse antes da correção |
 | `bloqueada` | há Question aberta, ou a posse é de outro; segue com o resto do lote |
 | `fora_do_alvo` | acerta `arquivos_alvo` na Task (por `propor_patch`); ela volta numa rodada seguinte |
@@ -88,15 +89,18 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 
 ## O retorno do revisor
 
-    VEREDITO: aprovado | rejeitado | duvida
+    VEREDITO: aprovado | rejeitado | duvida | fora_da_trilha
     Artifact: <id>
     Task: <id>
-    Evidence: <id do veredito>
+    Evidence: <id do veredito, ou da triagem>
+    Fora da trilha: <arquivo:linhas e o que o trecho muda>
     Criterios nao atendidos: <um por linha: gravidade, o critério e o id da Evidence que prova>
     Questao: <id>
     Resumo: <no máximo três linhas>
 
 A Evidence do veredito deriva do Artifact e da Task, e cada critério não atendido tem uma Evidence localizada com o trecho que o prova e a `gravidade`: `bloqueante` (segurança, permissão, dado em produção ou o critério central da tarefa) ou `acompanhamento` (borda, caso raro, teste que falta, texto). A Task de correção, criada com `id_tarefa_pai` na tarefa rejeitada, alcança essas Evidence em dois saltos: o executor da correção as lê na vista, sem que o condutor as repita no prompt.
+
+`fora_da_trilha` só vem do `graphow-revisor-sonnet`: o diff da Task leve muda comportamento. Ele não aprova nem rejeita. Registra uma Evidence com `triagem: fora_da_trilha` e o trecho que muda comportamento, sem a propriedade `veredito`, para ela não virar o veredito vigente da tarefa nem entrar na contagem da medição. O condutor marca `trilha: completa` na Task (por `propor_patch`) e despacha o `graphow-revisor` com o mesmo Artifact; o veredito que vale é o dele.
 
 ## Mais de um despacho por vez
 

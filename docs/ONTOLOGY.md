@@ -64,6 +64,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
 | `Goal` | `configuracao` | O rótulo do arranjo de modelos com que o Goal foi orquestrado, para comparar configurações. |
 | `Evidence` | `veredito` | O que o revisor concluiu contra os critérios da tarefa: `aprovado` ou `rejeitado`. |
+| `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, no diff de uma Task da trilha leve, mudança de comportamento. Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
 
 ---
 

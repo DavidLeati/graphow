@@ -4,7 +4,7 @@ O Graphow fixa o papel na abertura da conexão MCP, e nenhum argumento de ferram
 
 ## 1. Onde a skill e os subagentes moram
 
-A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus` e `graphow-revisor`. O ambiente só os encontra em `~/.claude`. Copie os dois de um checkout do graphow e repita a cópia a cada atualização:
+A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor` e `graphow-revisor-sonnet`. O ambiente só os encontra em `~/.claude`. Copie os dois de um checkout do graphow e repita a cópia a cada atualização:
 
 ```powershell
 Copy-Item -Recurse -Force .agents/skills/graphow-orquestracao ~/.claude/skills/
@@ -29,7 +29,7 @@ mcpServers:
       args: ["mcp", "--papel", "planejador", "--autor", "condutor", "--autor-por-conexao"]
 ```
 
-Os de executor e revisor seguem o mesmo formato, com `--papel executor` e `--papel revisor`. `--autor-por-conexao` dá a cada invocação uma posse e uma autoria próprias (`executor-sonnet#3f9a1c`, `condutor#a81c02`): sem isso, dois executores em paralelo dividiriam a posse de qualquer tarefa, e o log não diria qual condutor tomou qual decisão.
+Os de executor e revisor seguem o mesmo formato, com `--papel executor` e `--papel revisor`. Os dois revisores usam o mesmo servidor, `graphow-revisor`, e diferem no autor: `revisor-opus` e `revisor-sonnet`. `--autor-por-conexao` dá a cada invocação uma posse e uma autoria próprias (`executor-sonnet#3f9a1c`, `condutor#a81c02`): sem isso, dois executores em paralelo dividiriam a posse de qualquer tarefa, e o log não diria qual condutor tomou qual decisão.
 
 Subagente aninhado sobe o próprio servidor. Isso foi testado em 2026-09-23: um `graphow-executor` despachado de dentro de outro subagente listou as ferramentas `mcp__graphow-executor` e leu a vista do projeto.
 
