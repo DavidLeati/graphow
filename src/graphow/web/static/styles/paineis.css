@@ -459,10 +459,12 @@
 
 /* Histórico ----------------------------------------------------------------- */
 /* Viagem e filtros presos no topo enquanto a lista rola. As margens negativas
-   cobrem o recuo do painel, e o fundo opaco esconde a lista que passa por baixo. */
+   cobrem o recuo do painel, e o fundo opaco esconde a lista que passa por baixo.
+   O sticky conta a partir do recuo de cima do painel, não da borda: com top 0
+   sobrava uma fresta de 10px por onde a lista aparecia acima da viagem. */
 .historico-controles {
   position: sticky;
-  top: 0;
+  top: -10px;
   z-index: 2;
   margin: -10px -12px 8px;
   padding: 10px 12px 6px;
@@ -472,7 +474,7 @@
 /* Numa metade baixa demais o bloco fixo comeria a lista: ali tudo rola junto. */
 @container historico (max-height: 220px) {
   .historico-controles { position: static; }
-  .eventos-dia-titulo { top: 0; }
+  .eventos-dia-titulo { top: -10px; }
 }
 .viagem {
   padding: 4px 8px 8px;
@@ -548,7 +550,7 @@
    seguinte o empurra para fora. A altura dos controles vem do JS. */
 .eventos-dia-titulo {
   position: sticky;
-  top: var(--altura-controles, 0px);
+  top: calc(var(--altura-controles, 10px) - 10px);
   z-index: 1;
   margin: 0 -12px;
   padding: 5px 16px 4px;
