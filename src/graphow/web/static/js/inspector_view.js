@@ -126,14 +126,30 @@ export class InspectorView {
         ${this.montarSecaoPropriedades(no, somenteLeitura)}
         ${this.montarSecaoConexoes(no)}
         ${this.montarSecaoHistorico(no)}
-        <div class="inspetor-rodape" data-rodape hidden>
-          <span class="inspetor-rodape-texto" data-rodape-texto>Alterações não salvas</span>
-          <button class="botao" data-acao="descartar">Descartar</button>
-          <button class="botao mod-cta" data-acao="salvar">Salvar</button>
-        </div>
+        ${this.montarRodape(no, somenteLeitura)}
       </div>`;
     this.raiz.querySelectorAll("textarea").forEach((campo) => ajustarCampo(campo));
     if (no.tipo === "Aprendizado") this.completarAprendizado(no);
+  }
+
+  /**
+   * O rodapé fica preso ao pé do painel. Com alterações pendentes ele mostra
+   * Descartar e Salvar; na dúvida aberta mostra também o Responder, sempre à
+   * vista: abaixo de uma pergunta longa o botão ficava fora da tela, e
+   * responder exigia rolar até achá-lo. Aí o Salvar deixa de ser o destaque,
+   * porque o gesto que se espera ali é responder.
+   */
+  montarRodape(no, somenteLeitura) {
+    const responder = no.tipo === "Question" && (no.propriedades?.status || "aberta") === "aberta" && !somenteLeitura;
+    return `
+      <div class="inspetor-rodape" data-rodape ${responder ? "" : "hidden"}>
+        <div class="inspetor-rodape-alteracoes" data-rodape-alteracoes hidden>
+          <span class="inspetor-rodape-texto" data-rodape-texto>Alterações não salvas</span>
+          <button class="botao" data-acao="descartar">Descartar</button>
+          <button class="botao ${responder ? "" : "mod-cta"}" data-acao="salvar">Salvar</button>
+        </div>
+        ${responder ? '<button class="botao mod-cta mod-largo" data-acao="responder">Responder e destravar</button>' : ""}
+      </div>`;
   }
 
   montarCaminho(no) {
@@ -298,7 +314,6 @@ export class InspectorView {
    * morava no rótulo, e um card com vinte linhas de texto tapava o canvas.
    */
   montarBlocoDaQuestao(no, desabilitado) {
-    const aberta = (no.propriedades?.status || "aberta") === "aberta";
     const bloqueadas = [...this.state.edges.values()].filter((a) => a.tipo === "bloqueia" && a.origem_id === no.id);
     const alvo = bloqueadas.length ? `<div class="bloco-nota">Bloqueia: ${bloqueadas.map((a) => this.montarLinkDeNo(a.destino_id)).join(" ")}</div>` : "";
     return `
@@ -315,8 +330,7 @@ export class InspectorView {
         linhas: 5,
       })}
       ${this.montarConviteDeSeparacao(no, desabilitado)}
-      ${alvo}
-      ${aberta && !desabilitado ? '<button class="botao mod-cta mod-largo" data-acao="responder">Responder e destravar</button>' : ""}`;
+      ${alvo}`;
   }
 
   /**
@@ -565,8 +579,15 @@ export class InspectorView {
     if (!this.noRenderizado) return;
     if (evento.target.tagName === "TEXTAREA") ajustarCampo(evento.target);
     this.sujo = this.temAlteracoes();
+    this.atualizarRodape();
+  }
+
+  /** O rodapé some só quando não há o que salvar nem dúvida a responder. */
+  atualizarRodape() {
     const rodape = this.raiz.querySelector("[data-rodape]");
-    if (rodape) rodape.hidden = !this.sujo;
+    if (!rodape) return;
+    rodape.querySelector("[data-rodape-alteracoes]").hidden = !this.sujo;
+    rodape.hidden = !this.sujo && !rodape.querySelector("[data-acao=responder]");
   }
 
   temAlteracoes() {
