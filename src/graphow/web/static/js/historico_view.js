@@ -350,9 +350,9 @@ export class HistoricoView {
         <span class="evento-icone mod-${escapeHtml(evento.tipo)}">${icone(ICONE_DO_EVENTO[evento.tipo] || "git-commit", { tamanho: 13 })}</span>
         <div class="evento-corpo">
           <div class="evento-texto">${this.descrever(evento)}</div>
-          <div class="evento-meta">#${evento.seq} · ${hora} · ${escapeHtml(evento.autor)} <span class="texto-fraco">(${escapeHtml(evento.papel)})</span></div>
+          <div class="evento-meta"><time datetime="${escapeHtml(evento.timestamp)}">${hora}</time> · #${escapeHtml(evento.seq)} · ${escapeHtml(evento.autor)} (${escapeHtml(evento.papel)})</div>
         </div>
-        <button class="clicavel-icone evento-replay" data-replay="${evento.seq}" title="Ver o grafo como estava neste evento">${icone("history", { tamanho: 14 })}</button>
+        <button class="clicavel-icone evento-replay" data-replay="${escapeHtml(evento.seq)}" title="Ver o grafo como estava neste evento" aria-label="Ver o grafo no evento #${escapeHtml(evento.seq)}">${icone("history", { tamanho: 14 })}</button>
       </div>`;
   }
 
