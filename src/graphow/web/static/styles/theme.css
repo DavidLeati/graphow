@@ -166,6 +166,9 @@
   --fonte-corpo: max(11.5px, calc(14px * var(--escala-lateral)));
   --fonte-destaque: calc(16px * var(--escala-lateral));
   --entrelinha-corpo: 1.55;
+  /* O fraco da moldura dá 3,8:1 sobre o fundo, abaixo dos 4,5:1 que texto
+     pequeno pede; este dá 5,3:1 e ainda fica a meio caminho do suave. */
+  --texto-fraco: #848b97;
   font-size: var(--fonte-ui);
 }
 

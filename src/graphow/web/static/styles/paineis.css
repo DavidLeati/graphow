@@ -146,13 +146,13 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--texto-fraco);
+  color: var(--texto-suave);
   cursor: pointer;
   list-style: none;
   user-select: none;
 }
 .secao-titulo::-webkit-details-marker { display: none; }
-.secao-titulo:hover { color: var(--texto-suave); }
+.secao-titulo:hover { color: var(--texto-normal); }
 .secao-seta { transition: transform 0.12s ease; }
 .secao[open] .secao-seta { transform: rotate(90deg); }
 .secao-corpo { padding: 0 0 10px; }
@@ -319,7 +319,7 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--texto-fraco);
+  color: var(--texto-suave);
 }
 .panorama-dica {
   display: flex;
