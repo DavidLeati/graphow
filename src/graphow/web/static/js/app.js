@@ -26,7 +26,7 @@ import { hidratarIcones, icone } from "./icones.js";
 import { ImpactoView } from "./impacto_view.js";
 import { IndiceNavegacao } from "./indice_navegacao.js";
 import { ehDuvidaAberta, InspectorView } from "./inspector_view.js";
-import { DivisorVertical, GrupoDeAbas, Lateral } from "./laterais.js";
+import { DivisorVertical, GrupoDeAbas, Lateral, TamanhoDoTexto } from "./laterais.js";
 import { LeituraDaQuestaoView } from "./leitura_questao_view.js";
 import { LineageView } from "./lineage_view.js";
 import { MarcadoresView } from "./marcadores_view.js";
@@ -118,6 +118,10 @@ class GraphowApp {
     this.abasDireitaInferior = new GrupoDeAbas(document.getElementById("grupo-direito-inferior"), { chave: "direita_inferior", padrao: "historico" });
     this.divisorDireito = new DivisorVertical(document.getElementById("divisor-direito"), document.getElementById("grupo-direito-superior"), document.getElementById("grupo-direito-inferior"), {
       chave: "direita", botaoRecolher: document.getElementById("recolher-historico"),
+    });
+    // O texto maior muda a altura que os campos do inspetor pedem.
+    this.tamanhoDoTexto = new TamanhoDoTexto(document.getElementById("right-sidebar"), document.getElementById("tamanho-texto-direita"), {
+      chave: "direita", aoMudar: () => this.inspector.reajustarCampos(),
     });
   }
 
@@ -562,7 +566,12 @@ class GraphowApp {
 
   aoMostrarPainelDireito(nome) {
     if (this.paineisDaSelecao[nome]) this.paineisDaSelecao[nome].atualizar();
-    if (nome === "propriedades") this.inspector.render();
+    if (nome === "propriedades") {
+      this.inspector.render();
+      // Com alterações pendentes o render não redesenha, e a altura dos campos
+      // pode ter sido medida com o painel oculto ou noutro tamanho de texto.
+      this.inspector.reajustarCampos();
+    }
   }
 
   mostrarPainelDireito(nome) {

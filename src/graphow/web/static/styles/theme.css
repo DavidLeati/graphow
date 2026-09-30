@@ -155,8 +155,8 @@
    LATERAL DIREITA. É onde se lê o nó e o log, então o texto é maior que no
    resto da moldura e nada fica abaixo de 11,5 px. Os tokens globais
    redefinidos aqui levam junto botões, campos e chips dos painéis; todos
-   multiplicam `--escala-lateral`, e o piso segura o menor texto mesmo numa
-   escala abaixo de 1.
+   multiplicam `--escala-lateral`, que o A−/A+ do cabeçalho grava, e o piso
+   segura o menor texto mesmo numa escala abaixo de 1.
    ------------------------------------------------------------------------ */
 .lateral-direita {
   --fonte-ui: max(11.5px, calc(13.5px * var(--escala-lateral)));

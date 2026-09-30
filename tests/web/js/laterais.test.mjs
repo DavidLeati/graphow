@@ -1,10 +1,14 @@
-// Testes do recolhimento da metade de baixo da lateral direita (o histórico),
+// Testes do recolhimento da metade de baixo da lateral direita (o histórico)
+// e do tamanho do texto das laterais,
 // rodados por `node --test`. tests/web/test_javascript.py os chama pela suíte do pytest.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ALTURA_PARA_RECOLHER, recolhidaDeInicio, RecolhimentoDaMetade } from "../../../src/graphow/web/static/js/laterais.js";
+import {
+  ALTURA_PARA_RECOLHER, formatarTamanhoDoTexto, proximoTamanhoDoTexto, recolhidaDeInicio, RecolhimentoDaMetade,
+  TAMANHO_PADRAO_DO_TEXTO, TAMANHOS_DO_TEXTO, tamanhoDoTextoValido,
+} from "../../../src/graphow/web/static/js/laterais.js";
 
 test("sem escolha gravada, a janela baixa começa com o histórico recolhido", () => {
   assert.equal(recolhidaDeInicio(null, 720), true);
@@ -82,4 +86,44 @@ test("recolher por gesto durante o temporário fica como escolha depois que a se
   estado.acompanhar("t1", false);
   assert.equal(estado.recolhida, true);
   assert.equal(estado.escolhida, true);
+});
+
+test("a escala do texto começa no padrão, que é um dos tamanhos oferecidos", () => {
+  assert.equal(TAMANHO_PADRAO_DO_TEXTO, 1);
+  assert.ok(TAMANHOS_DO_TEXTO.includes(TAMANHO_PADRAO_DO_TEXTO));
+  assert.deepEqual([...TAMANHOS_DO_TEXTO].sort((a, b) => a - b), TAMANHOS_DO_TEXTO);
+});
+
+test("aumentar e diminuir andam um tamanho por vez", () => {
+  assert.equal(proximoTamanhoDoTexto(1, 1), 1.15);
+  assert.equal(proximoTamanhoDoTexto(1.15, 1), 1.3);
+  assert.equal(proximoTamanhoDoTexto(1, -1), 0.9);
+  assert.equal(proximoTamanhoDoTexto(1.3, -1), 1.15);
+});
+
+test("nas pontas da escala o tamanho para em vez de dar a volta", () => {
+  const menor = TAMANHOS_DO_TEXTO[0];
+  const maior = TAMANHOS_DO_TEXTO[TAMANHOS_DO_TEXTO.length - 1];
+  assert.equal(proximoTamanhoDoTexto(maior, 1), maior);
+  assert.equal(proximoTamanhoDoTexto(menor, -1), menor);
+});
+
+test("só o sinal do sentido conta, e sentido zero não muda nada", () => {
+  assert.equal(proximoTamanhoDoTexto(1, 5), 1.15);
+  assert.equal(proximoTamanhoDoTexto(1, -3), 0.9);
+  assert.equal(proximoTamanhoDoTexto(1.15, 0), 1.15);
+});
+
+test("tamanho gravado fora da escala vale o padrão, e o passo parte dele", () => {
+  assert.equal(tamanhoDoTextoValido(1.15), 1.15);
+  assert.equal(tamanhoDoTextoValido(2), TAMANHO_PADRAO_DO_TEXTO);
+  assert.equal(tamanhoDoTextoValido("1.15"), TAMANHO_PADRAO_DO_TEXTO);
+  assert.equal(tamanhoDoTextoValido(null), TAMANHO_PADRAO_DO_TEXTO);
+  assert.equal(proximoTamanhoDoTexto(7, 1), 1.15);
+});
+
+test("o tamanho aparece como porcentagem inteira", () => {
+  assert.equal(formatarTamanhoDoTexto(1), "100%");
+  assert.equal(formatarTamanhoDoTexto(1.15), "115%");
+  assert.equal(formatarTamanhoDoTexto(0.9), "90%");
 });

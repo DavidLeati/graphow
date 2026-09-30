@@ -3,8 +3,8 @@
  *
  * Cada lateral tem um cabeçalho de ícones, um por
  * vista, e a lateral direita se divide em duas metades empilhadas, a de baixo
- * recolhível. Largura, vista ativa, altura da divisão e recolhimento ficam
- * gravados: a pessoa arruma a mesa uma vez.
+ * recolhível. Largura, vista ativa, altura da divisão, recolhimento e tamanho
+ * do texto ficam gravados: a pessoa arruma a mesa uma vez.
  */
 import { gravarPreferencia, lerPreferencia } from "./dom.js";
 
@@ -111,6 +111,65 @@ export class GrupoDeAbas {
 
   mostra(nome) {
     return this.ativa === nome;
+  }
+}
+
+/** Os tamanhos do texto de uma lateral, como fração do tamanho padrão. */
+export const TAMANHOS_DO_TEXTO = [0.9, 1, 1.15, 1.3];
+export const TAMANHO_PADRAO_DO_TEXTO = 1;
+
+/** O tamanho gravado, se é um dos oferecidos; preferência corrompida vale o padrão. */
+export function tamanhoDoTextoValido(valor) {
+  return TAMANHOS_DO_TEXTO.includes(valor) ? valor : TAMANHO_PADRAO_DO_TEXTO;
+}
+
+/** O tamanho vizinho no sentido pedido (negativo diminui), parado nas pontas da escala. */
+export function proximoTamanhoDoTexto(atual, sentido) {
+  const indice = TAMANHOS_DO_TEXTO.indexOf(tamanhoDoTextoValido(atual));
+  const alvo = Math.min(TAMANHOS_DO_TEXTO.length - 1, Math.max(0, indice + Math.sign(sentido)));
+  return TAMANHOS_DO_TEXTO[alvo];
+}
+
+export function formatarTamanhoDoTexto(tamanho) {
+  return `${Math.round(tamanho * 100)}%`;
+}
+
+/**
+ * O tamanho do texto de uma lateral, pelos botões A− e A+ (`data-tamanho-texto`
+ * com o sentido). Ele entra como `--escala-lateral`, que os tokens de fonte da
+ * lateral multiplicam. Na ponta da escala o botão fica `aria-disabled`, não
+ * `disabled`: desabilitado, ele perderia o foco de quem aperta pelo teclado.
+ */
+export class TamanhoDoTexto {
+  constructor(alvo, controles, { chave, aoMudar = null }) {
+    this.alvo = alvo;
+    this.chave = chave;
+    this.aoMudar = aoMudar;
+    this.botoes = [...controles.querySelectorAll("[data-tamanho-texto]")];
+    this.tamanho = tamanhoDoTextoValido(lerPreferencia(`tamanho_texto_${chave}`, TAMANHO_PADRAO_DO_TEXTO));
+    this.botoes.forEach((botao) => botao.addEventListener("click", () => this.mudar(Number(botao.dataset.tamanhoTexto))));
+    this.aplicar();
+  }
+
+  mudar(sentido) {
+    const novo = proximoTamanhoDoTexto(this.tamanho, sentido);
+    if (novo === this.tamanho) return;
+    this.tamanho = novo;
+    this.aplicar();
+    gravarPreferencia(`tamanho_texto_${this.chave}`, novo);
+    this.aoMudar?.(novo);
+  }
+
+  aplicar() {
+    this.alvo.style.setProperty("--escala-lateral", String(this.tamanho));
+    const atual = formatarTamanhoDoTexto(this.tamanho);
+    this.botoes.forEach((botao) => {
+      const sentido = Number(botao.dataset.tamanhoTexto);
+      const rotulo = `${sentido < 0 ? "Diminuir" : "Aumentar"} o texto da lateral (agora ${atual})`;
+      botao.title = rotulo;
+      botao.setAttribute("aria-label", rotulo);
+      botao.setAttribute("aria-disabled", String(proximoTamanhoDoTexto(this.tamanho, sentido) === this.tamanho));
+    });
   }
 }
 

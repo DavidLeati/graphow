@@ -107,6 +107,15 @@ export class InspectorView {
     this.renderNo(no);
   }
 
+  /**
+   * A altura dos campos segue o texto, e muda quando a letra ou a largura da
+   * lateral mudam. Com o painel oculto não há o que medir: a altura sairia zero.
+   */
+  reajustarCampos() {
+    if (this.raiz.clientWidth === 0) return;
+    this.raiz.querySelectorAll("textarea:not([hidden])").forEach((campo) => ajustarCampo(campo));
+  }
+
   // ---------------------------------------------------------------- nó
 
   renderNo(no) {
