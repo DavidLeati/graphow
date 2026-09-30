@@ -141,7 +141,7 @@ class DespachanteJsonRpc:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "graphow",
-                    "version": "0.2.1",
+                    "version": "0.3.0",
                     "papelDaSessao": papel.value,
                 },
                 "instructions": "\n".join(montar_protocolo(papel=papel)),
