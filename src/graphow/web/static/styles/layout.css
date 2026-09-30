@@ -143,7 +143,7 @@ body.lateral-direita-recolhida #alca-direita {
 .grupo-cabecalho-titulo {
   margin-left: auto;
   padding: 0 4px 0 8px;
-  font-size: 10.5px;
+  font-size: var(--fonte-rotulo);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;

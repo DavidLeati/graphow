@@ -131,6 +131,14 @@
   --fonte-ui: 13px;
   --fonte-pequena: 12px;
   --fonte-menor: 11px;
+  /* Rótulos em maiúsculas, IDs e metadados: o menor texto da moldura. */
+  --fonte-rotulo: 10.5px;
+  /* O texto que se lê nos painéis e os números em destaque. A lateral direita
+     redefine estes e os de cima, e a escala dela vale para todos. */
+  --fonte-corpo: 12px;
+  --fonte-destaque: 15px;
+  --entrelinha-corpo: 1.45;
+  --escala-lateral: 1;
   --raio-sm: 4px;
   --raio-md: 6px;
   --raio-lg: 8px;
@@ -141,6 +149,24 @@
   --altura-barra-status: 24px;
   --sombra-flutuante: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --transicao-rapida: 0.12s ease;
+}
+
+/* ------------------------------------------------------------------------
+   LATERAL DIREITA. É onde se lê o nó e o log, então o texto é maior que no
+   resto da moldura e nada fica abaixo de 11,5 px. Os tokens globais
+   redefinidos aqui levam junto botões, campos e chips dos painéis; todos
+   multiplicam `--escala-lateral`, e o piso segura o menor texto mesmo numa
+   escala abaixo de 1.
+   ------------------------------------------------------------------------ */
+.lateral-direita {
+  --fonte-ui: max(11.5px, calc(13.5px * var(--escala-lateral)));
+  --fonte-pequena: max(11.5px, calc(12.5px * var(--escala-lateral)));
+  --fonte-menor: max(11.5px, calc(12px * var(--escala-lateral)));
+  --fonte-rotulo: max(11.5px, calc(11.5px * var(--escala-lateral)));
+  --fonte-corpo: max(11.5px, calc(14px * var(--escala-lateral)));
+  --fonte-destaque: calc(16px * var(--escala-lateral));
+  --entrelinha-corpo: 1.55;
+  font-size: var(--fonte-ui);
 }
 
 * {

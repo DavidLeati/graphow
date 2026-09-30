@@ -368,10 +368,10 @@ input:disabled + .alternador-trilho { opacity: 0.5; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 17px;
+  min-width: 1.7em;
+  height: 1.6em;
   padding: 0 5px;
-  font-size: 10.5px;
+  font-size: var(--fonte-rotulo);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--texto-fraco);
