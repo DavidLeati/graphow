@@ -67,3 +67,33 @@ export function tituloDoPeriodo(primeiro, ultimo) {
   const anos = primeiro.getFullYear() === ultimo.getFullYear() ? String(primeiro.getFullYear()) : `${primeiro.getFullYear()}–${ultimo.getFullYear()}`;
   return { mes: `${nomeDoMes(primeiro, "short")} – ${nomeDoMes(ultimo, "short")}`, ano: anos };
 }
+
+/**
+ * Nome curto de um dia para o cabeçalho da lista: "Hoje", "Ontem" ou
+ * "qua., 24 set.", com o ano só quando não é o de hoje. O `Intl` junta dia e
+ * mês com "de"; montado por partes, o rótulo cabe numa lateral estreita.
+ */
+export function rotuloDoDia(chave, hoje) {
+  if (chave === chaveDoDia(hoje)) return "Hoje";
+  if (chave === chaveDoDia(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1))) return "Ontem";
+  const data = dataDaChave(chave);
+  const semana = data.toLocaleDateString("pt-BR", { weekday: "short" });
+  const ano = data.getFullYear() === hoje.getFullYear() ? "" : ` ${data.getFullYear()}`;
+  return `${semana}, ${data.getDate()} ${nomeDoMes(data, "short")}${ano}`;
+}
+
+/**
+ * Parte uma lista já ordenada em blocos de eventos seguidos do mesmo dia, numa
+ * passada só. O log vem em ordem, então um dia não se repete; se o relógio de
+ * quem gravou voltar atrás, o dia aparece de novo em outro bloco, sem sumir.
+ */
+export function agruparPorDia(eventos, diaDe) {
+  const grupos = [];
+  for (const evento of eventos) {
+    const dia = diaDe(evento);
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.dia === dia) ultimo.eventos.push(evento);
+    else grupos.push({ dia, eventos: [evento] });
+  }
+  return grupos;
+}

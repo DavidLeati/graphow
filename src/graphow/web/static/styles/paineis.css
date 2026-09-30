@@ -472,6 +472,7 @@
 /* Numa metade baixa demais o bloco fixo comeria a lista: ali tudo rola junto. */
 @container historico (max-height: 220px) {
   .historico-controles { position: static; }
+  .eventos-dia-titulo { top: 0; }
 }
 .viagem {
   padding: 4px 8px 8px;
@@ -541,6 +542,22 @@
 .eventos-cabecalho strong { color: var(--texto-normal); }
 .eventos-lista { display: flex; flex-direction: column; gap: 1px; }
 .eventos-lista > .botao { margin-top: 6px; }
+.eventos-dia { display: flex; flex-direction: column; gap: 1px; }
+.eventos-dia + .eventos-dia { margin-top: 6px; }
+/* Preso logo abaixo dos controles enquanto se rola pelo dia; a seção do dia
+   seguinte o empurra para fora. A altura dos controles vem do JS. */
+.eventos-dia-titulo {
+  position: sticky;
+  top: var(--altura-controles, 0px);
+  z-index: 1;
+  margin: 0 -12px;
+  padding: 5px 16px 4px;
+  font-size: var(--fonte-pequena);
+  font-weight: 650;
+  color: var(--texto-normal);
+  background: var(--moldura-fundo);
+  border-bottom: 1px solid var(--moldura-divisor);
+}
 .evento {
   display: flex;
   align-items: flex-start;

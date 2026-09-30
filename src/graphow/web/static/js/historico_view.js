@@ -10,7 +10,8 @@
  */
 import { api } from "./api.js";
 import {
-  chaveDoDia, dataDaChave, diasDaGradeDoMes, diasDaSemana, mesmoMes, passarMes, passarSemana, tituloDoPeriodo,
+  agruparPorDia, chaveDoDia, dataDaChave, diasDaGradeDoMes, diasDaSemana, mesmoMes, passarMes, passarSemana, rotuloDoDia,
+  tituloDoPeriodo,
 } from "./calendario.js";
 import { debounce, escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
@@ -85,7 +86,19 @@ export class HistoricoView {
       <div class="eventos-cabecalho" data-cabecalho-eventos></div>
       <div class="eventos-lista" data-lista></div>`;
     this.atualizarBotaoDeArranjo();
+    this.acompanharAlturaDosControles();
     this.ligarEventos();
+  }
+
+  /**
+   * Os cabeçalhos de dia grudam logo abaixo do bloco fixo, cuja altura muda
+   * com a escala do texto e com o "Voltar ao presente"; o CSS não a sabe
+   * sozinho, e ela vai numa variável do painel.
+   */
+  acompanharAlturaDosControles() {
+    const controles = this.raiz.querySelector("[data-controles]");
+    if (typeof ResizeObserver !== "function") return;
+    new ResizeObserver(() => this.raiz.style.setProperty("--altura-controles", `${controles.offsetHeight}px`)).observe(controles);
   }
 
   ligarEventos() {
@@ -303,15 +316,29 @@ export class HistoricoView {
     const filtrados = this.eventosFiltrados();
     const visiveis = filtrados.slice(-this.limite).reverse();
     const ultimoDoDia = this.diaSelecionado ? this.porDia.get(this.diaSelecionado)?.at(-1) : null;
-    const rotuloDoDia = this.diaSelecionado
-      ? new Date(`${this.diaSelecionado}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+    const titulo = this.diaSelecionado
+      ? dataDaChave(this.diaSelecionado).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
       : "Todos os dias";
     this.raiz.querySelector("[data-cabecalho-eventos]").innerHTML = `
-      <span><strong>${escapeHtml(rotuloDoDia)}</strong> <span class="texto-fraco">· ${filtrados.length} eventos</span></span>
+      <span><strong>${escapeHtml(titulo)}</strong> <span class="texto-fraco">· ${filtrados.length} eventos</span></span>
       ${ultimoDoDia ? `<button class="link-acao" data-replay="${ultimoDoDia.seq}" title="Ver o grafo como estava no fim deste dia">${icone("history", { tamanho: 13 })} Fim do dia</button>` : ""}`;
-    const linhas = visiveis.map((evento) => this.montarEvento(evento)).join("");
+    const linhas = this.diaSelecionado ? visiveis.map((evento) => this.montarEvento(evento)).join("") : this.montarDias(visiveis);
     const mais = filtrados.length > visiveis.length ? `<button class="botao mod-largo mod-pequeno" data-mais>Mostrar mais ${Math.min(LIMITE_INICIAL_DA_LISTA, filtrados.length - visiveis.length)}</button>` : "";
     this.raiz.querySelector("[data-lista]").innerHTML = linhas + mais || '<div class="secao-vazia">Nenhum evento com esses filtros.</div>';
+  }
+
+  /**
+   * Com todos os dias, a lista ganha um cabeçalho por dia, preso no alto
+   * enquanto se rola por ele: a hora de cada evento sozinha não dizia de que
+   * dia ele era. Com um dia escolhido, o cabeçalho da lista já diz o dia.
+   */
+  montarDias(eventos) {
+    const hoje = new Date();
+    return agruparPorDia(eventos, (evento) => diaDe(evento.timestamp)).map(({ dia, eventos: doDia }) => `
+      <section class="eventos-dia">
+        <h3 class="eventos-dia-titulo">${escapeHtml(rotuloDoDia(dia, hoje))}</h3>
+        ${doDia.map((evento) => this.montarEvento(evento)).join("")}
+      </section>`).join("");
   }
 
   montarEvento(evento) {

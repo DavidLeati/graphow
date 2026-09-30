@@ -7,8 +7,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  chaveDoDia, dataDaChave, diasDaGradeDoMes, diasDaSemana, inicioDaSemana, mesmoMes, passarMes, passarSemana,
-  tituloDoPeriodo,
+  agruparPorDia, chaveDoDia, dataDaChave, diasDaGradeDoMes, diasDaSemana, inicioDaSemana, mesmoMes, passarMes,
+  passarSemana, rotuloDoDia, tituloDoPeriodo,
 } from "../../../src/graphow/web/static/js/calendario.js";
 
 const chaves = (datas) => datas.map(chaveDoDia);
@@ -80,4 +80,41 @@ test("período num mês só leva o mês por extenso", () => {
 test("semana que atravessa o mês leva os dois meses abreviados", () => {
   assert.deepEqual(tituloDoPeriodo(new Date(2026, 8, 27), new Date(2026, 9, 3)), { mes: "set. – out.", ano: "2026" });
   assert.deepEqual(tituloDoPeriodo(new Date(2025, 11, 28), new Date(2026, 0, 3)), { mes: "dez. – jan.", ano: "2025–2026" });
+});
+
+test("o dia de hoje e o de ontem têm nome próprio", () => {
+  const hoje = new Date(2026, 8, 30, 15, 0);
+  assert.equal(rotuloDoDia("2026-09-30", hoje), "Hoje");
+  assert.equal(rotuloDoDia("2026-09-29", hoje), "Ontem");
+});
+
+test("ontem atravessa a virada do mês e do ano", () => {
+  assert.equal(rotuloDoDia("2026-09-30", new Date(2026, 9, 1)), "Ontem");
+  assert.equal(rotuloDoDia("2025-12-31", new Date(2026, 0, 1)), "Ontem");
+});
+
+test("os outros dias levam semana, dia e mês, sem o \"de\"", () => {
+  assert.equal(rotuloDoDia("2026-09-24", new Date(2026, 8, 30)), "qui., 24 set.");
+  assert.equal(rotuloDoDia("2026-10-01", new Date(2026, 8, 30)), "qui., 1 out.");
+});
+
+test("o ano só aparece quando não é o de hoje", () => {
+  assert.equal(rotuloDoDia("2025-12-24", new Date(2026, 8, 30)), "qua., 24 dez. 2025");
+});
+
+test("eventos seguidos do mesmo dia caem num bloco só, na ordem da lista", () => {
+  const eventos = [
+    { seq: 5, dia: "2026-09-30" }, { seq: 4, dia: "2026-09-30" }, { seq: 3, dia: "2026-09-28" }, { seq: 2, dia: "2026-09-28" },
+    { seq: 1, dia: "2026-09-20" },
+  ];
+  const grupos = agruparPorDia(eventos, (evento) => evento.dia);
+  assert.deepEqual(grupos.map((grupo) => [grupo.dia, grupo.eventos.map((evento) => evento.seq)]), [
+    ["2026-09-30", [5, 4]], ["2026-09-28", [3, 2]], ["2026-09-20", [1]],
+  ]);
+});
+
+test("lista vazia não tem bloco, e o relógio que volta atrás abre outro bloco", () => {
+  assert.deepEqual(agruparPorDia([], () => "x"), []);
+  const grupos = agruparPorDia([{ dia: "b" }, { dia: "a" }, { dia: "b" }], (evento) => evento.dia);
+  assert.deepEqual(grupos.map((grupo) => grupo.dia), ["b", "a", "b"]);
 });
