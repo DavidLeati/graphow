@@ -76,6 +76,9 @@ export class Lateral {
     this.aplicar();
     if (alca) this.ligarAlca(alca);
     if (espacoAlheio || this.midia) window.addEventListener("resize", () => this.reajustar());
+    // O modo é o da media query, e ela pode virar sem um resize da janela
+    // (zoom, emulação de tela): sem ouvi-la, a lateral voltava encaixada sem largura.
+    this.midia?.addEventListener("change", () => this.reajustar());
     if (this.midia) document.addEventListener("keydown", (evento) => this.aoTeclar(evento));
   }
 
