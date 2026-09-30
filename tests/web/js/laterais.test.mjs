@@ -1,13 +1,13 @@
 // Testes do recolhimento da metade de baixo da lateral direita (o histórico),
-// do tamanho do texto e da largura das laterais na janela,
+// do tamanho do texto, da largura das laterais na janela e do Esc da sobreposta,
 // rodados por `node --test`. tests/web/test_javascript.py os chama pela suíte do pytest.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  ALTURA_PARA_RECOLHER, formatarTamanhoDoTexto, larguraNaJanela, MINIMO_DO_CENTRO, proximoTamanhoDoTexto, recolhidaDeInicio,
-  RecolhimentoDaMetade, TAMANHO_PADRAO_DO_TEXTO, TAMANHOS_DO_TEXTO, tamanhoDoTextoValido, tetoDaLargura,
+  ALTURA_PARA_RECOLHER, editandoTexto, formatarTamanhoDoTexto, larguraNaJanela, MINIMO_DO_CENTRO, proximoTamanhoDoTexto,
+  recolhidaDeInicio, RecolhimentoDaMetade, TAMANHO_PADRAO_DO_TEXTO, TAMANHOS_DO_TEXTO, tamanhoDoTextoValido, tetoDaLargura,
 } from "../../../src/graphow/web/static/js/laterais.js";
 
 test("sem escolha gravada, a janela baixa começa com o histórico recolhido", () => {
@@ -165,4 +165,26 @@ test("sem espaço nem para o centro, a lateral fica no próprio mínimo", () => 
 test("com a esquerda recolhida o centro deixa mais para a direita", () => {
   assert.equal(naJanela(620, 1000, 44), 620);
   assert.equal(naJanela(620, 1000, 44 + 272), 364);
+});
+
+// O Esc da lateral sobreposta: os elementos são objetos com o que o teste lê do DOM.
+test("o Esc num campo com texto é de quem digita", () => {
+  assert.equal(editandoTexto({ tagName: "TEXTAREA", value: "rascunho da resposta" }), true);
+  assert.equal(editandoTexto({ tagName: "INPUT", type: "text", value: "abc" }), true);
+  assert.equal(editandoTexto({ tagName: "INPUT", type: "search", value: "log" }), true);
+  assert.equal(editandoTexto({ tagName: "DIV", isContentEditable: true, textContent: "nota" }), true);
+});
+
+test("num campo vazio não há rascunho, e o Esc fecha a lateral", () => {
+  assert.equal(editandoTexto({ tagName: "TEXTAREA", value: "" }), false);
+  assert.equal(editandoTexto({ tagName: "INPUT", type: "text", value: "" }), false);
+  assert.equal(editandoTexto({ tagName: "DIV", isContentEditable: true, textContent: "" }), false);
+});
+
+test("fora de campo de texto o Esc fecha a lateral", () => {
+  assert.equal(editandoTexto(null), false);
+  assert.equal(editandoTexto({ tagName: "BODY" }), false);
+  assert.equal(editandoTexto({ tagName: "BUTTON", value: "salvar" }), false);
+  assert.equal(editandoTexto({ tagName: "SELECT", value: "aberta" }), false);
+  assert.equal(editandoTexto({ tagName: "INPUT", type: "checkbox", value: "on" }), false);
 });

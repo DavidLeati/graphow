@@ -503,3 +503,31 @@ button.status-item:hover { background: var(--moldura-hover); color: var(--texto-
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tom-neutro); }
 .sse-connected .status-dot { background: var(--tom-ok); box-shadow: 0 0 0 2px rgba(52, 195, 143, 0.16); }
 .sse-disconnected .status-dot { background: var(--tom-alerta); }
+
+/* Janela estreita ---------------------------------------------------------- */
+/* Abaixo de 900 px a lateral direita deixa de dividir a moldura com o canvas,
+   que era espremido até sumir, e flutua sobre ele, ancorada à direita, acima
+   do canvas e das sobreposições dele e abaixo da barra de status, dos menus e
+   dos modais. O canvas fica com a largura toda e não muda ao abri-la. A
+   largura vem daqui, pela janela, e a gravada fica para quando a janela
+   alargar; sem ela não há o que arrastar, e a alça sai. A altura é a inteira,
+   como na lateral encaixada: a barra de status segue flutuando sobre o pé
+   dela, e o cabeçalho do histórico recolhido, erguido acima da barra. O
+   corte é o mesmo de JANELA_ESTREITA, em laterais.js. */
+.so-janela-estreita { display: none; }
+.lateral-fechar { margin-left: 2px; }
+@media (max-width: 900px) {
+  .so-janela-estreita { display: inline-flex; }
+  .lateral-direita {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    width: min(440px, 100vw - var(--largura-faixa));
+    box-shadow: var(--sombra-flutuante);
+  }
+  /* Recolhida é oculta: com a largura vindo daqui, ela sobraria inteira. */
+  .lateral-direita.is-recolhida { display: none; }
+  #alca-direita { display: none; }
+}

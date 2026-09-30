@@ -28,14 +28,39 @@ export function larguraNaJanela(pedida, { minimo, maximo, larguraDaJanela, alhei
 }
 
 /**
+ * A janela em que a lateral direita flutua sobre o canvas em vez de dividir a
+ * moldura com ele. É o mesmo corte do @media de layout.css: quem põe a lateral
+ * por cima é o CSS, e o JS precisa saber disso para não impor largura e para
+ * fechar no Esc.
+ */
+export const JANELA_ESTREITA = "(max-width: 900px)";
+
+const TIPOS_DE_ENTRADA_DE_TEXTO = new Set(["text", "search", "email", "url", "tel", "number"]);
+
+/**
+ * Se o elemento é um campo de texto com algo escrito. O Esc ali é de quem
+ * digita, não da lateral; num campo vazio não há rascunho a perder.
+ */
+export function editandoTexto(elemento) {
+  if (!elemento) return false;
+  if (elemento.isContentEditable) return Boolean(elemento.textContent);
+  const campo = elemento.tagName === "TEXTAREA" || (elemento.tagName === "INPUT" && TIPOS_DE_ENTRADA_DE_TEXTO.has(elemento.type || "text"));
+  return campo && Boolean(elemento.value);
+}
+
+/**
  * Uma lateral inteira: pode recolher e tem a largura arrastável pela borda.
  * Com `espacoAlheio`, que diz quanto o resto da moldura toma fora do centro,
  * ela acompanha a janela: o teto cresce com ela e o centro não é esmagado.
  * A largura gravada é a que a pessoa escolheu; a da tela sai dela a cada
  * janela, e ao alargar a janela a lateral volta à escolhida.
+ *
+ * Com `sobrepoe`, numa janela estreita ela flutua sobre o canvas: a largura
+ * vem do CSS, pela janela, recolhida é oculta e o Esc a fecha. `alternador`
+ * é o botão que a abre, para onde volta o foco que estava dentro dela.
  */
 export class Lateral {
-  constructor(elemento, { chave, alca, larguraPadrao, minimo = 200, maximo = 560, ladoDaAlca = "direita", aoMudar = null, espacoAlheio = null }) {
+  constructor(elemento, { chave, alca, larguraPadrao, minimo = 200, maximo = 560, ladoDaAlca = "direita", aoMudar = null, espacoAlheio = null, sobrepoe = false, alternador = null }) {
     this.elemento = elemento;
     this.chave = chave;
     this.minimo = minimo;
@@ -43,12 +68,20 @@ export class Lateral {
     this.ladoDaAlca = ladoDaAlca;
     this.aoMudar = aoMudar;
     this.espacoAlheio = espacoAlheio;
+    this.midia = sobrepoe ? window.matchMedia(JANELA_ESTREITA) : null;
+    this.alternador = alternador;
     const salvo = lerPreferencia(`lateral_${chave}`, {});
     this.largura = salvo.largura || larguraPadrao;
     this.recolhida = Boolean(salvo.recolhida);
     this.aplicar();
     if (alca) this.ligarAlca(alca);
-    if (espacoAlheio) window.addEventListener("resize", () => this.reajustar());
+    if (espacoAlheio || this.midia) window.addEventListener("resize", () => this.reajustar());
+    if (this.midia) document.addEventListener("keydown", (evento) => this.aoTeclar(evento));
+  }
+
+  /** Se a lateral flutua sobre o canvas agora, pela largura da janela. */
+  get sobreposta() {
+    return Boolean(this.midia?.matches);
   }
 
   /** A largura pedida dentro dos limites: os fixos e, se a lateral acompanha a janela, os dela. */
@@ -58,20 +91,26 @@ export class Lateral {
   }
 
   aplicar() {
-    this.elemento.style.width = this.recolhida ? "0px" : `${this.limitar(this.largura)}px`;
+    // Sobreposta, a largura vem do CSS e a gravada fica guardada, intacta,
+    // para quando a janela alargar.
+    const largura = this.recolhida ? "0px" : `${this.limitar(this.largura)}px`;
+    this.elemento.style.width = this.sobreposta ? "" : largura;
     this.elemento.classList.toggle("is-recolhida", this.recolhida);
     document.body.classList.toggle(`lateral-${this.chave}-recolhida`, this.recolhida);
+    // Medida no DOM porque, sobreposta, quem sabe a largura é o CSS.
+    this.naTela = `${this.sobreposta} ${this.elemento.offsetWidth}`;
   }
 
   /**
    * A janela ou o resto da moldura mudou. Reaplica e só avisa se a largura na
-   * tela mudou: redimensionar a janela dispara muitos eventos, e quem escuta
-   * redesenha painéis.
+   * tela mudou, ou se a lateral passou a flutuar ou deixou de flutuar:
+   * redimensionar a janela dispara muitos eventos, e quem escuta redesenha
+   * painéis.
    */
   reajustar() {
-    const antes = this.elemento.style.width;
+    const antes = this.naTela;
     this.aplicar();
-    if (this.elemento.style.width !== antes) this.aoMudar?.();
+    if (this.naTela !== antes) this.aoMudar?.();
   }
 
   alternar() {
@@ -85,6 +124,28 @@ export class Lateral {
     this.persistir();
   }
 
+  /** Fecha sem descartar nada: o que está dentro só fica escondido. O foco que estava nela volta ao alternador. */
+  fechar() {
+    if (this.recolhida) return;
+    const tinhaFoco = this.elemento.contains(document.activeElement);
+    this.alternar();
+    if (tinhaFoco) this.alternador?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Esc fecha a lateral sobreposta. A escuta fica no document, na volta do
+   * evento: modais, menus e caixas de sugestão tratam o Esc antes, na ida ou
+   * no próprio campo, e param a propagação, então o que chega aqui é da
+   * lateral. Parar aqui poupa a seleção, que o canvas limparia com o Esc que
+   * chega à janela: ao reabrir, o nó está lá.
+   */
+  aoTeclar(evento) {
+    if (evento.key !== "Escape" || !this.sobreposta || this.recolhida) return;
+    if (editandoTexto(document.activeElement)) return;
+    evento.stopPropagation();
+    this.fechar();
+  }
+
   persistir() {
     this.aplicar();
     gravarPreferencia(`lateral_${this.chave}`, { largura: this.largura, recolhida: this.recolhida });
@@ -93,7 +154,7 @@ export class Lateral {
 
   ligarAlca(alca) {
     alca.addEventListener("mousedown", (evento) => {
-      if (this.recolhida) return;
+      if (this.recolhida || this.sobreposta) return;
       evento.preventDefault();
       const inicioX = evento.clientX;
       // Parte da largura na tela: a gravada pode ser maior que a janela de agora comporta.

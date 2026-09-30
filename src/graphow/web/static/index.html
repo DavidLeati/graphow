@@ -19,6 +19,8 @@
     <nav class="faixa-lateral" aria-label="Ações globais">
       <div class="faixa-grupo">
         <button class="faixa-botao" data-comando="alternar-painel-esquerdo" data-icone="panel-left" data-icone-tamanho="18" title="Recolher ou expandir o painel esquerdo"></button>
+        <!-- Só na janela estreita: ali o botão do centro fica sob a lateral direita, que flutua. -->
+        <button class="faixa-botao so-janela-estreita" data-comando="alternar-painel-direito" data-icone="panel-right" data-icone-tamanho="18" title="Mostrar ou esconder o painel direito"></button>
         <button class="faixa-botao" data-comando="busca-rapida" data-icone="search" data-icone-tamanho="18" title="Busca rápida (Ctrl+K)"></button>
         <button class="faixa-botao" data-comando="paleta" data-icone="command" data-icone-tamanho="18" title="Paleta de comandos (Ctrl+P)"></button>
         <button class="faixa-botao" data-comando="abrir-grafo" data-icone="grafo" data-icone-tamanho="18" title="Abrir o grafo inteiro"></button>
@@ -152,6 +154,7 @@
             <button class="clicavel-icone tamanho-texto-botao" data-tamanho-texto="-1">A−</button>
             <button class="clicavel-icone tamanho-texto-botao mod-maior" data-tamanho-texto="1">A+</button>
           </span>
+          <button class="clicavel-icone lateral-fechar so-janela-estreita" id="fechar-lateral-direita" data-icone="x" title="Fechar o painel (Esc)" aria-label="Fechar o painel direito"></button>
         </div>
         <div class="grupo-conteudo">
           <section class="painel" data-painel="propriedades" id="painel-propriedades"></section>

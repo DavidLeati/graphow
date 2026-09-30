@@ -112,9 +112,14 @@ class GraphowApp {
     this.lateralDireita = new Lateral(document.getElementById("right-sidebar"), {
       chave: "direita", alca: document.getElementById("alca-direita"), larguraPadrao: 340, minimo: 260, maximo: 620, ladoDaAlca: "esquerda",
       espacoAlheio: () => faixa.offsetWidth + esquerda.offsetWidth,
+      // Numa janela estreita ela flutua sobre o canvas, e o botão do centro fica
+      // por baixo dela: quem a abre e fecha ali é o da faixa de ícones.
+      sobrepoe: true,
+      alternador: faixa.querySelector("[data-comando=alternar-painel-direito]"),
       // Outra largura é outra letra no título do inspetor e outra quebra nos campos.
       aoMudar: () => { redesenharCanvas(); this.atualizarPaineisDaSelecao(); this.inspector.reajustarCampos(); },
     });
+    document.getElementById("fechar-lateral-direita").addEventListener("click", () => this.lateralDireita.fechar());
     this.abasEsquerda = new GrupoDeAbas(document.getElementById("grupo-esquerdo"), {
       chave: "esquerda", padrao: "explorador", aoMudar: (nome) => this.aoMostrarPainelEsquerdo(nome),
     });
