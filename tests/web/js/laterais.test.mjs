@@ -35,3 +35,51 @@ test("o gesto da pessoa troca o estado e fica como a escolha", () => {
   estado.definir(true);
   assert.equal(estado.recolhida, true);
 });
+
+test("a seleção que pede espaço recolhe só enquanto dura, sem virar escolha", () => {
+  const estado = new RecolhimentoDaMetade(null, 1080);
+  assert.equal(estado.acompanhar("q1", true), true);
+  assert.equal(estado.recolhida, true);
+  assert.equal(estado.escolhida, false);
+  assert.equal(estado.acompanhar("t1", false), true);
+  assert.equal(estado.recolhida, false);
+  assert.equal(estado.acompanhar(null, false), false);
+  assert.equal(estado.recolhida, false);
+});
+
+test("a mesma seleção de novo não recolhe o que a pessoa expandiu", () => {
+  const estado = new RecolhimentoDaMetade(null, 1080);
+  estado.acompanhar("q1", true);
+  estado.definir(false);
+  assert.equal(estado.recolhida, false);
+  assert.equal(estado.acompanhar("q1", true), false);
+  assert.equal(estado.recolhida, false);
+  // Outra seleção que pede espaço volta a recolher.
+  assert.equal(estado.acompanhar("q2", true), true);
+  assert.equal(estado.recolhida, true);
+});
+
+test("a mesma seleção que deixou de pedir espaço segue recolhida até a seleção mudar", () => {
+  const estado = new RecolhimentoDaMetade(null, 1080);
+  estado.acompanhar("q1", true);
+  assert.equal(estado.acompanhar("q1", false), false);
+  assert.equal(estado.recolhida, true);
+  estado.acompanhar(null, false);
+  assert.equal(estado.recolhida, false);
+});
+
+test("com o histórico recolhido por escolha, a seleção não muda nada e ele segue recolhido", () => {
+  const estado = new RecolhimentoDaMetade(true, 1080);
+  assert.equal(estado.acompanhar("q1", true), false);
+  assert.equal(estado.acompanhar("t1", false), false);
+  assert.equal(estado.recolhida, true);
+});
+
+test("recolher por gesto durante o temporário fica como escolha depois que a seleção muda", () => {
+  const estado = new RecolhimentoDaMetade(false, 1080);
+  estado.acompanhar("q1", true);
+  estado.definir(true);
+  estado.acompanhar("t1", false);
+  assert.equal(estado.recolhida, true);
+  assert.equal(estado.escolhida, true);
+});

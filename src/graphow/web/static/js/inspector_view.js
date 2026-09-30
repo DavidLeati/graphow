@@ -37,6 +37,11 @@ const TIPOS_COM_STATUS_NO_TOPO = new Set(["Task", "Question"]);
 // aqui sair igual ao que o agente teria mandado.
 const LIMITE_DO_TITULO_DA_QUESTAO = 80;
 
+/** Question sem status gravado nasceu aberta: é a dúvida que ainda espera resposta. */
+export function ehDuvidaAberta(no) {
+  return no?.tipo === "Question" && (no.propriedades?.status || "aberta") === "aberta";
+}
+
 /** Reduz o corpo da pergunta ao título curto que o card exibe. */
 function resumirEmTitulo(texto) {
   const primeiraLinha = texto.split(/\r?\n/).map((linha) => linha.trim()).find(Boolean) || "";
@@ -147,7 +152,7 @@ export class InspectorView {
    * porque o gesto que se espera ali é responder.
    */
   montarRodape(no, somenteLeitura) {
-    const responder = no.tipo === "Question" && (no.propriedades?.status || "aberta") === "aberta" && !somenteLeitura;
+    const responder = ehDuvidaAberta(no) && !somenteLeitura;
     return `
       <div class="inspetor-rodape" data-rodape ${responder ? "" : "hidden"}>
         <div class="inspetor-rodape-alteracoes" data-rodape-alteracoes hidden>

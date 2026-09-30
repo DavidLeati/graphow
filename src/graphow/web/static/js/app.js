@@ -25,7 +25,7 @@ import { HistoricoView } from "./historico_view.js";
 import { hidratarIcones, icone } from "./icones.js";
 import { ImpactoView } from "./impacto_view.js";
 import { IndiceNavegacao } from "./indice_navegacao.js";
-import { InspectorView } from "./inspector_view.js";
+import { ehDuvidaAberta, InspectorView } from "./inspector_view.js";
 import { DivisorVertical, GrupoDeAbas, Lateral } from "./laterais.js";
 import { LeituraDaQuestaoView } from "./leitura_questao_view.js";
 import { LineageView } from "./lineage_view.js";
@@ -520,7 +520,20 @@ class GraphowApp {
       this.explorador.render();
       this.marcadores.render();
       this.atualizarPaineisDaSelecao();
+      this.acompanharDuvidaSelecionada();
     }
+  }
+
+  /**
+   * A dúvida aberta precisa de altura para ser lida e respondida: enquanto ela
+   * está selecionada, o histórico recolhe sem gravar escolha e volta como estava
+   * quando a seleção muda. No passado não há o que responder, e ele fica.
+   */
+  acompanharDuvidaSelecionada() {
+    const selecao = this.state.selectedElement;
+    const id = selecao?.type === "node" ? selecao.id : null;
+    const no = id ? this.state.nodes.get(id) || selecao.data : null;
+    this.divisorDireito.acompanharSelecao(id, ehDuvidaAberta(no) && !this.state.isTimeTraveling);
   }
 
   // ------------------------------------------------------------------ painéis

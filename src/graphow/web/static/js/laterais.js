@@ -129,20 +129,39 @@ export function recolhidaDeInicio(salva, alturaDaJanela) {
 
 /**
  * O recolhimento da metade de baixo, sem DOM, para caber num teste. `escolhida`
- * é o último gesto da pessoa ou, sem gesto nenhum, o padrão da janela.
+ * é o último gesto da pessoa ou, sem gesto nenhum, o padrão da janela;
+ * `temporaria` é o recolhimento que a seleção pediu, e que nunca vira escolha.
  */
 export class RecolhimentoDaMetade {
   constructor(salva, alturaDaJanela) {
     this.escolhida = recolhidaDeInicio(salva, alturaDaJanela);
+    this.temporaria = false;
+    this.acompanhada = null;
   }
 
   get recolhida() {
-    return this.escolhida;
+    return this.escolhida || this.temporaria;
   }
 
-  /** Um gesto da pessoa, que passa a valer mais que o padrão da janela. */
+  /** Um gesto da pessoa: vale mais que o padrão da janela e desfaz o temporário. */
   definir(recolhida) {
     this.escolhida = Boolean(recolhida);
+    this.temporaria = false;
+  }
+
+  /**
+   * Acompanha a seleção. Uma seleção nova que pede espaço recolhe a metade só
+   * enquanto dura; qualquer outra devolve o estado escolhido. A mesma seleção
+   * de novo não muda nada: a releitura do tempo real, ou a dúvida respondida
+   * ali mesmo, não recolhe o que a pessoa expandiu nem expande debaixo dela.
+   * Devolve se o estado mudou.
+   */
+  acompanhar(id, pedeEspaco) {
+    if (id === this.acompanhada) return false;
+    const antes = this.recolhida;
+    this.acompanhada = id;
+    this.temporaria = Boolean(pedeEspaco);
+    return this.recolhida !== antes;
   }
 }
 
@@ -197,6 +216,17 @@ export class DivisorVertical {
     this.recolhimento.definir(recolhida);
     this.aplicar();
     gravarPreferencia(`divisao_${this.chave}_recolhida`, this.recolhimento.escolhida);
+  }
+
+  /**
+   * Recolhe a metade de baixo enquanto a seleção pede espaço, sem gravar nada.
+   * Com o ponteiro ou o foco nela, a pessoa está usando o histórico, talvez
+   * clicando no evento que levou à seleção: recolher ali tiraria a lista de
+   * debaixo do cursor.
+   */
+  acompanharSelecao(id, pedeEspaco) {
+    const emUso = this.inferior.matches(":hover, :focus-within");
+    if (this.recolhimento.acompanhar(id, pedeEspaco && !emUso)) this.aplicar();
   }
 
   definir(fracao) {
