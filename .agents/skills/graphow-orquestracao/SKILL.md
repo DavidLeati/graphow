@@ -36,6 +36,9 @@ Goal e Constraint só o humano cria: ele diz o que quer, e os agentes decidem co
 
        Alvo: <id>
        Sessao: <id_sessao>
+       Cota: 5h <n>%, semana <n>%
+
+   A linha `Cota:` é a leitura de `get_usage` feita antes da rodada (ver "Onde parar"), com os percentuais inteiros como a ferramenta os dá. Você não escreve no grafo, então a cota vai em texto: o harness a lê da transcrição do condutor e a grava no Run dele, para a medição saber quanto cada rodada gastou. Sem `get_usage`, despache sem a linha.
 
    Uma rodada por vez, porque duas ao mesmo tempo disputariam o mesmo Goal. O paralelismo fica dentro da rodada, entre tarefas com arquivos disjuntos.
 3. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma, para ele ir respondendo enquanto o trabalho anda.
@@ -45,7 +48,8 @@ Goal e Constraint só o humano cria: ele diz o que quer, e os agentes decidem co
    - o que fechou desde a última parada;
    - os Goals que ficaram sem tarefa aberta (fechar o Goal é dele);
    - as Questions abertas, com id e uma linha, para responder na interface do graphow;
-   - o que roda quando ele disser "segue".
+   - o que roda quando ele disser "segue";
+   - a cota, numa linha própria, no mesmo formato do despacho: `Cota: 5h <n>%, semana <n>%`, com a leitura de `get_usage` feita ao parar. O harness lê a última linha dessas que você escreveu e a grava no Run da sua sessão; é ela que fecha a conta da última rodada.
 
    Quando ele disser "segue", volte ao passo 2 na mesma conversa, com a contagem de rodadas zerada. Não peça `/clear`.
 
@@ -66,7 +70,7 @@ Em qualquer cadência, pare quando:
 - a rodada devolver `RODADA: nada_a_fazer`: o que resta espera Question, posse órfã ou dependência travada;
 - a rodada devolver `Integrar:`: o ramo base do Goal (`ramo_base`, gravado no Goal, no Setor ou no Projeto) ganhou arquivos que colidem com o que o Goal toca, como migrations com o mesmo número. Diga ao humano o ramo e os arquivos que colidiram. O merge do ramo base e a renumeração são dele, ou seus se ele pedir, na sessão principal e fora do laço; o condutor não os faz. Quando ele disser "segue", a rodada seguinte confere de novo;
 - o teto de rodadas chegar;
-- o limite do plano ficar perto do fim: no app desktop, leia `mcp__ccd_session_mgmt__get_usage` (carregue pelo ToolSearch) depois de cada rodada e pare com a janela de 5 horas em 85% ou mais, ou com a semanal em 90% ou mais. Estourar no meio de uma rodada deixa posse presa e tarefa pela metade. Diga os percentuais no resumo da parada;
+- o limite do plano ficar perto do fim: no app desktop, leia `mcp__ccd_session_mgmt__get_usage` (carregue pelo ToolSearch) antes da primeira rodada e depois de cada uma, e pare com a janela de 5 horas em 85% ou mais, ou com a semanal em 90% ou mais. Estourar no meio de uma rodada deixa posse presa e tarefa pela metade. A leitura de depois de uma rodada é a `Cota:` do despacho da seguinte; ao parar, por este ou outro portão, ela vai na linha `Cota:` do resumo;
 - duas rodadas seguidas voltarem sem criar, fechar nem corrigir nada, ou fora do formato de saída do condutor;
 - o humano pedir. A mensagem dele chega entre rodadas.
 
@@ -93,7 +97,7 @@ Nada disso muda se a sessão tiver um servidor do graphow com papel `humano`: a 
 
 ## Medir a divisão de modelos
 
-Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por sessão (os tokens da raiz) e um por subagente, inclusive os que o condutor despacha (tokens, modelo e as tarefas que ele assumiu). Para comparar arranjos:
+Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por sessão (os tokens da raiz e a cota da parada) e um por subagente, inclusive os que o condutor despacha (tokens, modelo, as tarefas que ele assumiu, início, fim e duração; no do condutor, a cota do despacho). Cada rodada é um `Run` com `agente` igual a `graphow-condutor`. Para comparar arranjos:
 
 1. O humano cria um Goal por configuração, com a mesma descrição e `configuracao` igual a `tudo-opus`, `padrao` ou `opus-em-dominio`.
 2. Cada Goal é orquestrado a partir do mesmo commit, num worktree próprio do git, para os executores de um arranjo não pisarem nos do outro.
@@ -103,7 +107,11 @@ Sem medir, a divisão de modelos fica no palpite. O harness grava um `Run` por s
 graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao --goal goal-opus-em-dominio
 ```
 
-O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão, os aceites pelo teto de correções e os tokens por tarefa concluída. A linha de modelo de cada Goal conta à parte as tarefas da trilha leve (`modelo por tarefa: sonnet 3, opus 2 | trilha leve 2`), que rodam em Sonnet sob qualquer configuração. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
+O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as rejeições na revisão, os aceites pelo teto de correções e os tokens por tarefa concluída e, quando os `Run` trazem, os minutos de condutor, os pontos da cota semanal e os tokens sem a leitura de cache por tarefa concluída. A linha de tokens de cada Goal mostra o total sem a leitura de cache, que domina a soma, e os `Run` sem tokens pelo motivo. A linha de modelo conta à parte as tarefas da trilha leve (`modelo por tarefa: sonnet 3, opus 2 | trilha leve 2`), que rodam em Sonnet sob qualquer configuração. O condutor não assume tarefa, então o custo dele entra pelo da sessão, dividido entre os Goals que ela serviu: meça um Goal por sessão.
+
+Com `--por-rodada`, cada Goal ganha uma linha por rodada, em ordem: minutos, tarefas concluídas e vereditos na janela do condutor, tokens dos `Run` que começaram nela e a variação de cota. A variação de uma rodada é a `Cota:` do despacho seguinte menos a dela, e a da última é a `Cota:` da sua parada menos a dela: sem as duas linhas, ela sai `?`.
+
+A linha de base vem assim: o próximo Goal parecido com um já medido roda duas vezes, em worktrees separados do mesmo commit, um com `configuracao: padrao` e outro com `configuracao: opus-em-dominio`. Comparam-se, por tarefa concluída, os minutos, os pontos de cota semanal e os tokens sem cache de leitura, e ao lado as rejeições, os aceites pelo teto e as tarefas da trilha leve, que mudam o que cada tarefa custa. `graphow orquestracao-medir --goal <um> --goal <outro> --por-rodada` mostra em que rodadas cada arranjo gastou.
 
 ## Referências
 

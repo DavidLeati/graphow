@@ -20,7 +20,7 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
     Alvo: <id de Goal, Setor ou Projeto>
     Sessao: <id>
 
-`Sessao` é a sessão da raiz. Todo nó que você criar nasce produzido por ela (aresta `produz`), e é ela que vai em cada despacho.
+`Sessao` é a sessão da raiz. Todo nó que você criar nasce produzido por ela (aresta `produz`), e é ela que vai em cada despacho. Uma linha `Cota:` também pode vir: é para a medição, que a lê da sua transcrição, então ignore-a e não a repasse.
 
 ## 1. Situar
 

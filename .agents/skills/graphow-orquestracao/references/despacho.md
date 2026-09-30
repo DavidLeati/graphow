@@ -10,7 +10,7 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 
 | Subagente | Quem despacha | Prompt | Devolve |
 | :--- | :--- | :--- | :--- |
-| `graphow-condutor` | a raiz | `Alvo: <id de Goal, Setor ou Projeto>` e `Sessao: <id>` | `RODADA: ...` |
+| `graphow-condutor` | a raiz | `Alvo: <id de Goal, Setor ou Projeto>`, `Sessao: <id>` e, se houver a leitura, `Cota: 5h <n>%, semana <n>%` | `RODADA: ...` |
 | `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
@@ -18,6 +18,14 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 | `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, com a posse livre |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
+
+`Cota` é a leitura de `get_usage` que a raiz fez antes da rodada, as janelas de 5 horas e semanal, sempre neste formato:
+
+    Alvo: goal-42
+    Sessao: 7f3c...
+    Cota: 5h 40%, semana 12%
+
+A raiz não escreve no grafo, então a cota vai em texto: o harness lê essa linha na primeira mensagem da transcrição do condutor e a grava no Run dele, e `graphow orquestracao-medir --por-rodada` tira dela quanto cada rodada gastou. O condutor ignora a linha e não a repassa. Sem `get_usage` (no `claude -p`, por exemplo), o despacho vai sem ela.
 
 Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (ela está no grafo, ligada por `orienta`), critério de aceite (está em `criterio_pronto`), nem o que o executor anterior fez (está no Artifact e nas Evidence).
 

@@ -38,8 +38,8 @@ Subagente aninhado sobe o próprio servidor. Isso foi testado em 2026-09-23: um 
 Copie para o `settings.json` do Claude Code os três hooks do arquivo `.agents/hooks/graphow_harness_hooks.json` do repositório do graphow:
 
 - `SessionStart` abre a Sessao da raiz e imprime a vista de retomada, com o id que a raiz passa ao condutor;
-- `SessionEnd` fecha a Sessao e grava no `Run` os tokens da raiz;
-- `SubagentStop` grava um `Run` por subagente, inclusive os aninhados que o condutor despacha, com os tokens, o modelo e as tarefas que ele assumiu:
+- `SessionEnd` fecha a Sessao e grava no `Run` os tokens da raiz e a última linha `Cota:` que ela escreveu;
+- `SubagentStop` grava um `Run` por subagente, inclusive os aninhados que o condutor despacha, com os tokens, o modelo, as tarefas que ele assumiu, início, fim e duração e, no do condutor, a linha `Cota:` do despacho. Sem tokens, o `Run` diz por quê em `motivo_sem_consumo`:
 
 ```powershell
 graphow harness --fase subagente --entrada-hook
@@ -98,6 +98,7 @@ Para testar a skill sem tocar no banco real, aponte `GRAPHOW_DB` para um arquivo
 ```powershell
 graphow banco-info
 graphow orquestracao-medir --goal goal-x
+graphow orquestracao-medir --goal goal-x --por-rodada
 ```
 
-O primeiro diz qual banco as instâncias estão usando. Raiz, subagentes e hooks precisam do mesmo, então nenhum deles recebe `--db` apontando para outro lugar. O segundo mostra o que o Goal custou e rendeu até aqui.
+O primeiro diz qual banco as instâncias estão usando. Raiz, subagentes e hooks precisam do mesmo, então nenhum deles recebe `--db` apontando para outro lugar. O segundo mostra o que o Goal custou e rendeu até aqui, e o terceiro, rodada por rodada, com a duração e a cota. Rodada sem duração ou com cota `?` é hook que não gravou ou linha `Cota:` que faltou.
