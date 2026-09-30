@@ -628,11 +628,16 @@ class GraphowApp {
     return recibo;
   }
 
-  /** Abre a dúvida na aba de leitura do centro, começando do rascunho de resposta que o inspetor tinha. */
+  /**
+   * Abre a dúvida na aba de leitura do centro, começando do rascunho de resposta
+   * que o inspetor tinha. Numa janela estreita a lateral flutua sobre o centro e
+   * cobriria a leitura que acabou de pedir: ela fecha, com o rascunho dentro.
+   */
   abrirLeitura(no, { rascunho = "" } = {}) {
     if (!no) return;
     this.leituraView.lembrarRascunho(no.id, rascunho);
     this.abas.abrirFerramenta("leitura", { noId: no.id, titulo: no.rotulo });
+    if (this.lateralDireita.sobreposta) this.lateralDireita.fechar();
   }
 
   /**
