@@ -235,6 +235,9 @@ class GraphowApp {
     this.marcadores.render();
     // A aba lembrada pode ser a memória: restaurada na montagem, ela não passa por `aoMudar`.
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
+    // Aba de ferramenta na partida não lê o canvas, e o inspetor só se
+    // desenhava com a leitura dele: sem seleção, o panorama ficava em branco.
+    this.inspector.render();
     this.atualizarPaineisDaSelecao();
   }
 
