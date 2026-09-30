@@ -29,6 +29,16 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
 
 `ler_vista(id_goal)`: as propriedades trazem `configuracao` (ver "Modelo"), `cadencia` e `teto_rodadas`. Devolva as duas últimas como estão no Goal ou, na falta, no Setor ou no Projeto.
 
+Quando o Goal, o Setor ou o Projeto tem `ramo_base`, confira o Goal contra ele antes de escolher o que a rodada faz, na raiz do repositório:
+
+    graphow base-colisoes --goal <id_goal>
+
+O comando atualiza o ramo base do remoto, acha o merge-base com o HEAD e cruza o que o ramo base ganhou desde então, nos `caminhos_de_colisao`, com os `arquivos_alvo` das tarefas abertas e os `arquivos` dos Artifacts do Goal. A primeira linha diz o ramo base, os globs e de onde veio cada um. Num goal real, o ramo base ganhou migrations com os mesmos números que o Goal usava, e a renumeração depois do merge levou duas horas: quanto mais cedo a colisão aparece, menos custa.
+
+- Saída 0: sem colisão, ou sem o que conferir. Siga.
+- Saída 1: cada linha `<arquivo do ramo base> x <caminho do goal>` é uma colisão. Nesta rodada, não despache executor para Task cujos `arquivos_alvo` casem com algum glob de `caminhos_de_colisao`, e devolva a linha `Integrar:` com o ramo base e os arquivos dele que colidiram. As outras tarefas seguem, e revisar e fechar o que já foi entregue também. Integrar e renumerar é do humano.
+- Saída 2: a conferência não aconteceu, e a linha `ERRO` diz por quê. Siga e ponha a linha no `Resumo`. A linha `Aviso:` de fetch que falhou também vai para o `Resumo`: a conferência foi contra a cópia local do ramo base.
+
 `proximas_tarefas(id_goal)`: a fila percorre a decomposição do Goal, de qualquer sessão. Cada tarefa vem com `status`, `modelo`, `trilha` (`leve` ou `completa`), `arquivos_alvo`, `criterio_pronto` e `profundidade_correcao` (0 na original, 1 na primeira correção, 2 na correção de uma correção), e cada impedida com o motivo (`duvida_aberta`, `dependencia_pendente`, `posse_de_outro`).
 
 ## 2. Escolher o que a rodada faz
@@ -53,6 +63,8 @@ Uma rodada cuida de um Goal só, e no máximo de um lote de execução. Vale a p
 Obrigatório antes de todo despacho, para cada Task da trilha completa: `ler_vista(id_task, perspectiva="executor", orcamento_tokens=10000)`, o mesmo orçamento com que o executor lê. Um agente que nunca viu nada executaria a tarefa só com aquilo? O cabeçalho tem `criterio_pronto` verificável e `arquivos_alvo`? `Decisoes Que Governam Esta Tarefa` traz cada decisão tomada sobre ela? Se faltar, falta nó: registre a Decision, ligue por `orienta`, complete a propriedade por `propor_patch`. Nunca compense no texto do despacho.
 
 A Task `leve` pula esse teste: o custo de lê-la como o executor frio é maior que o da própria tarefa. Ela continua exigindo `criterio_pronto` e `arquivos_alvo`, que a fila traz; sem um dos dois, complete por `propor_patch` antes de despachar.
+
+Com colisão no passo 1, a Task cujos `arquivos_alvo` casam com `caminhos_de_colisao` fica fora do despacho, ainda que pronta.
 
 Lote paralelo: só tarefas sem `depende_de` entre si e com `arquivos_alvo` disjuntos. Tarefa sem `arquivos_alvo` nunca entra em lote: complete a propriedade antes. Em código muito acoplado, uma de cada vez rende mais que três executores disputando os mesmos módulos.
 
@@ -119,7 +131,7 @@ Não espere o humano em `aguardar_resposta`, ainda que a skill graphow-mcp e as 
 
 ## Nunca
 
-- Editar arquivo, commit ou push. Bash é só para ler: `git status`, `git log`, `git diff`, `git ls-tree`, `git fetch`.
+- Editar arquivo, commit, merge ou push. Bash é só para ler: `git status`, `git log`, `git diff`, `git ls-tree`, `git fetch`, `graphow base-colisoes`.
 - Criar Goal ou Constraint, ou responder Question.
 - Revisar o que você despachou.
 - Passar para outro Goal na mesma rodada.
@@ -138,6 +150,7 @@ A resposta inteira cabe em cerca de 800 tokens. Omita as linhas que não se apli
     Correcoes: <id rejeitada> -> <id correção>
     Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
+    Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
     Resumo: <no máximo três linhas>

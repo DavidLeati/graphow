@@ -32,6 +32,7 @@ Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (
     Correcoes: <id rejeitada> -> <id correção>
     Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
+    Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
     Resumo: <no máximo três linhas>
@@ -44,6 +45,7 @@ Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (
 | `Correcoes` | diz ao humano na linha da rodada; não para por isso |
 | `Aceites` | a correção foi reprovada de novo só com critérios de acompanhamento: o condutor fechou a original e abriu a Task de acompanhamento com o que ficou. Diz as duas ao humano na linha da rodada; não para por isso |
 | `Questoes` | diz o id ao humano na linha da rodada; não para por isso |
+| `Integrar` | portão: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Para e diz ao humano o ramo e os arquivos. O merge e a renumeração são dele, ou da sessão principal se ele pedir; no "segue", a rodada seguinte confere de novo com `graphow base-colisoes` |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
 ## A pergunta ao explorador

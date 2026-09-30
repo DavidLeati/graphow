@@ -49,14 +49,42 @@ Sem o `SubagentStop`, `graphow orquestracao-medir` só enxerga o custo da raiz.
 
 ## 4. Permissões
 
-Para as rodadas não pararem em pedido de permissão, libere no `settings.json` as ferramentas dos três servidores de subagente: `mcp__graphow-condutor`, `mcp__graphow-executor` e `mcp__graphow-revisor`. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor e explorador não editam.
+Para as rodadas não pararem em pedido de permissão, libere no `settings.json` as ferramentas dos três servidores de subagente: `mcp__graphow-condutor`, `mcp__graphow-executor` e `mcp__graphow-revisor`. Com `ramo_base` gravado (seção 5), libere também `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor e explorador não editam.
 
-## 5. Sem interface
+## 5. Ramo base
+
+Quando o trabalho de um Goal vai ser integrado num ramo que anda em paralelo, o condutor confere a cada rodada o que esse ramo ganhou. Num goal real, o ramo base `stage` ganhou migrations com os mesmos números que o Goal usava, e só se soube no merge, dias depois. Para ligar a conferência, o humano grava duas propriedades no Goal, no Setor ou no Projeto:
+
+- `ramo_base`: o ramo em que o Goal vai ser integrado, `origin/stage` ou `stage`. Com remoto, o comando faz `git fetch` dele antes de comparar;
+- `caminhos_de_colisao`: a lista de globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo, como `["**/migrations/*.py"]`. `**/` vale zero ou mais diretórios; `*` e `?` não atravessam `/`.
+
+O Goal herda cada uma do Setor que contém a sessão que o produziu e, na falta, do Projeto; as duas se resolvem uma a uma. O Projeto costuma levar os globs, e o Goal que vai para outro ramo grava só o `ramo_base` dele. Sem `ramo_base`, nada é conferido.
+
+Grave pelo canvas (`graphow web`): selecione o nó, e em Propriedades use "Adicionar propriedade", com a lista escrita em JSON. Ou por `propor_patch` numa sessão com servidor de papel `humano`:
+
+```json
+{"justificativa": "Integracao do hub no stage", "operacoes": [
+  {"op": "replace", "path": "/nos/proj-hub/propriedades/ramo_base", "value": "origin/stage"},
+  {"op": "replace", "path": "/nos/proj-hub/propriedades/caminhos_de_colisao", "value": ["**/migrations/*.py"]}
+]}
+```
+
+Para conferir à mão, na raiz do repositório do Goal:
+
+```powershell
+graphow base-colisoes --goal goal-x
+```
+
+Cada colisão sai numa linha, `<arquivo do ramo base> x <caminho do goal>`: um arquivo que o ramo base ganhou desde o merge-base, que casa com um glob e está no mesmo diretório de um caminho do Goal que casa com o mesmo glob. Os caminhos do Goal são os `arquivos_alvo` das tarefas abertas e os `arquivos` dos Artifacts. O código de saída é 0 sem colisão (ou sem `ramo_base`), 1 com colisão e 2 quando não deu para conferir. `--sem-fetch` compara com a cópia local do ramo remoto, e `--repo` aponta outro repositório.
+
+Com colisão, a rodada devolve `Integrar:` e a raiz para. O merge do ramo base e a renumeração são do humano, ou da sessão principal a pedido dele.
+
+## 6. Sem interface
 
 A raiz roda o laço inteiro numa chamada só e para no primeiro portão, então uma sessão não interativa basta:
 
 ```powershell
-claude -p --model opus --permission-mode acceptEdits --allowedTools "Agent,Skill,Read,Glob,Grep,mcp__graphow-condutor,mcp__graphow-executor,mcp__graphow-revisor,Bash(python *),Bash(git status *),Bash(git diff *),Bash(git log *)" --max-budget-usd 20 "Use a skill graphow-orquestracao no Setor setor-x, com cadencia setor."
+claude -p --model opus --permission-mode acceptEdits --allowedTools "Agent,Skill,Read,Glob,Grep,mcp__graphow-condutor,mcp__graphow-executor,mcp__graphow-revisor,Bash(python *),Bash(git status *),Bash(git diff *),Bash(git log *),Bash(graphow base-colisoes *)" --max-budget-usd 20 "Use a skill graphow-orquestracao no Setor setor-x, com cadencia setor."
 ```
 
 A chamada termina num portão (`nada_a_fazer`, teto, Goal concluído na cadência `goal`) e deixa o próprio `Run`, e a medição soma todos. Ajuste o `--allowedTools` aos comandos com que os critérios do projeto se provam. Sem permissão, o modo não interativo recusa a ferramenta em vez de perguntar. `--max-budget-usd` é o teto duro de custo da chamada.
@@ -65,7 +93,7 @@ O `claude -p` precisa de credencial própria do CLI, porque a do app desktop só
 
 Para testar a skill sem tocar no banco real, aponte `GRAPHOW_DB` para um arquivo temporário. Os servidores MCP dos subagentes e os hooks herdam a variável do processo `claude`. Numa sessão do app, o caminho é o `env` do `.claude/settings.json` do projeto de teste. A documentação não garante que esse `env` chegue aos hooks e aos servidores, então confira a linha `Banco:` que o hook imprime antes de despachar qualquer coisa.
 
-## 6. Conferir
+## 7. Conferir
 
 ```powershell
 graphow banco-info

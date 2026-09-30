@@ -64,6 +64,7 @@ O humano grava a cadência no Goal, no Setor ou no Projeto (propriedade `cadenci
 Em qualquer cadência, pare quando:
 
 - a rodada devolver `RODADA: nada_a_fazer`: o que resta espera Question, posse órfã ou dependência travada;
+- a rodada devolver `Integrar:`: o ramo base do Goal (`ramo_base`, gravado no Goal, no Setor ou no Projeto) ganhou arquivos que colidem com o que o Goal toca, como migrations com o mesmo número. Diga ao humano o ramo e os arquivos que colidiram. O merge do ramo base e a renumeração são dele, ou seus se ele pedir, na sessão principal e fora do laço; o condutor não os faz. Quando ele disser "segue", a rodada seguinte confere de novo;
 - o teto de rodadas chegar;
 - o limite do plano ficar perto do fim: no app desktop, leia `mcp__ccd_session_mgmt__get_usage` (carregue pelo ToolSearch) depois de cada rodada e pare com a janela de 5 horas em 85% ou mais, ou com a semanal em 90% ou mais. Estourar no meio de uma rodada deixa posse presa e tarefa pela metade. Diga os percentuais no resumo da parada;
 - duas rodadas seguidas voltarem sem criar, fechar nem corrigir nada, ou fora do formato de saída do condutor;
@@ -79,7 +80,7 @@ A correção reprovada também não para. O condutor aplica o teto de correçõe
 - Responder Question.
 - Promover Aprendizado.
 - Fechar o Goal.
-- Fazer commit e push, a menos que peça.
+- Fazer commit, merge e push, a menos que peça.
 
 Nada disso muda se a sessão tiver um servidor do graphow com papel `humano`: a raiz não responde Question nem promove memória.
 
