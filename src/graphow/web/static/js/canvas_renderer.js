@@ -4,6 +4,13 @@ import { caminhoSvg, tracarCurva } from "./geometria_aresta.js";
 
 const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 
+// Os tipos de aresta que ganharam um marcador de seta em setupDefs. Os demais
+// usam a seta cinza padrao. E um conjunto fixo porque perguntar ao DOM, uma vez
+// por aresta, se o marcador existe custava uma busca na camada inteira a cada uma.
+const TIPOS_COM_MARCADOR = new Set([
+  "contem", "bloqueia", "produz", "decompoe", "depende_de", "escopa", "justifica", "deriva_de", "orienta",
+]);
+
 const INTERVALO_DO_RELOGIO_MS = 60000;
 
 /**
@@ -17,6 +24,10 @@ export class CanvasRenderer {
     this.surface = document.getElementById("canvas-surface");
     this.state = state;
     this.nodeElements = new Map();
+    // Largura e altura de cada cartao, medidas de uma vez ao fim de renderNodes.
+    // Ler offsetWidth no meio do desenho das arestas, entre uma escrita e outra
+    // no DOM, forcava um reflow por aresta.
+    this.tamanhosDosCartoes = new Map();
     this.hoveredNodeId = null;
     this.setupDefs();
     // A idade e relativa: sem este relogio, um card diria "3 min" a tarde
@@ -136,6 +147,21 @@ export class CanvasRenderer {
       this.nodesLayer.appendChild(el);
       this.nodeElements.set(id, el);
     }
+
+    this.medirTamanhosDosCartoes();
+  }
+
+  /**
+   * Mede todos os cartoes numa unica passada, so com leituras: o navegador faz
+   * o layout uma vez, na primeira, e as demais saem do mesmo layout. O tamanho
+   * guardado e o da classe atual da superficie — em lod-macro o CSS encolhe o
+   * cartao —, por isso setLOD remede quando a classe muda.
+   */
+  medirTamanhosDosCartoes() {
+    this.tamanhosDosCartoes.clear();
+    for (const [id, elemento] of this.nodeElements) {
+      this.tamanhosDosCartoes.set(id, { largura: elemento.offsetWidth, altura: elemento.offsetHeight });
+    }
   }
 
   renderEdges() {
@@ -168,7 +194,7 @@ export class CanvasRenderer {
       path.setAttribute("data-origem", edge.origem_id);
       path.setAttribute("data-destino", edge.destino_id);
 
-      const markerId = this.edgesLayer.querySelector(`#arrow-${edge.tipo}`) ? `arrow-${edge.tipo}` : "arrow";
+      const markerId = TIPOS_COM_MARCADOR.has(edge.tipo) ? `arrow-${edge.tipo}` : "arrow";
       path.setAttribute("marker-end", `url(#${markerId})`);
       path.style.stroke = `var(--edge-${edge.tipo}, var(--edge-default))`;
 
@@ -184,12 +210,15 @@ export class CanvasRenderer {
   /** O cartão como retângulo no plano do canvas, para a geometria das arestas. */
   retanguloDoCartao(id) {
     const posicao = this.state.nodePositions.get(id) ?? { x: 0, y: 0 };
-    const elemento = this.nodeElements.get(id);
+    // Le do cache, nunca do DOM: esta funcao roda uma vez por ponta de aresta,
+    // no meio de um laco que escreve no DOM, e uma leitura de layout ali
+    // forcaria um reflow a cada chamada.
+    const tamanho = this.tamanhosDosCartoes.get(id);
     return {
       x: posicao.x,
       y: posicao.y,
-      largura: elemento?.offsetWidth || TAMANHO_PADRAO_DO_CARTAO.largura,
-      altura: elemento?.offsetHeight || TAMANHO_PADRAO_DO_CARTAO.altura,
+      largura: tamanho?.largura || TAMANHO_PADRAO_DO_CARTAO.largura,
+      altura: tamanho?.altura || TAMANHO_PADRAO_DO_CARTAO.altura,
     };
   }
 
@@ -257,11 +286,13 @@ export class CanvasRenderer {
 
   setLOD(zoom) {
     if (!this.surface) return;
-    if (zoom < 0.45) {
-      this.surface.classList.add("lod-macro");
-    } else {
-      this.surface.classList.remove("lod-macro");
-    }
+    const macro = zoom < 0.45;
+    // Roda a cada passo da roda do mouse; so a troca real de classe muda o
+    // tamanho dos cartoes e justifica remedir e redesenhar as arestas.
+    if (macro === this.surface.classList.contains("lod-macro")) return;
+    this.surface.classList.toggle("lod-macro", macro);
+    this.medirTamanhosDosCartoes();
+    this.renderEdges();
   }
 
   /**
