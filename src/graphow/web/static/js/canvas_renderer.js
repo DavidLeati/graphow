@@ -28,6 +28,10 @@ export class CanvasRenderer {
     // Ler offsetWidth no meio do desenho das arestas, entre uma escrita e outra
     // no DOM, forcava um reflow por aresta.
     this.tamanhosDosCartoes = new Map();
+    // Id da aresta -> <path> desenhado, e id do no -> ids das arestas que o
+    // tocam. Ambos sao refeitos por renderEdges.
+    this.elementosDasArestas = new Map();
+    this.arestasPorNo = new Map();
     this.hoveredNodeId = null;
     this.setupDefs();
     // A idade e relativa: sem este relogio, um card diria "3 min" a tarde
@@ -173,37 +177,77 @@ export class CanvasRenderer {
 
     const oldPaths = this.edgesLayer.querySelectorAll("path.edge-path");
     oldPaths.forEach((p) => p.remove());
+    this.elementosDasArestas.clear();
+    this.arestasPorNo.clear();
 
     for (const [id, edge] of this.state.edges.entries()) {
-      const pOrig = this.state.nodePositions.get(edge.origem_id);
-      const pDest = this.state.nodePositions.get(edge.destino_id);
-      if (!pOrig || !pDest) continue;
+      if (!this.state.nodePositions.has(edge.origem_id) || !this.state.nodePositions.has(edge.destino_id)) continue;
 
-      if (this.state.hideStructuralEdges && edge.tipo === "produz") {
-        const isSelected = this.state.selectedElement?.id === edge.origem_id ||
-                           this.state.selectedElement?.id === edge.destino_id;
-        if (!isSelected) continue;
-      }
+      // O indice cobre tambem as arestas ocultas: quem arrasta ou troca a
+      // selecao precisa achar as arestas de um no sem varrer o grafo inteiro.
+      this.indexarAresta(edge.origem_id, id);
+      this.indexarAresta(edge.destino_id, id);
 
-      const curva = tracarCurva(this.retanguloDoCartao(edge.origem_id), this.retanguloDoCartao(edge.destino_id));
+      if (!this.arestaVisivel(edge)) continue;
 
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", caminhoSvg(curva));
-      path.setAttribute("class", `edge-path edge-${edge.tipo} ${this.state.selectedElement?.id === id ? "selected" : ""}`);
-      path.setAttribute("data-edge-id", id);
-      path.setAttribute("data-origem", edge.origem_id);
-      path.setAttribute("data-destino", edge.destino_id);
-
-      const markerId = TIPOS_COM_MARCADOR.has(edge.tipo) ? `arrow-${edge.tipo}` : "arrow";
-      path.setAttribute("marker-end", `url(#${markerId})`);
-      path.style.stroke = `var(--edge-${edge.tipo}, var(--edge-default))`;
-
-      path.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.state.selectElement("edge", id);
-      });
-
+      const path = this.criarCaminhoDaAresta(id, edge);
+      this.elementosDasArestas.set(id, path);
       this.edgesLayer.appendChild(path);
+    }
+  }
+
+  indexarAresta(noId, arestaId) {
+    let ids = this.arestasPorNo.get(noId);
+    if (!ids) {
+      ids = new Set();
+      this.arestasPorNo.set(noId, ids);
+    }
+    ids.add(arestaId);
+  }
+
+  /** Arestas `produz` ficam ocultas, a menos que uma ponta esteja selecionada. */
+  arestaVisivel(edge) {
+    if (!this.state.hideStructuralEdges || edge.tipo !== "produz") return true;
+    const selecionado = this.state.selectedElement?.id;
+    return selecionado === edge.origem_id || selecionado === edge.destino_id;
+  }
+
+  /** O atributo `d` da aresta, a partir da posicao e do tamanho em cache dos dois cartoes. */
+  caminhoDaAresta(edge) {
+    return caminhoSvg(tracarCurva(this.retanguloDoCartao(edge.origem_id), this.retanguloDoCartao(edge.destino_id)));
+  }
+
+  criarCaminhoDaAresta(id, edge) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", this.caminhoDaAresta(edge));
+    path.setAttribute("class", `edge-path edge-${edge.tipo} ${this.state.selectedElement?.id === id ? "selected" : ""}`);
+    path.setAttribute("data-edge-id", id);
+    path.setAttribute("data-origem", edge.origem_id);
+    path.setAttribute("data-destino", edge.destino_id);
+
+    const markerId = TIPOS_COM_MARCADOR.has(edge.tipo) ? `arrow-${edge.tipo}` : "arrow";
+    path.setAttribute("marker-end", `url(#${markerId})`);
+    path.style.stroke = `var(--edge-${edge.tipo}, var(--edge-default))`;
+
+    path.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.state.selectElement("edge", id);
+    });
+    return path;
+  }
+
+  /**
+   * Recalcula so o `d` das arestas ligadas ao no — o que arrastar um cartao
+   * muda. Refazer todas as arestas a cada mousemove custava O(arestas) em DOM
+   * para mover algo que toca meia duzia delas.
+   */
+  redesenharArestasDoNo(noId) {
+    const ids = this.arestasPorNo.get(noId);
+    if (!ids) return;
+    for (const id of ids) {
+      const path = this.elementosDasArestas.get(id);
+      const edge = this.state.edges.get(id);
+      if (path && edge) path.setAttribute("d", this.caminhoDaAresta(edge));
     }
   }
 

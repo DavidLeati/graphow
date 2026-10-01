@@ -30,6 +30,8 @@ export class CanvasInteractions {
 
     this.draggingNode = null;
     this.dragOffset = { x: 0, y: 0 };
+    this.arrastePendente = null;
+    this.quadroDoArraste = null;
 
     this.connectingFromId = null;
     this.tempEdgePath = null;
@@ -270,8 +272,7 @@ export class CanvasInteractions {
         nodeEl.style.left = `${newX}px`;
         nodeEl.style.top = `${newY}px`;
       }
-      this.renderer.renderEdges();
-      if (this.minimap) this.minimap.update();
+      this.agendarRedesenhoDoArraste(this.draggingNode);
       return;
     }
 
@@ -287,8 +288,37 @@ export class CanvasInteractions {
     }
   }
 
+  /**
+   * A posição do nó é gravada a cada mousemove, mas redesenhar as arestas dele
+   * e o minimapa é caro e o navegador só pinta uma vez por quadro: os eventos
+   * que chegam entre dois quadros se juntam num único redesenho.
+   */
+  agendarRedesenhoDoArraste(id) {
+    this.arrastePendente = id;
+    if (this.quadroDoArraste) return;
+    this.quadroDoArraste = requestAnimationFrame(() => {
+      this.quadroDoArraste = null;
+      this.aplicarArrastePendente();
+    });
+  }
+
+  aplicarArrastePendente() {
+    if (this.arrastePendente === null || this.arrastePendente === undefined) return;
+    const id = this.arrastePendente;
+    this.arrastePendente = null;
+    this.renderer.redesenharArestasDoNo(id);
+    if (this.minimap) this.minimap.update();
+  }
+
   onMouseUp(e) {
     if (this.draggingNode) {
+      // Solta com a última posição já nas arestas: o quadro agendado, se ainda
+      // não rodou, perde a vez para esta aplicação síncrona.
+      if (this.quadroDoArraste) {
+        cancelAnimationFrame(this.quadroDoArraste);
+        this.quadroDoArraste = null;
+      }
+      this.aplicarArrastePendente();
       this.state.savePositions();
       this.draggingNode = null;
       if (this.minimap) this.minimap.update();
