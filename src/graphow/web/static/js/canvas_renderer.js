@@ -32,6 +32,9 @@ export class CanvasRenderer {
     // tocam. Ambos sao refeitos por renderEdges.
     this.elementosDasArestas = new Map();
     this.arestasPorNo = new Map();
+    // O id selecionado que o DOM desenhado reflete, para atualizarSelecao saber
+    // o que desmarcar.
+    this.idSelecionadoNoDom = null;
     this.hoveredNodeId = null;
     this.setupDefs();
     // A idade e relativa: sem este relogio, um card diria "3 min" a tarde
@@ -87,6 +90,53 @@ export class CanvasRenderer {
   render() {
     this.renderNodes();
     this.renderEdges();
+    this.idSelecionadoNoDom = this.state.selectedElement?.id ?? null;
+  }
+
+  /**
+   * Acompanha a troca de seleção sem refazer o DOM: só o cartão e a aresta que
+   * deixaram de estar selecionados e os que passaram a estar mudam de classe.
+   * render() apagava e recriava todos os cartões e arestas por um clique.
+   *
+   * O "anterior" é o que o DOM mostra, guardado aqui, e não o que o chamador
+   * lembra: assim uma seleção perdida no caminho não deixa um cartão marcado.
+   */
+  atualizarSelecao() {
+    const anterior = this.idSelecionadoNoDom ?? null;
+    const atual = this.state.selectedElement?.id ?? null;
+    if (anterior === atual) return;
+    this.idSelecionadoNoDom = atual;
+
+    const ids = [anterior, atual].filter((id) => id !== null);
+    for (const id of ids) {
+      this.nodeElements.get(id)?.classList.toggle("selected", id === atual);
+      this.elementosDasArestas.get(id)?.classList.toggle("selected", id === atual);
+    }
+
+    // Arestas `produz` só aparecem enquanto uma ponta está selecionada: as das
+    // pontas antiga e nova mudam de visibilidade, e só elas.
+    if (!this.state.hideStructuralEdges) return;
+    for (const id of ids) {
+      for (const arestaId of this.arestasPorNo.get(id) ?? []) {
+        if (this.state.edges.get(arestaId)?.tipo === "produz") this.sincronizarVisibilidadeDaAresta(arestaId);
+      }
+    }
+  }
+
+  /** Mostra ou oculta uma aresta já indexada, conforme a regra de visibilidade de agora. */
+  sincronizarVisibilidadeDaAresta(id) {
+    const edge = this.state.edges.get(id);
+    if (!edge) return;
+    const desenhada = this.elementosDasArestas.get(id);
+    if (this.arestaVisivel(edge)) {
+      if (desenhada) return;
+      const path = this.criarCaminhoDaAresta(id, edge);
+      this.elementosDasArestas.set(id, path);
+      this.edgesLayer.appendChild(path);
+    } else if (desenhada) {
+      desenhada.remove();
+      this.elementosDasArestas.delete(id);
+    }
   }
 
   renderNodes() {

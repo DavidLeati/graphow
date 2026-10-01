@@ -532,7 +532,9 @@ class GraphowApp {
       this.quadro.render();
     } else if (tipo === "SELECTION_CHANGED") {
       this.quadro.render();
-      this.renderer.render();
+      // Só troca a marca de seleção: recriar os cartões e as arestas a cada
+      // clique custava segundos num grafo de mil nós.
+      this.renderer.atualizarSelecao();
       this.destacar(null);
       this.inspector.render();
       this.explorador.render();
