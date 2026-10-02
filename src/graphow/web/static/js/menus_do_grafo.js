@@ -98,6 +98,14 @@ function itensDeMemoria(app, no) {
 
 function itensDeEstado(app, no, viajando) {
   const itens = [];
+  if (no.tipo === "Task" && no.lock_ativo) {
+    itens.push({
+      rotulo: `Liberar posse de ${no.lock_ativo}`,
+      icone: "lock-open",
+      desabilitado: viajando,
+      acao: () => app.dialogos.liberarPosse(no),
+    });
+  }
   const status = statusDoTipo(no.tipo);
   if (status) {
     itens.push({

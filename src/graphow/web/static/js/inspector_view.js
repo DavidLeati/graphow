@@ -22,16 +22,17 @@ import {
   ajustarAltura, CHAVES_OCULTAS, interpretarValorNovo, lerValorDaLinha,
   montarLinhaDePropriedade, ordenarChaves, valoresIguais,
 } from "./propriedades_editor.js";
+import { montarSeloDoArbitro, rotuloDaResposta } from "./selo_do_arbitro.js";
 import { formatarTextoDeLeitura } from "./texto_formatado.js";
 
 const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
 
 // Propriedades que o bloco do tipo já edita com um controle próprio.
-const CHAVES_DO_BLOCO = { Task: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"], Sessao: ["status", "resumo"], Aprendizado: ["como_aplicar", "alcance", "valido_ate"] };
+const CHAVES_DO_BLOCO = { Task: ["status"], Goal: ["status"], Question: ["status", "pergunta", "resposta"], Projeto: ["nivel_autonomia"], Sessao: ["status", "resumo"], Aprendizado: ["como_aplicar", "alcance", "valido_ate"] };
 
 // Tipos cujo status vai para a linha do topo, junto da pílula: uma linha
 // inteira só para ele empurrava a pergunta e a descrição para baixo.
-const TIPOS_COM_STATUS_NO_TOPO = new Set(["Task", "Question"]);
+const TIPOS_COM_STATUS_NO_TOPO = new Set(["Task", "Goal", "Question"]);
 
 // O mesmo teto que `abrir_questao` aplica no servidor, para o título derivado
 // aqui sair igual ao que o agente teria mandado.
@@ -198,7 +199,10 @@ export class InspectorView {
       alertas.push(`<div class="chamada mod-alerta">${icone("alert-triangle", { tamanho: 14 })}<span>Bloqueada por dúvida aberta. ${links}</span></div>`);
     }
     if (no.lock_ativo) {
-      alertas.push(`<div class="chamada mod-aviso">${icone("lock", { tamanho: 14 })}<span>Em posse de <strong>${escapeHtml(no.lock_ativo)}</strong>: só esse agente move o status.</span></div>`);
+      const liberar = no.tipo === "Task" && !this.state.isTimeTraveling
+        ? `<button class="botao mod-pequeno" data-acao="liberar-posse" title="Devolve a posse de ${escapeHtml(no.lock_ativo)}: o gesto é do humano">${icone("lock-open", { tamanho: 14 })} Liberar posse</button>`
+        : "";
+      alertas.push(`<div class="chamada mod-aviso">${icone("lock", { tamanho: 14 })}<span>Em posse de <strong>${escapeHtml(no.lock_ativo)}</strong>: só esse agente move o status.</span><span class="espacador"></span>${liberar}</div>`);
     }
     return alertas.join("");
   }
@@ -274,7 +278,9 @@ export class InspectorView {
   montarAlcanceDoAprendizado(no, saidas) {
     const alcances = saidas.filter((a) => a.tipo === "vale_para").map((a) => this.montarLinkDeNo(a.vizinho));
     if (no.propriedades?.alcance === "global") alcances.unshift("<strong>vale para tudo</strong>");
-    return alcances.length ? alcances.join(", ") : "Só a sessão em que nasceu. Promover é gesto humano e dá alcance a um Projeto, um Setor ou a tudo.";
+    const texto = alcances.length ? alcances.join(", ") : "Só a sessão em que nasceu. Promover é gesto humano e dá alcance a um Projeto, um Setor ou a tudo.";
+    const selo = montarSeloDoArbitro(no.propriedades?.promovido_por_papel, no.propriedades?.promovido_por, "Promovido");
+    return selo ? `${texto} ${selo}` : texto;
   }
 
   montarOrigemDoAprendizado(saidas) {
@@ -352,9 +358,10 @@ export class InspectorView {
     const alvo = bloqueadas.length ? `<div class="bloco-nota">Bloqueia: ${bloqueadas.map((a) => this.montarLinkDeNo(a.destino_id)).join(" ")}</div>` : "";
     return `
       ${this.montarCampoDaPergunta(no.propriedades?.pergunta || "", desabilitado)}
+      ${this.montarSeloDaResposta(no)}
       ${this.montarCampoDeTexto({
         chave: "resposta",
-        rotulo: "Resposta humana",
+        rotulo: rotuloDaResposta(no.propriedades),
         icone: "corner-down-right",
         valor: no.propriedades?.resposta || "",
         dica: "Escreva a resposta que destrava a tarefa…",
@@ -364,6 +371,12 @@ export class InspectorView {
       })}
       ${this.montarConviteDeSeparacao(no, desabilitado)}
       ${alvo}`;
+  }
+
+  /** Question respondida pelo árbitro leva o selo, com o autor na dica: o humano pode reabri-la. */
+  montarSeloDaResposta(no) {
+    const selo = montarSeloDoArbitro(no.propriedades?.respondida_por_papel, no.propriedades?.respondida_por, "Respondida");
+    return selo ? `<div class="bloco-nota">${selo} Para refazer a decisão, mude o status para aberta.</div>` : "";
   }
 
   /**
@@ -744,6 +757,7 @@ export class InspectorView {
       viajar: () => this.acoes.viajarPara(Number(alvo.dataset.seq)),
       "remover-aresta": () => this.acoes.excluirAresta(selecao?.data),
       promover: () => this.acoes.promoverAprendizado(this.noRenderizado),
+      "liberar-posse": () => this.acoes.liberarPosse(this.noRenderizado),
       "registrar-aprendizado": () => this.acoes.registrarAprendizado({ origens: [this.noRenderizado.id], sessaoId: this.noRenderizado.sessao_id }),
     };
     tratadores[acao]?.();

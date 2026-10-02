@@ -11,6 +11,7 @@
 import { api } from "./api.js";
 import { escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
+import { montarSeloDoArbitro } from "./selo_do_arbitro.js";
 import { apresentarStatus, apresentarTipo, corDoTipo, tomDoStatus } from "./ontologia_ui.js";
 
 const TEXTO_DA_CONDENSACAO = {
@@ -91,6 +92,7 @@ export class MemoriaView {
     const marcas = [
       item.substituto ? `<span class="memoria-marca mod-alerta">${icone("alert-triangle", { tamanho: 11 })}substituído por ${this.montarLink(item.substituto)}</span>` : "",
       ...item.contradicoes.map((origem) => `<span class="memoria-marca mod-aviso">${icone("flask", { tamanho: 11 })}contradito por ${this.montarLink(origem.id, origem.rotulo)}</span>`),
+      montarSeloDoArbitro(item.promovido_por_papel, item.promovido_por, "Promovido"),
       item.valido_ate ? `<span class="memoria-marca">${icone("clock", { tamanho: 11 })}válido até ${escapeHtml(item.valido_ate)}</span>` : "",
     ];
     const dica = `${item.id} · log #${item.seq_criacao} · ${item.autor} (${item.papel})`;

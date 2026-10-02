@@ -196,6 +196,7 @@ class GraphowApp {
       registrarAprendizado: (opcoes) => this.dialogosDeMemoria.registrar(opcoes),
       promoverAprendizado: (no) => this.dialogosDeMemoria.promover(no),
       mudarPropriedade: (no, chave, valor, mensagem) => this.dialogos.mudarPropriedade(no, chave, valor, mensagem),
+      liberarPosse: (no) => this.dialogos.liberarPosse(no),
     };
   }
 

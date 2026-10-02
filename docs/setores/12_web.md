@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-27 módulos · 3318 linhas · 52 classes
+27 módulos · 3324 linhas · 52 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 300 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 302 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
@@ -31,7 +31,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
-| [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 215 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
+| [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 219 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 76 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
 | [`web/rotas_governanca.py`](#webrotasgovernanca) | 138 | As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador. |
@@ -143,7 +143,7 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 *DTO imutável* — Um Aprendizado como o painel de memória o mostra: afirmação, origem, alcance e marcas.
 
-**Campos:** `id: str`, `afirmacao: str`, `como_aplicar: str`, `sessao_id: str | None`, `alcances: Sequence[str]`, `origens: Sequence[NoCitadoWeb]`, `contradicoes: Sequence[NoCitadoWeb]`, `substituto: str | None`, `valido_ate: str`, `promovido: bool`, `vigente: bool`, `autor: str`, `papel: str`, `seq_criacao: int`
+**Campos:** `id: str`, `afirmacao: str`, `como_aplicar: str`, `sessao_id: str | None`, `alcances: Sequence[str]`, `origens: Sequence[NoCitadoWeb]`, `contradicoes: Sequence[NoCitadoWeb]`, `substituto: str | None`, `valido_ate: str`, `promovido: bool`, `vigente: bool`, `autor: str`, `papel: str`, `seq_criacao: int`, `promovido_por: str`, `promovido_por_papel: str`
 
 ### `DadosArestaVisual`
 
@@ -498,6 +498,8 @@ Controlador REST da memória: o que o canvas mostra dela e o que o humano faz co
 | `CAMPO_STATUS` | `str` | `'status'` |
 | `CAMPO_RESUMO` | `str` | `'resumo'` |
 | `PREFIXO_DE_APRENDIZADO` | `str` | `'apr'` |
+| `CAMPO_PROMOVIDO_POR` | `str` | `'promovido_por'` |
+| `CAMPO_PROMOVIDO_POR_PAPEL` | `str` | `'promovido_por_papel'` |
 
 ### `MemoriaWebController`
 

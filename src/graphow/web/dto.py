@@ -247,6 +247,8 @@ class AprendizadoWeb:
     autor: str
     papel: str
     seq_criacao: int
+    promovido_por: str = ""
+    promovido_por_papel: str = ""
 
 
 @dataclass(frozen=True)

@@ -37,6 +37,8 @@ CONDENSACAO_NENHUMA: str = "nenhuma"
 CAMPO_STATUS: str = "status"
 CAMPO_RESUMO: str = "resumo"
 PREFIXO_DE_APRENDIZADO: str = "apr"
+CAMPO_PROMOVIDO_POR: str = "promovido_por"
+CAMPO_PROMOVIDO_POR_PAPEL: str = "promovido_por_papel"
 
 
 class MemoriaWebController:
@@ -120,6 +122,8 @@ def descrever_aprendizado(no: NoGrafo, view: GrafoView) -> AprendizadoWeb:
         autor=nota.autor,
         papel=nota.papel,
         seq_criacao=nota.seq_criacao,
+        promovido_por=str(no.obter_propriedade(CAMPO_PROMOVIDO_POR, "") or ""),
+        promovido_por_papel=str(no.obter_propriedade(CAMPO_PROMOVIDO_POR_PAPEL, "") or ""),
     )
 
 

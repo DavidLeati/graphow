@@ -302,6 +302,12 @@ export class DialogosDoGrafo {
     return this.concluir(recibo, mensagem);
   }
 
+  /** Devolve a posse da Task, de quem quer que a tenha: o gesto humano que destrava o subagente que não voltou. */
+  async liberarPosse(no) {
+    const recibo = await api.liberarPosse(no.id, this.ramo);
+    return this.concluir(recibo, recibo.mensagem || "Posse devolvida");
+  }
+
   async excluirNo(no) {
     if (no.tipo === "Projeto") return this.excluirProjeto(no);
     const aviso = ehConteiner(no.tipo) ? "<br><br>O que ele contém <strong>não</strong> é removido junto e fica fora da hierarquia." : "";

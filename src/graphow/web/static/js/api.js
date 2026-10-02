@@ -80,6 +80,8 @@ export const api = {
   memoria: (ramo) => pedir(`/api/memoria?${montarQuery({ ramo })}`),
   registrarAprendizado: (corpo) => pedir("/api/memoria/aprendizados", comCorpo("POST", corpo)),
   promoverAprendizado: (corpo) => pedir("/api/memoria/promocoes", comCorpo("POST", corpo)),
+  // Gesto humano: devolve a posse de qualquer dono, para a tarefa que o subagente deixou travada.
+  liberarPosse: (id, ramo) => pedir(`/api/tarefas/${encodeURIComponent(id)}/liberar-posse`, comCorpo("POST", { ramo_id: ramo })),
   salvarLayout: (corpo) => pedir("/api/layout", comCorpo("PUT", corpo)),
   // Governança: o catálogo e a política global, a do projeto, o que o árbitro fez e a escrita (sempre humana).
   governanca: (ramo) => pedir(`/api/governanca?${montarQuery({ ramo })}`),

@@ -103,6 +103,7 @@ const vocabulario = {
   arestas: {},
   status: {
     Task: ["pendente", "em_andamento", "pronto_para_revisao", "concluido", "bloqueado"],
+    Goal: ["pendente", "em_andamento", "concluido"],
     Question: ["aberta", "respondida", "descartada"],
     Sessao: ["ativa", "concluida"],
   },

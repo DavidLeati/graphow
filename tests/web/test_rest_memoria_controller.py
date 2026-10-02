@@ -141,6 +141,19 @@ def test_aprendizado_nao_promovido_aparece_sem_alcance_nominal() -> None:
     assert aprendizado.alcances == ()
 
 
+def test_painel_traz_quem_promoveu_e_com_que_papel_nominal() -> None:
+    """O selo "pelo árbitro" da tela lê `promovido_por` e `promovido_por_papel`; sem promoção, vêm vazios."""
+    _, canvas, memoria = _montar()
+    memoria.registrar_aprendizado(_registro())
+    assert memoria.obter_memoria().aprendizados[0].promovido_por_papel == ""
+
+    marcas = {"promovido_por": "arbitro-1", "promovido_por_papel": "arbitro"}
+    assert canvas.editar_no(RequisicaoEdicaoNo(id_no="apr-1", novas_propriedades=marcas)).sucesso
+
+    aprendizado = memoria.obter_memoria().aprendizados[0]
+    assert (aprendizado.promovido_por, aprendizado.promovido_por_papel) == ("arbitro-1", "arbitro")
+
+
 def test_painel_descreve_a_sessao_com_fechamento_e_estado_da_condensacao_nominal() -> None:
     """Sessão ativa: nenhuma condensação. Encerrada: pendente. Com a Note: feita."""
     kernel, canvas, memoria = _montar()

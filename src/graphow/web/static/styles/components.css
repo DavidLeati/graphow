@@ -750,3 +750,18 @@ input:disabled + .alternador-trilho { opacity: 0.5; }
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Selo do gesto que o árbitro exerceu no lugar do humano: discreto, na cor da governança. */
+.selo-arbitro {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--color-governanca);
+  background: rgba(236, 72, 153, 0.12);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.selo-arbitro .svg-icone { flex-shrink: 0; }

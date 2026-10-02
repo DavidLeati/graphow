@@ -12,6 +12,7 @@ import { escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
 import { avisar } from "./modais.js";
 import { apresentarStatus, apresentarTipo, corDoTipo, tomDoStatus } from "./ontologia_ui.js";
+import { montarSeloDoArbitro, rotuloDaResposta } from "./selo_do_arbitro.js";
 import { ajustarAltura } from "./propriedades_editor.js";
 import { formatarTextoDeLeitura } from "./texto_formatado.js";
 
@@ -128,6 +129,7 @@ export class LeituraDaQuestaoView {
         <div class="leitura-topo">
           <span class="pilula-tipo" style="--cor-tipo:${corDoTipo(no.tipo)}">${icone(tipo.icone, { tamanho: 13 })}${escapeHtml(tipo.nome)}</span>
           <span class="leitura-status tom-${tomDoStatus(status)}">${escapeHtml(apresentarStatus(status))}</span>
+          ${status === "respondida" ? montarSeloDoArbitro(no.propriedades?.respondida_por_papel, no.propriedades?.respondida_por, "Respondida") : ""}
           <span class="espacador"></span>
           <button class="botao mod-pequeno" data-acao="focar" title="Selecionar a dúvida e centralizá-la no canvas">${icone("crosshair", { tamanho: 14 })} Mostrar no canvas</button>
         </div>
@@ -141,7 +143,7 @@ export class LeituraDaQuestaoView {
 
   /** Dúvida aberta pede a resposta; a encerrada mostra a que recebeu. */
   montarResposta(no, status) {
-    const rotulo = `<span class="bloco-campo-rotulo">${icone("corner-down-right", { tamanho: 14 })} Resposta humana</span>`;
+    const rotulo = `<span class="bloco-campo-rotulo">${icone("corner-down-right", { tamanho: 14 })} ${rotuloDaResposta(no.propriedades)}</span>`;
     if (status !== "aberta") {
       const lida = formatarTextoDeLeitura(no.propriedades?.resposta) || '<p class="texto-fraco">Sem resposta registrada.</p>';
       return `${rotulo}<div class="texto-leitura">${lida}</div>`;
