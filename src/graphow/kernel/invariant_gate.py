@@ -8,6 +8,7 @@ from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
 from graphow.kernel.localizacao import EvidenciaNoLote, diagnosticar_localizacao, projetar_evidencias_do_lote
+from graphow.kernel.veredito_de_fechamento import tarefas_sem_veredito_aprovado
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -49,21 +50,18 @@ class InvariantGate:
         if not resultado_lock.aprovado:
             return resultado_lock
         estrutura = EstruturaAposLote.antever(proposta, estado)
-        resultado_hierarquia = self._validar_nos_na_hierarquia(estrutura)
-        if not resultado_hierarquia.aprovado:
-            return resultado_hierarquia
-        resultado_origem = self._validar_origem_de_aprendizado(estrutura)
-        if not resultado_origem.aprovado:
-            return resultado_origem
-        resultado_localizacao = self._validar_localizacao_de_evidencia(proposta, estado)
-        if not resultado_localizacao.aprovado:
-            return resultado_localizacao
-        resultado_bloqueio = self._validar_bloqueio_questoes(proposta, estrutura.antes)
-        if not resultado_bloqueio.aprovado:
-            return resultado_bloqueio
-        resultado_posse = self._validar_posse_da_tarefa(proposta, estado, locks)
-        if not resultado_posse.aprovado:
-            return resultado_posse
+        verificacoes = (
+            lambda: self._validar_nos_na_hierarquia(estrutura),
+            lambda: self._validar_origem_de_aprendizado(estrutura),
+            lambda: self._validar_localizacao_de_evidencia(proposta, estado),
+            lambda: self._validar_bloqueio_questoes(proposta, estrutura.antes),
+            lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
+            lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
+        )
+        for verificar in verificacoes:
+            resultado = verificar()
+            if not resultado.aprovado:
+                return resultado
         return self._validar_aciclicidade_dependencias(proposta, estado)
 
     def _validar_nos_na_hierarquia(self, estrutura: EstruturaAposLote) -> ResultadoValidacao:
@@ -137,6 +135,29 @@ class InvariantGate:
             "InvariantGate",
             {"id_no": evidencia.id, "papel_de_quem_criou": evidencia.papel_de_quem_criou},
             modo=ModoFalhaMAST.EVIDENCIA_SEM_LOCALIZACAO,
+        )
+
+    def _validar_veredito_do_fechamento(self, proposta: PropostaPatch, estrutura: EstruturaAposLote) -> ResultadoValidacao:
+        """Recusa o agente que conclui uma Task sem veredito de revisão aprovado.
+
+        A regra vale em todo preset de governança: não é um gesto, é a
+        verificação que antecede o fechamento. Ver kernel/veredito_de_fechamento.py.
+        """
+        sem_veredito = tarefas_sem_veredito_aprovado(proposta, estrutura)
+        if not sem_veredito:
+            return ResultadoValidacao.sucesso()
+        return self._recusar_fechamento_sem_veredito(sem_veredito[0])
+
+    def _recusar_fechamento_sem_veredito(self, id_task: str) -> ResultadoValidacao:
+        """Diz o que falta: a Evidence de revisão aprovada, ligada ao Artifact ou à Task."""
+        return ResultadoValidacao.falha(
+            f"Task '{id_task}' nao pode ser concluida sem veredito de revisao aprovado. Falta uma Evidence "
+            "com a propriedade 'veredito' igual a 'aprovado', ligada por 'deriva_de' ao Artifact da Task ou "
+            "a ela; o veredito mais recente precisa ser 'aprovado'. Quem o escreve e o revisor: "
+            "o executor deixa a Task em 'pronto_para_revisao' e espera",
+            "InvariantGate",
+            {"id_task": id_task},
+            modo=ModoFalhaMAST.FECHAMENTO_SEM_VEREDITO_APROVADO,
         )
 
     def _validar_posse_da_tarefa(

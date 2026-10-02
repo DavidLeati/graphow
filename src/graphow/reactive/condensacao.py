@@ -15,17 +15,16 @@ import uuid
 from graphow.context.fechamento import ACAO_DE_CONDENSACAO
 from graphow.core.events import EventoLog, TipoEvento
 from graphow.core.models import NoGrafo
+from graphow.core.orquestracao import ACAO_DE_CONDENSAR, ACOES_ABERTAS_PELO_GRAFO
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.projection.graph_view import GrafoView
 from graphow.reactive.interfaces import ComportamentoReativo
 
-ACAO_DE_CONDENSAR: str = "condensar_sessao"
-# A acao da Task de consolidar aprendizados mora aqui, ao lado da de condensar,
-# porque o balanco da sessao precisa das duas e reactive/consolidacao.py importa
-# deste modulo: as Tasks que o grafo abre sozinho nao sao trabalho da sessao.
-ACAO_DE_CONSOLIDAR: str = "consolidar_aprendizados"
-ACOES_ABERTAS_PELO_GRAFO: frozenset[str] = frozenset({ACAO_DE_CONDENSAR, ACAO_DE_CONSOLIDAR})
+# As acoes das Tasks que o grafo abre sozinho (condensar e consolidar) moram em
+# core/orquestracao.py, onde o kernel as le para isentar do veredito de revisao.
+# O balanco da sessao precisa das duas: as Tasks que o grafo abre sozinho nao
+# sao trabalho da sessao.
 AUTOR_DO_CONDENSADOR: str = "comportamento-condensador"
 PREFIXO_DA_TAREFA: str = "task-condensar"
 CAMPO_ACAO: str = "acao"

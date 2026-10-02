@@ -36,6 +36,7 @@ from graphow.kernel.permissao_de_aresta import (
     descrever_reserva_do_gesto,
 )
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral, projetar_lote
+from graphow.kernel.veredito_reservado import validar_escrita_de_veredito
 
 SEGMENTOS_DE_UMA_PROPRIEDADE: int = 4
 
@@ -115,6 +116,9 @@ class RoleGate:
             return self._arestas.validar(segmentos, item, contexto)
         if segmentos[0] != "nos":
             return ResultadoValidacao.sucesso()
+        resultado_veredito = validar_escrita_de_veredito(segmentos, item, contexto)
+        if not resultado_veredito.aprovado:
+            return resultado_veredito
         if len(segmentos) == SEGMENTOS_DE_ELEMENTO_INTEIRO and item.op == OperacaoPatch.ADD:
             return self._validar_permissao_criacao_no(item, contexto)
         ctx = ContextoPermissaoEdicao(segmentos=tuple(segmentos), item=item, contexto=contexto)

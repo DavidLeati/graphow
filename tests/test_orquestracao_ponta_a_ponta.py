@@ -210,21 +210,24 @@ def test_executor_que_reinicia_no_meio_da_tarefa_fecha_sem_o_humano_edge_case() 
 def test_segunda_reprovacao_sem_bloqueante_fecha_pelo_teto_edge_case() -> None:
     """Caso de borda: a correção reprovada só com acompanhamento fecha com a original, e o resto vira outra Task.
 
-    O veredito vigente das duas é `rejeitado`, e nenhum portão olha para ele no
-    fechamento: com a posse livre, o executor assume e conclui como sempre. A
-    tarefa de acompanhamento nasce no Goal e sem `corrige`, e por isso não
-    prende a original.
+    O veredito vigente das duas é `rejeitado`, e o kernel só deixa o executor
+    concluir com veredito aprovado ou com a Decision de aceite do condutor,
+    que orienta cada tarefa e é justificada pela Evidence do veredito vigente
+    dela: a rejeição da original e a da correção. A tarefa de acompanhamento
+    nasce no Goal e sem `corrige`, e por isso não prende a original.
     """
     kernel = _montar_goal()
     orquestrador = _agente(kernel, "orquestrador", "planejador")
     _decompor(orquestrador)
     _executar(_agente(kernel, "executor-opus#a1", "executor"), "t1", "art-1")
-    _corrigir(orquestrador, _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=False))
+    primeira = _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=False)
+    _corrigir(orquestrador, primeira)
     _executar(_agente(kernel, "executor-opus#c3", "executor"), "t1c", "art-2")
     segunda = _revisar(_agente(kernel, "revisor-opus#d4", "revisor"), "art-2", "t1c", aprovar=False, gravidade="acompanhamento")
 
     aceite = [
         *_produzido("dec-aceite", "Decision", acao="aceite_apos_reprovacao", motivo="so ficou criterio de acompanhamento"),
+        _aresta(primeira, "dec-aceite", "justifica"),
         _aresta(segunda, "dec-aceite", "justifica"),
         _aresta("dec-aceite", "t1", "orienta"),
         _aresta("dec-aceite", "t1c", "orienta"),

@@ -61,6 +61,28 @@ STATUS_QUE_ENCERRA_SESSAO: str = StatusSessao.CONCLUIDA.value
 # deixa a um agente. O Governanca nunca sai da lista: a política não se escreve sozinha.
 TIPOS_LIBERADOS_POR_GESTO: Mapping[TipoNo, Gesto] = {TipoNo.CONSTRAINT: Gesto.CONSTRAINT}
 
+# O veredito de uma Evidence é o julgamento que libera o fechamento da Task: só
+# quem julga o escreve, e só o veredito de quem julga conta para o fechar. Sem
+# isso o executor criava a própria aprovação, ou trocava a do revisor.
+PAPEIS_QUE_JULGAM: frozenset[PapelAutor] = frozenset({PapelAutor.REVISOR, PapelAutor.HUMANO, PapelAutor.ARBITRO})
+# O aceite pelo teto de correções é do condutor (planejador), do humano ou do
+# árbitro: o executor que fecha a Task não decide aceitar a própria entrega.
+PAPEIS_QUE_ACEITAM_A_ENTREGA: frozenset[PapelAutor] = frozenset(
+    {PapelAutor.PLANEJADOR, PapelAutor.HUMANO, PapelAutor.ARBITRO}
+)
+
+
+
+def papel_julga(papel: str) -> bool:
+    """O papel gravado na proveniência de um nó é de quem julga, e seu veredito conta."""
+    return papel in {julgador.value for julgador in PAPEIS_QUE_JULGAM}
+
+
+def papel_aceita_a_entrega(papel: str) -> bool:
+    """O papel gravado na proveniência de um nó é de quem pode aceitar a entrega pelo teto."""
+    return papel in {aceitador.value for aceitador in PAPEIS_QUE_ACEITAM_A_ENTREGA}
+
+
 # Cópia deliberada de mcp/identidade_sessao.SEPARADOR_DO_SUFIXO_DE_CONEXAO: o
 # kernel não importa o servidor MCP, que importa o kernel. Um teste confere que
 # as duas constantes não se afastam.

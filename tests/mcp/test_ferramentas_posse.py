@@ -157,11 +157,52 @@ def test_dono_conclui_a_propria_tarefa_nominal() -> None:
     kernel = _montar_sessao_com_tarefa()
     executor = _servidor(kernel, "agente-a")
     executor.executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+    _julgar(kernel, "evi-ok", "aprovado")
 
     recibo = executor.executar_ferramenta("concluir_tarefa", {"id_task": "t1"})
 
     assert recibo["sucesso"] is True
     assert kernel.obter_view().obter_no("t1").obter_propriedade("status") == StatusTask.CONCLUIDO.value
+
+
+def test_dono_sem_veredito_aprovado_nao_conclui_a_tarefa_edge_case() -> None:
+    """Caso de borda: com a posse mas sem revisão aprovada, o kernel recusa o fechamento."""
+    kernel = _montar_sessao_com_tarefa()
+    executor = _servidor(kernel, "agente-a")
+    executor.executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+
+    sem_revisao = executor.executar_ferramenta("concluir_tarefa", {"id_task": "t1"})
+    _julgar(kernel, "evi-no", "rejeitado")
+    reprovada = executor.executar_ferramenta("concluir_tarefa", {"id_task": "t1"})
+
+    assert sem_revisao["sucesso"] is False and reprovada["sucesso"] is False
+    assert sem_revisao["modo_de_falha"] == "fechamento_sem_veredito_aprovado"
+    assert kernel.obter_view().obter_no("t1").obter_propriedade("status") == StatusTask.EM_ANDAMENTO.value
+
+
+def test_executor_nao_cria_a_propria_aprovacao_para_concluir_edge_case() -> None:
+    """Caso de borda: a Evidence `veredito=aprovado` do executor é recusada, e a Task segue sem fechar."""
+    kernel = _montar_sessao_com_tarefa()
+    executor = _servidor(kernel, "agente-a")
+    executor.executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
+    operacoes = [
+        {"op": "add", "path": "/nos/evi-eu", "value": {
+            "id": "evi-eu", "tipo": TipoNo.EVIDENCE.value, "rotulo": "evi-eu", "propriedades": {"veredito": "aprovado"},
+        }},
+        {"op": "add", "path": "/arestas/prod-evi-eu", "value": {
+            "id": "prod-evi-eu", "origem_id": "sess-1", "destino_id": "evi-eu", "tipo": TipoAresta.PRODUZ.value,
+        }},
+        {"op": "add", "path": "/arestas/deriva-evi-eu", "value": {
+            "id": "deriva-evi-eu", "origem_id": "evi-eu", "destino_id": "t1", "tipo": TipoAresta.DERIVA_DE.value,
+        }},
+    ]
+
+    criacao = executor.executar_ferramenta("propor_patch", {"operacoes": operacoes, "justificativa": "auto-aprovacao"})
+    fechamento = executor.executar_ferramenta("concluir_tarefa", {"id_task": "t1"})
+
+    assert criacao["sucesso"] is False and criacao["modo_de_falha"] == "violacao_permissao_papel"
+    assert fechamento["sucesso"] is False
+    assert fechamento["modo_de_falha"] == "fechamento_sem_veredito_aprovado"
 
 
 def test_liberar_tarefa_devolve_a_posse_nominal() -> None:

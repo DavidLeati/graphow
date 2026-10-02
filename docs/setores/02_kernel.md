@@ -10,28 +10,39 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-19 módulos · 3353 linhas · 29 classes
+22 módulos · 3616 linhas · 29 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 40 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
 | [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 118 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 191 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 335 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 356 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 229 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 251 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 264 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 380 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
+| [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 120 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
+| [`kernel/veredito_reservado.py`](#kernelvereditoreservado) | 56 | A propriedade `veredito` de uma Evidence é de quem julga: revisor, humano ou árbitro. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
+
+## `kernel/aceite_pelo_teto.py`
+
+O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado.
+
+### Funções do módulo
+
+- `aceite_libera_o_fechamento(view: GrafoView, id_task: str) -> bool` — Alguma Decision de aceite legítima orienta a Task e justifica-se pelo veredito vigente dela.
 
 ## `kernel/composicao.py`
 
@@ -242,6 +253,8 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `STATUS_QUE_FECHA_GOAL` | `str` | `StatusTask.CONCLUIDO.value` |
 | `STATUS_QUE_ENCERRA_SESSAO` | `str` | `StatusSessao.CONCLUIDA.value` |
 | `TIPOS_LIBERADOS_POR_GESTO` | `Mapping[TipoNo, Gesto]` | `{TipoNo.CONSTRAINT: Gesto.CONSTRAINT}` |
+| `PAPEIS_QUE_JULGAM` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.REVISOR, PapelAutor.HUMANO, PapelAutor.ARBITRO})` |
+| `PAPEIS_QUE_ACEITAM_A_ENTREGA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.HUMANO, PapelAutor.ARBITRO…` |
 | `SEPARADOR_DO_SUFIXO_DE_CONEXAO` | `str` | `'#'` |
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
@@ -264,6 +277,8 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 
 ### Funções do módulo
 
+- `papel_julga(papel: str) -> bool` — O papel gravado na proveniência de um nó é de quem julga, e seu veredito conta.
+- `papel_aceita_a_entrega(papel: str) -> bool` — O papel gravado na proveniência de um nó é de quem pode aceitar a entrega pelo teto.
 - `autor_sem_sufixo_de_conexao(autor: str) -> str` — O autor sem o sufixo `#xxxx` que a conexão acrescenta para ter posse própria.
 - `eh_autoria_propria(autor_da_proposta: str, aberta_por: object) -> bool` — Diz se quem propõe é quem abriu a dúvida, comparando sem o sufixo da conexão.
 - `gesto_da_aresta(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None, eh_remocao: bool) -> Gesto | None` — O gesto de governança que decide a operação sobre a aresta, ou None se a tabela decide sozinha.
@@ -458,6 +473,32 @@ Descrição dos spans que o kernel emite a cada escrita aceita ou recusada.
 
 - `montar_span_de_patch(proposta: PropostaPatch, fato: FatoDeEscrita) -> DadosSpanDTO` — Descreve o span de uma submissão ao PatchBoard, aceita ou recusada.
 - `montar_span_de_execucao(pedido: PedidoDeExecucao, sucesso: bool) -> DadosSpanDTO` — Descreve o span de um fato de ciclo de vida vindo do harness.
+
+## `kernel/veredito_de_fechamento.py`
+
+Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+
+### Funções do módulo
+
+- `tarefas_sem_veredito_aprovado(proposta: PropostaPatch, estrutura: EstruturaAposLote) -> tuple[str, ...]` — As Tasks que o lote conclui sem veredito efetivo `aprovado` nem aceite pelo teto.
+
+## `kernel/veredito_reservado.py`
+
+A propriedade `veredito` de uma Evidence é de quem julga: revisor, humano ou árbitro.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+
+### Funções do módulo
+
+- `validar_escrita_de_veredito(segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Recusa o papel que não julga quando a operação escreve ou remove o veredito de uma Evidence.
 
 ## `kernel/write_kernel.py`
 

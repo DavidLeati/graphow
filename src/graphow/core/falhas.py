@@ -40,6 +40,7 @@ class ModoFalhaMAST(str, Enum):
     APRENDIZADO_SEM_ORIGEM = "aprendizado_sem_origem"
     EVIDENCIA_SEM_LOCALIZACAO = "evidencia_sem_localizacao"
     ELEMENTO_JA_EXISTENTE = "elemento_ja_existente"
+    FECHAMENTO_SEM_VEREDITO_APROVADO = "fechamento_sem_veredito_aprovado"
     OUTRO = "outro"
 
 
@@ -64,6 +65,8 @@ CATEGORIA_POR_MODO: Mapping[ModoFalhaMAST, CategoriaFalhaMAST] = {
     # Criar sobre um id que já existe é, quase sempre, o mesmo lote enviado de
     # novo: repetição de passo, que o MAST põe no desenho do sistema.
     ModoFalhaMAST.ELEMENTO_JA_EXISTENTE: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
+    # Concluir sem revisão aprovada é pular a verificação que o grafo exige.
+    ModoFalhaMAST.FECHAMENTO_SEM_VEREDITO_APROVADO: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
     ModoFalhaMAST.OUTRO: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
 }
 

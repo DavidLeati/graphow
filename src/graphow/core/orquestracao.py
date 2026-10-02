@@ -59,6 +59,13 @@ TRIAGEM_FORA_DA_TRILHA: str = "fora_da_trilha"
 CAMPO_ACAO: str = "acao"
 ACAO_ACEITE_APOS_REPROVACAO: str = "aceite_apos_reprovacao"
 
+# Na Task que o próprio grafo abre, sem revisor, para manter a memória: condensar
+# a sessão e consolidar aprendizados. O kernel as isenta do veredito de revisão
+# para fechar, porque ninguém as reviria e a memória travaria.
+ACAO_DE_CONDENSAR: str = "condensar_sessao"
+ACAO_DE_CONSOLIDAR: str = "consolidar_aprendizados"
+ACOES_ABERTAS_PELO_GRAFO: frozenset[str] = frozenset({ACAO_DE_CONDENSAR, ACAO_DE_CONSOLIDAR})
+
 
 def ler_textos(valor: object) -> tuple[str, ...]:
     """Lista de textos não vazios, sem repetição e na ordem dada; um texto solto vira lista de um."""

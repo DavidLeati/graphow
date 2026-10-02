@@ -14,7 +14,7 @@ mesma uma correção.
 from collections.abc import Iterable
 
 from graphow.core.models import NoGrafo
-from graphow.core.orquestracao import CAMPO_CORRIGE, CAMPO_VEREDITO, ler_texto
+from graphow.core.orquestracao import CAMPO_CORRIGE, CAMPO_VEREDITO, VEREDITO_APROVADO, ler_texto
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 
@@ -47,11 +47,50 @@ def veredito_vigente(view: GrafoView, id_task: str) -> str:
     nó pela ordem do log, não o relógio: o revisor que troca o veredito de uma
     Evidence existente também emite um julgamento novo.
     """
+    ultimo = evidencia_do_veredito_vigente(view, id_task)
+    return ler_texto(ultimo.propriedades, CAMPO_VEREDITO) if ultimo is not None else ""
+
+
+def evidencia_do_veredito_vigente(view: GrafoView, id_task: str) -> NoGrafo | None:
+    """A Evidence do julgamento mais recente sobre a Task ou os Artifacts dela; None quando ninguém revisou."""
     vereditos = vereditos_sobre(view, {id_task} | artefatos_da_tarefa(view, id_task))
     if not vereditos:
-        return ""
-    ultimo = max(vereditos, key=lambda no: (no.ordem.seq_atualizacao, no.ordem.seq_criacao, no.id))
-    return ler_texto(ultimo.propriedades, CAMPO_VEREDITO)
+        return None
+    return max(vereditos, key=lambda no: (no.ordem.seq_atualizacao, no.ordem.seq_criacao, no.id))
+
+
+def veredito_efetivo(view: GrafoView, id_task: str) -> str:
+    """O veredito vigente, a menos que uma correção aprovada o tenha superado.
+
+    A correção aponta por `corrige` a Evidence da rejeição da original. Se a
+    correção vale como aprovada, a rejeição que ela motivou deixou de ser o
+    que impede a original, e o veredito efetivo desta é `aprovado`. A correção
+    pode ter a própria correção, e a cadeia se segue até uma aprovada ou até
+    não haver mais; um ciclo na cadeia não supera nada.
+    """
+    return _efetivo(view, id_task, frozenset())
+
+
+def _efetivo(view: GrafoView, id_task: str, visitadas: frozenset[str]) -> str:
+    """O veredito efetivo da Task, sem repassar por Task já visitada na cadeia."""
+    vigente = veredito_vigente(view, id_task)
+    if vigente == VEREDITO_APROVADO or not vigente:
+        return vigente
+    julgamento = evidencia_do_veredito_vigente(view, id_task)
+    corrigidas = visitadas | {id_task}
+    superada = julgamento is not None and any(
+        _efetivo(view, correcao, corrigidas) == VEREDITO_APROVADO
+        for correcao in _correcoes_de(view, julgamento.id)
+        if correcao not in corrigidas
+    )
+    return VEREDITO_APROVADO if superada else vigente
+
+
+def _correcoes_de(view: GrafoView, id_veredito: str) -> tuple[str, ...]:
+    """As Task que corrigem a Evidence de veredito, em ordem de identificador."""
+    return tuple(sorted(
+        no.id for no in view.listar_nos_por_tipo(TipoNo.TASK) if ler_texto(no.propriedades, CAMPO_CORRIGE) == id_veredito
+    ))
 
 
 def tarefa_julgada(view: GrafoView, id_veredito: str) -> str:

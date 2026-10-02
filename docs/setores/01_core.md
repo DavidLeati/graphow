@@ -10,17 +10,17 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-9 módulos · 1076 linhas · 37 classes
+9 módulos · 1086 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
-| [`core/falhas.py`](#corefalhas) | 73 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
+| [`core/falhas.py`](#corefalhas) | 76 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/governanca.py`](#coregovernanca) | 333 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 69 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
-| [`core/orquestracao.py`](#coreorquestracao) | 71 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
+| [`core/orquestracao.py`](#coreorquestracao) | 78 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
 | [`core/types.py`](#coretypes) | 120 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/events.py`
@@ -293,6 +293,9 @@ Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisã
 | `TRIAGEM_FORA_DA_TRILHA` | `str` | `'fora_da_trilha'` |
 | `CAMPO_ACAO` | `str` | `'acao'` |
 | `ACAO_ACEITE_APOS_REPROVACAO` | `str` | `'aceite_apos_reprovacao'` |
+| `ACAO_DE_CONDENSAR` | `str` | `'condensar_sessao'` |
+| `ACAO_DE_CONSOLIDAR` | `str` | `'consolidar_aprendizados'` |
+| `ACOES_ABERTAS_PELO_GRAFO` | `frozenset[str]` | `frozenset({ACAO_DE_CONDENSAR, ACAO_DE_CONSOLIDAR})` |
 
 ### Funções do módulo
 

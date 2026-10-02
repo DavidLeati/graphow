@@ -15,8 +15,8 @@ Comportamentos desacoplados que observam commits e propõem patches derivados, c
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`reactive/builtins.py`](#reactivebuiltins) | 95 | Comportamentos reativos nativos desacoplados do Graphow. |
-| [`reactive/condensacao.py`](#reactivecondensacao) | 169 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
-| [`reactive/consolidacao.py`](#reactiveconsolidacao) | 225 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
+| [`reactive/condensacao.py`](#reactivecondensacao) | 168 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
+| [`reactive/consolidacao.py`](#reactiveconsolidacao) | 226 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
 | [`reactive/diagnostico.py`](#reactivediagnostico) | 57 | Registro das reações que o kernel recusou, para que nenhuma morra calada. |
 | [`reactive/engine.py`](#reactiveengine) | 104 | Motor reativo que processa eventos e orquestra comportamentos desacoplados. |
 | [`reactive/interfaces.py`](#reactiveinterfaces) | 22 | Interface abstrata para comportamentos reativos desacoplados. |
@@ -48,9 +48,6 @@ Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Tas
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `ACAO_DE_CONDENSAR` | `str` | `'condensar_sessao'` |
-| `ACAO_DE_CONSOLIDAR` | `str` | `'consolidar_aprendizados'` |
-| `ACOES_ABERTAS_PELO_GRAFO` | `frozenset[str]` | `frozenset({ACAO_DE_CONDENSAR, ACAO_DE_CONSOLIDAR})` |
 | `AUTOR_DO_CONDENSADOR` | `str` | `'comportamento-condensador'` |
 | `PREFIXO_DA_TAREFA` | `str` | `'task-condensar'` |
 | `CAMPO_ACAO` | `str` | `'acao'` |
