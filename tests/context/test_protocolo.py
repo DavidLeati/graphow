@@ -1,7 +1,10 @@
 """Testes do protocolo de memória: o texto que chega ao agente sem ninguém lembrar de mandá-lo."""
 
 from graphow.context.protocolo import TITULO_DO_PROTOCOLO, montar_protocolo
+from graphow.core.governanca import PresetGovernanca, compor_politica_global, politica_do_preset, politica_padrao
 from graphow.core.types import PapelAutor
+
+GESTOS_HUMANOS_DE_SEMPRE: str = "Promover aprendizado e encerrar a sessao sao gestos humanos"
 
 
 def test_protocolo_nomeia_as_ferramentas_da_memoria_nominal() -> None:
@@ -57,3 +60,57 @@ def test_protocolo_diz_como_consolidar_aprendizados_nominal() -> None:
 
     assert "consolidar aprendizados" in texto
     assert "substitui = os ids absorvidos" in texto
+
+
+def test_governanca_maxima_mantem_o_texto_de_sempre_nominal() -> None:
+    """Em governança máxima, com ou sem política explícita, o último passo é o texto de antes."""
+    padrao = montar_protocolo()
+    explicita = montar_protocolo(politica=politica_do_preset(PresetGovernanca.GOVERNANCA_MAXIMA))
+
+    assert explicita == padrao == montar_protocolo(politica=politica_padrao())
+    assert GESTOS_HUMANOS_DE_SEMPRE in padrao[-1]
+    assert "arbitro" not in "\n".join(padrao)
+
+
+def test_arbitragem_maxima_cita_os_gestos_do_arbitro_e_o_que_segue_humano_nominal() -> None:
+    """Com o árbitro, o protocolo não afirma que promover e encerrar são do humano."""
+    linhas = montar_protocolo(politica=politica_do_preset(PresetGovernanca.ARBITRAGEM_MAXIMA))
+    passo = linhas[-1]
+
+    assert GESTOS_HUMANOS_DE_SEMPRE not in "\n".join(linhas)
+    assert passo.startswith("6. ")
+    for gesto in ("responder_questao", "promover_aprendizado", "encerrar_sessao", "excluir", "integracao"):
+        assert gesto in passo.split("Seguem humanos:")[0], gesto
+    assert "Governanca arbitragem_maxima" in passo
+    assert "Seguem humanos: promocao global de aprendizado e a configuracao da governanca;" in passo
+
+
+def test_personalizada_separa_o_que_e_do_arbitro_do_que_segue_humano_nominal() -> None:
+    """Numa personalizada o gesto entregue vai para o árbitro, e o resto segue na lista dos humanos."""
+    politica = compor_politica_global({"preset": "personalizada", "personalizada": {"excluir": "arbitro"}})
+
+    passo = montar_protocolo(politica=politica)[-1]
+    do_arbitro, humanos = passo.split("Seguem humanos:")
+
+    assert "Governanca personalizada" in passo
+    assert "gestos com o arbitro: excluir." in do_arbitro
+    assert "promover_aprendizado" in humanos
+    assert "encerrar_sessao" in humanos
+    assert "excluir" not in humanos
+
+
+def test_politica_sem_gesto_do_arbitro_diz_nenhum_edge_case() -> None:
+    """Caso de borda: personalizada que só mexe na estrutura não lista gesto nenhum para o árbitro."""
+    politica = compor_politica_global({"preset": "personalizada", "personalizada": {"estrutura": "ilimitado"}})
+
+    passo = montar_protocolo(politica=politica)[-1]
+
+    assert "gestos com o arbitro: nenhum." in passo
+
+
+def test_protocolo_com_governanca_e_ascii_edge_case() -> None:
+    """Caso de borda: o passo de governança também atravessa a saída padrão do hook."""
+    politica = politica_do_preset(PresetGovernanca.ARBITRAGEM_MAXIMA)
+
+    for linha in montar_protocolo(papel=PapelAutor.ARBITRO, id_sessao="sess-1", politica=politica):
+        assert linha.isascii(), linha

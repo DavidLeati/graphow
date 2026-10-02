@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2659 linhas · 26 classes
+17 módulos · 2676 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,8 +25,8 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 235 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 249 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 110 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões. |
-| [`mcp/server.py`](#mcpserver) | 128 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
-| [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 193 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
+| [`mcp/server.py`](#mcpserver) | 143 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
+| [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 195 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
 | [`mcp/tool_definitions.py`](#mcptooldefinitions) | 316 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
@@ -319,6 +319,7 @@ Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes.
 *serviço* — Servidor MCP que disponibiliza ferramentas para agentes IA lerem e mutarem o grafo.
 
 - `identidade() -> IdentidadeSessaoMCP` `[property]` — Identidade imutável sob a qual esta sessão opera.
+- `politica_de_abertura() -> PoliticaGovernanca` — A política global vigente, a única que o aperto de mão conhece: a conexão ainda não tem projeto.
 - `listar_ferramentas() -> list[dict[str, Any]]` — Retorna os metadados de todas as ferramentas MCP disponíveis.
 - `executar_ferramenta(nome_ferramenta: str, argumentos: Mapping[str, Any]) -> dict[str, Any]` — Executa a ferramenta MCP sob a identidade da sessão e retorna resposta estruturada.
 

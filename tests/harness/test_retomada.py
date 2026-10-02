@@ -242,3 +242,34 @@ def test_consolidacao_pendente_do_alcance_e_apontada_pela_task_nominal() -> None
 
     assert "- consolidacao pendente: Task task-consolidar-x (1 aprendizados vigentes em proj-1): assuma-a" in texto
     assert "1 Task" not in texto
+
+
+def test_protocolo_da_retomada_le_a_governanca_do_projeto_da_sessao_nominal() -> None:
+    """O hook diz a política do Projeto da sessão: com o árbitro, não repete que promover é do humano."""
+    kernel = _ambiente()
+    assert "Promover aprendizado e encerrar a sessao sao gestos humanos" in "\n".join(_vista(kernel))
+    _submeter(
+        kernel,
+        [
+            ItemPatch(
+                op=OperacaoPatch.ADD,
+                path="/nos/proj-2",
+                value={
+                    "id": "proj-2",
+                    "tipo": "Projeto",
+                    "rotulo": "outro-repo",
+                    "propriedades": {"governanca": {"preset": "arbitragem_maxima"}},
+                },
+            ),
+            _no("setor-2", TipoNo.SETOR, "Memoria 2"),
+            _aresta("proj-2", "setor-2", TipoAresta.CONTEM),
+            _no("sess-2", TipoNo.SESSAO, "Sessao 2", status="ativa"),
+            _aresta("setor-2", "sess-2", TipoAresta.CONTEM),
+        ],
+    )
+
+    texto = "\n".join(_vista(kernel, id_sessao="sess-2", id_setor="setor-2"))
+
+    assert "Governanca arbitragem_maxima" in texto
+    assert "Promover aprendizado e encerrar a sessao sao gestos humanos" not in texto
+    assert "Seguem humanos: promocao global de aprendizado" in texto

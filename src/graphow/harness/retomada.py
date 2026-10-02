@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from graphow.context.aprendizados_aplicaveis import PedidoDeMemoria, montar_secao_de_aprendizados
 from graphow.context.fechamento import CAMPO_CORPO, localizar_condensacao
+from graphow.context.governanca_vigente import resolver_politica_na_vista
 from graphow.context.memoria import formatar_aprendizado, substituto_promovido
 from graphow.context.protocolo import montar_protocolo
 from graphow.context.secoes import em_uma_linha
@@ -67,7 +68,9 @@ def montar_vista_de_retomada(pedido: PedidoDeRetomada) -> tuple[str, ...]:
         *_linhas_da_sessao_anterior(pedido),
         *_linhas_da_sessao_retomada(pedido),
         "",
-        *montar_protocolo(id_sessao=pedido.id_sessao),
+        *montar_protocolo(
+            id_sessao=pedido.id_sessao, politica=resolver_politica_na_vista(pedido.id_sessao, pedido.view)
+        ),
     )
 
 

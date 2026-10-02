@@ -19,6 +19,11 @@ class GrafoView:
         self._indice: IndiceDeRollup | None = indice
 
     @property
+    def estado(self) -> GrafoEstado:
+        """O estado projetado, só para leitura: quem decide como o kernel (a política de governança) lê o mesmo estado."""
+        return self._estado
+
+    @property
     def indice_de_rollup(self) -> IndiceDeRollup:
         """Índice dos resumos de subárvore, calculado sob demanda se não vier pronto.
 

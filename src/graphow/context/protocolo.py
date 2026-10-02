@@ -13,6 +13,14 @@ porque atravessa canos cuja codificação ninguém controla.
 
 from collections.abc import Mapping
 
+from graphow.context.governanca_vigente import (
+    SEMPRE_HUMANOS,
+    esta_toda_com_o_humano,
+    gestos_com_o_arbitro,
+    gestos_com_o_humano,
+    nome_do_preset,
+)
+from graphow.core.governanca import PoliticaGovernanca, politica_padrao
 from graphow.core.types import PapelAutor, TipoNo
 from graphow.kernel.role_gate import RoleGate
 
@@ -49,14 +57,26 @@ PASSOS_DO_PROTOCOLO: tuple[str, ...] = (
     "Se houver Task de condensar sessao ou de consolidar aprendizados pendente, assuma-a: a condensacao "
     "e uma Note (acao condensacao_de_sessao) com deriva_de para cada no condensado; a consolidacao e um "
     "`registrar_aprendizado` por tema, com substitui = os ids absorvidos e origens = as origens deles.",
-    "Nao edite o banco por fora: toda escrita passa pelas ferramentas. Promover aprendizado e "
-    "encerrar a sessao sao gestos humanos; o hook de fim encerra esta.",
 )
 
+# O último passo do protocolo depende da governança do projeto: em governança
+# máxima ele é o texto de sempre; fora dela diz o que está com o árbitro.
+PASSO_DO_BANCO: str = "Nao edite o banco por fora: toda escrita passa pelas ferramentas."
+GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA: str = "Promover aprendizado e encerrar a sessao sao gestos humanos"
+FECHO_DO_PASSO_DE_GOVERNANCA: str = "o hook de fim encerra esta."
 
-def montar_protocolo(*, papel: PapelAutor | None = None, id_sessao: str = "") -> tuple[str, ...]:
-    """As linhas do protocolo, numeradas, com a sessão e o papel quando são conhecidos."""
-    passos = (_passo_de_leitura(id_sessao), *PASSOS_DO_PROTOCOLO)
+
+def montar_protocolo(
+    *,
+    papel: PapelAutor | None = None,
+    id_sessao: str = "",
+    politica: PoliticaGovernanca | None = None,
+) -> tuple[str, ...]:
+    """As linhas do protocolo, numeradas, com a sessão, o papel e a governança quando são conhecidos.
+
+    Sem política vale a governança máxima, o texto de antes da política ser configurável.
+    """
+    passos = (_passo_de_leitura(id_sessao), *PASSOS_DO_PROTOCOLO, _passo_de_governanca(politica or politica_padrao()))
     return (
         f"{TITULO_DO_PROTOCOLO} (ferramentas MCP `{NOME_DO_SERVIDOR_MCP}`):",
         *(f"{numero}. {passo}" for numero, passo in enumerate(passos, start=1)),
@@ -70,6 +90,24 @@ def _passo_de_leitura(id_sessao: str) -> str:
     return (
         f"Comece por `ler_vista` {alvo} ou na Task assumida e leia 'Aprendizados Aplicaveis' "
         "antes de decidir de novo o que ja foi decidido."
+    )
+
+
+def _passo_de_governanca(politica: PoliticaGovernanca) -> str:
+    """O passo do banco e dos gestos de governança, derivado da política efetiva do projeto.
+
+    Em governança máxima fica o texto que sempre disse que promover aprendizado e
+    encerrar a sessão são do humano. Fora dela, lista numa linha o que está com o
+    árbitro e o que segue humano, para o agente não tentar o gesto que a política
+    lhe nega nem pedir ao humano o que o árbitro decide.
+    """
+    if esta_toda_com_o_humano(politica):
+        return f"{PASSO_DO_BANCO} {GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA}; {FECHO_DO_PASSO_DE_GOVERNANCA}"
+    com_arbitro = ", ".join(gesto.value for gesto in gestos_com_o_arbitro(politica)) or "nenhum"
+    humanos = ", ".join((SEMPRE_HUMANOS, *(gesto.value for gesto in gestos_com_o_humano(politica))))
+    return (
+        f"{PASSO_DO_BANCO} Governanca {nome_do_preset(politica)}: gestos com o arbitro: {com_arbitro}. "
+        f"Seguem humanos: {humanos}; {FECHO_DO_PASSO_DE_GOVERNANCA}"
     )
 
 

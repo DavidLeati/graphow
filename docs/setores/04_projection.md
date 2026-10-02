@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-16 módulos · 2190 linhas · 23 classes
+16 módulos · 2195 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/decomposicao.py`](#projectiondecomposicao) | 27 | As tarefas de um Goal: todas as Tasks abaixo dele pela decomposição, em qualquer profundidade. |
 | [`projection/fechamento.py`](#projectionfechamento) | 119 | Fechamento determinístico de uma subárvore: o que vigora, o que segue aberto, o último artefato. |
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 252 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
-| [`projection/graph_view.py`](#projectiongraphview) | 193 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
+| [`projection/graph_view.py`](#projectiongraphview) | 198 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
 | [`projection/integracao_base.py`](#projectionintegracaobase) | 112 | O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança. |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
@@ -176,6 +176,7 @@ Camada de consulta e visualização imutável do grafo projetado (CQRS).
 
 *serviço* — Consultas somente-leitura sobre o estado projetado do grafo em memória.
 
+- `estado() -> GrafoEstado` `[property]` — O estado projetado, só para leitura: quem decide como o kernel (a política de governança) lê o mesmo estado.
 - `indice_de_rollup() -> IndiceDeRollup` `[property]` — Índice dos resumos de subárvore, calculado sob demanda se não vier pronto.
 - `obter_resumo(id_no: str) -> ResumoDeSubarvore | None` — Resumo agregado da subárvore do nó, ou None se ele nada contiver.
 - `calcular_escopo_ativo(raio: int) -> EscopoAtivo` — Recorte do grafo em torno do trabalho que ainda não terminou.

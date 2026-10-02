@@ -138,3 +138,27 @@ def test_initialize_declara_o_protocolo_da_memoria_em_instructions_nominal() -> 
     instrucoes = canal.mensagens[0]["result"]["instructions"]
     assert "`registrar_aprendizado`" in instrucoes
     assert "`planejador`" in instrucoes
+
+
+def test_initialize_diz_a_governanca_global_vigente_nominal() -> None:
+    """O aperto de mão lê a política global do grafo: com o árbitro, não diz que promover é do humano."""
+    despachante, canal = _montar_despachante("humano")
+    servidor = despachante._servidor
+    servidor.executar_ferramenta("configurar_governanca", {"escopo": "global", "preset": "arbitragem_maxima"})
+
+    despachante.despachar({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    instrucoes = canal.mensagens[0]["result"]["instructions"]
+
+    assert "Governanca arbitragem_maxima" in instrucoes
+    assert "Promover aprendizado e encerrar a sessao sao gestos humanos" not in instrucoes
+    assert "promocao global" in instrucoes
+
+
+def test_initialize_sem_politica_configurada_mantem_o_texto_de_sempre_edge_case() -> None:
+    """Caso de borda: sem o nó global vale a governança máxima e o texto de antes."""
+    despachante, canal = _montar_despachante("executor")
+    despachante.despachar({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+
+    instrucoes = canal.mensagens[0]["result"]["instructions"]
+
+    assert "Promover aprendizado e encerrar a sessao sao gestos humanos" in instrucoes

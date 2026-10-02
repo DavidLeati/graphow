@@ -1,9 +1,10 @@
 """Motor de materialização de vistas de contexto com orçamento de tokens."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
+from graphow.context.governanca_vigente import TIPOS_COM_SECAO_DE_GOVERNANCA, montar_secao_de_governanca
 from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.politicas import (
     ARESTAS_DE_ORIENTACAO,
@@ -18,6 +19,7 @@ from graphow.context.politicas import (
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
 from graphow.context.secoes import (
     PrioridadeRetencao,
+    RecorteContexto,
     SecaoContexto,
     filtrar_propriedades_de_dominio,
     montar_secao_de_nos,
@@ -137,11 +139,22 @@ class MaterializadorContexto:
             )
         politica = self.POLITICAS_POR_PAPEL.get(requisicao.papel, PoliticaExecutor())
         escopo = self._resolver_escopo(requisicao, view)
-        recorte = politica.extrair_recorte(
-            requisicao.id_alvo, view, escopo, indice_semantico=self._indice_semantico
+        recorte = self._com_governanca(
+            politica.extrair_recorte(requisicao.id_alvo, view, escopo, indice_semantico=self._indice_semantico),
+            view,
         )
         texto = self._renderizador.renderizar(recorte, requisicao.orcamento_tokens)
         return self._montar_vista(requisicao, texto)
+
+    def _com_governanca(self, recorte: RecorteContexto, view: GrafoView) -> RecorteContexto:
+        """Acrescenta a seção Governanca ao recorte de Sessao, Task e Goal, qualquer que seja o papel.
+
+        A seção vale para quem lê, não para o papel: a política é do Projeto do
+        alvo e o agente precisa dela para saber a quem pedir cada gesto.
+        """
+        if recorte.alvo.tipo not in TIPOS_COM_SECAO_DE_GOVERNANCA:
+            return recorte
+        return replace(recorte, secoes=(*recorte.secoes, montar_secao_de_governanca(recorte.alvo.id, view)))
 
     def _resolver_escopo(self, requisicao: RequisicaoVista, view: GrafoView) -> EscopoAtivo | None:
         """Calcula o recorte ativo apenas quando ele foi pedido."""

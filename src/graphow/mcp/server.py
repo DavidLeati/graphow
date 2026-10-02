@@ -14,7 +14,14 @@ from graphow.mcp.ferramentas_memoria import FerramentasMemoria
 from graphow.mcp.ferramentas_navegacao import FerramentasNavegacao
 from graphow.mcp.ferramentas_posse import FerramentasPosse
 from graphow.mcp.ferramentas_trabalho import FerramentasTrabalho
-from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, PoliticaIdentidadeMCP, resolvedor_do_kernel
+from graphow.core.governanca import ID_GOVERNANCA_GLOBAL, PoliticaGovernanca
+from graphow.mcp.identidade_sessao import (
+    RAMO_PADRAO_DA_POLITICA,
+    IdentidadeSessaoMCP,
+    PoliticaIdentidadeMCP,
+    ResolvedorDePolitica,
+    resolvedor_do_kernel,
+)
 from graphow.mcp.submissao import ContextoFerramentaMCP
 from graphow.mcp.tool_definitions import DEFINICOES_FERRAMENTAS_MCP
 
@@ -35,7 +42,8 @@ class GraphowMCPServer:
         materializador: MaterializadorContexto | None = None,
     ) -> None:
         self._identidade: IdentidadeSessaoMCP = identidade
-        self._politica: PoliticaIdentidadeMCP = PoliticaIdentidadeMCP(resolvedor_do_kernel(kernel))
+        self._resolvedor: ResolvedorDePolitica = resolvedor_do_kernel(kernel)
+        self._politica: PoliticaIdentidadeMCP = PoliticaIdentidadeMCP(self._resolvedor)
         contexto = ContextoFerramentaMCP(kernel=kernel, identidade=identidade)
         self._manipuladores: dict[str, ManipuladorFerramenta] = self._montar_manipuladores(
             contexto, materializador
@@ -65,6 +73,13 @@ class GraphowMCPServer:
     def identidade(self) -> IdentidadeSessaoMCP:
         """Identidade imutável sob a qual esta sessão opera."""
         return self._identidade
+
+    def politica_de_abertura(self) -> PoliticaGovernanca:
+        """A política global vigente, a única que o aperto de mão conhece: a conexão ainda não tem projeto.
+
+        Um Projeto pode ter a própria; a vista de cada Sessao, Task e Goal diz a efetiva.
+        """
+        return self._resolvedor(ID_GOVERNANCA_GLOBAL, RAMO_PADRAO_DA_POLITICA)
 
     def listar_ferramentas(self) -> list[dict[str, Any]]:
         """Retorna os metadados de todas as ferramentas MCP disponíveis."""

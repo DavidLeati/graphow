@@ -144,7 +144,9 @@ class DespachanteJsonRpc:
                     "version": "0.3.2",
                     "papelDaSessao": papel.value,
                 },
-                "instructions": "\n".join(montar_protocolo(papel=papel)),
+                "instructions": "\n".join(
+                    montar_protocolo(papel=papel, politica=self._servidor.politica_de_abertura())
+                ),
             },
         )
 
