@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from http import HTTPStatus
 from typing import Any
 
 from graphow.projection.ambito import Ambito
@@ -273,3 +274,27 @@ class RespostaMemoriaWeb:
     sessoes: Sequence[SessaoDeMemoriaWeb]
     sucesso: bool = True
 
+
+
+@dataclass(frozen=True)
+class RequisicaoGovernanca:
+    """DTO imutável de entrada da escrita de governança, global ou de um Projeto.
+
+    Os três campos são opcionais e chegam como o corpo os trouxe: quem decide
+    se são válidos é o planejamento do kernel, o mesmo do MCP. Um campo ausente
+    não troca o que está guardado; o preset salvo vale quando só a
+    `personalizada` ou só a `operacao` chega.
+    """
+
+    preset: Any = None
+    personalizada: Any = None
+    operacao: Any = None
+    ramo_id: str = "main"
+
+
+@dataclass(frozen=True)
+class RespostaHttpWeb:
+    """Corpo e status HTTP de uma resposta que o controlador decide por inteiro."""
+
+    corpo: Mapping[str, Any]
+    status: HTTPStatus = HTTPStatus.OK

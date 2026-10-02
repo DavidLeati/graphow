@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-22 módulos · 3689 linhas · 29 classes
+23 módulos · 3958 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,6 +27,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 269 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 65 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
@@ -375,6 +376,35 @@ Permissão por papel na camada de arestas: quem cria e remove cada aresta, confo
 ### Funções do módulo
 
 - `descrever_reserva_do_gesto(gesto: Gesto, politica: PoliticaGovernanca) -> str` — Diz de quem é o gesto na política do projeto, para a recusa nomear o que falta.
+
+## `kernel/planejamento_governanca.py`
+
+Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ESCOPO_GLOBAL` | `str` | `'global'` |
+| `VALOR_HERDAR` | `str` | `'herdar'` |
+| `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
+| `CAMPO_CADENCIA` | `str` | `'cadencia'` |
+| `CAMPO_TETO_RODADAS` | `str` | `'teto_rodadas'` |
+| `CADENCIAS_ACEITAS` | `tuple[str, ...]` | `('tarefa', 'goal', 'setor')` |
+| `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_CADENCIA, CAMPO_TETO_RODADAS, CAMPO_RAMO_BASE, CAMPO_CAMINHOS_DE…` |
+| `TETO_DE_RODADAS_MINIMO` | `int` | `1` |
+
+### `ErroDeConfiguracaoDeGovernanca` (ValueError)
+
+*serviço* — A configuração recebida não pode ser gravada: o texto da recusa e, quando há, cada problema.
+
+### Funções do módulo
+
+- `planejar_configuracao(escopo: str, argumentos: Mapping[str, Any], estado: GrafoEstado) -> tuple[ItemPatch, ...]` — As operações que gravam a política do escopo ('global' ou o id de um Projeto), ou a recusa.
+- `configuracao_salva(escopo: str, estado: GrafoEstado) -> dict[str, Any]` — O `preset` e a `personalizada` guardados no escopo; sem nada guardado, o padrão do nível.
+- `com_preset_salvo(escopo: str, argumentos: Mapping[str, Any], estado: GrafoEstado) -> dict[str, Any]` — Os argumentos com o preset guardado quando a chamada não traz um: trocar só a personalizada não troca o preset.
+- `descrever_politica(politica: PoliticaGovernanca) -> dict[str, Any]` — Política efetiva em forma serializável: o valor e a origem de cada gesto.
+- `descrever_politica_efetiva(escopo: str, estado: GrafoEstado) -> dict[str, Any]` — A política que vale no escopo, com a origem de cada gesto.
+- `ler_operacao_do_projeto(projeto: NoGrafo) -> dict[str, Any]` — As propriedades operacionais do Projeto; a que ninguém gravou volta como None.
+- `planejar_operacao(id_projeto: str, operacao: Any, estado: GrafoEstado) -> tuple[ItemPatch, ...]` — As operações que gravam as propriedades operacionais do Projeto; o valor nulo as apaga.
 
 ## `kernel/politica_governanca.py`
 

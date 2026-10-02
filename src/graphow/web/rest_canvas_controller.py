@@ -175,10 +175,14 @@ class CanvasWebController:
     def _deve_ocultar(self, no: NoGrafo, ctx: ContextoFiltroVisual) -> bool:
         """Aplica os filtros de escopo de navegação e o recorte visual pedido.
 
-        Aberta uma Sessão, fica ela e o que ela produziu. As sessões vizinhas
+        O nó Governanca guarda a política e se edita na tela de configurações,
+        não no canvas: nunca é desenhado. Aberta uma Sessão, fica ela e o que
+        ela produziu. As sessões vizinhas
         ficavam também — o filtro poupava todo nó do tipo Sessão para não sumir
         com a própria —, e o enquadramento da tela se espalhava por todas elas.
         """
+        if no.tipo == TipoNo.GOVERNANCA:
+            return True
         if ctx.foi_recortado(no.id) or ctx.fora_do_setor(no.id) or ctx.fora_do_ambito(no.id):
             return True
         if ctx.projeto_id is not None and ctx.mapa_projetos.get(no.id) != ctx.projeto_id:

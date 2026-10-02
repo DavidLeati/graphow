@@ -32,10 +32,12 @@ from graphow.web.ontologia_publica import montar_ontologia_publica
 from graphow.web.rest_busca_controller import BuscaWebController
 from graphow.web.rest_canvas_controller import CanvasWebController
 from graphow.web.rest_fork_controller import ForkWebController
+from graphow.web.rest_governanca_controller import GovernancaWebController
 from graphow.web.rest_lineage_controller import LineageWebController
 from graphow.web.rest_memoria_controller import MemoriaWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 from graphow.web.rest_timeline_controller import TimelineWebController
+from graphow.web.rotas_governanca import tratar_get_governanca, tratar_post_governanca, tratar_put_governanca
 from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizado, tratar_post_promocao
 from graphow.reactive.engine import MotorReativo
 from graphow.web.composicao import montar_tempo_real, montar_vigia_do_log
@@ -81,11 +83,13 @@ class GraphowHTTPHandler(ManipuladorProtegido):
         if handler:
             handler()
             return True
-        return False
+        return tratar_get_governanca(self, caminho, params)
 
     def do_POST(self) -> None:
         """Despacha requisições POST para controladores de mutação, simulação e memória."""
         caminho = urllib.parse.urlparse(self.path).path
+        if tratar_post_governanca(self, caminho):
+            return
         rotas: Mapping[str, Callable[[Mapping[str, Any]], None]] = {
             "/api/nodes": self._tratar_post_node,
             "/api/edges": self._tratar_post_edge,
@@ -103,6 +107,8 @@ class GraphowHTTPHandler(ManipuladorProtegido):
     def do_PUT(self) -> None:
         """Despacha requisições PUT para edição de nós e persistência de layout."""
         url_parsed = urllib.parse.urlparse(self.path)
+        if tratar_put_governanca(self, url_parsed.path):
+            return
         if url_parsed.path == "/api/layout":
             self._tratar_put_layout(self._ler_payload_json())
             return
@@ -323,6 +329,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.fork_ctrl: ForkWebController = ForkWebController(kernel, self.identidade)
         self.sim_ctrl: SimulationWebController = SimulationWebController(kernel)
         self.memoria_ctrl: MemoriaWebController = MemoriaWebController(kernel, self.identidade)
+        self.governanca_ctrl: GovernancaWebController = GovernancaWebController(kernel, self.identidade)
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()
         self.motor_reativo: MotorReativo = montar_tempo_real(kernel, self.sse_ctrl)

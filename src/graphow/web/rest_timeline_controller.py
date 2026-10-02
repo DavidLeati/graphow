@@ -5,6 +5,7 @@ from typing import Any
 
 from graphow.core.events import EventoLog
 from graphow.core.models import GrafoEstado
+from graphow.core.types import TipoNo
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.reducer import GrafoReducer
 from graphow.storage.interfaces import RepositorioEventos
@@ -59,6 +60,7 @@ class TimelineWebController:
         nos_visuais = [
             DadosNoVisual(id=n.id, tipo=n.tipo.value, rotulo=n.rotulo, propriedades=dict(n.propriedades))
             for n in view._estado.nos.values()
+            if n.tipo != TipoNo.GOVERNANCA
         ]
         arestas_visuais = [
             DadosArestaVisual(id=a.id, origem_id=a.origem_id, destino_id=a.destino_id, tipo=a.tipo.value)

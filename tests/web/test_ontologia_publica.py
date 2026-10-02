@@ -29,3 +29,11 @@ def test_status_publicados_seguem_os_enums_do_nucleo_edge_case() -> None:
     assert status["Task"] == [valor.value for valor in StatusTask]
     assert status["Question"] == [valor.value for valor in StatusQuestion]
     assert status["Sessao"] == [valor.value for valor in StatusSessao]
+
+
+def test_goal_publica_o_vocabulario_pendente_em_andamento_concluido_nominal() -> None:
+    """A tela do Goal oferece só o ciclo que o Goal tem: sem revisão nem bloqueio, que são da Task."""
+    status = montar_ontologia_publica()["status"]
+
+    assert status["Goal"] == ["pendente", "em_andamento", "concluido"]
+    assert set(status["Goal"]) <= set(status["Task"])

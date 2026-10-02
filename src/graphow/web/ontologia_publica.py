@@ -18,6 +18,10 @@ from graphow.core.types import (
 )
 from graphow.kernel.schema_gate import SchemaGate
 
+# O Goal não tem enum próprio: usa o ciclo da Task, sem a revisão e o bloqueio,
+# que são de quem executa. Escrever `concluido` nele o fecha (gesto `fechar_goal`).
+STATUS_DO_GOAL: tuple[StatusTask, ...] = (StatusTask.PENDENTE, StatusTask.EM_ANDAMENTO, StatusTask.CONCLUIDO)
+
 
 def montar_ontologia_publica() -> dict[str, Any]:
     """Tipos de nó, pares permitidos de cada aresta e os vocabulários de status."""
@@ -26,6 +30,7 @@ def montar_ontologia_publica() -> dict[str, Any]:
         "arestas": {tipo.value: _pares_permitidos(tipo) for tipo in TipoAresta},
         "status": {
             TipoNo.TASK.value: [status.value for status in StatusTask],
+            TipoNo.GOAL.value: [status.value for status in STATUS_DO_GOAL],
             TipoNo.QUESTION.value: [status.value for status in StatusQuestion],
             TipoNo.SESSAO.value: [status.value for status in StatusSessao],
         },

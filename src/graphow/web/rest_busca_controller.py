@@ -39,6 +39,9 @@ class BuscaWebController:
         if invalidos:
             return {"sucesso": False, "mensagem": f"Tipos de no desconhecidos: {', '.join(invalidos)}"}
         view = self._kernel.obter_view(req.ramo_id)
+        tipos = tipos_visiveis(tipos)
+        if not tipos:
+            return {"sucesso": True, "termo": req.termo, "total": 0, "exibidos": 0, "truncado": False, "resultados": []}
         resultado = view.buscar_ranqueado(CriterioBusca(termo=req.termo, tipos=tipos, limite=req.limite))
         sessoes = self._mapeador.mapear_sessoes(view)
         return {
@@ -59,6 +62,17 @@ class BuscaWebController:
             "status": item.no.obter_propriedade("status"),
             "trecho": extrair_trecho(item.no, termo) if casou_nas_propriedades else None,
         }
+
+
+def tipos_visiveis(pedidos: tuple[TipoNo, ...]) -> tuple[TipoNo, ...]:
+    """Os tipos que a busca pode devolver: o nó Governanca nunca, nem quando é pedido.
+
+    Sem tipo pedido a busca olha todos, então a lista dos visíveis é montada
+    aqui; pedido só o Governanca, nada resta a buscar (vazio, e não "todos").
+    """
+    if not pedidos:
+        return tuple(tipo for tipo in TipoNo if tipo != TipoNo.GOVERNANCA)
+    return tuple(tipo for tipo in pedidos if tipo != TipoNo.GOVERNANCA)
 
 
 def converter_tipos_de_no(brutos: Iterable[str]) -> tuple[tuple[TipoNo, ...], tuple[str, ...]]:

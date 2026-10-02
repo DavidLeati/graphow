@@ -59,9 +59,13 @@ def ambito_do_no(id_no: str, mapa_projetos: Mapping[str, str], ambientes: frozen
 
 
 def contar_por_ambito(view: GrafoView, mapa_projetos: Mapping[str, str]) -> dict[str, int]:
-    """Quantos nós do grafo moram em cada âmbito, para cada raiz da árvore mostrar o seu total."""
+    """Quantos nós do grafo moram em cada âmbito, para cada raiz da árvore mostrar o seu total.
+
+    O nó Governanca não conta: o canvas não o desenha, e o total tem de bater com o que a árvore mostra.
+    """
     ambientes = ambientes_do_hook(view)
     contagem = {ambito.value: 0 for ambito in Ambito}
     for no in view.listar_todos_os_nos():
-        contagem[ambito_do_no(no.id, mapa_projetos, ambientes).value] += 1
+        if no.tipo != TipoNo.GOVERNANCA:
+            contagem[ambito_do_no(no.id, mapa_projetos, ambientes).value] += 1
     return contagem

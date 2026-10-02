@@ -10,33 +10,50 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-24 módulos · 2788 linhas · 48 classes
+27 módulos · 3318 linhas · 52 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`web/catalogo_governanca.py`](#webcatalogogovernanca) | 118 | O catálogo de governança publicado para a interface: gestos, valores aceitos e presets. |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 275 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 300 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
 | [`web/mapeamento_escopo.py`](#webmapeamentoescopo) | 89 | Mapeamento de cada nó do grafo à Sessão, ao Setor e ao Projeto que o contêm. |
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
-| [`web/ontologia_publica.py`](#webontologiapublica) | 39 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
-| [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 105 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 381 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/ontologia_publica.py`](#webontologiapublica) | 44 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
+| [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 119 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 385 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
+| [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
 | [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 215 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
-| [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 74 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
+| [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 76 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
+| [`web/rotas_governanca.py`](#webrotasgovernanca) | 138 | As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
-| [`web/server.py`](#webserver) | 375 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/server.py`](#webserver) | 382 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
+
+## `web/catalogo_governanca.py`
+
+O catálogo de governança publicado para a interface: gestos, valores aceitos e presets.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `DESCRICOES_DOS_GESTOS` | `Mapping[Gesto, str]` | `MappingProxyType({Gesto.RESPONDER_QUESTAO: 'Responder ou descartar uma …` |
+| `DESCRICOES_DOS_PRESETS` | `Mapping[str, str]` | `MappingProxyType({PresetGovernanca.GOVERNANCA_MAXIMA.value: 'Todos os g…` |
+| `DESCRICOES_DA_OPERACAO` | `Mapping[str, str]` | `MappingProxyType({CAMPO_CADENCIA: 'Quando a orquestração para e devolve…` |
+
+### Funções do módulo
+
+- `montar_catalogo_de_governanca() -> dict[str, Any]` — Gestos com os valores aceitos, presets com os valores fixos e o vocabulário operacional.
 
 ## `web/colapso_visual.py`
 
@@ -188,6 +205,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `id_projeto: str`, `ramo_id: str`
 
+### `RequisicaoGovernanca`
+
+*DTO imutável* — DTO imutável de entrada da escrita de governança, global ou de um Projeto.
+
+**Campos:** `preset: Any`, `personalizada: Any`, `operacao: Any`, `ramo_id: str`
+
 ### `RequisicaoNovaAresta`
 
 *DTO imutável* — DTO imutável de entrada para criação de nova aresta via interface.
@@ -223,6 +246,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 *DTO imutável* — DTO imutável de entrada para simulação de orçamentos de tokens.
 
 **Campos:** `id_alvo: str`, `papel: str`, `orcamento_tokens: int`, `ramo_id: str`
+
+### `RespostaHttpWeb`
+
+*DTO imutável* — Corpo e status HTTP de uma resposta que o controlador decide por inteiro.
+
+**Campos:** `corpo: Mapping[str, Any]`, `status: HTTPStatus`
 
 ### `RespostaMemoriaWeb`
 
@@ -336,6 +365,10 @@ Adaptador que publica no canal SSE os eventos aceitos pelo kernel.
 
 Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel.
 
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `STATUS_DO_GOAL` | `tuple[StatusTask, ...]` | `(StatusTask.PENDENTE, StatusTask.EM_ANDAMENTO, StatusTask.CONCLUIDO)` |
+
 ### Funções do módulo
 
 - `montar_ontologia_publica() -> dict[str, Any]` — Tipos de nó, pares permitidos de cada aresta e os vocabulários de status.
@@ -359,6 +392,7 @@ Controlador REST da busca textual da interface, na mesma ordem que o agente vê.
 
 ### Funções do módulo
 
+- `tipos_visiveis(pedidos: tuple[TipoNo, ...]) -> tuple[TipoNo, ...]` — Os tipos que a busca pode devolver: o nó Governanca nunca, nem quando é pedido.
 - `converter_tipos_de_no(brutos: Iterable[str]) -> tuple[tuple[TipoNo, ...], tuple[str, ...]]` — Separa os tipos textuais entre membros da ontologia e desconhecidos.
 - `extrair_trecho(no: NoGrafo, termo: str) -> dict[str, str] | None` — Primeira propriedade em que o termo aparece, com uma janela de texto em volta.
 
@@ -419,6 +453,29 @@ Controlador REST especializado na gestão de ramos, criação de Forks e Diff es
 - `calcular_diff_ramos(ramo_a: str, ramo_b: str) -> dict[str, Any]` — Calcula as discrepâncias estruturais entre dois ramos forkados.
 - `listar_ramos() -> list[str]` — Lista todos os ramos existentes no repositório.
 
+## `web/rest_governanca_controller.py`
+
+Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMITE_PADRAO_DA_AUDITORIA` | `int` | `50` |
+| `LIMITE_MAXIMO_DA_AUDITORIA` | `int` | `500` |
+| `CAMPOS_DE_ID_TOCADO` | `tuple[str, ...]` | `('id', 'origem_id', 'destino_id')` |
+| `MENSAGEM_SEM_CAMPOS` | `str` | `'Informe ao menos um de: preset, personalizada, operacao'` |
+| `MENSAGEM_SEM_CAMPOS_GLOBAL` | `str` | `'Informe ao menos um de: preset, personalizada'` |
+
+### `GovernancaWebController`
+
+*serviço* — Lê a governança do ramo para a tela e recebe do humano a configuração, a auditoria e a liberação de posse.
+
+- `obter_global(ramo_id: str) -> RespostaHttpWeb` — Catálogo, configuração global guardada e política global efetiva.
+- `obter_projeto(id_projeto: str, ramo_id: str) -> RespostaHttpWeb` — Configuração do Projeto, política efetiva com a origem de cada gesto e propriedades operacionais.
+- `gravar_global(req: RequisicaoGovernanca) -> RespostaHttpWeb` — Grava a política global; a personalizada é mesclada na guardada e nunca apagada.
+- `gravar_projeto(id_projeto: str, req: RequisicaoGovernanca) -> RespostaHttpWeb` — Grava a política do Projeto e, no mesmo lote, as propriedades operacionais.
+- `obter_auditoria(limite: int, ramo_id: str) -> RespostaHttpWeb` — Os eventos que o árbitro escreveu, os mais recentes primeiro, cortados no limite.
+- `liberar_posse(id_task: str, ramo_id: str) -> RespostaHttpWeb` — Libera o lock da Task de qualquer dono: é o gesto humano que destrava o subagente que não voltou.
+
 ## `web/rest_lineage_controller.py`
 
 Controlador REST especializado no rastreamento de linhagem causal e proveniência.
@@ -478,6 +535,35 @@ Controlador REST especializado na Timeline de eventos bitemporais e Replay Tempo
 
 - `obter_eventos(ramo_id: str, autor: str | None, papel: str | None) -> list[dict[str, Any]]` — Recupera lista cronológica de eventos com filtros opcionais por autor e papel.
 - `obter_estado_na_versao(versao_alvo: int, ramo_id: str) -> DadosCanvasVisual` — Reconstrói o estado do grafo exatamente como existia na versão de log informada.
+
+## `web/rotas_governanca.py`
+
+As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+| `CAMINHO_GLOBAL` | `str` | `'/api/governanca'` |
+| `CAMINHO_GLOBAL_ESCRITA` | `str` | `'/api/governanca/global'` |
+| `CAMINHO_AUDITORIA` | `str` | `'/api/governanca/auditoria'` |
+| `ROTA_DO_PROJETO` | `re.Pattern[str]` | `re.compile('^/api/projetos/([^/]+)/governanca$')` |
+| `ROTA_LIBERAR_POSSE` | `re.Pattern[str]` | `re.compile('^/api/tarefas/([^/]+)/liberar-posse$')` |
+| `CAMPOS_DA_ESCRITA_GLOBAL` | `frozenset[str]` | `frozenset({'preset', 'personalizada', 'ramo_id'})` |
+| `CAMPOS_DA_ESCRITA_DO_PROJETO` | `frozenset[str]` | `CAMPOS_DA_ESCRITA_GLOBAL | {'operacao'}` |
+| `CAMPOS_DA_LIBERACAO` | `frozenset[str]` | `frozenset({'ramo_id'})` |
+
+### `ManipuladorComGovernanca` (Protocol)
+
+*serviço* — O que estas rotas usam do manipulador HTTP: o servidor, o corpo e as respostas padrão.
+
+**Campos:** `server: Any`
+
+### Funções do módulo
+
+- `tratar_get_governanca(manipulador: ManipuladorComGovernanca, caminho: str, params: Mapping[str, list[str]]) -> bool` — Atende as leituras de governança; False quando o caminho não é de nenhuma delas.
+- `tratar_put_governanca(manipulador: ManipuladorComGovernanca, caminho: str) -> bool` — Atende as escritas de configuração; False quando o caminho não é de nenhuma delas.
+- `tratar_post_governanca(manipulador: ManipuladorComGovernanca, caminho: str) -> bool` — Atende a liberação de posse; False quando o caminho não é dela.
+- `converter_governanca(payload: Mapping[str, Any]) -> RequisicaoGovernanca` — Monta o pedido de escrita de governança a partir do corpo recebido.
 
 ## `web/rotas_memoria.py`
 

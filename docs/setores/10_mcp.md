@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2676 linhas · 26 classes
+17 módulos · 2574 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 145 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 244 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
-| [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 264 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
+| [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 162 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 235 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 249 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
@@ -182,9 +182,6 @@ Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `NIVEL_AUTONOMIA_PADRAO` | `str` | `'estrito'` |
-| `ESCOPO_GLOBAL` | `str` | `'global'` |
-| `VALOR_HERDAR` | `str` | `'herdar'` |
-| `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
 
 ### `FerramentasNavegacao`
 
