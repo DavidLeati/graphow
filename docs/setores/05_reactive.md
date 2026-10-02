@@ -10,13 +10,13 @@ Comportamentos desacoplados que observam commits e propõem patches derivados, c
 
 ## Inventário
 
-10 módulos · 881 linhas · 14 classes
+10 módulos · 937 linhas · 14 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`reactive/builtins.py`](#reactivebuiltins) | 95 | Comportamentos reativos nativos desacoplados do Graphow. |
-| [`reactive/condensacao.py`](#reactivecondensacao) | 168 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
-| [`reactive/consolidacao.py`](#reactiveconsolidacao) | 226 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
+| [`reactive/condensacao.py`](#reactivecondensacao) | 183 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
+| [`reactive/consolidacao.py`](#reactiveconsolidacao) | 267 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
 | [`reactive/diagnostico.py`](#reactivediagnostico) | 57 | Registro das reações que o kernel recusou, para que nenhuma morra calada. |
 | [`reactive/engine.py`](#reactiveengine) | 104 | Motor reativo que processa eventos e orquestra comportamentos desacoplados. |
 | [`reactive/interfaces.py`](#reactiveinterfaces) | 22 | Interface abstrata para comportamentos reativos desacoplados. |
@@ -53,6 +53,8 @@ Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Tas
 | `CAMPO_ACAO` | `str` | `'acao'` |
 | `CAMPO_ALVO` | `str` | `'id_alvo'` |
 | `ROTEIRO_DA_CONDENSACAO` | `str` | `f"Leia a sessao com ler_vista e escreva uma Note produzida por ela, com…` |
+| `_FECHO_COM_O_ARBITRO` | `str` | `' Aprendizados que destilar da sessao: quem os promove e o arbitro, ao …` |
+| `ROTEIRO_DA_CONDENSACAO_COM_ARBITRO` | `str` | `ROTEIRO_DA_CONDENSACAO + _FECHO_COM_O_ARBITRO` |
 | `CRITERIO_DE_PRONTO` | `str` | `'Note de condensacao produzida pela sessao, com deriva_de para cada no …` |
 | `TIPOS_QUE_PEDEM_CONDENSACAO` | `frozenset[TipoNo]` | `frozenset({TipoNo.GOAL, TipoNo.TASK, TipoNo.DECISION, TipoNo.QUESTION, …` |
 
@@ -70,7 +72,8 @@ Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Tas
 - `tem_condensacao_pendente(id_sessao: str, view: GrafoView) -> bool` — Uma Task de condensar ainda aberta: pedir outra seria pedir duas vezes.
 - `eh_tarefa_de_condensacao(no: NoGrafo) -> bool` — Reconhece a Task que este comportamento abre.
 - `eh_tarefa_aberta_pelo_grafo(no: NoGrafo) -> bool` — Condensar a sessão ou consolidar aprendizados: pedido do grafo, não trabalho da sessão.
-- `montar_proposta_de_condensacao(sessao: NoGrafo) -> PropostaPatch` — A Task pendurada na sessão que a motivou, assinada pelo papel que cria Task.
+- `montar_proposta_de_condensacao(sessao: NoGrafo, roteiro: str) -> PropostaPatch` — A Task pendurada na sessão que a motivou, assinada pelo papel que cria Task.
+- `roteiro_da_condensacao(sessao: NoGrafo, view: GrafoView) -> str` — O roteiro que reflete a política do Projeto: com a promoção no árbitro, o texto diz quem promove.
 
 ## `reactive/consolidacao.py`
 
@@ -81,7 +84,11 @@ Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acum
 | `AUTOR_DO_CONSOLIDADOR` | `str` | `'comportamento-consolidador'` |
 | `PREFIXO_DA_TAREFA` | `str` | `'task-consolidar'` |
 | `LIMITE_DE_VIGENTES_POR_ALCANCE` | `int` | `12` |
-| `ROTEIRO_DA_CONSOLIDACAO` | `str` | `'Leia os aprendizados vigentes deste alcance (expandir_no em cada id ab…` |
+| `_ROTEIRO_ATE_A_PROMOCAO` | `str` | `'Leia os aprendizados vigentes deste alcance (expandir_no em cada id ab…` |
+| `_FECHO_COM_O_HUMANO` | `str` | `'Promover e do humano.'` |
+| `_FECHO_COM_O_ARBITRO` | `str` | `'Promover e do arbitro, ao alcance do absorvido (Setor ou Projeto, nunc…` |
+| `ROTEIRO_DA_CONSOLIDACAO` | `str` | `_ROTEIRO_ATE_A_PROMOCAO.format(quem='o humano') + _FECHO_COM_O_HUMANO` |
+| `ROTEIRO_DA_CONSOLIDACAO_COM_ARBITRO` | `str` | `_ROTEIRO_ATE_A_PROMOCAO.format(quem='o arbitro') + _FECHO_COM_O_ARBITRO` |
 | `CRITERIO_DE_PRONTO` | `str` | `f'Aprendizados consolidados registrados, cada um com substitui para os …` |
 | `GLOBAL` | `Alcance` | `Alcance(id=ALCANCE_GLOBAL, rotulo=ALCANCE_GLOBAL)` |
 
@@ -102,17 +109,19 @@ Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acum
 
 *DTO imutável* — Um alcance que passou do limite e os vigentes que a Task vai listar.
 
-**Campos:** `alcance: Alcance`, `vigentes: tuple[str, ...]`
+**Campos:** `alcance: Alcance`, `vigentes: tuple[str, ...]`, `promove_o_arbitro: bool`
 
 ### Funções do módulo
 
 - `sessao_que_abre(evento: EventoLog, view: GrafoView) -> NoGrafo | None` — A Sessao que o evento cria ou devolve a `ativa`; None para qualquer outro evento.
 - `pedidos_de_consolidacao(id_sessao: str, view: GrafoView) -> tuple[PedidoDeConsolidacao, ...]` — Os alcances da sessão que passaram do limite e ainda não têm Task de consolidar aberta.
+- `arbitro_promove_no_alcance(alcance: str, view: GrafoView) -> bool` — A política do Projeto do alcance entrega a promoção ao árbitro; o global nunca, é sempre do humano.
 - `alcances_da_sessao(id_sessao: str, view: GrafoView) -> tuple[Alcance, ...]` — O Setor da sessão, o Projeto dele e o global, nesta ordem; sem Setor, só o global.
 - `alcances_do_setor(id_setor: str, view: GrafoView) -> tuple[Alcance, ...]` — O Setor, o Projeto que o contém e o global, nesta ordem.
 - `vigentes_no_alcance(alcance: str, view: GrafoView) -> tuple[str, ...]` — Ids dos aprendizados vigentes que valem para o alcance, na ordem do log.
 - `tarefas_de_consolidacao_pendentes(alcance: str, view: GrafoView) -> tuple[NoGrafo, ...]` — As Tasks de consolidar este alcance ainda abertas, em ordem estável.
-- `tem_consolidacao_pendente(alcance: str, view: GrafoView) -> bool` — Uma Task de consolidar ainda aberta: pedir outra seria pedir duas vezes.
+- `tem_substituto_aguardando_promocao(alcance: str, view: GrafoView) -> bool` — Algum vigente do alcance já tem um consolidado escrito que ninguém promoveu ainda.
+- `tem_consolidacao_pendente(alcance: str, view: GrafoView) -> bool` — Uma Task de consolidar aberta, ou um consolidado já escrito aguardando promoção.
 - `eh_tarefa_de_consolidacao(no: NoGrafo) -> bool` — Reconhece a Task que este comportamento abre.
 - `montar_proposta_de_consolidacao(sessao: NoGrafo, pedidos: Sequence[PedidoDeConsolidacao]) -> PropostaPatch` — Uma Task por alcance lotado, pendurada na sessão que abre e assinada pelo papel que cria Task.
 

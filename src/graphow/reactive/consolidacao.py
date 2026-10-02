@@ -9,7 +9,13 @@ propõe uma, produzida pela sessão que abre e assinada como planejador, o papel
 que cria Task. É a mesma compactação que a condensação faz com a sessão, um
 nível acima: o agente a encontra em `proximas_tarefas` e na vista de retomada,
 escreve os consolidados por `registrar_aprendizado` com `substitui` para os
-absorvidos, e o humano os promove, que é quando os absorvidos saem da vista.
+absorvidos, e quem os promove, o humano ou o árbitro conforme a política do
+Projeto, dá o momento em que os absorvidos saem da vista.
+
+Entre a Task concluída e a promoção do consolidado o alcance segue com os
+mesmos vigentes. Esse intervalo não é falta de pedido: o aprendizado que já
+tem substituto à espera de promoção conta como consolidação pendente, e a
+sessão seguinte não abre outra Task para o mesmo trabalho.
 """
 
 from collections.abc import Sequence
@@ -17,8 +23,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import uuid
 
-from graphow.context.memoria import ALCANCE_GLOBAL, alcances_de, aprendizados_vigentes
+from graphow.context.governanca_vigente import resolver_politica_na_vista
+from graphow.context.memoria import ALCANCE_GLOBAL, alcances_de, aprendizados_vigentes, substitutos_de
 from graphow.core.events import EventoLog, TipoEvento
+from graphow.core.governanca import Gesto
 from graphow.core.models import NoGrafo
 from graphow.core.orquestracao import ACAO_DE_CONSOLIDAR
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
@@ -33,14 +41,21 @@ LIMITE_DE_VIGENTES_POR_ALCANCE: int = 12
 
 # O que a consolidação contém é roteiro da skill do agente, não regra do kernel.
 # A descrição da Task repete o essencial para quem a pegar sem ter lido a skill.
-ROTEIRO_DA_CONSOLIDACAO: str = (
+_ROTEIRO_ATE_A_PROMOCAO: str = (
     "Leia os aprendizados vigentes deste alcance (expandir_no em cada id abaixo) e agrupe-os por tema. "
     "Para cada grupo, registre um Aprendizado consolidado por registrar_aprendizado: afirmacao geral, "
     "como_aplicar que funde os dos absorvidos, origens = a uniao das origens deles e substitui = os ids "
-    "absorvidos. Nao apague nada: o absorvido fica no grafo e sai da vista quando o humano promover o "
+    "absorvidos. Nao apague nada: o absorvido fica no grafo e sai da vista quando {quem} promover o "
     "consolidado. Papel: revisor ou executor, donos de deriva_de e, entre Aprendizados, de substitui. "
-    "O revisor deixa a Task em pronto_para_revisao; o executor pode concluir. Promover e do humano."
+    "O revisor deixa a Task em pronto_para_revisao; o executor pode concluir. "
 )
+_FECHO_COM_O_HUMANO: str = "Promover e do humano."
+_FECHO_COM_O_ARBITRO: str = (
+    "Promover e do arbitro, ao alcance do absorvido (Setor ou Projeto, nunca global): "
+    "a promocao global segue do humano."
+)
+ROTEIRO_DA_CONSOLIDACAO: str = _ROTEIRO_ATE_A_PROMOCAO.format(quem="o humano") + _FECHO_COM_O_HUMANO
+ROTEIRO_DA_CONSOLIDACAO_COM_ARBITRO: str = _ROTEIRO_ATE_A_PROMOCAO.format(quem="o arbitro") + _FECHO_COM_O_ARBITRO
 CRITERIO_DE_PRONTO: str = (
     "Aprendizados consolidados registrados, cada um com substitui para os absorvidos e deriva_de para as "
     f"origens deles; promovidos, os vigentes do alcance ficam em no maximo {LIMITE_DE_VIGENTES_POR_ALCANCE}"
@@ -64,6 +79,7 @@ class PedidoDeConsolidacao:
 
     alcance: Alcance
     vigentes: tuple[str, ...]
+    promove_o_arbitro: bool = False
 
 
 class AprendizadosAcumuladosBehavior(ComportamentoReativo):
@@ -111,8 +127,19 @@ def pedidos_de_consolidacao(id_sessao: str, view: GrafoView) -> tuple[PedidoDeCo
     for alcance in alcances_da_sessao(id_sessao, view):
         vigentes = vigentes_no_alcance(alcance.id, view)
         if len(vigentes) > LIMITE_DE_VIGENTES_POR_ALCANCE and not tem_consolidacao_pendente(alcance.id, view):
-            pedidos.append(PedidoDeConsolidacao(alcance=alcance, vigentes=vigentes))
+            pedidos.append(
+                PedidoDeConsolidacao(
+                    alcance=alcance, vigentes=vigentes, promove_o_arbitro=arbitro_promove_no_alcance(alcance.id, view)
+                )
+            )
     return tuple(pedidos)
+
+
+def arbitro_promove_no_alcance(alcance: str, view: GrafoView) -> bool:
+    """A política do Projeto do alcance entrega a promoção ao árbitro; o global nunca, é sempre do humano."""
+    if alcance == ALCANCE_GLOBAL:
+        return False
+    return resolver_politica_na_vista(alcance, view).permite(Gesto.PROMOVER_APRENDIZADO, PapelAutor.ARBITRO)
 
 
 def alcances_da_sessao(id_sessao: str, view: GrafoView) -> tuple[Alcance, ...]:
@@ -156,9 +183,22 @@ def tarefas_de_consolidacao_pendentes(alcance: str, view: GrafoView) -> tuple[No
     return tuple(sorted(tarefas, key=lambda no: no.id))
 
 
+def tem_substituto_aguardando_promocao(alcance: str, view: GrafoView) -> bool:
+    """Algum vigente do alcance já tem um consolidado escrito que ninguém promoveu ainda.
+
+    Os vigentes são, por definição, os que nenhum promovido substituiu; se algum
+    deles tem substituto, esse substituto está à espera de promoção.
+    """
+    return any(substitutos_de(id_no, view) for id_no in vigentes_no_alcance(alcance, view))
+
+
 def tem_consolidacao_pendente(alcance: str, view: GrafoView) -> bool:
-    """Uma Task de consolidar ainda aberta: pedir outra seria pedir duas vezes."""
-    return bool(tarefas_de_consolidacao_pendentes(alcance, view))
+    """Uma Task de consolidar aberta, ou um consolidado já escrito aguardando promoção.
+
+    Concluída a Task e antes da promoção, o alcance segue acima do limite; pedir
+    outra Task seria pedir duas vezes o trabalho que já foi feito.
+    """
+    return bool(tarefas_de_consolidacao_pendentes(alcance, view)) or tem_substituto_aguardando_promocao(alcance, view)
 
 
 def eh_tarefa_de_consolidacao(no: NoGrafo) -> bool:
@@ -190,7 +230,8 @@ def montar_proposta_de_consolidacao(sessao: NoGrafo, pedidos: Sequence[PedidoDeC
 
 def _operacao_da_tarefa(id_task: str, pedido: PedidoDeConsolidacao) -> ItemPatch:
     """Criação da Task com o roteiro, os vigentes a consolidar e o critério de pronto."""
-    descricao = f"{ROTEIRO_DA_CONSOLIDACAO} Vigentes em {pedido.alcance.id}: {', '.join(pedido.vigentes)}."
+    roteiro = ROTEIRO_DA_CONSOLIDACAO_COM_ARBITRO if pedido.promove_o_arbitro else ROTEIRO_DA_CONSOLIDACAO
+    descricao = f"{roteiro} Vigentes em {pedido.alcance.id}: {', '.join(pedido.vigentes)}."
     return ItemPatch(
         op=OperacaoPatch.ADD,
         path=f"/nos/{id_task}",

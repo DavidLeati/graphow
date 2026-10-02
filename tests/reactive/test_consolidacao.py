@@ -4,6 +4,10 @@ Cobrado pelo efeito, como a condensação: a proposta passa pelos quatro portõe
 de verdade, a Task aparece na fila da sessão que abre, e o pedido não se repete.
 """
 
+from typing import Any
+
+import pytest
+
 from graphow.core.events import EventoLog
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
 from graphow.harness.servico_harness import FaseDoHarness, PedidoDeCicloDeVida, ServicoHarness
@@ -16,6 +20,8 @@ from graphow.reactive.consolidacao import (
     ACAO_DE_CONSOLIDAR,
     AUTOR_DO_CONSOLIDADOR,
     LIMITE_DE_VIGENTES_POR_ALCANCE,
+    ROTEIRO_DA_CONSOLIDACAO,
+    ROTEIRO_DA_CONSOLIDACAO_COM_ARBITRO,
     AprendizadosAcumuladosBehavior,
     eh_tarefa_de_consolidacao,
 )
@@ -23,7 +29,7 @@ from graphow.reactive.engine import MotorReativo
 from graphow.reactive.montagem import ligar_motor_reativo_padrao, montar_comportamentos_padrao
 
 
-def _no(id_no: str, tipo: TipoNo, **propriedades: str) -> ItemPatch:
+def _no(id_no: str, tipo: TipoNo, **propriedades: Any) -> ItemPatch:
     """Operação de criação de nó com rótulo igual ao id."""
     return ItemPatch(
         op=OperacaoPatch.ADD,
@@ -66,13 +72,15 @@ def _aprendizado(numero: int, alcance: str = "proj") -> list[ItemPatch]:
     return operacoes
 
 
-def _kernel_com_vigentes(quantidade: int, alcance: str = "proj") -> WriteKernel:
+def _kernel_com_vigentes(
+    quantidade: int, alcance: str = "proj", governanca: dict[str, Any] | None = None
+) -> WriteKernel:
     """Projeto, Setor e uma sessão antiga, encerrada, que produziu os aprendizados promovidos."""
     kernel = montar_kernel_em_memoria()
     _submeter(
         kernel,
         [
-            _no("proj", TipoNo.PROJETO),
+            _no("proj", TipoNo.PROJETO, **({"governanca": governanca} if governanca else {})),
             _no("setor", TipoNo.SETOR),
             _aresta("proj", "setor", TipoAresta.CONTEM),
             _no("sess-antiga", TipoNo.SESSAO, status=StatusSessao.CONCLUIDA.value),
@@ -220,3 +228,107 @@ def test_evento_que_nao_abre_sessao_e_ignorado_edge_case() -> None:
     assert evento is not None
 
     assert AprendizadosAcumuladosBehavior().avaliar(evento, kernel.obter_view()) is None
+
+
+def _escrever_consolidado(kernel: WriteKernel, id_no: str = "apr-consolidado") -> None:
+    """O consolidado de apr-00: escrito pelo agente, ainda sem alcance, então ainda não promovido."""
+    _submeter(
+        kernel,
+        [
+            _no(id_no, TipoNo.APRENDIZADO, como_aplicar="aplique"),
+            _aresta("sess-antiga", id_no, TipoAresta.PRODUZ),
+            _aresta(id_no, "dec-1", TipoAresta.DERIVA_DE),
+            _aresta(id_no, "apr-00", TipoAresta.SUBSTITUI),
+        ],
+    )
+
+
+def _concluir_a_tarefa(kernel: WriteKernel) -> None:
+    """A Task de consolidar fecha: o trabalho do agente acabou, a promoção ainda não aconteceu."""
+    id_task = _tarefas(kernel)[0].id
+    _submeter(kernel, [ItemPatch(op=OperacaoPatch.REPLACE, path=f"/nos/{id_task}/propriedades/status", value="concluido")])
+
+
+def test_consolidacao_concluida_com_substituto_nao_promovido_nao_reabre_a_tarefa_regressao() -> None:
+    """Bug: concluída a Task e antes da promoção o alcance seguia lotado, e cada sessão abria outra Task."""
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1)
+    motor = _motor(kernel)
+    motor.processar_evento(_abrir_sessao(kernel))
+    _concluir_a_tarefa(kernel)
+    _escrever_consolidado(kernel)
+
+    motor.processar_evento(_abrir_sessao(kernel, "sess-seguinte"))
+
+    assert len(_tarefas(kernel)) == 1
+    assert motor.recusas_registradas == ()
+
+
+def test_promovido_o_substituto_e_o_alcance_acima_do_limite_a_tarefa_reabre_nominal() -> None:
+    """Promover o consolidado fecha o intervalo: se o alcance volta a passar do limite, o pedido volta."""
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1)
+    motor = _motor(kernel)
+    motor.processar_evento(_abrir_sessao(kernel))
+    _concluir_a_tarefa(kernel)
+    _escrever_consolidado(kernel)
+    _submeter(kernel, [_aresta("apr-consolidado", "proj", TipoAresta.VALE_PARA)])
+
+    motor.processar_evento(_abrir_sessao(kernel, "sess-seguinte"))
+
+    tarefas = _tarefas(kernel)
+    assert len(tarefas) == 2
+    assert sum(1 for tarefa in tarefas if tarefa.obter_propriedade("status") == StatusTask.PENDENTE.value) == 1
+
+
+def test_consolidado_promovido_que_reduz_o_alcance_ao_limite_nao_reabre_edge_case() -> None:
+    """Caso de borda: promovido o consolidado de muitos absorvidos, o alcance cabe e nada se pede."""
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1)
+    motor = _motor(kernel)
+    motor.processar_evento(_abrir_sessao(kernel))
+    _concluir_a_tarefa(kernel)
+    _escrever_consolidado(kernel)
+    _submeter(kernel, [_aresta("apr-consolidado", "apr-01", TipoAresta.SUBSTITUI)])
+    _submeter(kernel, [_aresta("apr-consolidado", "apr-02", TipoAresta.SUBSTITUI)])
+    _submeter(kernel, [_aresta("apr-consolidado", "proj", TipoAresta.VALE_PARA)])
+
+    motor.processar_evento(_abrir_sessao(kernel, "sess-seguinte"))
+
+    assert len(_tarefas(kernel)) == 1
+
+
+@pytest.mark.parametrize("valor", ["humano", "arbitro"])
+def test_roteiro_da_consolidacao_reflete_promover_aprendizado_nominal(valor: str) -> None:
+    """O roteiro diz quem promove: o árbitro, ao alcance do absorvido e nunca global, ou o humano, como hoje."""
+    governanca = {"preset": "personalizada", "personalizada": {"promover_aprendizado": valor}}
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1, governanca=governanca)
+
+    _motor(kernel).processar_evento(_abrir_sessao(kernel))
+
+    descricao = str(_tarefas(kernel)[0].obter_propriedade("descricao"))
+    esperado = ROTEIRO_DA_CONSOLIDACAO_COM_ARBITRO if valor == "arbitro" else ROTEIRO_DA_CONSOLIDACAO
+    assert descricao.startswith(esperado)
+    assert ("Promover e do arbitro" in descricao) is (valor == "arbitro")
+    assert ("Promover e do humano" in descricao) is (valor == "humano")
+    assert ("nunca global" in descricao) is (valor == "arbitro")
+
+
+def test_alcance_global_segue_humano_mesmo_com_o_arbitro_no_projeto_edge_case() -> None:
+    """Caso de borda: o arbitro nunca promove ao global; o roteiro do alcance global fica com o humano."""
+    governanca = {"preset": "arbitragem_maxima"}
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1, alcance="global", governanca=governanca)
+
+    _motor(kernel).processar_evento(_abrir_sessao(kernel))
+
+    descricao = str(_tarefas(kernel)[0].obter_propriedade("descricao"))
+    assert descricao.startswith(ROTEIRO_DA_CONSOLIDACAO)
+    assert "nunca global" not in descricao
+
+
+def test_politica_padrao_mantem_o_roteiro_humano_nominal() -> None:
+    """Sem governança declarada vale a máxima: o roteiro é o de sempre, e termina em 'Promover e do humano.'."""
+    kernel = _kernel_com_vigentes(LIMITE_DE_VIGENTES_POR_ALCANCE + 1)
+
+    _motor(kernel).processar_evento(_abrir_sessao(kernel))
+
+    descricao = str(_tarefas(kernel)[0].obter_propriedade("descricao"))
+    assert ROTEIRO_DA_CONSOLIDACAO.endswith("Promover e do humano.")
+    assert descricao.startswith(ROTEIRO_DA_CONSOLIDACAO)

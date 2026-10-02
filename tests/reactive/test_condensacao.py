@@ -4,6 +4,10 @@ O comportamento é cobrado pelo efeito, não pela intenção: a proposta passa
 pelos quatro portões de verdade e a Task precisa aparecer na fila da sessão.
 """
 
+from typing import Any
+
+import pytest
+
 from graphow.context.fechamento import ACAO_DE_CONDENSACAO
 from graphow.core.events import EventoLog
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
@@ -15,6 +19,8 @@ from graphow.projection.fila_trabalho import FilaDeTrabalho
 from graphow.reactive.condensacao import (
     ACAO_DE_CONDENSAR,
     AUTOR_DO_CONDENSADOR,
+    ROTEIRO_DA_CONDENSACAO,
+    ROTEIRO_DA_CONDENSACAO_COM_ARBITRO,
     SessaoEncerradaBehavior,
     eh_tarefa_de_condensacao,
 )
@@ -22,7 +28,7 @@ from graphow.reactive.engine import MotorReativo
 from graphow.reactive.montagem import ligar_motor_reativo_padrao, montar_comportamentos_padrao
 
 
-def _no(id_no: str, tipo: TipoNo, **propriedades: str) -> ItemPatch:
+def _no(id_no: str, tipo: TipoNo, **propriedades: Any) -> ItemPatch:
     """Operação de criação de nó com rótulo igual ao id."""
     return ItemPatch(
         op=OperacaoPatch.ADD,
@@ -49,11 +55,12 @@ def _submeter(kernel: WriteKernel, operacoes: list[ItemPatch], papel: PapelAutor
     return recibo.eventos_gerados
 
 
-def _kernel_com_sessao(com_trabalho: bool = True) -> WriteKernel:
-    """Hierarquia com uma sessão ativa que produziu (ou não) uma decisão."""
+def _kernel_com_sessao(com_trabalho: bool = True, governanca: dict[str, Any] | None = None) -> WriteKernel:
+    """Hierarquia com uma sessão ativa que produziu (ou não) uma decisão; o Projeto pode declarar a governança."""
     kernel = montar_kernel_em_memoria()
+    propriedades = {"governanca": governanca} if governanca else {}
     operacoes = [
-        _no("proj", TipoNo.PROJETO),
+        _no("proj", TipoNo.PROJETO, **propriedades),
         _no("setor", TipoNo.SETOR),
         _aresta("proj", "setor", TipoAresta.CONTEM),
         _no("sess", TipoNo.SESSAO, status=StatusSessao.ATIVA.value),
@@ -189,3 +196,20 @@ def test_revisor_condensa_com_deriva_de_para_evidencia_nominal() -> None:
     view = kernel.obter_view()
     destinos = {aresta.destino_id for aresta in view.obter_arestas_saida("nota-cond", TipoAresta.DERIVA_DE)}
     assert destinos == {"dec-1", "ev-1"}
+
+
+@pytest.mark.parametrize(
+    ("valor", "roteiro"),
+    [("humano", ROTEIRO_DA_CONDENSACAO), ("arbitro", ROTEIRO_DA_CONDENSACAO_COM_ARBITRO)],
+)
+def test_roteiro_da_condensacao_reflete_a_politica_de_promover_aprendizado_nominal(valor: str, roteiro: str) -> None:
+    """Com promover_aprendizado=arbitro o roteiro diz quem promove; com humano fica como antes."""
+    governanca = {"preset": "personalizada", "personalizada": {"promover_aprendizado": valor}}
+    kernel = _kernel_com_sessao(governanca=governanca)
+
+    _motor(kernel).processar_evento(_encerrar(kernel))
+
+    descricao = str(_tarefas_de_condensacao(kernel)[0].obter_propriedade("descricao"))
+    assert descricao == roteiro
+    assert ("arbitro" in descricao) is (valor == "arbitro")
+    assert ("nunca global" in descricao) is (valor == "arbitro")

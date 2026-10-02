@@ -13,7 +13,9 @@ pelo PatchBoard e passa pelos mesmos quatro portões que qualquer outro.
 import uuid
 
 from graphow.context.fechamento import ACAO_DE_CONDENSACAO
+from graphow.context.governanca_vigente import resolver_politica_na_vista
 from graphow.core.events import EventoLog, TipoEvento
+from graphow.core.governanca import Gesto
 from graphow.core.models import NoGrafo
 from graphow.core.orquestracao import ACAO_DE_CONDENSAR, ACOES_ABERTAS_PELO_GRAFO
 from graphow.core.types import OrigemEvento, PapelAutor, StatusSessao, StatusTask, TipoAresta, TipoNo
@@ -40,6 +42,11 @@ ROTEIRO_DA_CONDENSACAO: str = (
     "Papel: revisor ou executor, donos de deriva_de. O revisor deixa a Task em "
     "pronto_para_revisao; o executor pode concluir."
 )
+_FECHO_COM_O_ARBITRO: str = (
+    " Aprendizados que destilar da sessao: quem os promove e o arbitro, ao Setor ou ao Projeto "
+    "(nunca global); a promocao global segue do humano."
+)
+ROTEIRO_DA_CONDENSACAO_COM_ARBITRO: str = ROTEIRO_DA_CONDENSACAO + _FECHO_COM_O_ARBITRO
 CRITERIO_DE_PRONTO: str = "Note de condensacao produzida pela sessao, com deriva_de para cada no condensado"
 
 # Só o que carrega conhecimento pede condensação. Uma sessão que só tem a
@@ -77,7 +84,7 @@ class SessaoEncerradaBehavior(ComportamentoReativo):
             return None
         if not tem_trabalho_a_condensar(sessao.id, view) or tem_condensacao_pendente(sessao.id, view):
             return None
-        return montar_proposta_de_condensacao(sessao)
+        return montar_proposta_de_condensacao(sessao, roteiro_da_condensacao(sessao, view))
 
 
 def produzidos_pela_sessao(id_sessao: str, view: GrafoView) -> tuple[NoGrafo, ...]:
@@ -120,20 +127,28 @@ def _esta_concluida(no: NoGrafo) -> bool:
     return str(no.obter_propriedade("status", StatusTask.PENDENTE.value)) == StatusTask.CONCLUIDO.value
 
 
-def montar_proposta_de_condensacao(sessao: NoGrafo) -> PropostaPatch:
+def montar_proposta_de_condensacao(sessao: NoGrafo, roteiro: str = ROTEIRO_DA_CONDENSACAO) -> PropostaPatch:
     """A Task pendurada na sessão que a motivou, assinada pelo papel que cria Task."""
     id_task = f"{PREFIXO_DA_TAREFA}-{uuid.uuid4().hex[:8]}"
     dados = DadosPropostaPatch(
         autor=AUTOR_DO_CONDENSADOR,
         papel=PapelAutor.PLANEJADOR,
-        operacoes=(_operacao_da_tarefa(id_task, sessao), _operacao_produz(id_task, sessao.id)),
+        operacoes=(_operacao_da_tarefa(id_task, sessao, roteiro), _operacao_produz(id_task, sessao.id)),
         justificativa=f"Sessao {sessao.id} encerrada: condensacao pendente",
         origem=OrigemEvento.COMPORTAMENTO,
     )
     return PropostaPatch.criar(dados)
 
 
-def _operacao_da_tarefa(id_task: str, sessao: NoGrafo) -> ItemPatch:
+def roteiro_da_condensacao(sessao: NoGrafo, view: GrafoView) -> str:
+    """O roteiro que reflete a política do Projeto: com a promoção no árbitro, o texto diz quem promove."""
+    politica = resolver_politica_na_vista(sessao.id, view)
+    if politica.permite(Gesto.PROMOVER_APRENDIZADO, PapelAutor.ARBITRO):
+        return ROTEIRO_DA_CONDENSACAO_COM_ARBITRO
+    return ROTEIRO_DA_CONDENSACAO
+
+
+def _operacao_da_tarefa(id_task: str, sessao: NoGrafo, roteiro: str) -> ItemPatch:
     """Criação da Task com o roteiro e o critério de pronto da condensação."""
     return ItemPatch(
         op=OperacaoPatch.ADD,
@@ -146,7 +161,7 @@ def _operacao_da_tarefa(id_task: str, sessao: NoGrafo) -> ItemPatch:
                 "status": StatusTask.PENDENTE.value,
                 CAMPO_ACAO: ACAO_DE_CONDENSAR,
                 CAMPO_ALVO: sessao.id,
-                "descricao": ROTEIRO_DA_CONDENSACAO,
+                "descricao": roteiro,
                 "criterio_pronto": CRITERIO_DE_PRONTO,
             },
         },
