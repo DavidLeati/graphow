@@ -85,7 +85,8 @@ test("o valor escolhido volta como o catálogo o declara: o inteiro de max_corre
   assert.equal(valorDoCatalogo([0, 1, 2], "2"), 2);
   assert.equal(valorDoCatalogo(["arbitro", "humano"], "humano"), "humano");
   assert.equal(valorDoCatalogo(["arbitro"], "inexistente"), undefined);
-  assert.equal(nomeDoValor("max_correcoes", 1), "1 correção");
+  assert.equal(nomeDoValor("max_correcoes", 1), "1 reprovação");
+  assert.equal(nomeDoValor("max_correcoes", 3), "3 reprovações");
 });
 
 test("a operação em branco apaga as propriedades, e o teto inválido não chega ao servidor", () => {

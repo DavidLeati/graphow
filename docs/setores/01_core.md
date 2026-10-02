@@ -174,7 +174,7 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 - `origem(gesto: Gesto) -> str` — De onde o valor veio: global, projeto, preset:<nome> ou legado:nivel_autonomia.
 - `permite(gesto: Gesto, papel: PapelAutor) -> bool` — Diz se o papel pode fazer o gesto: o humano sempre, o árbitro quando a política o entrega.
 - `estrutura_ilimitada() -> bool` `[property]` — Verdadeiro quando todos os agentes ganham os tipos de nó e a camada `contem`.
-- `max_correcoes() -> int` `[property]` — Correções em cadeia permitidas antes de escalar ao humano.
+- `max_correcoes() -> int` `[property]` — Reprovações em cadeia antes do teto: a de ordem `max_correcoes` já escala (profundidade_correcao + 1 >= max_correcoes).
 
 ### `PresetDoProjeto` (str, Enum)
 

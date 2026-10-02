@@ -40,7 +40,7 @@ DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.ENCERRAR_SESSAO: "Encerrar uma Sessão",
     Gesto.LIBERAR_POSSE_ALHEIA: "Liberar a posse de uma tarefa que é de outro autor",
     Gesto.INTEGRACAO: "Commitar e integrar no ramo base (merge local); o push segue humano",
-    Gesto.MAX_CORRECOES: "Quantas correções em cadeia valem antes de escalar ao humano",
+    Gesto.MAX_CORRECOES: "Reprovações em cadeia antes do teto: a de ordem N já escala (2 = a original e a primeira correção)",
 })
 
 DESCRICOES_DOS_PRESETS: Mapping[str, str] = MappingProxyType({

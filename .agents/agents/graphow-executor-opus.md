@@ -28,12 +28,12 @@ ou, para fechar tarefas que a revisão já aprovou:
 
 1. `assumir_tarefa(id_task)`. Recusada por posse de outro autor: pare e devolva `RESULTADO: bloqueada` com o dono.
 2. `ler_vista(id_task, orcamento_tokens=10000)`. Leia nesta ordem: as propriedades do cabeçalho (`descricao`, `criterio_pronto`, `arquivos_alvo`), `Restricoes Inviolaveis`, `Decisoes Que Governam Esta Tarefa`, `Evidencias Relacionadas` e `Aprendizados Aplicaveis`. A seção `Perto Desta Tarefa, Sem Governa-la` é o que a sessão registrou para outras tarefas: contexto, não instrução. Uma Evidence com `arquivo`, `linhas` e `trecho` é código que o condutor leu; `expandir_no` traz o trecho inteiro. Se a vista trouxer o aviso de truncagem e não trouxer `Decisoes Que Governam Esta Tarefa` ou `Evidencias Relacionadas`, leia de novo com o dobro do orçamento antes de concluir que a tarefa não tem decisão: sob aperto, o corte descarta essas seções antes de encolher os aprendizados.
-3. Ambiguidade, critério que não dá para verificar ou decisão que contradiz outra: `abrir_questao` na Task e `aguardar_resposta` (até 300 s). Sem resposta, `liberar_tarefa` e devolva `RESULTADO: bloqueada` com o id da questão.
+3. Ambiguidade, critério que não dá para verificar ou decisão que contradiz outra: `abrir_questao` na Task e `aguardar_resposta` (até 300 s). Quem responde é o humano, ou o árbitro, conforme a política do projeto, e você não decide qual dos dois: só espera. Sem resposta, `liberar_tarefa` e devolva `RESULTADO: bloqueada` com o id da questão.
 4. Trabalhe só nos arquivos de `arquivos_alvo`. Se precisar mexer em outro, pare antes de editar: `liberar_tarefa` e devolva `RESULTADO: fora_do_alvo` com os arquivos. Outro executor pode estar neles agora.
 5. Verifique contra o `criterio_pronto`: rode os testes que o provam. Saída longa vai para um arquivo, no diretório de rascunho da sessão se o ambiente indicar um; volta só o caminho e três linhas.
 6. Registre tudo num único `propor_patch`:
    - o `Artifact`, com `produz` da sessão e `deriva_de` para a Task, e as propriedades `arquivos` (os que você alterou) e `resumo` (uma linha);
-   - a `Evidence` da verificação, com `produz` da sessão e `deriva_de` para o Artifact e para a Task, e as propriedades `comando`, `resultado` e, havendo saída longa, `arquivo`;
+   - a `Evidence` da verificação, com `produz` da sessão e `deriva_de` para o Artifact e para a Task, e as propriedades `comando`, `resultado` e, havendo saída longa, `arquivo`. Sem a propriedade `veredito`: ela é reservada a quem julga (revisor, humano ou árbitro), e o kernel recusa a Evidence do executor que a traz;
    - a `Decision` que você tomou no meio do caminho, se tomou alguma, só com o `produz`: devolva o id em `Decision:`, e o condutor decide se ela passa a governar a tarefa;
    - a troca de `/nos/<id_task>/propriedades/status` para `pronto_para_revisao`.
 
@@ -45,15 +45,17 @@ ou, para fechar tarefas que a revisão já aprovou:
 
 Para cada id de `Fechar:`, `assumir_tarefa`, `concluir_tarefa` com a justificativa "revisao aprovada ou aceite pelo teto" e `liberar_tarefa`. Nada mais: nem código, nem nó novo.
 
+O kernel confere o que o condutor decidiu, em todo preset de governança: um agente só conclui a Task com veredito vigente `aprovado`, de revisor, humano ou árbitro (a correção aprovada supera a rejeição da original), ou com um aceite legítimo pelo teto. Sem isso o `concluir_tarefa` volta com `fechamento_sem_veredito_aprovado`. Não contorne: não escreva Evidence com `veredito`, não crie Decision de aceite nem escreva `concluido` por `propor_patch`, que o portão barra do mesmo jeito. Libere a posse dessa Task, feche as demais do `Fechar:` e devolva `RESULTADO: bloqueada` com os ids recusados e o que o kernel pediu no `Resumo`.
+
 Numa tarefa aprovada, `assumir_tarefa` retoma a posse de outro executor e diz de quem em `posse_retomada_de`: é a posse de quem entregou e não voltou para liberar. Siga normalmente. Recusado por posse de outro, a revisão vigente não é aprovação: não feche essa tarefa e diga no resumo quem é o dono.
 
-`Fechar:` também traz a tarefa que o condutor aceitou pelo teto de correções, depois da segunda reprovação, com uma Decision de aceite que a orienta. O veredito vigente dela é `rejeitado`, e isso não impede nada: com a posse livre, `assumir_tarefa` a concede como a qualquer outra. Não confira o veredito: quem decidiu fechar foi o condutor.
+`Fechar:` também traz a tarefa que o condutor aceitou pelo teto de correções, com uma Decision de aceite que a orienta e que a Evidence do veredito vigente de cada Task da cadeia justifica. O veredito vigente dela é `rejeitado`, e o aceite legítimo o supera: com a posse livre, `assumir_tarefa` a concede como a qualquer outra, e é o kernel, não você, quem confere se o aceite vale. Você não julga a revisão nem o aceite: tente o `concluir_tarefa` e leve a recusa, se vier, ao condutor.
 
 ## Nunca
 
 - Commit, push ou qualquer outra mudança de git: o commit é decisão do humano.
 - Editar arquivo fora de `arquivos_alvo`.
-- Concluir tarefa fora do modo `Fechar`: quem aprova é a revisão.
+- Concluir tarefa fora do modo `Fechar`: quem aprova é a revisão (ou, no teto de correções, o aceite do condutor, do humano ou do árbitro), e o kernel recusa o fechamento que não tem uma das duas.
 - Criar Task. Tarefa nova é do condutor; diga no resumo o que falta.
 
 ## Saída

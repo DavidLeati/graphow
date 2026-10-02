@@ -2,7 +2,7 @@
 
 O servidor fala JSON-RPC 2.0 sobre transporte `stdio`. Duas decisões são tomadas aqui, na linha de comando, e nenhuma delas pode ser mudada depois pelo agente.
 
-`--papel` é obrigatório. Sem ele o processo sai com erro de argumento antes do aperto de mão, e o cliente recebe um `JSONDecodeError` no lugar de uma mensagem útil. Os valores aceitos são `planejador`, `executor`, `revisor` e `humano`; reserve `humano` para as sessões que você mesmo conduz.
+`--papel` é obrigatório. Sem ele o processo sai com erro de argumento antes do aperto de mão, e o cliente recebe um `JSONDecodeError` no lugar de uma mensagem útil. Os valores aceitos são `planejador`, `executor`, `revisor`, `arbitro` e `humano`; reserve `humano` para as sessões que você mesmo conduz. O `arbitro` é o papel que a política de governança do projeto autoriza a decidir no lugar do humano: por si só cria só `Evidence`, `Decision` e `Note`, e o que mais ele faz vem da política que o humano grava com `configurar_governanca` (ou pela aba Configurações do `graphow web`). Sem política gravada vale a `governanca_maxima`, e o servidor de árbitro recusa todo gesto. `sistema` é do harness e não abre sessão MCP.
 
 `--db` é opcional e perigoso quando mal apontado. Sem ele o banco vai para o diretório de dados do usuário (`%LOCALAPPDATA%\graphow` no Windows), que é o certo. Apontar para pasta sincronizada por nuvem coloca o log append-only sob um sincronizador que não conhece transação. Confira o caminho resolvido com `graphow banco-info`.
 
@@ -79,7 +79,7 @@ O padrão é `~/.claude/skills`; `--destino` aponta outro diretório, e `--orige
 python .agents/skills/graphow-mcp/scripts/test_mcp_client.py
 ```
 
-O script sobe o servidor em banco temporário, confere o aperto de mão e a lista de ferramentas, e verifica que uma sessão de executor recebe recusa ao chamar `responder_questao`.
+O script sobe o servidor em banco temporário, confere o aperto de mão e a lista de ferramentas, e verifica que uma sessão de executor recebe recusa ao chamar `responder_questao`. A recusa vale também para o árbitro quando a política do projeto, ou a falta dela, deixa o gesto com o humano.
 
 ## Hooks de ciclo de vida
 

@@ -91,10 +91,10 @@ def _linha_de_estrutura(politica: PoliticaGovernanca) -> list[str]:
 
 
 def _linha_de_correcoes(politica: PoliticaGovernanca) -> list[str]:
-    """Diz o teto de correções quando difere do padrão."""
+    """Diz o teto de reprovações em cadeia quando difere do padrão."""
     if politica.max_correcoes == MAX_CORRECOES_PADRAO:
         return []
-    return [f"- max_correcoes: {politica.max_correcoes} correcoes em cadeia antes de escalar"]
+    return [f"- max_correcoes: {politica.max_correcoes} reprovacoes em cadeia antes do teto (a de ordem {politica.max_correcoes} escala)"]
 
 
 def descrever_governanca(politica: PoliticaGovernanca) -> tuple[str, ...]:

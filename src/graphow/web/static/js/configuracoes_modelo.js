@@ -28,7 +28,7 @@ const NOMES_DOS_GESTOS = {
   encerrar_sessao: "Encerrar sessões",
   liberar_posse_alheia: "Liberar posse alheia",
   integracao: "Integração",
-  max_correcoes: "Correções em cadeia",
+  max_correcoes: "Reprovações em cadeia antes do teto",
 };
 
 const NOMES_DOS_VALORES = {
@@ -53,7 +53,7 @@ export function nomeDoGesto(gesto) {
 }
 
 export function nomeDoValor(gesto, valor) {
-  if (gesto === "max_correcoes") return valor === 1 ? "1 correção" : `${valor} correções`;
+  if (gesto === "max_correcoes") return valor === 1 ? "1 reprovação" : `${valor} reprovações`;
   return NOMES_DOS_VALORES[valor] || String(valor);
 }
 

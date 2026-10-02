@@ -4,7 +4,7 @@ O prompt de despacho é ponteiro, não especificação. Tudo o que o subagente p
 
 ## Quem despacha quem
 
-A raiz despacha só o condutor. O condutor despacha o explorador, os executores e os revisores: o `graphow-revisor` para a Task da trilha completa e o `graphow-revisor-sonnet` para a da trilha leve. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
+A raiz despacha o condutor e, quando a política de governança do projeto entrega um gesto ao árbitro, o `graphow-arbitro`. O condutor despacha o explorador, os executores e os revisores: o `graphow-revisor` para a Task da trilha completa e o `graphow-revisor-sonnet` para a da trilha leve. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
 
 ## O que vai em cada prompt
 
@@ -15,7 +15,8 @@ A raiz despacha só o condutor. O condutor despacha o explorador, os executores 
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
 | `graphow-revisor-sonnet` | o condutor, para a Task `trilha: leve` | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...`, inclusive `fora_da_trilha` |
-| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, com a posse livre |
+| `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`, ou `bloqueada` com os ids que o kernel recusou por `fechamento_sem_veredito_aprovado`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, quando a Decision de aceite é legítima e a posse está livre |
+| `graphow-arbitro` | a raiz | `Alvo: <id de Question, Goal, Setor ou Projeto>` e `Sessao: <id>` | `ARBITRAGEM: ...` |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
 
@@ -42,18 +43,20 @@ Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (
     Questoes: <id> na <id Task>: <uma linha>
     Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
     Fila: <n> prontas, <m> impedidas (<motivos>)
+    Governanca: <a linha da seção Governanca da vista do Goal>
     Goal concluido: sim | nao
     Resumo: <no máximo três linhas>
 
 | Retorno | O que a raiz faz |
 | :--- | :--- |
 | `decomposicao` ou `execucao` | conta ao humano numa linha e segue, salvo portão |
-| `Goal concluido: sim` | com cadência `goal`, para; com `setor`, segue para outro Goal do alvo |
-| `nada_a_fazer` | para e diz ao humano o que espera por ele |
+| `Governanca` | a política vigente do projeto, para a raiz decidir quem para: com `todos os gestos com o humano`, tudo o que o árbitro faria é do humano; com `com o arbitro: ...`, a raiz despacha o `graphow-arbitro` para cada gesto listado |
+| `Goal concluido: sim` | com `fechar_goal` no humano e cadência `goal`, para; com `setor`, segue para outro Goal do alvo. Com `fechar_goal` no árbitro, despacha o árbitro com `Alvo: <Goal>` e segue conforme a cadência |
+| `nada_a_fazer` | com o gesto no árbitro, despacha-o antes de parar e volta ao laço se ele decidir algo; senão, para e diz ao humano o que espera por ele |
 | `Correcoes` | diz ao humano na linha da rodada; não para por isso |
 | `Aceites` | a correção foi reprovada de novo só com critérios de acompanhamento: o condutor fechou a original e abriu a Task de acompanhamento com o que ficou. Diz as duas ao humano na linha da rodada; não para por isso |
-| `Questoes` | diz o id ao humano na linha da rodada; não para por isso |
-| `Integrar` | portão: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Para e diz ao humano o ramo e os arquivos. O merge e a renumeração são dele, ou da sessão principal se ele pedir; no "segue", a rodada seguinte confere de novo com `graphow base-colisoes` |
+| `Questoes` | com `responder_questao` no humano, diz o id ao humano na linha da rodada; com o gesto no árbitro, despacha-o com `Alvo: <id da Question>` e diz na linha quem a decidiu. Não para por isso |
+| `Integrar` | portão: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Com `integracao` no humano, para e diz a ele o ramo e os arquivos: o merge e a renumeração são dele, ou da sessão principal se ele pedir. Com `integracao` no árbitro, a raiz commita e faz o merge local, e para só se ele conflitar ou pedir renumerar. Em ambos, no "segue" a rodada seguinte confere de novo com `graphow base-colisoes`; o push nunca é da raiz |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
 ## A pergunta ao explorador
@@ -112,6 +115,33 @@ A Evidence do veredito deriva do Artifact e da Task, e cada critério não atend
 
 `fora_da_trilha` só vem do `graphow-revisor-sonnet`: o diff da Task leve muda comportamento. Ele não aprova nem rejeita. Registra uma Evidence com `triagem: fora_da_trilha` e o trecho que muda comportamento, sem a propriedade `veredito`, para ela não virar o veredito vigente da tarefa nem entrar na contagem da medição. O condutor marca `trilha: completa` na Task (por `propor_patch`) e despacha o `graphow-revisor` com o mesmo Artifact; o veredito que vale é o dele.
 
+## O retorno do árbitro
+
+    ARBITRAGEM: executada | escalada | nada_a_fazer
+    Alvo: <id> | <rótulo>
+    Respondidas: <id da Question> -> <a resposta em uma linha>
+    Descartadas: <id da Question>: <motivo>
+    Escaladas: <id da Question, do Aprendizado ou o gesto>: <o que o humano decide, com as opções>
+    Constraints: <id> escopa <id do Goal ou da Task>
+    Promovidos: <id do Aprendizado> -> <id do Setor ou do Projeto>
+    Goal fechado: <id>
+    Posses liberadas: <id da Task> (era de <autor>)
+    Sessoes encerradas: <ids>
+    Decision: <ids>
+    Evidence: <ids>
+    Resumo: <no máximo três linhas>
+
+| Retorno | O que a raiz faz |
+| :--- | :--- |
+| `executada` | conta ao humano numa linha o que o árbitro decidiu, com os ids, e segue o laço: a Task da Question respondida volta à fila da rodada seguinte |
+| `Escaladas` | a Question segue aberta e é do humano: entra no resumo da parada, com a pergunta e as opções do árbitro. A raiz não despacha o árbitro de novo para o mesmo item |
+| `escalada` | não decidiu nada: o item é do humano, e a raiz o trata como Question aberta no humano |
+| `nada_a_fazer` | a política não lhe entrega o gesto, ou não há o que decidir; a raiz volta à regra do humano para aquele gesto |
+| `Decision` | a Decision que sustenta a resposta nasceu sem `orienta`, que é do planejador: o condutor a lê na rodada seguinte e liga à Task se ela governa |
+| `Constraints`, `Goal fechado` | a raiz as conta ao humano na linha da rodada: são decisões que ele reverá |
+
+O árbitro devolve poucas linhas e o resto fica no grafo, como o do condutor. A raiz não lê a vista da Question para conferi-lo.
+
 ## Mais de um despacho por vez
 
-O condutor despacha as tarefas paralelas numa única mensagem, uma chamada por tarefa, todas em primeiro plano, depois de conferir que os `arquivos_alvo` são disjuntos e que nenhuma depende de outra. O explorador pode rodar em paralelo com qualquer coisa: ele não edita nem escreve no grafo. Duas rodadas ao mesmo tempo, não: a raiz despacha uma de cada vez.
+O condutor despacha as tarefas paralelas numa única mensagem, uma chamada por tarefa, todas em primeiro plano, depois de conferir que os `arquivos_alvo` são disjuntos e que nenhuma depende de outra. O explorador pode rodar em paralelo com qualquer coisa: ele não edita nem escreve no grafo. Duas rodadas ao mesmo tempo, não: a raiz despacha uma de cada vez. O árbitro nunca roda junto de uma rodada do condutor, porque as Questions e as posses que ele decide são as que a rodada deixou: a raiz o despacha entre as rodadas, uma Question por vez.

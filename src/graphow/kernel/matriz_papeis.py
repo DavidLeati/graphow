@@ -109,8 +109,9 @@ SO_HUMANO: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO})
 HUMANO_E_PLANEJADOR: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.PLANEJADOR}
 HUMANO_E_TRABALHO: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}
 # Justificar é ligar a Evidence à Decision que ela sustenta. Quem registra os
-# dois lados justifica: o planejador decide sobre o trecho que leu.
-QUEM_JUSTIFICA: frozenset[PapelAutor] = HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR}
+# dois lados justifica: o planejador decide sobre o trecho que leu, e o árbitro
+# liga a Evidence que leu à Decision que a resposta dele sustenta.
+QUEM_JUSTIFICA: frozenset[PapelAutor] = HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR, PapelAutor.ARBITRO}
 TODOS_OS_PAPEIS_DE_AGENTE: frozenset[PapelAutor] = frozenset(
     {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR, PapelAutor.ARBITRO}
 )

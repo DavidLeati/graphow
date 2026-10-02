@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-23 módulos · 3958 linhas · 30 classes
+23 módulos · 3959 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 191 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 356 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 251 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 252 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
@@ -260,7 +260,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
 | `HUMANO_E_TRABALHO` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}` |
-| `QUEM_JUSTIFICA` | `frozenset[PapelAutor]` | `HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR}` |
+| `QUEM_JUSTIFICA` | `frozenset[PapelAutor]` | `HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR, PapelAutor.ARBITRO}` |
 | `TODOS_OS_PAPEIS_DE_AGENTE` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |

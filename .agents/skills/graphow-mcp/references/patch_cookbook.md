@@ -184,7 +184,7 @@ Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_d
 
 ## revisor: anexar a evidência da auditoria
 
-O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deriva_de` o artefato que avaliou e a tarefa, e o `veredito` diz se passou (`aprovado`) ou não (`rejeitado`, com o trecho que o prova). Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico.
+O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deriva_de` o artefato que avaliou e a tarefa, e o `veredito` diz se passou (`aprovado`) ou não (`rejeitado`, com o trecho que o prova). Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico. A propriedade `veredito` também é só de quem julga (revisor, humano, árbitro): é ela que o kernel lê para deixar o executor concluir.
 
 ```json
 {
@@ -238,7 +238,7 @@ O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deri
 }
 ```
 
-Quem fecha a tarefa depois é o executor que a detém, por `concluir_tarefa`.
+Quem fecha a tarefa depois é o executor que a detém, por `concluir_tarefa`, e só se o `aprovado` é o veredito mais recente da Task: com `rejeitado` vigente, o kernel recusa com `fechamento_sem_veredito_aprovado`, a menos que a correção aprovada o supere ou haja aceite legítimo pelo teto de correções.
 
 ## Dúvida: use `abrir_questao`, não patch
 
@@ -255,7 +255,7 @@ Criar o nó `Question` por `propor_patch` é tecnicamente possível e quase semp
 
 O `titulo` é o rótulo do nó, e é o que o card mostra no canvas: mande uma linha. O corpo vai em `pergunta` e pode ser tão longo quanto a dúvida exigir. Sem `titulo`, ele é derivado do começo da pergunta — e uma pergunta de vinte linhas vira um título truncado.
 
-Você abre a dúvida e espera em `aguardar_resposta`. Mover a `Question` para `respondida` ou `descartada`, removê-la ou tirar o `bloqueia` são operações de sessão humana, por qualquer caminho.
+Você abre a dúvida e espera em `aguardar_resposta`. Mover a `Question` para `respondida` ou `descartada`, removê-la ou tirar o `bloqueia` são operações do humano, ou do árbitro quando a política lhe entrega `responder_questao`, por qualquer caminho. Planejador, executor e revisor são recusados, e o árbitro não encerra a que ele mesmo abriu.
 
 ## revisor: condensar a sessão encerrada
 
@@ -334,4 +334,4 @@ A Task de consolidar (`acao: consolidar_aprendizados`) foi aberta pelo grafo qua
 }
 ```
 
-Os dois absorvidos ficam no grafo, marcados com `SUBSTITUTO PENDENTE` na vista, até o humano promover o consolidado; só então saem dela. Depois, o revisor move a Task para `pronto_para_revisao` e libera a posse, como na condensação.
+Os dois absorvidos ficam no grafo, marcados com `SUBSTITUTO PENDENTE` na vista, até o humano, ou o árbitro quando a política lhe entrega `promover_aprendizado`, promover o consolidado; só então saem dela. Depois, o revisor move a Task para `pronto_para_revisao` e libera a posse, como na condensação.

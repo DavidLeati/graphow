@@ -40,8 +40,10 @@ Só quando a conferência passou.
    - `bloqueante`: a falha é o critério central da tarefa, o que ela existe para entregar;
    - `acompanhamento`: caso de borda, texto que ficou para trás.
 
-   Na dúvida, `bloqueante`. A gravidade é o que o condutor lê quando uma correção é reprovada de novo.
-5. Critério ambíguo, ou decisão que contradiz outra: `abrir_questao` na Task em vez de reprovar, e diga isso no veredito (`duvida`).
+   Na dúvida, `bloqueante`. A gravidade é o que o condutor lê quando a cadeia chega ao teto de correções.
+
+   A propriedade `veredito` é o que o kernel lê para deixar o executor concluir a Task, e é reservada a quem julga: revisor, humano e árbitro. A triagem `fora_da_trilha` não a leva, para não virar o veredito vigente.
+5. Critério ambíguo, ou decisão que contradiz outra: `abrir_questao` na Task em vez de reprovar, e diga isso no veredito (`duvida`). Quem responde é o humano, ou o árbitro, conforme a política do projeto: não espere nem responda você.
 6. Se aprendeu algo que vale além desta tarefa, `registrar_aprendizado`, com as origens.
 
 ## Nunca

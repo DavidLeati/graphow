@@ -154,7 +154,7 @@ class PoliticaGovernanca:
 
     @property
     def max_correcoes(self) -> int:
-        """Correções em cadeia permitidas antes de escalar ao humano."""
+        """Reprovações em cadeia antes do teto: a de ordem `max_correcoes` já escala (profundidade_correcao + 1 >= max_correcoes)."""
         return int(self.valores[Gesto.MAX_CORRECOES])
 
 
@@ -278,7 +278,7 @@ def _aplicar_legado(politica: PoliticaGovernanca, nivel_autonomia: Any) -> Polit
 
 
 def _mais_restritivo(gesto: Gesto, valores: Sequence[ValorDeGesto]) -> ValorDeGesto:
-    """O valor que menos entrega do gesto: humano, estrito ou o menor número de correções."""
+    """O valor que menos entrega do gesto: humano, estrito ou o menor número de reprovações em cadeia."""
     if gesto == Gesto.MAX_CORRECOES:
         return min(int(valor) for valor in valores)
     restritivo = VALOR_ESTRITO if gesto == Gesto.ESTRUTURA else VALOR_HUMANO

@@ -1,10 +1,10 @@
 # Configuração da orquestração
 
-O Graphow fixa o papel na abertura da conexão MCP, e nenhum argumento de ferramenta o muda. Por isso cada papel tem o próprio servidor: o condutor fala com um servidor de `planejador`, cada executor com um de `executor` e cada revisor com um de `revisor`. O explorador não tem servidor, porque não escreve no grafo, e a raiz também não precisa de um.
+O Graphow fixa o papel na abertura da conexão MCP, e nenhum argumento de ferramenta o muda. Por isso cada papel tem o próprio servidor: o condutor fala com um servidor de `planejador`, cada executor com um de `executor`, cada revisor com um de `revisor` e o árbitro com um de `arbitro`. O explorador não tem servidor, porque não escreve no grafo, e a raiz também não precisa de um.
 
 ## 1. Onde a skill e os subagentes moram
 
-A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor` e `graphow-revisor-sonnet`. O ambiente só os encontra em `~/.claude`. Copie os dois de um checkout do graphow e repita a cópia a cada atualização:
+A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor`, `graphow-revisor-sonnet` e `graphow-arbitro`. O ambiente só os encontra em `~/.claude`. Copie os dois de um checkout do graphow e repita a cópia a cada atualização:
 
 ```powershell
 Copy-Item -Recurse -Force .agents/skills/graphow-orquestracao ~/.claude/skills/
@@ -29,7 +29,7 @@ mcpServers:
       args: ["mcp", "--papel", "planejador", "--autor", "condutor", "--autor-por-conexao"]
 ```
 
-Os de executor e revisor seguem o mesmo formato, com `--papel executor` e `--papel revisor`. Os dois revisores usam o mesmo servidor, `graphow-revisor`, e diferem no autor: `revisor-opus` e `revisor-sonnet`. `--autor-por-conexao` dá a cada invocação uma posse e uma autoria próprias (`executor-sonnet#3f9a1c`, `condutor#a81c02`): sem isso, dois executores em paralelo dividiriam a posse de qualquer tarefa, e o log não diria qual condutor tomou qual decisão.
+Os de executor e revisor seguem o mesmo formato, com `--papel executor` e `--papel revisor`; o do árbitro, `graphow-arbitro`, usa `--papel arbitro --autor arbitro`. O papel `arbitro` não dá poder por si só: a sessão cria só `Evidence`, `Decision` e `Note`, e o resto vem da política de governança do projeto do alvo, que o humano grava (`configurar_governanca`, ou a aba Configurações do `graphow web`). Sem política gravada vale a `governanca_maxima`, e o servidor do árbitro recusa todo gesto. Os dois revisores usam o mesmo servidor, `graphow-revisor`, e diferem no autor: `revisor-opus` e `revisor-sonnet`. `--autor-por-conexao` dá a cada invocação uma posse e uma autoria próprias (`executor-sonnet#3f9a1c`, `condutor#a81c02`): sem isso, dois executores em paralelo dividiriam a posse de qualquer tarefa, e o log não diria qual condutor tomou qual decisão.
 
 Subagente aninhado sobe o próprio servidor. Isso foi testado em 2026-09-23: um `graphow-executor` despachado de dentro de outro subagente listou as ferramentas `mcp__graphow-executor` e leu a vista do projeto.
 
@@ -49,7 +49,7 @@ Sem o `SubagentStop`, `graphow orquestracao-medir` só enxerga o custo da raiz.
 
 ## 4. Permissões
 
-Para as rodadas não pararem em pedido de permissão, libere no `settings.json` as ferramentas dos três servidores de subagente: `mcp__graphow-condutor`, `mcp__graphow-executor` e `mcp__graphow-revisor`. Com `ramo_base` gravado (seção 5), libere também `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor e explorador não editam.
+Para as rodadas não pararem em pedido de permissão, libere no `settings.json` as ferramentas dos quatro servidores de subagente: `mcp__graphow-condutor`, `mcp__graphow-executor`, `mcp__graphow-revisor` e `mcp__graphow-arbitro`. Com `ramo_base` gravado (seção 5), libere também `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor, árbitro e explorador não editam. Com `integracao` no árbitro, a raiz commita e faz o merge local, e libere para ela `Bash(git status *)`, `Bash(git add *)`, `Bash(git commit *)`, `Bash(git merge *)` e `Bash(git diff *)`, sem `git push`.
 
 ## 5. Ramo base
 
@@ -77,7 +77,7 @@ graphow base-colisoes --goal goal-x
 
 Cada colisão sai numa linha, `<arquivo do ramo base> x <caminho do goal>`: um arquivo que o ramo base ganhou desde o merge-base, que casa com um glob e está no mesmo diretório de um caminho do Goal que casa com o mesmo glob. Os caminhos do Goal são os `arquivos_alvo` das tarefas abertas e os `arquivos` dos Artifacts. O código de saída é 0 sem colisão (ou sem `ramo_base`), 1 com colisão e 2 quando não deu para conferir. `--sem-fetch` compara com a cópia local do ramo remoto, e `--repo` aponta outro repositório.
 
-Com colisão, a rodada devolve `Integrar:` e a raiz para. O merge do ramo base e a renumeração são do humano, ou da sessão principal a pedido dele.
+Com colisão, a rodada devolve `Integrar:`. Com `integracao` no humano, a raiz para: o merge do ramo base e a renumeração são dele, ou da sessão principal a pedido dele. Com `integracao` no árbitro, a raiz commita o trabalho e faz o merge local, e só para se o merge conflitar ou a colisão pedir renumerar, que é editar código. O push é sempre do humano.
 
 ## 6. Sem interface
 
