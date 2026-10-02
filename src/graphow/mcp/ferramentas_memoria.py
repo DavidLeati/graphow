@@ -4,8 +4,9 @@ Encerrar a sessão é o gesto que separa a memória de curto prazo da de longo
 prazo: é dele que o fechamento determinístico passa a abrir a vista e que o
 motor reativo pede a condensação. Registrar um aprendizado é destilar o que
 sobrevive ao projeto, com a origem obrigatória. Promover é dar-lhe alcance, e
-isso fica com o humano; sem alvo declarado, o alcance é o Setor da sessão de
-origem, porque promover ao Projeto dá a lição a toda tarefa dele, case ou não
+isso fica com o humano, ou com o árbitro quando a política do projeto lhe
+entrega o gesto (a promoção global é sempre do humano); sem alvo declarado, o
+alcance é o Setor da sessão de origem, porque promover ao Projeto dá a lição a toda tarefa dele, case ou não
 com o assunto. Consolidar é registrar com `substitui`: um aprendizado
 que absorve vários, com a aresta para cada absorvido no mesmo lote; o absorvido
 só sai da vista quando o humano promove o consolidado.
@@ -35,6 +36,8 @@ from graphow.mcp.submissao import (
 CAMPO_RESUMO: str = "resumo"
 CAMPO_ORIGENS: str = "origens"
 CAMPO_SUBSTITUI: str = "substitui"
+CAMPO_PROMOVIDO_POR: str = "promovido_por"
+CAMPO_PROMOVIDO_POR_PAPEL: str = "promovido_por_papel"
 
 
 class FerramentasMemoria:
@@ -53,7 +56,10 @@ class FerramentasMemoria:
         }
 
     def encerrar_sessao(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Fecha a Sessao e devolve o fechamento que a vista dela passa a abrir."""
+        """Fecha a Sessao e devolve o fechamento que a vista dela passa a abrir.
+
+        É o gesto `encerrar_sessao` da política: do humano, ou do árbitro quando o projeto o entrega.
+        """
         id_sessao = str(argumentos["id_sessao"])
         ramo = extrair_ramo(dict(argumentos))
         sessao = self._contexto.kernel.obter_view(ramo).obter_no(id_sessao)
@@ -182,7 +188,9 @@ class FerramentasMemoria:
             }
         ja_promovido = bool(id_alvo) and ja_vale_para(id_aprendizado, id_alvo, self._contexto.kernel.obter_view(ramo))
         pedido = PedidoSubmissaoMCP(
-            operacoes=self._operacoes_de_promocao(id_aprendizado, "" if ja_promovido else id_alvo, eh_global),
+            operacoes=self._operacoes_com_proveniencia(
+                id_aprendizado, "" if ja_promovido else id_alvo, eh_global
+            ),
             justificativa=f"Promocao do aprendizado {id_aprendizado}",
             ramo_id=ramo,
             identificadores_criados={"id_aprendizado": id_aprendizado},
@@ -205,6 +213,20 @@ class FerramentasMemoria:
             return ""
         setores = sorted(a.origem_id for a in view.obter_arestas_entrada(sessoes[0], TipoAresta.CONTEM))
         return setores[0] if setores else ""
+
+    def _operacoes_com_proveniencia(self, id_aprendizado: str, id_alvo: str, eh_global: bool) -> tuple[ItemPatch, ...]:
+        """A promoção e, havendo uma, quem a fez e com que papel: é o que alimenta o selo e a auditoria da UI.
+
+        Promoção repetida a um alcance que já vale não muda nada, e não troca o promotor original.
+        """
+        promocao = self._operacoes_de_promocao(id_aprendizado, id_alvo, eh_global)
+        if not promocao:
+            return promocao
+        identidade = self._contexto.identidade
+        return promocao + (
+            montar_operacao_definir_propriedade(id_aprendizado, CAMPO_PROMOVIDO_POR, identidade.autor),
+            montar_operacao_definir_propriedade(id_aprendizado, CAMPO_PROMOVIDO_POR_PAPEL, identidade.papel.value),
+        )
 
     def _operacoes_de_promocao(self, id_aprendizado: str, id_alvo: str, eh_global: bool) -> tuple[ItemPatch, ...]:
         """A marca global como propriedade e o alcance por contêiner como aresta."""

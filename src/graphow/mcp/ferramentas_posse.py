@@ -9,8 +9,11 @@ executores na mesma tarefa não colidiam. Estas duas ferramentas realizam o item
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from graphow.core.governanca import Gesto
 from graphow.core.orquestracao import VEREDITO_APROVADO
 from graphow.core.types import PapelAutor, StatusTask
+from graphow.kernel.politica_governanca import resolver_politica_do_no
+from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral
 from graphow.mcp.construcao_operacoes import montar_operacao_definir_propriedade
 from graphow.mcp.submissao import (
     ContextoFerramentaMCP,
@@ -136,7 +139,8 @@ class FerramentasPosse:
     def liberar_tarefa(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
         """Devolve o lock da Task, deixando o status como está.
 
-        O humano devolve a posse de qualquer um. Um subagente que morre sem
+        O humano devolve a posse de qualquer um, e o árbitro também quando a
+        política do projeto lhe entrega `liberar_posse_alheia`. Um subagente que morre sem
         liberar deixa a tarefa presa a um autor que não volta mais. Se a
         revisão já aprovou a tarefa, o executor que vem fechá-la a retoma em
         `assumir_tarefa`; fora disso nenhum agente a tira dali, só o dono do
@@ -156,9 +160,24 @@ class FerramentasPosse:
         }
 
     def _autor_que_libera(self, id_task: str) -> str:
-        """Em sessão humana, o dono atual do lock; em sessão de agente, o próprio autor."""
+        """O dono atual do lock para quem pode liberar posse alheia; para os demais, o próprio autor.
+
+        O humano pode sempre; o árbitro, quando a política do projeto da Task
+        lhe entrega o gesto `liberar_posse_alheia`.
+        """
         identidade = self._contexto.identidade
         dono = self._contexto.kernel.obter_dono_do_lock(id_task)
-        if identidade.eh_humano and dono:
+        if dono and self._pode_liberar_posse_alheia(id_task):
             return dono
         return identidade.autor
+
+    def _pode_liberar_posse_alheia(self, id_task: str) -> bool:
+        """Diz se o papel da sessão tem o gesto `liberar_posse_alheia` na política do projeto da Task."""
+        papel = self._contexto.identidade.papel
+        if papel == PapelAutor.HUMANO:
+            return True
+        if papel != PapelAutor.ARBITRO:
+            return False
+        estado = self._contexto.kernel.obter_estado()
+        politica = resolver_politica_do_no(id_task, estado, RastreadorProjetoAncestral())
+        return politica.permite(Gesto.LIBERAR_POSSE_ALHEIA, papel)

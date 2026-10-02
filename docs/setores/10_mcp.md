@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2347 linhas · 26 classes
+17 módulos · 2659 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,17 +19,17 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_escalacao.py`](#mcpferramentasescalacao) | 153 | Ferramentas MCP do caminho de volta: da resposta humana até o agente. |
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 145 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
-| [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 222 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
-| [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 132 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
-| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 164 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
-| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 232 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 126 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 244 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
+| [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 264 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
+| [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
+| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 235 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 249 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 110 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões. |
 | [`mcp/server.py`](#mcpserver) | 128 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 193 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 303 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 316 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -163,6 +163,8 @@ Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover
 | `CAMPO_RESUMO` | `str` | `'resumo'` |
 | `CAMPO_ORIGENS` | `str` | `'origens'` |
 | `CAMPO_SUBSTITUI` | `str` | `'substitui'` |
+| `CAMPO_PROMOVIDO_POR` | `str` | `'promovido_por'` |
+| `CAMPO_PROMOVIDO_POR_PAPEL` | `str` | `'promovido_por_papel'` |
 
 ### `FerramentasMemoria`
 
@@ -180,6 +182,9 @@ Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `NIVEL_AUTONOMIA_PADRAO` | `str` | `'estrito'` |
+| `ESCOPO_GLOBAL` | `str` | `'global'` |
+| `VALOR_HERDAR` | `str` | `'herdar'` |
+| `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
 
 ### `FerramentasNavegacao`
 
@@ -189,7 +194,8 @@ Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão.
 - `criar_projeto(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria o nó Projeto raiz definindo o nível de autonomia dos agentes.
 - `criar_setor(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria o Setor e a aresta de contenção que o liga ao Projeto.
 - `criar_sessao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria a Sessão e a aresta de contenção que a liga ao Setor.
-- `configurar_autonomia_projeto(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Ajusta o nível de autonomia de um projeto. Restrito a sessões humanas.
+- `configurar_autonomia_projeto(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Ajusta o `nivel_autonomia` de um projeto (legado de `configurar_governanca`). Restrito a sessões humanas.
+- `configurar_governanca(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Grava a política de governança do escopo e devolve a política efetiva e a origem de cada gesto.
 
 ### `PedidoContainerFilho`
 
@@ -229,7 +235,7 @@ Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres.
 - `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de trabalho aos seus executores.
 - `criar_tarefa(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Cria uma Task com aresta 'produz', hierarquias opcionais e o que a orquestração declara.
 - `abrir_questao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Abre uma Question e a aresta 'bloqueia' que trava a tarefa até resposta humana.
-- `responder_questao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Registra a resposta humana e destrava a tarefa. Restrito a sessões humanas.
+- `responder_questao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Registra a resposta e destrava a tarefa: do humano, ou do árbitro quando a política do projeto o autoriza.
 - `concluir_tarefa(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Transiciona a Task para concluído, se nenhuma Question aberta a bloquear.
 - `propor_patch(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Submete um lote livre de operações RFC 6902 aos quatro portões.
 
@@ -247,7 +253,11 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 | `PAPEIS_VALIDOS_EM_SESSAO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.PLANEJADOR, PapelAutor.EXECUTO…` |
 | `SEPARADOR_DO_SUFIXO_DE_CONEXAO` | `str` | `'#'` |
 | `BYTES_DO_SUFIXO_DE_CONEXAO` | `int` | `3` |
-| `FERRAMENTAS_EXCLUSIVAS_DO_HUMANO` | `frozenset[str]` | `frozenset({'responder_questao', 'configurar_autonomia_projeto', 'exclui…` |
+| `FERRAMENTAS_EXCLUSIVAS_DO_HUMANO` | `frozenset[str]` | `frozenset({'configurar_governanca', 'configurar_autonomia_projeto'})` |
+| `GESTO_POR_FERRAMENTA` | `Mapping[str, Gesto]` | `MappingProxyType({'responder_questao': Gesto.RESPONDER_QUESTAO, 'promov…` |
+| `RAMO_PADRAO_DA_POLITICA` | `str` | `'main'` |
+| `CAMPO_ID_DO_ALVO_POR_FERRAMENTA` | `Mapping[str, str]` | `MappingProxyType({'responder_questao': 'id_questao', 'promover_aprendiz…` |
+| `CAMPOS_DE_IDS_DA_EXCLUSAO_EM_LOTE` | `tuple[str, ...]` | `('ids_nos', 'ids_arestas')` |
 
 ### `IdentidadeSessaoMCP`
 
@@ -260,9 +270,9 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 ### `PoliticaIdentidadeMCP`
 
-*serviço* — Decide, sem efeitos colaterais, se a identidade da sessão pode usar a ferramenta.
+*serviço* — Decide se a identidade da sessão pode usar a ferramenta, pela política de governança do alvo.
 
-- `autorizar(nome_ferramenta: str, identidade: IdentidadeSessaoMCP) -> ResultadoAutorizacao` — Consulta pura de autorização da ferramenta para a identidade corrente.
+- `autorizar(nome_ferramenta: str, identidade: IdentidadeSessaoMCP, argumentos: Mapping[str, Any]) -> ResultadoAutorizacao` — Consulta de autorização da ferramenta para a identidade corrente.
 
 ### `ResultadoAutorizacao`
 
@@ -276,6 +286,8 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 ### Funções do módulo
 
 - `autor_da_conexao(autor: str) -> str` — O autor declarado, com um sufixo único quando cada conexão precisa de posse própria.
+- `resolvedor_de_governanca_maxima(id_alvo: str, ramo_id: str) -> PoliticaGovernanca` — Resolvedor sem grafo: vale a política padrão, governança máxima.
+- `resolvedor_do_kernel(kernel: WriteKernel) -> ResolvedorDePolitica` — Resolvedor que lê o grafo do kernel: o nó dá o projeto, a aresta dá o projeto da origem.
 
 ## `mcp/orquestracao_tarefa.py`
 

@@ -4,16 +4,27 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
+from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.politicas import (
+    ARESTAS_DE_ORIENTACAO,
+    ARESTAS_DE_PROVENIENCIA,
+    AmbienteDoRecorte,
+    PoliticaBase,
     PoliticaContexto,
     PoliticaExecutor,
     PoliticaPlanejador,
     PoliticaRevisor,
 )
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
-from graphow.context.secoes import filtrar_propriedades_de_dominio
+from graphow.context.secoes import (
+    PrioridadeRetencao,
+    SecaoContexto,
+    filtrar_propriedades_de_dominio,
+    montar_secao_de_nos,
+)
 from graphow.core.exceptions import ErroEntidadeNaoEncontrada
-from graphow.core.types import PapelAutor
+from graphow.core.models import NoGrafo
+from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.working_set import RAIO_PADRAO, EscopoAtivo
 
@@ -51,6 +62,45 @@ class VistaMaterializada:
     nos_incluidos: tuple[str, ...] = field(default_factory=tuple)
     vizinhos_expansiveis: tuple[str, ...] = field(default_factory=tuple)
 
+ARESTAS_DO_JULGAMENTO: frozenset[TipoAresta] = (
+    ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | frozenset({TipoAresta.CONTRADIZ, TipoAresta.BLOQUEIA})
+)
+
+
+class PoliticaArbitro(PoliticaBase):
+    """Árbitro: a dúvida em julgamento, a Task que ela trava e o que se decidiu e se provou sobre ela.
+
+    Ele chega pela Question, e a Question só toca a Task pelo `bloqueia`: sem
+    cruzar essa aresta ele julgava sem ver as decisões que governam o trabalho
+    travado. Lê como o planejador (dúvidas abertas) e como o revisor
+    (decisões e evidências).
+    """
+
+    def _secoes_do_papel(self, alvo: NoGrafo, ambiente: AmbienteDoRecorte) -> tuple[SecaoContexto, ...]:
+        """Task bloqueada, dúvidas abertas, evidências e as decisões que governam o trabalho travado."""
+        vizinhanca = self._coletar(alvo, ambiente, ARESTAS_DO_JULGAMENTO)
+        tarefas = self._filtrar_por_tipo(vizinhanca, TipoNo.TASK)
+        abertas = tuple(
+            no
+            for no in self._filtrar_por_tipo(vizinhanca, TipoNo.QUESTION)
+            if no.obter_propriedade("status", StatusQuestion.ABERTA.value) == StatusQuestion.ABERTA.value
+        )
+        foco = tarefas[0] if alvo.tipo == TipoNo.QUESTION and tarefas else alvo
+        governam, contexto = montar_secoes_de_decisoes(
+            foco, self._filtrar_por_tipo(vizinhanca, TipoNo.DECISION), ambiente.view, ordens=(6, 7)
+        )
+        return (
+            montar_secao_de_nos("Task Bloqueada Pela Duvida", tarefas, (3, PrioridadeRetencao.BLOQUEIOS)),
+            montar_secao_de_nos("Duvidas Abertas Em Julgamento", abertas, (4, PrioridadeRetencao.BLOQUEIOS)),
+            montar_secao_de_nos(
+                "Evidencias Disponiveis",
+                self._filtrar_por_tipo(vizinhanca, TipoNo.EVIDENCE),
+                (5, PrioridadeRetencao.APOIO),
+            ),
+            governam,
+            contexto,
+        )
+
 
 class MaterializadorContexto:
     """Responsável por sintetizar subgrafos em formato ótimo de tokens para agentes."""
@@ -60,6 +110,7 @@ class MaterializadorContexto:
         PapelAutor.EXECUTOR: PoliticaExecutor(),
         PapelAutor.REVISOR: PoliticaRevisor(),
         PapelAutor.HUMANO: PoliticaPlanejador(),
+        PapelAutor.ARBITRO: PoliticaArbitro(),
     }
 
     def __init__(

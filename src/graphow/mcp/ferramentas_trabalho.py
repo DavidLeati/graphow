@@ -184,13 +184,16 @@ class FerramentasTrabalho:
         )
 
     def responder_questao(self, argumentos: Mapping[str, Any]) -> dict[str, Any]:
-        """Registra a resposta humana e destrava a tarefa. Restrito a sessões humanas."""
+        """Registra a resposta e destrava a tarefa: do humano, ou do árbitro quando a política do projeto o autoriza."""
         id_questao = str(argumentos["id_questao"])
         resposta = str(argumentos["resposta"])
         operacoes = (
             montar_operacao_definir_propriedade(id_questao, "status", StatusQuestion.RESPONDIDA.value),
             montar_operacao_definir_propriedade(id_questao, "resposta", resposta),
             montar_operacao_definir_propriedade(id_questao, "respondida_por", self._contexto.identidade.autor),
+            montar_operacao_definir_propriedade(
+                id_questao, "respondida_por_papel", self._contexto.identidade.papel.value
+            ),
         )
         pedido = PedidoSubmissaoMCP(
             operacoes=operacoes,

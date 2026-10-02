@@ -99,6 +99,7 @@ def test_mcp_listar_ferramentas_nominal() -> None:
         "responder_questao",
         "concluir_tarefa",
         "configurar_autonomia_projeto",
+        "configurar_governanca",
         "excluir_em_lote",
         "excluir_projeto",
         "proximas_tarefas",
@@ -157,7 +158,8 @@ def test_mcp_agente_nao_responde_questao_edge_case() -> None:
         "responder_questao", {"id_questao": abertura["id_questao"], "resposta": "Pode sim"}
     )
     assert resposta["sucesso"] is False
-    assert "exige uma sessao humana" in resposta["erro"]
+    assert "gesto 'responder_questao'" in resposta["erro"]
+    assert "abrir_questao" in resposta["erro"]
 
 
 def test_mcp_agente_nao_configura_autonomia_nem_exclui_edge_case() -> None:

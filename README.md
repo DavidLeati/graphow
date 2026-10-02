@@ -145,7 +145,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 ## 🔌 Superfície de Ferramentas MCP (Model Context Protocol)
 
-O `GraphowMCPServer` expõe 22 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
+O `GraphowMCPServer` expõe 23 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
 
 A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argumento de tipo errado e banco travado por outro escritor: antes, um `TypeError` ou um `sqlite3.OperationalError` derrubavam o processo MCP. Linha que não é JSON recebe `-32700`, e lote ou requisição sem `method` recebem `-32600`.
 
@@ -158,28 +158,32 @@ A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argu
 | **`buscar`** | Busca textual *case-insensitive* ranqueada por relevância, cortada em `limite` (padrão 5, teto 50) e sempre acompanhada de `total` e `truncado`. Filtra por `TipoNo` e por `escopo`. |
 | **`proximas_tarefas`** | Fila de trabalho da sessão ou do `Goal`: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. Cada tarefa traz `modelo`, `trilha` e `arquivos_alvo`, com que o orquestrador escolhe o executor, o revisor e o que roda em paralelo. |
 | **`assumir_tarefa`** | Adquire a posse exclusiva de uma `Task` e a move para `em_andamento`. Exigido antes de qualquer mudança de status. |
-| **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. Numa sessão humana, devolve a posse de qualquer autor: a de um subagente que terminou sem liberar. |
-| **`minhas_questoes`** | Lista as dúvidas abertas por esta sessão, com a resposta humana quando já houver. |
-| **`aguardar_resposta`** | Long-poll até o humano encerrar a dúvida, ou até o prazo expirar. Substitui o polling manual com `expandir_no`. |
+| **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. O humano devolve a posse de qualquer autor (a de um subagente que terminou sem liberar), e o árbitro também quando o gesto `liberar_posse_alheia` está com ele na política. |
+| **`minhas_questoes`** | Lista as dúvidas abertas por esta sessão, com a resposta (do humano ou do árbitro) quando já houver. |
+| **`aguardar_resposta`** | Long-poll até a dúvida ser encerrada (pelo humano ou pelo árbitro), ou até o prazo expirar. Substitui o polling manual com `expandir_no`. |
 | **`criar_projeto`** | Cria o nó `Projeto` raiz e define o nível de autonomia dos agentes nele. |
 | **`criar_setor`** | Cria o `Setor` e a aresta `contem` que o liga ao `Projeto`. |
 | **`criar_sessao`** | Cria a `Sessao` e a aresta `contem` que a liga ao `Setor`. |
 | **`criar_tarefa`** | Cria uma `Task` com aresta `produz` e hierarquias opcionais. Para a orquestração, grava `modelo` (recusado sem `motivo_modelo`), `trilha` (`leve` ou `completa`, a leve recusada em Opus), `arquivos_alvo` e `corrige`, e liga à tarefa por `orienta` cada `Decision` listada em `decisoes`. |
 | **`concluir_tarefa`** | Transiciona a `Task` para `concluido`, se nenhuma `Question` aberta a bloquear. |
-| **`responder_questao`** | Registra a resposta e destrava a `Task`. **Somente sessão humana.** |
-| **`configurar_autonomia_projeto`** | Ajusta a autonomia dos agentes no projeto. **Somente sessão humana.** |
-| **`encerrar_sessao`** | Encerra a `Sessao`: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo **fechamento determinístico** (decisões vigentes, dúvidas abertas, restrições, último artefato). **Somente sessão humana**; o harness encerra pelo hook de fim. |
+| **`responder_questao`** | Registra a resposta e destrava a `Task`; grava `respondida_por` e `respondida_por_papel`. Gesto `responder_questao` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto. O árbitro não responde a `Question` que ele mesmo abriu. |
+| **`configurar_autonomia_projeto`** | Legado: ajusta o `nivel_autonomia` do projeto, que a política lê como o gesto `estrutura`. Prefira `configurar_governanca`. **Sempre sessão humana.** |
+| **`configurar_governanca`** | Grava a política de governança: `escopo` (`global` ou o id de um `Projeto`), `preset` (`governanca_maxima`, `arbitragem_maxima`, `personalizada`, e `herdar` no projeto) e `personalizada` opcional (gesto para valor). Os presets fixos não mudam; a `personalizada` é mesclada na salva e nunca apagada ao trocar de preset, e no projeto `herdar` apaga a sobrescrita do gesto. Cria o nó `governanca-global` se faltar e devolve a política efetiva e a origem de cada gesto. **Sempre sessão humana**, árbitro inclusive. |
+| **`encerrar_sessao`** | Encerra a `Sessao`: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo **fechamento determinístico** (decisões vigentes, dúvidas abertas, restrições, último artefato). Gesto `encerrar_sessao` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto; o harness encerra pelo hook de fim. |
 | **`registrar_aprendizado`** | Cria um `Aprendizado` pendurado na `Sessao` e ligado por `deriva_de` a cada nó de origem. Sem origem no mesmo lote, o `InvariantGate` recusa com `aprendizado_sem_origem`. Com `substitui`, consolida: a aresta para cada `Aprendizado` absorvido nasce no mesmo lote. |
-| **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. **Somente sessão humana.** Sem alvo, promove ao `Setor` da sessão de origem, o alcance padrão; o `Projeto` fica para o que vale em toda tarefa dele, e o global para o que vale em qualquer projeto. |
-| **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. **Somente sessão humana.** |
-| **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. **Somente sessão humana.** |
+| **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. Gesto `promover_aprendizado` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto; grava `promovido_por` e `promovido_por_papel`, e a promoção global é sempre do humano. O árbitro não promove o `Aprendizado` que ele mesmo registrou. Sem alvo, promove ao `Setor` da sessão de origem, o alcance padrão; o `Projeto` fica para o que vale em toda tarefa dele, e o global para o que vale em qualquer projeto. |
+| **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto em todos os alvos do lote. |
+| **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto. |
 
-Quatro das ferramentas restritas são as que anulariam uma garantia se um agente as
-executasse: `responder_questao` encerra a escalação ao humano e as demais desligam
-governança ou apagam trabalho em cascata. `encerrar_sessao` é restrita por outro
-motivo: encerrar é o gesto de quem abriu a sessão, o humano ou o harness, e é ele
-que dispara a condensação. A recusa por nome de ferramenta é a primeira camada,
-não a única: o `RoleGate` impõe as mesmas garantias contra qualquer caminho,
+Duas ferramentas são sempre do humano: `configurar_governanca` e
+`configurar_autonomia_projeto` escrevem a política que decide o que cada papel
+pode fazer, e um agente que as executasse desligaria todos os portões. As demais
+restritas (`responder_questao`, `promover_aprendizado`, `encerrar_sessao`,
+`excluir_projeto`, `excluir_em_lote`) dependem da política efetiva do projeto do
+alvo: com a `governanca_maxima` são do humano, com a `arbitragem_maxima` também do
+papel `arbitro` (`graphow mcp --papel arbitro`), e planejador, executor e revisor
+são recusados em qualquer política. A recusa por nome de ferramenta é a primeira
+camada, não a única: o `RoleGate` impõe as mesmas garantias contra qualquer caminho,
 inclusive um `propor_patch` cru.
 
 **O servidor se apresenta.** A resposta de `initialize` traz `instructions` com

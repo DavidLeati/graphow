@@ -14,7 +14,7 @@ from graphow.mcp.ferramentas_memoria import FerramentasMemoria
 from graphow.mcp.ferramentas_navegacao import FerramentasNavegacao
 from graphow.mcp.ferramentas_posse import FerramentasPosse
 from graphow.mcp.ferramentas_trabalho import FerramentasTrabalho
-from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, PoliticaIdentidadeMCP
+from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, PoliticaIdentidadeMCP, resolvedor_do_kernel
 from graphow.mcp.submissao import ContextoFerramentaMCP
 from graphow.mcp.tool_definitions import DEFINICOES_FERRAMENTAS_MCP
 
@@ -35,7 +35,7 @@ class GraphowMCPServer:
         materializador: MaterializadorContexto | None = None,
     ) -> None:
         self._identidade: IdentidadeSessaoMCP = identidade
-        self._politica: PoliticaIdentidadeMCP = PoliticaIdentidadeMCP()
+        self._politica: PoliticaIdentidadeMCP = PoliticaIdentidadeMCP(resolvedor_do_kernel(kernel))
         contexto = ContextoFerramentaMCP(kernel=kernel, identidade=identidade)
         self._manipuladores: dict[str, ManipuladorFerramenta] = self._montar_manipuladores(
             contexto, materializador
@@ -93,7 +93,7 @@ class GraphowMCPServer:
                     f"'{self._identidade.papel.value}' e foi fixado na abertura do servidor."
                 ),
             }
-        autorizacao = self._politica.autorizar(nome_ferramenta, self._identidade)
+        autorizacao = self._politica.autorizar(nome_ferramenta, self._identidade, argumentos)
         if not autorizacao.autorizado:
             return {"sucesso": False, "erro": autorizacao.motivo}
         return None

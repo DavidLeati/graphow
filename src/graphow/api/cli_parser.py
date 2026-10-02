@@ -12,6 +12,7 @@ PAPEIS_ACEITOS_NO_MCP: tuple[str, ...] = (
     PapelAutor.EXECUTOR.value,
     PapelAutor.REVISOR.value,
     PapelAutor.HUMANO.value,
+    PapelAutor.ARBITRO.value,
 )
 FASES_ACEITAS_NO_HARNESS: tuple[str, ...] = tuple(fase.value for fase in FaseDoHarness)
 

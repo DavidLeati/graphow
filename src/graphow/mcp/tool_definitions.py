@@ -56,7 +56,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "abrir_questao",
-        "description": "Abre um nó Question que bloqueia uma Task até que o humano responda. Nenhum papel de agente encerra uma dúvida: use 'aguardar_resposta' para saber quando ela foi respondida.",
+        "description": "Abre um nó Question que bloqueia uma Task até que o humano, ou o árbitro quando a política de governança do projeto lhe entrega o gesto responder_questao, a responda. Planejador, executor e revisor nunca encerram uma dúvida, nem a que abriram: use 'aguardar_resposta' para saber quando ela foi respondida.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -95,7 +95,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "liberar_tarefa",
-        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado. Libere antes de terminar: a posse de um subagente que acabou sem liberar trava a tarefa até o humano, que devolve a posse de qualquer autor por esta mesma ferramenta.",
+        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado. Libere antes de terminar: a posse de um subagente que acabou sem liberar trava a tarefa até quem pode devolver a posse de outro autor por esta mesma ferramenta: o humano, ou o árbitro quando a política do projeto lhe entrega o gesto liberar_posse_alheia.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -106,7 +106,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "minhas_questoes",
-        "description": "Lista as dúvidas abertas por esta sessão, com a resposta humana quando já houver.",
+        "description": "Lista as dúvidas abertas por esta sessão, com a resposta (do humano ou do árbitro) quando já houver.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -116,7 +116,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "aguardar_resposta",
-        "description": "Bloqueia até que o humano encerre a dúvida indicada, ou até o prazo expirar. Substitui o polling manual.",
+        "description": "Bloqueia até que a dúvida indicada seja encerrada (pelo humano ou pelo árbitro), ou até o prazo expirar. Substitui o polling manual.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -149,7 +149,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
             "properties": {
                 "rotulo": {"type": "string", "description": "Nome ou título do projeto."},
                 "descricao": {"type": "string", "default": "", "description": "Descrição do projeto."},
-                "nivel_autonomia": {"type": "string", "enum": ["estrito", "ilimitado"], "default": "estrito", "description": "Amplia os tipos de nó que agentes podem criar dentro do projeto. Nunca concede Constraint, encerramento de dúvida nem a camada de arestas do humano."},
+                "nivel_autonomia": {"type": "string", "enum": ["estrito", "ilimitado"], "default": "estrito", "description": "Amplia os tipos de nó que agentes podem criar dentro do projeto. É o campo legado da política de governança (o gesto estrutura); nunca concede, por si, Constraint, encerramento de dúvida nem a camada de arestas do humano."},
             },
             "required": ["rotulo"],
         },
@@ -202,7 +202,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "responder_questao",
-        "description": "Responde e resolve um nó Question, destravando tarefas que estavam bloqueadas por ele.",
+        "description": "Responde e resolve um nó Question, destravando tarefas que estavam bloqueadas por ele. É o gesto responder_questao da política de governança: do humano, ou do árbitro quando a política do projeto da Question o entrega; planejador, executor e revisor são recusados. O árbitro não responde a Question que ele mesmo abriu. Grava respondida_por e respondida_por_papel.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -226,7 +226,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "configurar_autonomia_projeto",
-        "description": "Altera o nível de permissividade e autonomia concedido a agentes em um projeto.",
+        "description": "Legado: altera o nivel_autonomia de um projeto (estrito ou ilimitado), que a política de governança lê como o gesto estrutura. Segue funcionando, mas o caminho novo é configurar_governanca. Sempre do humano.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -237,8 +237,21 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "configurar_governanca",
+        "description": "Grava a política de governança, que decide quem exerce cada gesto antes só do humano (responder_questao, promover_aprendizado, constraint, estrutura, excluir, fechar_goal, encerrar_sessao, liberar_posse_alheia, integracao, max_correcoes): o humano, ou o árbitro. É o caminho novo, que substitui configurar_autonomia_projeto. Sempre do humano: nenhum papel de agente, árbitro inclusive, a configura. Presets: governanca_maxima e arbitragem_maxima são fixos; só a personalizada é editável, e ela fica sempre guardada à parte, sem ser apagada ao trocar de preset. escopo 'global' grava o nó governanca-global (criado se não existir); o id de um Projeto grava a política dele, em que a personalizada é parcial e o gesto ausente herda a global. Devolve a política efetiva resultante e a origem de cada gesto.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "escopo": {"type": "string", "description": "'global' ou o ID de um Projeto."},
+                "preset": {"type": "string", "enum": ["governanca_maxima", "arbitragem_maxima", "personalizada", "herdar"], "description": "No escopo global: governanca_maxima, arbitragem_maxima ou personalizada. Num Projeto também 'herdar', que vale a política global."},
+                "personalizada": {"type": "object", "description": "Opcional: gesto -> valor ('humano' ou 'arbitro'; estrutura: 'estrito' ou 'ilimitado'; max_correcoes: inteiro de 0 a 5). É mesclada na personalizada já salva. Num Projeto, o valor 'herdar' apaga a sobrescrita do gesto."},
+            },
+            "required": ["escopo", "preset"],
+        },
+    },
+    {
         "name": "excluir_em_lote",
-        "description": "Remove múltiplos nós e arestas do grafo em uma única operação atômica.",
+        "description": "Remove múltiplos nós e arestas do grafo em uma única operação atômica. É o gesto excluir da política de governança: do humano, ou do árbitro quando a política de todos os alvos o entrega; os demais papéis são recusados.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -250,7 +263,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "encerrar_sessao",
-        "description": "Encerra uma Sessao: grava status 'concluida' e o resumo opcional. A partir dai a vista da sessao abre pelo fechamento deterministico (decisoes vigentes, duvidas abertas, restricoes, ultimo artefato) e o motor reativo abre a Task de condensacao. Somente sessao humana; o harness encerra pelo hook de fim.",
+        "description": "Encerra uma Sessao: grava status 'concluida' e o resumo opcional. A partir dai a vista da sessao abre pelo fechamento deterministico (decisoes vigentes, duvidas abertas, restricoes, ultimo artefato) e o motor reativo abre a Task de condensacao. E o gesto encerrar_sessao da politica de governanca: do humano, ou do arbitro quando a politica do projeto da sessao o entrega; planejador, executor e revisor sao recusados. O harness encerra pelo hook de fim.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -262,7 +275,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "registrar_aprendizado",
-        "description": "Chame antes de terminar, para cada lição que vale além desta sessão. Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. So o humano promove (promover_aprendizado); ate la o aprendizado vale so onde nasceu. Para consolidar (Task de acao consolidar_aprendizados), passe em substitui os ids dos Aprendizados absorvidos: a aresta substitui nasce no mesmo lote, e o absorvido sai da vista quando o humano promover o consolidado.",
+        "description": "Chame antes de terminar, para cada lição que vale além desta sessão. Registra um Aprendizado: o que sobrevive ao projeto, com a afirmacao numa linha, como aplicar e os ids de origem. Nasce pendurado na sessao e aponta por deriva_de para cada origem; sem origem o InvariantGate recusa com aprendizado_sem_origem. Promover (promover_aprendizado) e do humano, ou do arbitro quando a politica do projeto o entrega, e a promocao global e sempre do humano; ate la o aprendizado vale so onde nasceu. Para consolidar (Task de acao consolidar_aprendizados), passe em substitui os ids dos Aprendizados absorvidos: a aresta substitui nasce no mesmo lote, e o absorvido sai da vista quando o consolidado for promovido.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -270,14 +283,14 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "como_aplicar": {"type": "string", "default": "", "description": "O que fazer com isto na proxima vez."},
                 "id_sessao": {"type": "string", "description": "ID da Sessao que destilou o aprendizado."},
                 "origens": {"type": "array", "items": {"type": "string"}, "description": "IDs das Evidence, Decision, Note, Artifact ou Task de onde o aprendizado saiu. Ao menos um."},
-                "substitui": {"type": "array", "items": {"type": "string"}, "default": [], "description": "IDs dos Aprendizados que este consolida e substitui. O absorvido fica no grafo e sai da vista quando o humano promover este."},
+                "substitui": {"type": "array", "items": {"type": "string"}, "default": [], "description": "IDs dos Aprendizados que este consolida e substitui. O absorvido fica no grafo e sai da vista quando este for promovido."},
             },
             "required": ["afirmacao", "id_sessao", "origens"],
         },
     },
     {
         "name": "promover_aprendizado",
-        "description": "Da alcance a um Aprendizado: aresta vale_para um Projeto ou Setor, ou a marca 'alcance: global' para valer em todo projeto. A partir dai ele entra na secao Aprendizados Aplicaveis da vista de qualquer tarefa sob esse alcance. Somente sessao humana. Sem id_alvo nem global, promove ao Setor da sessao que o produziu, que e o alcance padrao: reserve o Projeto para o que vale em toda tarefa dele, e global para o que vale em qualquer projeto.",
+        "description": "Da alcance a um Aprendizado: aresta vale_para um Projeto ou Setor, ou a marca 'alcance: global' para valer em todo projeto. A partir dai ele entra na secao Aprendizados Aplicaveis da vista de qualquer tarefa sob esse alcance. E o gesto promover_aprendizado da politica de governanca: do humano, ou do arbitro quando a politica do projeto o entrega (o arbitro nao promove o aprendizado que ele mesmo registrou); com global=true e sempre o humano; planejador, executor e revisor sao recusados. Grava promovido_por e promovido_por_papel. Sem id_alvo nem global, promove ao Setor da sessao que o produziu, que e o alcance padrao: reserve o Projeto para o que vale em toda tarefa dele, e global para o que vale em qualquer projeto.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -290,7 +303,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "excluir_projeto",
-        "description": "Remove um projeto e opcionalmente todos os seus setores, sessões e nós em cascata.",
+        "description": "Remove um projeto e opcionalmente todos os seus setores, sessões e nós em cascata. É o gesto excluir da política de governança: do humano, ou do árbitro quando a política do projeto o entrega; os demais papéis são recusados.",
         "inputSchema": {
             "type": "object",
             "properties": {

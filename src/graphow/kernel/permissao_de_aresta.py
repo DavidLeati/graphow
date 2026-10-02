@@ -79,8 +79,36 @@ class PermissaoDeAresta:
         gesto = gesto_da_aresta(tipo, par, False)
         politica = self._politica_que_nega(gesto, pontas, contexto) if gesto is not None else None
         if gesto is not None and politica is None:
-            return ResultadoValidacao.sucesso()
+            return self._barrar_autoconflito_na_promocao(tipo, pontas, contexto)
         return self._recusar(tipo, contexto.proposta.papel, False, par=par, gesto=gesto, politica=politica)
+
+    def _barrar_autoconflito_na_promocao(
+        self,
+        tipo: TipoAresta,
+        pontas: Sequence[str],
+        contexto: ContextoPapel,
+    ) -> ResultadoValidacao:
+        """O árbitro não promove o Aprendizado que ele mesmo registrou.
+
+        A autoria vem da proveniência do nó (quem o escreveu), comparada sem o
+        sufixo de conexão. Um Aprendizado criado no próprio lote ainda não está
+        no estado: o autor dele é quem propõe, e o lote é recusado.
+        """
+        if tipo != TipoAresta.VALE_PARA or not pontas:
+            return ResultadoValidacao.sucesso()
+        aprendizado = contexto.estado_com_lote.nos.get(pontas[0])
+        if aprendizado is None or aprendizado.tipo != TipoNo.APRENDIZADO:
+            return ResultadoValidacao.sucesso()
+        registrado = contexto.estado.nos.get(aprendizado.id)
+        if registrado is not None and not eh_autoria_propria(contexto.proposta.autor, registrado.proveniencia.autor):
+            return ResultadoValidacao.sucesso()
+        return ResultadoValidacao.falha(
+            f"Papel '{contexto.proposta.papel.value}' nao pode promover o Aprendizado '{aprendizado.id}': "
+            "foi ele quem o registrou, e promover o proprio aprendizado seria julgar em causa propria",
+            "RoleGate",
+            {"id_aprendizado": aprendizado.id},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
 
     def validar_remocao(self, aresta: ArestaGrafo, contexto: ContextoPapel) -> ResultadoValidacao:
         """Julga a remoção pela aresta como ela está no grafo, nunca pelo valor enviado.

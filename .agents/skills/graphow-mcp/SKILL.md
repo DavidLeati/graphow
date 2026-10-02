@@ -26,7 +26,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 **5. Invariantes estruturais.** Todo nó novo, exceto `Projeto`, nasce pendurado na hierarquia: o mesmo lote que o cria traz a aresta de contenção que chega nele — `produz` vinda da `Sessao` para nós de trabalho, `decompoe` vinda de um `Goal` ou `Task` para subtarefas. `deriva_de` não conta. Sem isso o lote inteiro é recusado com `no_fora_da_hierarquia`, inclusive para o humano. As arestas `depende_de` formam um DAG, e o patch que fecha ciclo é rejeitado por inteiro. Uma `Task` não transiciona para `concluido` enquanto existir `Question` aberta ligada a ela por aresta `bloqueia`. A `Evidence` do planejador, e toda `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa; sem isso, na criação ou na edição, o lote cai com `evidencia_sem_localizacao`.
 
-**6. Quem encerra a dúvida é a pessoa.** `responder_questao`, `configurar_autonomia_projeto`, `excluir_projeto`, `excluir_em_lote`, `encerrar_sessao` e `promover_aprendizado` exigem sessão humana e recusam sessão de agente. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: escrever na `Question` um status que não seja `aberta`, remover uma `Question`, remover uma aresta `bloqueia` (também pela cascata de remover a `Task`), escrever `nivel_autonomia` no `Projeto`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
+**6. Quem encerra a dúvida é a pessoa, ou o árbitro que a política autoriza.** `configurar_governanca` e `configurar_autonomia_projeto` exigem sessão humana, sempre. `responder_questao`, `excluir_projeto`, `excluir_em_lote`, `encerrar_sessao` e `promover_aprendizado` dependem da política de governança do projeto do alvo: o humano as usa sempre, o papel `arbitro` quando a política lhe entrega o gesto (a promoção global é sempre do humano), e planejador, executor e revisor são recusados. Sem escolha do humano vale a `governanca_maxima`, em que tudo isso é só dele. O RoleGate barra o mesmo efeito por qualquer caminho, `propor_patch` incluído: escrever na `Question` um status que não seja `aberta`, remover uma `Question`, remover uma aresta `bloqueia` (também pela cascata de remover a `Task`), escrever `nivel_autonomia` no `Projeto`. Depois de `abrir_questao`, espere em `aguardar_resposta` em vez de sondar com `expandir_no`.
 
 **7. Posse antes de status.** Chame `assumir_tarefa` antes de mexer no status de uma `Task`; o kernel recusa a escrita de quem não é dono e devolve o nome de quem é. Se parar no meio, `liberar_tarefa`, para não travar a fila dos outros.
 
@@ -38,7 +38,7 @@ Cada item abaixo é recusa em tempo de execução, não recomendação de estilo
 
 Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que ela. O hook de início de sessão (`graphow harness --fase inicio --entrada-hook`) imprime a **vista de retomada**, que o ambiente injeta no contexto: onde a sessão mora (Projeto, Setor e o `id_sessao` que as ferramentas pedem), os `Aprendizados aplicaveis` (e a `Task` de consolidar aprendizados pendente do alcance, quando o grafo a abriu), o que a sessão anterior deixou (balanço, fechamento, condensação ou a `Task` de condensar pendente, com o id para `assumir_tarefa`) e o protocolo de memória. E a resposta de `initialize` do servidor MCP traz `instructions` com esse protocolo e o que o papel da conexão pode criar. Esta skill é o detalhe: o cookbook de patches, a matriz de papéis e o roteiro completo.
 
-## As 22 ferramentas do servidor
+## As 23 ferramentas do servidor
 
 ### Leitura
 
@@ -67,14 +67,15 @@ Duas coisas alcançam o agente antes de ele ler esta skill, e dizem o mesmo que 
 | `criar_sessao` | `rotulo`, `id_setor` | Cria a Sessao e a aresta `contem`. |
 | `criar_tarefa` | `titulo`, `id_sessao`, `descricao`, `criterio_pronto`, `id_tarefa_pai`, `depende_de`, `modelo`, `motivo_modelo`, `trilha`, `arquivos_alvo`, `decisoes`, `corrige` | Cria a Task com aresta `produz` e as hierarquias opcionais. `modelo` exige `motivo_modelo`; `trilha` é `leve` ou `completa` (ausente vale `completa`), e a `leve` é recusada com `modelo: opus`; cada id de `decisoes` vira aresta `orienta` para a tarefa; com `corrige` e `id_tarefa_pai`, a tarefa corrigida passa a depender da correção. |
 | `abrir_questao` | `pergunta`, `id_no_bloqueado`, `id_sessao`, `titulo` | Abre a Question e a aresta `bloqueia`, travando a conclusão da tarefa. `titulo` é a chamada de uma linha que o card exibe; `pergunta` é o corpo por extenso. Omitido o `titulo`, ele é derivado do começo da pergunta. |
-| `responder_questao` | `id_questao`, `resposta` *(só humano)* | Registra a resposta, move a Question para `respondida` e destrava a Task. |
+| `responder_questao` | `id_questao`, `resposta` *(humano; árbitro se a política o entrega)* | Registra a resposta, move a Question para `respondida` e destrava a Task. |
 | `concluir_tarefa` | `id_task`, `justificativa` | Move a Task para `concluido`, se destravada. |
-| `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Muda a permissividade dos agentes no projeto. |
-| `encerrar_sessao` | `id_sessao`, `resumo` *(só humano)* | Encerra a Sessao: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo fechamento, e `ler_vista` numa sessão encerrada é o jeito barato de retomá-la. |
+| `configurar_autonomia_projeto` | `id_projeto`, `nivel_autonomia` (`estrito`\|`ilimitado`) *(só humano)* | Legado: muda o `nivel_autonomia` do projeto. O caminho novo é `configurar_governanca`. |
+| `configurar_governanca` | `escopo` (`global` ou id de Projeto), `preset`, `personalizada` *(só humano)* | Grava a política de governança: quem exerce cada gesto, o humano ou o árbitro. A `personalizada` é mesclada e nunca apagada ao trocar de preset; no projeto, `herdar` apaga a sobrescrita do gesto. Devolve a política efetiva e a origem de cada gesto. |
+| `encerrar_sessao` | `id_sessao`, `resumo` *(humano; árbitro se a política o entrega)* | Encerra a Sessao: status `concluida` e resumo opcional. A vista da sessão passa a abrir pelo fechamento, e `ler_vista` numa sessão encerrada é o jeito barato de retomá-la. |
 | `registrar_aprendizado` | `afirmacao`, `como_aplicar`, `id_sessao`, `origens`, `substitui` | Cria o Aprendizado pendurado na sessão e ligado por `deriva_de` a cada id de `origens`. Sem origem, `aprendizado_sem_origem`. Com `substitui`, consolida: a aresta para cada absorvido nasce no mesmo lote. |
-| `promover_aprendizado` | `id_aprendizado`, `id_alvo` ou `global` *(só humano)* | Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou `alcance: global`. Sem os dois, o Setor da sessão de origem. É o que o faz chegar à vista das tarefas sob esse alcance. |
-| `excluir_em_lote` | `ids_nos`, `ids_arestas`, `justificativa` *(só humano)* | Remove atomicamente uma coleção de nós e arestas. |
-| `excluir_projeto` | `id_projeto`, `cascata` (true) *(só humano)* | Remove o projeto e, em cascata, setores, sessões e tarefas. |
+| `promover_aprendizado` | `id_aprendizado`, `id_alvo` ou `global` *(humano; árbitro se a política o entrega, exceto `global`)* | Dá alcance ao Aprendizado: `vale_para` um Projeto ou Setor, ou `alcance: global`. Sem os dois, o Setor da sessão de origem. É o que o faz chegar à vista das tarefas sob esse alcance. |
+| `excluir_em_lote` | `ids_nos`, `ids_arestas`, `justificativa` *(humano; árbitro se a política o entrega)* | Remove atomicamente uma coleção de nós e arestas. |
+| `excluir_projeto` | `id_projeto`, `cascata` (true) *(humano; árbitro se a política o entrega)* | Remove o projeto e, em cascata, setores, sessões e tarefas. |
 | `propor_patch` | `operacoes` (RFC 6902), `justificativa`, `ramo_id` | Submete um lote atômico livre aos 4 portões. |
 
 ## Roteiro padrão

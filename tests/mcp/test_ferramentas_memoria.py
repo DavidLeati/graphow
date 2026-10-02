@@ -86,7 +86,7 @@ def test_agente_nao_encerra_sessao_edge_case() -> None:
     resposta = servidor.executar_ferramenta("encerrar_sessao", {"id_sessao": "sess"})
 
     assert resposta["sucesso"] is False
-    assert "exige uma sessao humana" in resposta["erro"]
+    assert "gesto 'encerrar_sessao'" in resposta["erro"]
     assert kernel.obter_view().obter_no("sess").obter_propriedade("status") is None
 
 
@@ -147,7 +147,7 @@ def test_agente_nao_promove_aprendizado_edge_case() -> None:
     )
 
     assert resposta["sucesso"] is False
-    assert "exige uma sessao humana" in resposta["erro"]
+    assert "gesto 'promover_aprendizado'" in resposta["erro"]
 
 
 def test_humano_promove_por_conteiner_e_por_marca_global_nominal() -> None:

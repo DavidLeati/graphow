@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-22 módulos · 3616 linhas · 29 classes
+22 módulos · 3644 linhas · 29 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -26,7 +26,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 251 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
-| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 264 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
+| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |

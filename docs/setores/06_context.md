@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-17 módulos · 2294 linhas · 30 classes
+17 módulos · 2345 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/corte.py`](#contextcorte) | 94 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
-| [`context/materializer.py`](#contextmaterializer) | 146 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/materializer.py`](#contextmaterializer) | 197 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
@@ -162,6 +162,7 @@ Motor de materialização de vistas de contexto com orçamento de tokens.
 | :--- | :--- | :--- |
 | `ORCAMENTO_TOKENS_PADRAO` | `int` | `1500` |
 | `TITULO_SECAO_VIZINHOS` | `str` | `'Vizinhos a 1 Salto'` |
+| `ARESTAS_DO_JULGAMENTO` | `frozenset[TipoAresta]` | `ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | frozenset({TipoAresta…` |
 
 ### `MaterializadorContexto`
 
@@ -172,6 +173,10 @@ Motor de materialização de vistas de contexto com orçamento de tokens.
 - `indice_semantico() -> IndiceSemantico` `[property]` — O índice em uso, para o relatório de avaliação declarar com o que mediu.
 - `materializar(requisicao: RequisicaoVista, view: GrafoView) -> VistaMaterializada` — Gera a vista mais completa que couber no orçamento de tokens do pedido.
 - `expandir_no(id_no: str, view: GrafoView) -> dict[str, Any]` — Expansão detalhada sob demanda de um nó específico.
+
+### `PoliticaArbitro` (PoliticaBase)
+
+*serviço* — Árbitro: a dúvida em julgamento, a Task que ela trava e o que se decidiu e se provou sobre ela.
 
 ### `RequisicaoVista`
 
