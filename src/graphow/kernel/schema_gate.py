@@ -5,6 +5,11 @@ from typing import Any
 
 from graphow.core.exceptions import ErroPatchInvalido, ErroSegurancaPatch
 from graphow.core.falhas import ModoFalhaMAST
+from graphow.core.governanca import (
+    PROPRIEDADE_GOVERNANCA_DO_PROJETO,
+    validar_configuracao_do_projeto,
+    validar_configuracao_global,
+)
 from graphow.core.models import GrafoEstado
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.forma_e_identidade import (
@@ -22,6 +27,10 @@ from graphow.kernel.patch_models import (
     ResultadoValidacao,
     SanitizadorPatch,
 )
+
+
+# '/nos/<id>/propriedades/<chave>': o caminho que escreve uma propriedade.
+SEGMENTOS_ATE_A_CHAVE: int = 4
 
 
 class SchemaGate:
@@ -170,11 +179,49 @@ class SchemaGate:
             return self._validar_criacao_no(ctx, criados)
         id_no = ctx.segmentos[1]
         if ctx.estado.contem_no(id_no) or id_no in criados.nos:
-            return ResultadoValidacao.sucesso()
+            return self._validar_propriedade_de_governanca(ctx, criados)
         return ResultadoValidacao.falha(
             f"Nó '{id_no}' não existe no grafo",
             "SchemaGate",
             modo=ModoFalhaMAST.REFERENCIA_INEXISTENTE,
+        )
+
+    def _validar_propriedade_de_governanca(
+        self,
+        ctx: ContextoValidacaoNo,
+        criados: CriadosNoLote,
+    ) -> ResultadoValidacao:
+        """Confere a escrita de uma propriedade do Governanca ou da `governanca` de um Projeto."""
+        if len(ctx.segmentos) != SEGMENTOS_ATE_A_CHAVE or ctx.item.op == OperacaoPatch.REMOVE:
+            return ResultadoValidacao.sucesso()
+        id_no, chave = ctx.segmentos[1], ctx.segmentos[3]
+        tipo = criados.nos.get(id_no) or ctx.estado.nos[id_no].tipo
+        if tipo == TipoNo.GOVERNANCA:
+            return self._recusar_governanca_malformada(validar_configuracao_global({chave: ctx.item.value}))
+        if tipo == TipoNo.PROJETO and chave == PROPRIEDADE_GOVERNANCA_DO_PROJETO:
+            return self._recusar_governanca_malformada(validar_configuracao_do_projeto(ctx.item.value))
+        return ResultadoValidacao.sucesso()
+
+    def _validar_governanca_declarada(self, tipo: TipoNo, valor: dict[str, Any]) -> ResultadoValidacao:
+        """Confere a política declarada na criação de um Governanca ou de um Projeto."""
+        propriedades = valor.get("propriedades", {})
+        if tipo == TipoNo.GOVERNANCA:
+            return self._recusar_governanca_malformada(validar_configuracao_global(propriedades))
+        if tipo == TipoNo.PROJETO and PROPRIEDADE_GOVERNANCA_DO_PROJETO in propriedades:
+            problemas = validar_configuracao_do_projeto(propriedades[PROPRIEDADE_GOVERNANCA_DO_PROJETO])
+            return self._recusar_governanca_malformada(problemas)
+        return ResultadoValidacao.sucesso()
+
+    def _recusar_governanca_malformada(self, problemas: list[str]) -> ResultadoValidacao:
+        """Recusa a configuração de governança que a validação do domínio apontou como inválida."""
+        if not problemas:
+            return ResultadoValidacao.sucesso()
+        detalhe = "; ".join(problemas)
+        return ResultadoValidacao.falha(
+            f"Configuração de governança inválida: {detalhe}",
+            "SchemaGate",
+            {"problemas": detalhe},
+            modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
         )
 
     def _validar_criacao_no(self, ctx: ContextoValidacaoNo, criados: CriadosNoLote) -> ResultadoValidacao:
@@ -187,14 +234,15 @@ class SchemaGate:
         if not resultado_identidade.aprovado:
             return resultado_identidade
         try:
-            criados.nos[str(valor["id"])] = TipoNo(valor["tipo"])
-            return ResultadoValidacao.sucesso()
+            tipo = TipoNo(valor["tipo"])
         except ValueError:
             return ResultadoValidacao.falha(
                 f"Tipo de nó inválido: '{valor.get('tipo')}'",
                 "SchemaGate",
                 modo=ModoFalhaMAST.TIPO_DESCONHECIDO,
             )
+        criados.nos[str(valor["id"])] = tipo
+        return self._validar_governanca_declarada(tipo, valor)
 
     def _validar_estrutura_do_no(self, valor: Any) -> ResultadoValidacao:
         """Um objeto com 'id' e 'tipo', e 'propriedades', quando vier, também objeto.

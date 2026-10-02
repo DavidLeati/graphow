@@ -10,13 +10,14 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-8 módulos · 743 linhas · 33 classes
+9 módulos · 1076 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 73 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
+| [`core/governanca.py`](#coregovernanca) | 333 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 69 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 71 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
@@ -128,6 +129,69 @@ Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025).
 ### Funções do módulo
 
 - `categoria_de(modo: ModoFalhaMAST) -> CategoriaFalhaMAST` — Macro-categoria MAST à qual o modo pertence, sem consulta a texto.
+
+## `core/governanca.py`
+
+Política de governança: quem pode fazer cada gesto que antes era só do humano.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ID_GOVERNANCA_GLOBAL` | `str` | `'governanca-global'` |
+| `PROPRIEDADE_GOVERNANCA_DO_PROJETO` | `str` | `'governanca'` |
+| `PROPRIEDADE_NIVEL_AUTONOMIA` | `str` | `'nivel_autonomia'` |
+| `CHAVE_PRESET` | `str` | `'preset'` |
+| `CHAVE_PERSONALIZADA` | `str` | `'personalizada'` |
+| `CHAVES_DA_CONFIGURACAO` | `frozenset[str]` | `frozenset({CHAVE_PRESET, CHAVE_PERSONALIZADA})` |
+| `VALOR_HUMANO` | `str` | `'humano'` |
+| `VALOR_ARBITRO` | `str` | `'arbitro'` |
+| `VALOR_ESTRITO` | `str` | `'estrito'` |
+| `VALOR_ILIMITADO` | `str` | `'ilimitado'` |
+| `MAX_CORRECOES_MINIMO` | `int` | `0` |
+| `MAX_CORRECOES_MAXIMO` | `int` | `5` |
+| `ORIGEM_GLOBAL` | `str` | `'global'` |
+| `ORIGEM_PROJETO` | `str` | `'projeto'` |
+| `ORIGEM_LEGADO` | `str` | `'legado:nivel_autonomia'` |
+| `PREFIXO_ORIGEM_PRESET` | `str` | `'preset:'` |
+| `GESTOS_POR_PAPEL` | `frozenset[Gesto]` | `frozenset((gesto for gesto in Gesto if gesto not in (Gesto.ESTRUTURA, G…` |
+| `_VALORES_DE_PAPEL` | `frozenset[str]` | `frozenset({VALOR_HUMANO, VALOR_ARBITRO})` |
+| `VALORES_ACEITOS` | `Mapping[Gesto, frozenset[str]]` | `MappingProxyType({**{gesto: _VALORES_DE_PAPEL for gesto in GESTOS_POR_P…` |
+| `_GOVERNANCA_MAXIMA` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({**{gesto: VALOR_HUMANO for gesto in GESTOS_POR_PAPEL}…` |
+| `_ARBITRAGEM_MAXIMA` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({**{gesto: VALOR_ARBITRO for gesto in GESTOS_POR_PAPEL…` |
+| `PRESETS_FIXOS` | `Mapping[PresetGovernanca, Mapping[Gesto, ValorDeGesto]]` | `MappingProxyType({PresetGovernanca.GOVERNANCA_MAXIMA: _GOVERNANCA_MAXIM…` |
+
+### `Gesto` (str, Enum)
+
+*serviço* — Gestos governáveis: cada um mapeia um portão que a política pode abrir ao árbitro.
+
+### `PoliticaGovernanca`
+
+*DTO imutável* — Política efetiva: o valor de cada gesto e de onde esse valor veio.
+
+**Campos:** `valores: Mapping[Gesto, ValorDeGesto]`, `origens: Mapping[Gesto, str]`
+
+- `valor(gesto: Gesto) -> ValorDeGesto` — Valor efetivo do gesto: 'humano', 'arbitro', 'estrito', 'ilimitado' ou o inteiro.
+- `origem(gesto: Gesto) -> str` — De onde o valor veio: global, projeto, preset:<nome> ou legado:nivel_autonomia.
+- `permite(gesto: Gesto, papel: PapelAutor) -> bool` — Diz se o papel pode fazer o gesto: o humano sempre, o árbitro quando a política o entrega.
+- `estrutura_ilimitada() -> bool` `[property]` — Verdadeiro quando todos os agentes ganham os tipos de nó e a camada `contem`.
+- `max_correcoes() -> int` `[property]` — Correções em cadeia permitidas antes de escalar ao humano.
+
+### `PresetDoProjeto` (str, Enum)
+
+*serviço* — Presets do nível do Projeto: os do global mais `herdar`, que é o padrão.
+
+### `PresetGovernanca` (str, Enum)
+
+*serviço* — Presets do nível global: dois fixos e a personalizada, a única editável.
+
+### Funções do módulo
+
+- `politica_do_preset(preset: PresetGovernanca) -> PoliticaGovernanca` — Política cujos gestos todos vêm de um preset fixo.
+- `politica_padrao() -> PoliticaGovernanca` — O que vale sem nó global: governança máxima.
+- `compor_politica_global(propriedades: Mapping[str, Any] | None) -> PoliticaGovernanca` — Política efetiva global a partir das propriedades do nó `governanca-global`.
+- `compor_politica_do_projeto(governanca: Any, nivel_autonomia: Any, politica_global: PoliticaGovernanca) -> PoliticaGovernanca` — Política efetiva do Projeto a partir da propriedade `governanca` e da global.
+- `validar_personalizada(personalizada: Any) -> list[str]` — Problemas de uma `personalizada`: gesto desconhecido ou valor fora do domínio.
+- `validar_configuracao_global(configuracao: Any) -> list[str]` — Problemas das propriedades do nó Governanca (`preset` e `personalizada`).
+- `validar_configuracao_do_projeto(configuracao: Any) -> list[str]` — Problemas da propriedade `governanca` de um Projeto.
 
 ## `core/models.py`
 

@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-17 módulos · 2872 linhas · 28 classes
+18 módulos · 2976 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,9 +25,10 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 201 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
+| [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 338 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 321 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 369 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
@@ -322,6 +323,16 @@ Permissão por papel na camada de arestas: quem cria e remove cada aresta, confo
 
 - `projeto_eh_ilimitado(projeto_id: str, estado: GrafoEstado) -> bool` — Checa se o nó de projeto possui configuração de autonomia ilimitada.
 
+## `kernel/politica_governanca.py`
+
+Resolve a política de governança efetiva lendo o estado do grafo.
+
+### Funções do módulo
+
+- `resolver_politica_global(estado: GrafoEstado) -> PoliticaGovernanca` — Política global: a do nó `governanca-global`, ou governança máxima se ele não existe.
+- `resolver_politica_do_projeto(id_projeto: str, estado: GrafoEstado) -> PoliticaGovernanca` — Política efetiva do Projeto, com a herança da global e o legado `nivel_autonomia`.
+- `resolver_politica_do_no(id_no: str, estado: GrafoEstado, rastreador: RastreadorProjetoAncestral) -> PoliticaGovernanca` — Política efetiva do Projeto que contém o nó; sem Projeto ancestral, a global.
+
 ## `kernel/rastreio_projeto.py`
 
 Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
@@ -370,6 +381,10 @@ Portão 2: Validação de Contratos de Permissão por Papel (Role Gate).
 ## `kernel/schema_gate.py`
 
 Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate).
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_ATE_A_CHAVE` | `int` | `4` |
 
 ### `SchemaGate`
 
