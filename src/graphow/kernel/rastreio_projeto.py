@@ -11,7 +11,7 @@ As de contenção podem formar ciclos, então a subida precisa de controle de
 visitados.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from graphow.core.models import ArestaGrafo, GrafoEstado, MetadadosTemporais, NoGrafo
@@ -27,38 +27,57 @@ class RastreadorProjetoAncestral:
     """Encontra o Projeto que contém um nó, subindo só pelas arestas de contenção."""
 
     def rastrear(self, id_no: str, estado: GrafoEstado) -> str | None:
-        """Consulta iterativa que devolve o identificador do Projeto ancestral, se existir."""
+        """Consulta iterativa que devolve o identificador do Projeto ancestral mais próximo, se existir.
+
+        No mesmo nível vale o de menor id. Quem decide política de governança
+        não deve usar este: veja `rastrear_todos`.
+        """
         no_inicial = estado.nos.get(id_no)
         if no_inicial is None:
             return None
         if no_inicial.tipo == TipoNo.PROJETO:
             return no_inicial.id
-        return self._subir_ate_projeto(id_no, estado)
+        for projetos_do_nivel in self._projetos_por_nivel(id_no, estado):
+            if projetos_do_nivel:
+                return min(projetos_do_nivel)
+        return None
 
-    def _subir_ate_projeto(self, id_no: str, estado: GrafoEstado) -> str | None:
-        """Percorre em largura os ancestrais, abandonando ciclos e caminhos longos."""
+    def rastrear_todos(self, id_no: str, estado: GrafoEstado) -> tuple[str, ...]:
+        """Todos os Projetos alcançáveis pela contenção, em ordem de id, sem repetição.
+
+        Um nó pode ser contido por mais de um Projeto (o planejador cria
+        `decompoe` de um Goal de outro Projeto), e a distância não diz de quem é
+        o nó. Um Projeto é o seu próprio ancestral, e a subida para nele: não
+        atravessa um Projeto para achar outro acima. Mesma proteção de ciclo e
+        mesmo limite de profundidade de `rastrear`.
+        """
+        no_inicial = estado.nos.get(id_no)
+        if no_inicial is None:
+            return ()
+        if no_inicial.tipo == TipoNo.PROJETO:
+            return (no_inicial.id,)
+        projetos = {
+            projeto for nivel in self._projetos_por_nivel(id_no, estado) for projeto in nivel
+        }
+        return tuple(sorted(projetos))
+
+    def _projetos_por_nivel(self, id_no: str, estado: GrafoEstado) -> Iterator[list[str]]:
+        """Percorre em largura os ancestrais e devolve os Projetos de cada nível, abandonando ciclos e caminhos longos."""
         visitados: set[str] = {id_no}
         fronteira: list[str] = [id_no]
         for _ in range(PROFUNDIDADE_MAXIMA_DE_SUBIDA):
             if not fronteira:
-                return None
-            projeto_encontrado, proxima_fronteira = self._expandir_nivel(fronteira, estado, visitados)
-            if projeto_encontrado is not None:
-                return projeto_encontrado
-            fronteira = proxima_fronteira
-        return None
+                return
+            projetos_do_nivel, fronteira = self._expandir_nivel(fronteira, estado, visitados)
+            yield projetos_do_nivel
 
     def _expandir_nivel(
         self,
         fronteira: list[str],
         estado: GrafoEstado,
         visitados: set[str],
-    ) -> tuple[str | None, list[str]]:
-        """Expande um nível de ancestrais e sinaliza o Projeto alcançado, se houver.
-
-        Com mais de um Projeto no mesmo nível, vale o de menor id: a escolha não
-        depende da ordem em que as arestas foram gravadas.
-        """
+    ) -> tuple[list[str], list[str]]:
+        """Expande um nível de ancestrais: os Projetos alcançados nele e a próxima fronteira."""
         proxima_fronteira: list[str] = []
         projetos_do_nivel: list[str] = []
         alvos = frozenset(fronteira)
@@ -71,7 +90,7 @@ class RastreadorProjetoAncestral:
                 projetos_do_nivel.append(pai.id)
             else:
                 proxima_fronteira.append(pai.id)
-        return (min(projetos_do_nivel) if projetos_do_nivel else None), proxima_fronteira
+        return projetos_do_nivel, proxima_fronteira
 
     def _arestas_que_chegam(
         self,

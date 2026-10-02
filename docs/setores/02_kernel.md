@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-22 módulos · 3661 linhas · 29 classes
+22 módulos · 3689 linhas · 29 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,8 +27,8 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
-| [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 160 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
+| [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 65 | Resolve a política de governança efetiva lendo o estado do grafo. |
+| [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
@@ -384,7 +384,7 @@ Resolve a política de governança efetiva lendo o estado do grafo.
 
 - `resolver_politica_global(estado: GrafoEstado) -> PoliticaGovernanca` — Política global: a do nó `governanca-global`, ou governança máxima se ele não existe.
 - `resolver_politica_do_projeto(id_projeto: str, estado: GrafoEstado) -> PoliticaGovernanca` — Política efetiva do Projeto, com a herança da global e o legado `nivel_autonomia`.
-- `resolver_politica_do_no(id_no: str, estado: GrafoEstado, rastreador: RastreadorProjetoAncestral) -> PoliticaGovernanca` — Política efetiva do Projeto que contém o nó; sem Projeto ancestral, a global.
+- `resolver_politica_do_no(id_no: str, estado: GrafoEstado, rastreador: RastreadorProjetoAncestral) -> PoliticaGovernanca` — Política efetiva do nó: a do Projeto que o contém, a global sem Projeto ou a mais restritiva entre vários.
 
 ## `kernel/rastreio_projeto.py`
 
@@ -399,7 +399,8 @@ Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
 
 *serviço* — Encontra o Projeto que contém um nó, subindo só pelas arestas de contenção.
 
-- `rastrear(id_no: str, estado: GrafoEstado) -> str | None` — Consulta iterativa que devolve o identificador do Projeto ancestral, se existir.
+- `rastrear(id_no: str, estado: GrafoEstado) -> str | None` — Consulta iterativa que devolve o identificador do Projeto ancestral mais próximo, se existir.
+- `rastrear_todos(id_no: str, estado: GrafoEstado) -> tuple[str, ...]` — Todos os Projetos alcançáveis pela contenção, em ordem de id, sem repetição.
 
 ### Funções do módulo
 

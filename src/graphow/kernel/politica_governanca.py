@@ -12,6 +12,7 @@ from graphow.core.governanca import (
     PROPRIEDADE_GOVERNANCA_DO_PROJETO,
     PROPRIEDADE_NIVEL_AUTONOMIA,
     PoliticaGovernanca,
+    compor_mais_restritiva,
     compor_politica_do_projeto,
     compor_politica_global,
 )
@@ -49,8 +50,16 @@ def resolver_politica_do_no(
     estado: GrafoEstado,
     rastreador: RastreadorProjetoAncestral,
 ) -> PoliticaGovernanca:
-    """Política efetiva do Projeto que contém o nó; sem Projeto ancestral, a global."""
-    id_projeto = rastreador.rastrear(id_no, estado)
-    if id_projeto is None:
+    """Política efetiva do nó: a do Projeto que o contém, a global sem Projeto ou a mais restritiva entre vários.
+
+    Um nó pode ser contido por mais de um Projeto, porque o planejador cria
+    `decompoe` de um Goal de outro Projeto. A distância até o Projeto não diz de
+    quem é o nó, então com mais de um vale, gesto a gesto, a política mais
+    restritiva (`compor_mais_restritiva`): ninguém puxa a política permissiva
+    para um alvo alheio.
+    """
+    ids_projeto = rastreador.rastrear_todos(id_no, estado)
+    if not ids_projeto:
         return resolver_politica_global(estado)
-    return resolver_politica_do_projeto(id_projeto, estado)
+    politicas = {id_projeto: resolver_politica_do_projeto(id_projeto, estado) for id_projeto in ids_projeto}
+    return compor_mais_restritiva(politicas)

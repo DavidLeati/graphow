@@ -2,7 +2,7 @@
 
 from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo
 from graphow.core.types import TipoAresta, TipoNo
-from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral
+from graphow.kernel.rastreio_projeto import PROFUNDIDADE_MAXIMA_DE_SUBIDA, RastreadorProjetoAncestral
 
 
 def _no(id_no: str, tipo: TipoNo) -> NoGrafo:
@@ -160,3 +160,70 @@ def test_dois_projetos_isolados_cada_no_acha_o_seu_nominal() -> None:
 
     assert RastreadorProjetoAncestral().rastrear("task-a", estado) == "proj-a"
     assert RastreadorProjetoAncestral().rastrear("task-b", estado) == "proj-b"
+
+
+def test_rastrear_todos_devolve_cada_projeto_alcancavel_em_ordem_de_id_nominal() -> None:
+    """Goal de B decompõe a Task de A: a Task é alcançada pelos dois Projetos, e a ordem é a do id."""
+    nos_a, arestas_a = _hierarquia_de_um_projeto("a")
+    nos_b, arestas_b = _hierarquia_de_um_projeto("b")
+    arestas = {**arestas_b, **arestas_a, "d-b-a": _aresta("d-b-a", "goal-b", "task-a", TipoAresta.DECOMPOE)}
+    estado = GrafoEstado(nos={**nos_b, **nos_a}, arestas=arestas)
+
+    assert RastreadorProjetoAncestral().rastrear_todos("task-a", estado) == ("proj-a", "proj-b")
+    assert RastreadorProjetoAncestral().rastrear_todos("task-b", estado) == ("proj-b",)
+
+
+def test_rastrear_todos_nao_para_no_projeto_mais_proximo_edge_case() -> None:
+    """Caso de borda: o Projeto mais próximo não esconde o mais distante, ao contrário de `rastrear`."""
+    nos = {
+        "proj-a": _no("proj-a", TipoNo.PROJETO),
+        "proj-z": _no("proj-z", TipoNo.PROJETO),
+        "sess": _no("sess", TipoNo.SESSAO),
+        "task": _no("task", TipoNo.TASK),
+    }
+    arestas = {
+        "p1": _aresta("p1", "sess", "task", TipoAresta.PRODUZ),
+        "p2": _aresta("p2", "proj-a", "sess", TipoAresta.CONTEM),
+        "p3": _aresta("p3", "proj-z", "task", TipoAresta.CONTEM),
+    }
+    estado = GrafoEstado(nos=nos, arestas=arestas)
+
+    assert RastreadorProjetoAncestral().rastrear("task", estado) == "proj-z"
+    assert RastreadorProjetoAncestral().rastrear_todos("task", estado) == ("proj-a", "proj-z")
+
+
+def test_rastrear_todos_casos_de_borda_edge_case() -> None:
+    """Caso de borda: Projeto é o próprio ancestral, ausente e órfão não têm Projeto, orienta não conta."""
+    nos_a, arestas_a = _hierarquia_de_um_projeto("a")
+    nos_b, arestas_b = _hierarquia_de_um_projeto("b")
+    arestas = {**arestas_a, **arestas_b, "o": _aresta("o", "goal-b", "task-a", TipoAresta.ORIENTA)}
+    nos = {**nos_a, **nos_b, "solto": _no("solto", TipoNo.NOTE)}
+    estado = GrafoEstado(nos=nos, arestas=arestas)
+    rastreador = RastreadorProjetoAncestral()
+
+    assert rastreador.rastrear_todos("proj-a", estado) == ("proj-a",)
+    assert rastreador.rastrear_todos("fantasma", estado) == ()
+    assert rastreador.rastrear_todos("solto", estado) == ()
+    assert rastreador.rastrear_todos("task-a", estado) == ("proj-a",)
+
+
+def test_rastrear_todos_resiste_a_ciclo_edge_case() -> None:
+    """Caso de borda: ciclo de contenção no caminho termina, com o Projeto alcançável."""
+    nos = {"proj": _no("proj", TipoNo.PROJETO), "a": _no("a", TipoNo.DECISION), "b": _no("b", TipoNo.DECISION)}
+    arestas = {
+        "c1": _aresta("c1", "a", "b", TipoAresta.CONTEM),
+        "c2": _aresta("c2", "b", "a", TipoAresta.CONTEM),
+        "c3": _aresta("c3", "proj", "b", TipoAresta.CONTEM),
+    }
+    assert RastreadorProjetoAncestral().rastrear_todos("a", GrafoEstado(nos=nos, arestas=arestas)) == ("proj",)
+
+
+def test_rastrear_todos_respeita_o_limite_de_profundidade_edge_case() -> None:
+    """Caso de borda: o Projeto acima do limite de subida não é alcançado."""
+    total = PROFUNDIDADE_MAXIMA_DE_SUBIDA + 5
+    nos = {f"n{i}": _no(f"n{i}", TipoNo.NOTE) for i in range(total)}
+    nos["proj"] = _no("proj", TipoNo.PROJETO)
+    arestas = {f"l{i}": _aresta(f"l{i}", f"n{i + 1}", f"n{i}", TipoAresta.CONTEM) for i in range(total - 1)}
+    arestas["topo"] = _aresta("topo", "proj", f"n{total - 1}", TipoAresta.CONTEM)
+
+    assert RastreadorProjetoAncestral().rastrear_todos("n0", GrafoEstado(nos=nos, arestas=arestas)) == ()

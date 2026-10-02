@@ -10,14 +10,14 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-9 módulos · 1086 linhas · 37 classes
+9 módulos · 1125 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 76 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/governanca.py`](#coregovernanca) | 333 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
+| [`core/governanca.py`](#coregovernanca) | 372 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 69 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 78 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
@@ -152,6 +152,7 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 | `ORIGEM_PROJETO` | `str` | `'projeto'` |
 | `ORIGEM_LEGADO` | `str` | `'legado:nivel_autonomia'` |
 | `PREFIXO_ORIGEM_PRESET` | `str` | `'preset:'` |
+| `PREFIXO_ORIGEM_PROJETO_RESTRITIVO` | `str` | `'projeto:'` |
 | `GESTOS_POR_PAPEL` | `frozenset[Gesto]` | `frozenset((gesto for gesto in Gesto if gesto not in (Gesto.ESTRUTURA, G…` |
 | `_VALORES_DE_PAPEL` | `frozenset[str]` | `frozenset({VALOR_HUMANO, VALOR_ARBITRO})` |
 | `VALORES_ACEITOS` | `Mapping[Gesto, frozenset[str]]` | `MappingProxyType({**{gesto: _VALORES_DE_PAPEL for gesto in GESTOS_POR_P…` |
@@ -189,6 +190,7 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 - `politica_padrao() -> PoliticaGovernanca` — O que vale sem nó global: governança máxima.
 - `compor_politica_global(propriedades: Mapping[str, Any] | None) -> PoliticaGovernanca` — Política efetiva global a partir das propriedades do nó `governanca-global`.
 - `compor_politica_do_projeto(governanca: Any, nivel_autonomia: Any, politica_global: PoliticaGovernanca) -> PoliticaGovernanca` — Política efetiva do Projeto a partir da propriedade `governanca` e da global.
+- `compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca` — Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
 - `validar_personalizada(personalizada: Any) -> list[str]` — Problemas de uma `personalizada`: gesto desconhecido ou valor fora do domínio.
 - `validar_configuracao_global(configuracao: Any) -> list[str]` — Problemas das propriedades do nó Governanca (`preset` e `personalizada`).
 - `validar_configuracao_do_projeto(configuracao: Any) -> list[str]` — Problemas da propriedade `governanca` de um Projeto.

@@ -296,3 +296,39 @@ def test_vista_de_task_sem_ambiguidade_diz_a_politica_do_seu_projeto_nominal() -
 
     assert RastreadorProjetoAncestral().rastrear("task-a", estado) == "proj-a"
     assert secao == [LINHA_DA_GOVERNANCA_MAXIMA]
+
+
+def test_vista_diz_a_politica_restrita_quando_goal_de_outro_projeto_decompoe_a_task_edge_case() -> None:
+    """Caso de borda: Goal de B (arbitragem) decompõe a Task de A (governanca_maxima); a seção diz a política restrita.
+
+    O Projeto B não é o dono da Task. A vista repete a composição do kernel, e
+    a Task segue toda com o humano.
+    """
+    kernel = _kernel(
+        _projeto_b_com_decisao(),
+        _projeto("a", governanca={"preset": "governanca_maxima"}),
+        [_aresta("goal-b", "task-a", TipoAresta.DECOMPOE)],
+    )
+    estado = kernel.obter_view().estado
+    do_kernel = resolver_politica_do_no("task-a", estado, RastreadorProjetoAncestral())
+
+    secao = _secao(_vista(kernel, "task-a"))
+
+    assert RastreadorProjetoAncestral().rastrear_todos("task-a", estado) == ("proj-a", "proj-b")
+    assert not gestos_com_o_arbitro(do_kernel)
+    assert secao == list(descrever_governanca(do_kernel))
+    assert secao == [LINHA_DA_GOVERNANCA_MAXIMA]
+
+
+def test_vista_de_projeto_permissivo_com_goal_restritivo_alheio_nao_entrega_ao_arbitro_edge_case() -> None:
+    """Caso de borda: A em arbitragem e Goal de B em governanca_maxima: a Task de A deixa de ter gestos com o árbitro."""
+    kernel = _kernel(
+        _projeto("b", governanca={"preset": "governanca_maxima"}),
+        _projeto("a", governanca={"preset": "arbitragem_maxima"}),
+        [_aresta("goal-b", "task-a", TipoAresta.DECOMPOE)],
+    )
+    sozinho = _kernel(_projeto("a", governanca={"preset": "arbitragem_maxima"}))
+
+    assert not gestos_com_o_arbitro(resolver_politica_na_vista("task-a", kernel.obter_view()))
+    assert _secao(_vista(kernel, "task-a")) == [LINHA_DA_GOVERNANCA_MAXIMA]
+    assert gestos_com_o_arbitro(resolver_politica_na_vista("task-a", sozinho.obter_view()))

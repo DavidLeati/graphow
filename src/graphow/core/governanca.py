@@ -18,7 +18,7 @@ Cada gesto da política efetiva carrega a origem do valor, para a UI mostrar de
 onde ele veio: `global`, `projeto`, `preset:<nome>` ou `legado:nivel_autonomia`.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -47,6 +47,7 @@ ORIGEM_GLOBAL: str = "global"
 ORIGEM_PROJETO: str = "projeto"
 ORIGEM_LEGADO: str = "legado:nivel_autonomia"
 PREFIXO_ORIGEM_PRESET: str = "preset:"
+PREFIXO_ORIGEM_PROJETO_RESTRITIVO: str = "projeto:"
 
 ValorDeGesto = str | int
 
@@ -274,6 +275,44 @@ def _aplicar_legado(politica: PoliticaGovernanca, nivel_autonomia: Any) -> Polit
     if not _nivel_legado_eh_ilimitado(nivel_autonomia):
         return politica
     return _com_gestos(politica, {Gesto.ESTRUTURA: VALOR_ILIMITADO}, ORIGEM_LEGADO)
+
+
+def _mais_restritivo(gesto: Gesto, valores: Sequence[ValorDeGesto]) -> ValorDeGesto:
+    """O valor que menos entrega do gesto: humano, estrito ou o menor número de correções."""
+    if gesto == Gesto.MAX_CORRECOES:
+        return min(int(valor) for valor in valores)
+    restritivo = VALOR_ESTRITO if gesto == Gesto.ESTRUTURA else VALOR_HUMANO
+    return restritivo if restritivo in valores else valores[0]
+
+
+def _projeto_que_restringiu(
+    gesto: Gesto,
+    valor: ValorDeGesto,
+    politicas: Sequence[tuple[str, PoliticaGovernanca]],
+) -> str:
+    """Origem `projeto:<id>` do primeiro Projeto, em ordem de id, cujo valor é o vencedor."""
+    id_projeto = next(id_projeto for id_projeto, politica in politicas if politica.valor(gesto) == valor)
+    return f"{PREFIXO_ORIGEM_PROJETO_RESTRITIVO}{id_projeto}"
+
+
+def compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca:
+    """Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
+
+    O humano vence o árbitro, `estrito` vence `ilimitado` e vale o menor
+    `max_correcoes`. A origem do gesto aponta o Projeto que o restringiu, e no
+    empate o de menor id: a resposta não depende da ordem do mapa. Com um Projeto
+    só, é a política dele, sem mudar nem as origens.
+    """
+    if not politicas_por_projeto:
+        raise ValueError("Compor a política mais restritiva exige ao menos um Projeto")
+    ordenadas = sorted(politicas_por_projeto.items())
+    if len(ordenadas) == 1:
+        return ordenadas[0][1]
+    valores = {
+        gesto: _mais_restritivo(gesto, [politica.valor(gesto) for _, politica in ordenadas]) for gesto in Gesto
+    }
+    origens = {gesto: _projeto_que_restringiu(gesto, valor, ordenadas) for gesto, valor in valores.items()}
+    return PoliticaGovernanca(valores, origens)
 
 
 def _problemas_de_preset(valor: Any, aceitos: type[Enum]) -> list[str]:
