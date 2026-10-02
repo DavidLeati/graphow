@@ -1,7 +1,7 @@
 import { escapeHtml } from "./dom.js";
 import { descreverHistoricoDoNo, foiAlterado, formatarIdadeCurta } from "./idade.js";
 import { caminhoSvg, tracarCurva } from "./geometria_aresta.js";
-import { idsNaJanela, janelaComMargem, retanguloVisivel } from "./janela_visivel.js";
+import { idsNaJanela, janelaComMargem, retanguloDaAresta, retanguloVisivel, retangulosSeCruzam } from "./janela_visivel.js";
 
 const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 
@@ -11,6 +11,9 @@ const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 const TIPOS_COM_MARCADOR = new Set([
   "contem", "bloqueia", "produz", "decompoe", "depende_de", "escopa", "justifica", "deriva_de", "orienta",
 ]);
+
+// Sem vista informada nao ha janela a respeitar: tudo cruza este retangulo.
+const JANELA_SEM_LIMITES = { x: -1e9, y: -1e9, largura: 2e9, altura: 2e9 };
 
 const INTERVALO_DO_RELOGIO_MS = 60000;
 
@@ -142,14 +145,61 @@ export class CanvasRenderer {
     const edge = this.state.edges.get(id);
     if (!edge) return;
     const desenhada = this.elementosDasArestas.get(id);
-    if (this.arestaVisivel(edge)) {
+    if (this.arestaDeveEstarNoDom(edge, this.janelaDasArestas())) {
       if (desenhada) return;
-      const path = this.criarCaminhoDaAresta(id, edge);
-      this.elementosDasArestas.set(id, path);
-      this.edgesLayer.appendChild(path);
+      this.desenharAresta(id, edge);
     } else if (desenhada) {
       desenhada.remove();
       this.elementosDasArestas.delete(id);
+    }
+  }
+
+  /**
+   * A janela em que as arestas se desenham: a do canvas crescida de meia janela,
+   * como a dos cartoes. Null com o canvas oculto — nada a desenhar ali — e uma
+   * janela sem limites quando ninguem informa a vista.
+   */
+  janelaDasArestas() {
+    const vista = this.vistaDaJanela();
+    if (!vista) return null;
+    return vista.todos ? JANELA_SEM_LIMITES : janelaComMargem(retanguloVisivel(vista));
+  }
+
+  /**
+   * Uma aresta tem path no DOM quando a regra das `produz` a deixa aparecer e o
+   * retangulo que envolve os dois cartoes cruza a janela. Uma aresta longa com
+   * as duas pontas fora da janela, mas o meio dentro, cruza e fica.
+   */
+  arestaDeveEstarNoDom(edge, janela) {
+    if (!janela || !this.arestaVisivel(edge)) return false;
+    if (!this.state.nodePositions.has(edge.origem_id) || !this.state.nodePositions.has(edge.destino_id)) return false;
+    const envolvente = retanguloDaAresta(this.retanguloDoCartao(edge.origem_id), this.retanguloDoCartao(edge.destino_id));
+    return retangulosSeCruzam(envolvente, janela);
+  }
+
+  desenharAresta(id, edge) {
+    const path = this.criarCaminhoDaAresta(id, edge);
+    this.elementosDasArestas.set(id, path);
+    this.edgesLayer.appendChild(path);
+  }
+
+  /**
+   * Acerta o DOM das arestas com a janela: desenha as que passaram a cruzá-la e
+   * remove as que sairam, sem tocar nas que ficaram. Ao contrario de
+   * renderEdges, nao refaz o indice — a janela muda a cada quadro de pan.
+   */
+  sincronizarArestas() {
+    const janela = this.janelaDasArestas();
+    if (!janela) return;
+    for (const [id, path] of this.elementosDasArestas) {
+      const edge = this.state.edges.get(id);
+      if (edge && this.arestaDeveEstarNoDom(edge, janela)) continue;
+      path.remove();
+      this.elementosDasArestas.delete(id);
+    }
+    for (const [id, edge] of this.state.edges) {
+      if (this.elementosDasArestas.has(id) || !this.arestaDeveEstarNoDom(edge, janela)) continue;
+      this.desenharAresta(id, edge);
     }
   }
 
@@ -244,6 +294,7 @@ export class CanvasRenderer {
     // O tamanho medido de um cartao novo pode diferir do padrao com que as
     // arestas dele foram tracadas.
     for (const id of criados) this.redesenharArestasDoNo(id);
+    this.sincronizarArestas();
   }
 
   /**
@@ -337,19 +388,18 @@ export class CanvasRenderer {
     this.elementosDasArestas.clear();
     this.arestasPorNo.clear();
 
+    const janela = this.janelaDasArestas();
     for (const [id, edge] of this.state.edges.entries()) {
       if (!this.state.nodePositions.has(edge.origem_id) || !this.state.nodePositions.has(edge.destino_id)) continue;
 
-      // O indice cobre tambem as arestas ocultas: quem arrasta ou troca a
-      // selecao precisa achar as arestas de um no sem varrer o grafo inteiro.
+      // O indice cobre TODAS as arestas, desenhadas ou nao, ocultas ou nao:
+      // quem arrasta, troca a selecao ou move a janela precisa achar as arestas
+      // de um no sem varrer o grafo inteiro. So o mapa de elementos e filtrado.
       this.indexarAresta(edge.origem_id, id);
       this.indexarAresta(edge.destino_id, id);
 
-      if (!this.arestaVisivel(edge)) continue;
-
-      const path = this.criarCaminhoDaAresta(id, edge);
-      this.elementosDasArestas.set(id, path);
-      this.edgesLayer.appendChild(path);
+      if (!this.arestaDeveEstarNoDom(edge, janela)) continue;
+      this.desenharAresta(id, edge);
     }
   }
 
@@ -386,6 +436,9 @@ export class CanvasRenderer {
     path.setAttribute("marker-end", `url(#${markerId})`);
     path.style.stroke = `var(--edge-${edge.tipo}, var(--edge-default))`;
 
+    // A aresta que a janela traz depois nasce com o destaque de caminho de agora.
+    if (this.arestasDoDestaque) path.classList.add(this.arestasDoDestaque.has(id) ? "edge-highlighted" : "edge-dimmed");
+
     path.addEventListener("click", (e) => {
       e.stopPropagation();
       this.state.selectElement("edge", id);
@@ -401,10 +454,18 @@ export class CanvasRenderer {
   redesenharArestasDoNo(noId) {
     const ids = this.arestasPorNo.get(noId);
     if (!ids) return;
+    const janela = this.janelaDasArestas();
     for (const id of ids) {
-      const path = this.elementosDasArestas.get(id);
       const edge = this.state.edges.get(id);
-      if (path && edge) path.setAttribute("d", this.caminhoDaAresta(edge));
+      if (!edge) continue;
+      const path = this.elementosDasArestas.get(id);
+      if (path) {
+        path.setAttribute("d", this.caminhoDaAresta(edge));
+      } else if (this.arestaDeveEstarNoDom(edge, janela)) {
+        // O cartao arrastado entrou na janela: a aresta dele, que estava fora
+        // dela, passa a cruza-la.
+        this.desenharAresta(id, edge);
+      }
     }
   }
 
