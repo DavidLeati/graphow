@@ -2,6 +2,7 @@
 
 import pytest
 
+from graphow.core.governanca import ID_GOVERNANCA_GLOBAL
 from graphow.core.ontologia import ASSINATURA_DECLARADA, VERSAO_ONTOLOGIA, calcular_assinatura_da_ontologia
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
@@ -38,9 +39,10 @@ def _submeter(kernel: WriteKernel, papel: PapelAutor, *operacoes: ItemPatch) -> 
     return kernel.submeter_patch(PropostaPatch.criar(dados))
 
 
-def _kernel(nivel: str = "estrito") -> WriteKernel:
-    """Kernel com Projeto -> Setor -> Sessao e um Governanca já criado pelo humano."""
+def _kernel(nivel: str = "estrito", *, com_governanca: bool = True) -> WriteKernel:
+    """Kernel com Projeto -> Setor -> Sessao e, por padrão, o Governanca global já criado pelo humano."""
     kernel = montar_kernel_em_memoria()
+    governanca = [_no(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA)] if com_governanca else []
     recibo = _submeter(
         kernel,
         PapelAutor.HUMANO,
@@ -49,7 +51,7 @@ def _kernel(nivel: str = "estrito") -> WriteKernel:
         _aresta("proj", "setor", TipoAresta.CONTEM),
         _no("sess", TipoNo.SESSAO),
         _aresta("setor", "sess", TipoAresta.CONTEM),
-        _no("gov", TipoNo.GOVERNANCA),
+        *governanca,
     )
     assert recibo.sucesso, recibo.mensagem
     return kernel
@@ -73,7 +75,7 @@ def test_vocabulario_novo_nominal() -> None:
 def test_humano_cria_governanca_sem_aresta_de_contencao_nominal() -> None:
     """Governanca é raiz como o Projeto: nasce sem pai e o lote passa."""
     kernel = montar_kernel_em_memoria()
-    recibo = _submeter(kernel, PapelAutor.HUMANO, _no("gov", TipoNo.GOVERNANCA))
+    recibo = _submeter(kernel, PapelAutor.HUMANO, _no(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA))
     assert recibo.sucesso, recibo.mensagem
 
 
@@ -81,8 +83,8 @@ def test_humano_cria_governanca_sem_aresta_de_contencao_nominal() -> None:
 @pytest.mark.parametrize("papel", PAPEIS_DE_AGENTE)
 def test_agente_nao_cria_governanca_edge_case(papel: PapelAutor, nivel: str) -> None:
     """Nenhum papel de agente cria Governanca, nem sob autonomia ilimitada."""
-    kernel = _kernel(nivel)
-    recibo = _submeter(kernel, papel, _no("gov2", TipoNo.GOVERNANCA))
+    kernel = _kernel(nivel, com_governanca=False)
+    recibo = _submeter(kernel, papel, _no(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA))
     assert not recibo.sucesso
     assert "Governanca" in recibo.mensagem
 
@@ -93,21 +95,21 @@ def test_agente_nao_edita_nem_remove_governanca_edge_case(papel: PapelAutor, niv
     """Editar rótulo ou propriedade e remover o nó são recusados a todo agente."""
     kernel = _kernel(nivel)
     edicoes = (
-        ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/gov/rotulo", value="outro"),
-        ItemPatch(op=OperacaoPatch.ADD, path="/nos/gov/propriedades/politica", value="x"),
-        ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/gov"),
+        ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/governanca-global/rotulo", value="outro"),
+        ItemPatch(op=OperacaoPatch.ADD, path="/nos/governanca-global/propriedades/politica", value="x"),
+        ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/governanca-global"),
     )
     for edicao in edicoes:
         assert not _submeter(kernel, papel, edicao).sucesso, edicao.path
-    assert "gov" in kernel.obter_estado().nos
+    assert ID_GOVERNANCA_GLOBAL in kernel.obter_estado().nos
 
 
 def test_humano_edita_e_remove_governanca_nominal() -> None:
     """O meta-portão é do humano: ele segue podendo editar e remover."""
     kernel = _kernel()
-    editar = ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/gov/rotulo", value="outro")
+    editar = ItemPatch(op=OperacaoPatch.REPLACE, path="/nos/governanca-global/rotulo", value="outro")
     assert _submeter(kernel, PapelAutor.HUMANO, editar).sucesso
-    assert _submeter(kernel, PapelAutor.HUMANO, ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/gov")).sucesso
+    assert _submeter(kernel, PapelAutor.HUMANO, ItemPatch(op=OperacaoPatch.REMOVE, path="/nos/governanca-global")).sucesso
 
 
 @pytest.mark.parametrize("papel", [PapelAutor.HUMANO, *PAPEIS_DE_AGENTE])
@@ -115,7 +117,7 @@ def test_humano_edita_e_remove_governanca_nominal() -> None:
 def test_nenhuma_aresta_toca_governanca_edge_case(tipo: TipoAresta, papel: PapelAutor) -> None:
     """Como origem ou destino, qualquer aresta em Governanca é recusada, até ao humano."""
     kernel = _kernel("ilimitado")
-    for origem, destino in (("gov", "sess"), ("proj", "gov"), ("sess", "gov")):
+    for origem, destino in ((ID_GOVERNANCA_GLOBAL, "sess"), ("proj", ID_GOVERNANCA_GLOBAL), ("sess", ID_GOVERNANCA_GLOBAL)):
         recibo = _submeter(kernel, papel, _aresta(origem, destino, tipo))
         assert not recibo.sucesso, (origem, destino)
 
@@ -123,7 +125,7 @@ def test_nenhuma_aresta_toca_governanca_edge_case(tipo: TipoAresta, papel: Papel
 def test_aresta_em_governanca_diz_o_motivo_edge_case() -> None:
     """A recusa do SchemaGate nomeia o Governanca em vez de um par genérico."""
     kernel = _kernel()
-    recibo = _submeter(kernel, PapelAutor.HUMANO, _aresta("proj", "gov", TipoAresta.CONTEM))
+    recibo = _submeter(kernel, PapelAutor.HUMANO, _aresta("proj", ID_GOVERNANCA_GLOBAL, TipoAresta.CONTEM))
     assert not recibo.sucesso
     assert "Governanca" in recibo.mensagem
 

@@ -7,11 +7,13 @@ kernel/permissao_de_aresta.py, com o dono por tipo e por par de tipos.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from typing import Any
 
 from graphow.core.falhas import ModoFalhaMAST
+from graphow.core.governanca import PROPRIEDADE_GOVERNANCA_DO_PROJETO, Gesto, PoliticaGovernanca
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, StatusQuestion, StatusTask, TipoNo
+from graphow.kernel.gestos_de_no import ContextoPermissaoEdicao, GestosDeNo
 from graphow.kernel.matriz_papeis import (
     PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
     PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO,
@@ -19,6 +21,7 @@ from graphow.kernel.matriz_papeis import (
     TIPOS_CUJA_REMOCAO_EXIGE_HUMANO,
     TIPOS_EDITAVEIS_PELO_SISTEMA,
     TIPOS_EXCLUSIVOS_DO_HUMANO,
+    TIPOS_LIBERADOS_POR_GESTO,
 )
 from graphow.kernel.patch_models import (
     ItemPatch,
@@ -30,28 +33,22 @@ from graphow.kernel.permissao_de_aresta import (
     SEGMENTOS_DE_ELEMENTO_INTEIRO,
     ContextoPapel,
     PermissaoDeAresta,
-    projeto_eh_ilimitado,
+    descrever_reserva_do_gesto,
 )
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral, projetar_lote
 
 SEGMENTOS_DE_UMA_PROPRIEDADE: int = 4
 
 
-@dataclass(frozen=True)
-class ContextoPermissaoEdicao:
-    """DTO imutável para parâmetros de validação de permissão de edição."""
-
-    segmentos: Sequence[str]
-    item: ItemPatch
-    contexto: ContextoPapel
-
-
 class RoleGate:
     """Portão que impõe as regras de permissão de escrita conforme o papel do autor.
 
-    Um projeto com autonomia ilimitada amplia os tipos de nó que um agente pode
-    criar, mas nunca dispensa as invariantes duras: apenas o humano governa
-    `Constraint`, encerra uma `Question` e estrutura a camada de navegação.
+    Um projeto com estrutura ilimitada amplia os tipos de nó que um agente pode
+    criar, mas nunca dispensa as invariantes duras: o `Governanca` e a política
+    do projeto são sempre do humano. Os demais gestos que antes eram só dele
+    (responder uma `Question`, promover um Aprendizado, governar `Constraint`,
+    excluir, fechar Goal, encerrar Sessão) a política do projeto do alvo
+    reserva ao humano ou entrega ao árbitro; nenhum outro papel os ganha.
     """
 
     NOS_CRIACAO_PERMITIDOS: dict[PapelAutor, frozenset[TipoNo]] = {
@@ -71,7 +68,8 @@ class RoleGate:
         ),
         PapelAutor.REVISOR: frozenset({TipoNo.EVIDENCE, TipoNo.QUESTION, TipoNo.NOTE, TipoNo.APRENDIZADO}),
         # O árbitro, por si só, registra só o que sustenta um julgamento. Os
-        # poderes extras vêm da política de governança do projeto do alvo.
+        # poderes extras (Constraint, remover, responder, promover, fechar,
+        # encerrar) vêm da política de governança do projeto do alvo.
         PapelAutor.ARBITRO: frozenset({TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.NOTE}),
         # O harness registra a sessao em que roda, a propria telemetria e, quando
         # o humano nao configurou um Setor, o ambiente padrao da memoria: o
@@ -80,13 +78,18 @@ class RoleGate:
         PapelAutor.SISTEMA: frozenset({TipoNo.RUN, TipoNo.SESSAO, TipoNo.PROJETO, TipoNo.SETOR}),
     }
 
-    # Sob autonomia ilimitada o agente ganha a camada de navegação e os nós de
-    # trabalho, jamais os tipos reservados ao humano.
-    NOS_CRIACAO_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoNo] = frozenset(TipoNo) - TIPOS_EXCLUSIVOS_DO_HUMANO
+    # Sob estrutura ilimitada o agente ganha a camada de navegação e os nós de
+    # trabalho, jamais os tipos reservados ao humano. O Projeto fica de fora: ele
+    # é a raiz, nenhum agente o cria, e um Projeto novo herdaria a política
+    # global sem ter pai que o prenda a um projeto estrito.
+    NOS_CRIACAO_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoNo] = (
+        frozenset(TipoNo) - TIPOS_EXCLUSIVOS_DO_HUMANO - {TipoNo.PROJETO}
+    )
 
     def __init__(self, rastreador: RastreadorProjetoAncestral | None = None) -> None:
         self._rastreador: RastreadorProjetoAncestral = rastreador or RastreadorProjetoAncestral()
         self._arestas: PermissaoDeAresta = PermissaoDeAresta(self._rastreador)
+        self._gestos: GestosDeNo = GestosDeNo(self._rastreador)
 
     def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
         """Avalia se todas as operações da proposta estão autorizadas para o papel."""
@@ -130,55 +133,82 @@ class RoleGate:
                 modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
             )
         tipo_no = TipoNo(item.value["tipo"])
-        resultado_reservadas = self._validar_propriedades_na_criacao(tipo_no, item, contexto.proposta.papel)
+        resultado_reservadas = self._validar_propriedades_na_criacao(tipo_no, item, contexto)
         if not resultado_reservadas.aprovado:
             return resultado_reservadas
         if tipo_no in self._tipos_permitidos_para(item, contexto):
             return ResultadoValidacao.sucesso()
         return ResultadoValidacao.falha(
-            f"Papel '{contexto.proposta.papel.value}' não possui permissão para criar nó do tipo '{tipo_no.value}'",
+            f"Papel '{contexto.proposta.papel.value}' não possui permissão para criar nó do tipo "
+            f"'{tipo_no.value}'{self._reserva_do_tipo_governado(tipo_no, item, contexto)}",
             "RoleGate",
             modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
         )
+
+    def _reserva_do_tipo_governado(self, tipo_no: TipoNo, item: ItemPatch, contexto: ContextoPapel) -> str:
+        """Para o tipo que um gesto governa, diz de quem o gesto é na política do projeto."""
+        gesto = TIPOS_LIBERADOS_POR_GESTO.get(tipo_no)
+        if gesto is None:
+            return ""
+        politica = self._gestos.politica_do_no(str(item.value.get("id")), contexto)
+        return f". {descrever_reserva_do_gesto(gesto, politica)}"
 
     def _validar_propriedades_na_criacao(
         self,
         tipo_no: TipoNo,
         item: ItemPatch,
-        papel: PapelAutor,
+        contexto: ContextoPapel,
     ) -> ResultadoValidacao:
-        """O nó nasce sem o que só o humano escreve: alcance, status fechado, autonomia.
+        """O nó nasce sem o que só o humano escreve: alcance, status fechado, autonomia, política.
 
         O Projeto que um agente criasse com autonomia ilimitada se julgava sob
         a própria autonomia: a antevisão do lote já o continha, e o RoleGate
-        liberava a criação que ela mesma tornava possível.
+        liberava a criação que ela mesma tornava possível. O mesmo vale para a
+        `governanca`: o meta-portão é sempre do humano. O Goal e a Sessão
+        nascem abertos; nascer fechado é o gesto de fechar ou encerrar.
         """
+        papel = contexto.proposta.papel
         propriedades = item.value.get("propriedades") if isinstance(item.value, dict) else None
         declaradas = propriedades if isinstance(propriedades, dict) else {}
         if tipo_no == TipoNo.APRENDIZADO and PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO & set(declaradas):
             return self._recusar_alcance(papel)
         status = str(declaradas.get("status", StatusQuestion.ABERTA.value))
         if tipo_no == TipoNo.QUESTION and status not in STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES:
-            return self._recusar_encerramento_de_questao(str(item.value.get("id")), papel)
+            return self._gestos.recusar_encerramento_de_questao(str(item.value.get("id")), papel)
+        if tipo_no == TipoNo.PROJETO:
+            return self._validar_propriedades_de_projeto_na_criacao(declaradas, papel)
+        return self._gestos.validar_status_na_criacao(tipo_no, item, contexto)
+
+    def _validar_propriedades_de_projeto_na_criacao(
+        self,
+        declaradas: dict[str, Any],
+        papel: PapelAutor,
+    ) -> ResultadoValidacao:
+        """O Projeto criado por agente declara só o nível estrito e nenhuma `governanca`."""
         nivel = str(declaradas.get("nivel_autonomia", NivelAutonomiaProjeto.ESTRITO.value))
-        if tipo_no == TipoNo.PROJETO and nivel != NivelAutonomiaProjeto.ESTRITO.value:
+        if nivel != NivelAutonomiaProjeto.ESTRITO.value:
             return self._recusar_autonomia(papel)
+        if PROPRIEDADE_GOVERNANCA_DO_PROJETO in declaradas:
+            return self._recusar_governanca_do_projeto(papel)
         return ResultadoValidacao.sucesso()
 
     def _tipos_permitidos_para(self, item: ItemPatch, contexto: ContextoPapel) -> frozenset[TipoNo]:
-        """Determina o conjunto de tipos criáveis, considerando a autonomia do projeto."""
-        base = self.NOS_CRIACAO_PERMITIDOS.get(contexto.proposta.papel, frozenset())
-        if not self._opera_sob_autonomia_ilimitada(item, contexto):
-            return base
-        return base | self.NOS_CRIACAO_SOB_AUTONOMIA_ILIMITADA
+        """Determina o conjunto de tipos criáveis, considerando a política do projeto do alvo.
 
-    def _opera_sob_autonomia_ilimitada(self, item: ItemPatch, contexto: ContextoPapel) -> bool:
-        """Verifica se a operação recai sob um projeto marcado como autônomo."""
+        A política amplia por dois caminhos: a estrutura ilimitada entrega a
+        camada de navegação e os nós de trabalho a todos os agentes, e um gesto
+        entrega ao árbitro o tipo que ele governa (Constraint).
+        """
+        papel = contexto.proposta.papel
+        tipos = self.NOS_CRIACAO_PERMITIDOS.get(papel, frozenset())
         id_alvo = self._identificar_alvo_do_item(item)
         if id_alvo is None:
-            return False
-        projeto = self._rastreador.rastrear(id_alvo, contexto.estado_com_lote)
-        return projeto is not None and projeto_eh_ilimitado(projeto, contexto.estado_com_lote)
+            return tipos
+        politica = self._gestos.politica_do_no(id_alvo, contexto)
+        if politica.estrutura_ilimitada:
+            tipos = tipos | self.NOS_CRIACAO_SOB_AUTONOMIA_ILIMITADA
+        liberados = {tipo for tipo, gesto in TIPOS_LIBERADOS_POR_GESTO.items() if politica.permite(gesto, papel)}
+        return tipos | liberados
 
     def _identificar_alvo_do_item(self, item: ItemPatch) -> str | None:
         """Extrai o identificador do nó que a operação cria, a partir do caminho."""
@@ -194,11 +224,9 @@ class RoleGate:
         if no_existente is None:
             return ResultadoValidacao.sucesso()
         if no_existente.tipo in TIPOS_EXCLUSIVOS_DO_HUMANO:
-            return ResultadoValidacao.falha(
-                f"Papel '{papel.value}' não pode alterar nós de '{no_existente.tipo.value}'",
-                "RoleGate",
-                modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-            )
+            resultado_exclusivo = self._gestos.validar_tipo_exclusivo(no_existente, ctx)
+            if not resultado_exclusivo.aprovado:
+                return resultado_exclusivo
         resultado_remocao = self._validar_remocao_de_no(no_existente, ctx)
         if not resultado_remocao.aprovado:
             return resultado_remocao
@@ -207,8 +235,10 @@ class RoleGate:
             return resultado_alcance
         reservadas_do_projeto = PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO
         if no_existente.tipo == TipoNo.PROJETO and self._escreve_propriedade(ctx.segmentos, reservadas_do_projeto):
+            if ctx.segmentos[-1] == PROPRIEDADE_GOVERNANCA_DO_PROJETO:
+                return self._recusar_governanca_do_projeto(papel)
             return self._recusar_autonomia(papel)
-        return self._validar_regras_especificas_papel(no_existente, ctx.item, papel)
+        return self._validar_regras_especificas_papel(no_existente, ctx)
 
     def _escreve_propriedade(self, segmentos: Sequence[str], chaves: frozenset[str]) -> bool:
         """Reconhece a operação em `/nos/<id>/propriedades/<chave>` sobre uma das chaves."""
@@ -219,6 +249,16 @@ class RoleGate:
         return ResultadoValidacao.falha(
             f"Papel '{papel.value}' nao pode escrever 'nivel_autonomia' num Projeto. "
             "Ajustar a autonomia e prerrogativa do humano: use 'configurar_autonomia_projeto'",
+            "RoleGate",
+            {"propriedades_reservadas": ", ".join(sorted(PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO))},
+            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
+        )
+
+    def _recusar_governanca_do_projeto(self, papel: PapelAutor) -> ResultadoValidacao:
+        """Explica que a política de governança do projeto é do humano, em qualquer política."""
+        return ResultadoValidacao.falha(
+            f"Papel '{papel.value}' nao pode escrever 'governanca' num Projeto. "
+            "A politica de governanca e prerrogativa do humano, sem delegacao ao arbitro",
             "RoleGate",
             {"propriedades_reservadas": ", ".join(sorted(PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO))},
             modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
@@ -258,6 +298,9 @@ class RoleGate:
         Sem isso o executor apagava qualquer Task, Decision ou Goal, e a
         projeção levava junto as arestas do nó: a `bloqueia` que o travava, a
         `escopa` da Constraint, a `produz` que pendura o trabalho da Sessão.
+        Duas exceções vêm da política: a Constraint se remove pelo gesto
+        `constraint`, e qualquer outro tipo (Question e Aprendizado inclusive)
+        pelo gesto `excluir`, que leva a cascata inteira.
         """
         eh_remocao_inteira = (
             ctx.item.op == OperacaoPatch.REMOVE
@@ -265,28 +308,34 @@ class RoleGate:
         )
         if not eh_remocao_inteira:
             return ResultadoValidacao.sucesso()
-        if no.tipo in TIPOS_CUJA_REMOCAO_EXIGE_HUMANO:
-            return self._recusar_remocao(no, ctx, "Somente uma sessao humana encerra uma escalacao")
-        if no.tipo not in self._tipos_permitidos_para(ctx.item, ctx.contexto):
-            return self._recusar_remocao(no, ctx, "Um agente remove apenas o tipo de no que pode criar")
+        if no.tipo in TIPOS_LIBERADOS_POR_GESTO:
+            return self._arestas.validar_remocao_em_cascata(no.id, ctx.contexto)
+        politica = self._gestos.politica_do_no(no.id, ctx.contexto)
+        if politica.permite(Gesto.EXCLUIR, ctx.contexto.proposta.papel):
+            return self._gestos.validar_exclusao(no, ctx)
+        motivo = self._motivo_da_remocao_recusada(no, ctx, politica)
+        if motivo is not None:
+            return self._gestos.recusar_remocao(no, ctx, motivo)
         return self._arestas.validar_remocao_em_cascata(no.id, ctx.contexto)
 
-    def _recusar_remocao(self, no: NoGrafo, ctx: ContextoPermissaoEdicao, motivo: str) -> ResultadoValidacao:
-        """Diz que o papel não remove aquele tipo de nó, e por quê."""
-        return ResultadoValidacao.falha(
-            f"Papel '{ctx.contexto.proposta.papel.value}' não pode remover nós de '{no.tipo.value}'. {motivo}",
-            "RoleGate",
-            {"id_no": no.id, "tipo": no.tipo.value},
-            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-        )
-
-    def _validar_regras_especificas_papel(
+    def _motivo_da_remocao_recusada(
         self,
         no: NoGrafo,
-        item: ItemPatch,
-        papel: PapelAutor,
-    ) -> ResultadoValidacao:
+        ctx: ContextoPermissaoEdicao,
+        politica: PoliticaGovernanca,
+    ) -> str | None:
+        """Por que o papel não remove o tipo de nó, ou None quando a regra do tipo o deixa."""
+        reserva = descrever_reserva_do_gesto(Gesto.EXCLUIR, politica)
+        if no.tipo in TIPOS_CUJA_REMOCAO_EXIGE_HUMANO:
+            return f"Somente uma sessao humana encerra uma escalacao. {reserva}"
+        if no.tipo not in self._tipos_permitidos_para(ctx.item, ctx.contexto):
+            return f"Um agente remove apenas o tipo de no que pode criar. {reserva}"
+        return None
+
+    def _validar_regras_especificas_papel(self, no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao:
         """Checa restrições proibitivas específicas por papel."""
+        item = ctx.item
+        papel = ctx.contexto.proposta.papel
         if papel == PapelAutor.SISTEMA and no.tipo not in TIPOS_EDITAVEIS_PELO_SISTEMA:
             return ResultadoValidacao.falha(
                 "Sistema só pode alterar nós de telemetria e a própria Sessao",
@@ -294,7 +343,10 @@ class RoleGate:
                 modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
             )
         if self._encerra_questao(no, item):
-            return self._recusar_encerramento_de_questao(no.id, papel)
+            return self._gestos.validar_encerramento_de_questao(no, ctx)
+        resultado_de_gesto = self._gestos.validar_status_que_exige_gesto(no, ctx)
+        if not resultado_de_gesto.aprovado:
+            return resultado_de_gesto
         if not self._eh_fechamento_de_task(no, item):
             return ResultadoValidacao.sucesso()
         if papel in (PapelAutor.PLANEJADOR, PapelAutor.REVISOR):
@@ -314,16 +366,6 @@ class RoleGate:
         if no.tipo != TipoNo.QUESTION or not item.path.endswith("/propriedades/status"):
             return False
         return item.op == OperacaoPatch.REMOVE or str(item.value) not in STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES
-
-    def _recusar_encerramento_de_questao(self, id_questao: str, papel: PapelAutor) -> ResultadoValidacao:
-        """Explica que só a resposta humana tira uma dúvida do estado aberto."""
-        return ResultadoValidacao.falha(
-            f"Papel '{papel.value}' não pode encerrar a Question '{id_questao}'. "
-            "Use 'abrir_questao' e aguarde a resposta humana",
-            "RoleGate",
-            {"id_questao": id_questao},
-            modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-        )
 
     def _eh_fechamento_de_task(self, no: NoGrafo, item: ItemPatch) -> bool:
         """Identifica a operação que marca uma Task como concluída."""

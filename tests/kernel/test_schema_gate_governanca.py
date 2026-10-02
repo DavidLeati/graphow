@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from graphow.core.falhas import ModoFalhaMAST
+from graphow.core.governanca import ID_GOVERNANCA_GLOBAL
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import PapelAutor, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
@@ -57,7 +58,7 @@ def _recusado(resultado: ResultadoValidacao) -> bool:
 ])
 def test_governanca_valido_e_aceito_nominal(propriedades: dict[str, Any] | None) -> None:
     """Criar o Governanca com preset e personalizada válidos passa."""
-    assert _validar(GrafoEstado(), _criar("gov", TipoNo.GOVERNANCA, propriedades)).aprovado
+    assert _validar(GrafoEstado(), _criar(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA, propriedades)).aprovado
 
 
 @pytest.mark.parametrize("propriedades", [
@@ -71,7 +72,7 @@ def test_governanca_valido_e_aceito_nominal(propriedades: dict[str, Any] | None)
 ])
 def test_governanca_malformado_e_recusado_edge_case(propriedades: dict[str, Any]) -> None:
     """Caso de borda: o Governanca só aceita preset e personalizada, ambos no domínio."""
-    assert _recusado(_validar(GrafoEstado(), _criar("gov", TipoNo.GOVERNANCA, propriedades)))
+    assert _recusado(_validar(GrafoEstado(), _criar(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA, propriedades)))
 
 
 @pytest.mark.parametrize("governanca", [
@@ -134,6 +135,21 @@ def test_propriedades_de_outros_nos_nao_sao_afetadas_edge_case() -> None:
 
 def test_escrita_em_no_criado_no_mesmo_lote_edge_case() -> None:
     """Caso de borda: o tipo do nó criado antes no lote também orienta a validação."""
-    criar = _criar("gov2", TipoNo.GOVERNANCA)
-    assert _validar(GrafoEstado(), criar, _propriedade(OperacaoPatch.ADD, "gov2", "preset", "personalizada")).aprovado
-    assert _recusado(_validar(GrafoEstado(), criar, _propriedade(OperacaoPatch.ADD, "gov2", "preset", "herdar")))
+    criar = _criar(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA)
+    assert _validar(GrafoEstado(), criar, _propriedade(OperacaoPatch.ADD, ID_GOVERNANCA_GLOBAL, "preset", "personalizada")).aprovado
+    assert _recusado(_validar(GrafoEstado(), criar, _propriedade(OperacaoPatch.ADD, ID_GOVERNANCA_GLOBAL, "preset", "herdar")))
+
+
+@pytest.mark.parametrize("id_no", ["gov", "gov2", "governanca", "governanca-global-2"])
+def test_governanca_com_id_diferente_do_singleton_e_recusado_edge_case(id_no: str) -> None:
+    """Caso de borda: só o singleton é lido pela resolução; um segundo nó seria configuração fantasma."""
+    resultado = _validar(GrafoEstado(), _criar(id_no, TipoNo.GOVERNANCA))
+    assert not resultado.aprovado
+    assert resultado.modo == ModoFalhaMAST.ESTRUTURA_INCOMPLETA
+    assert ID_GOVERNANCA_GLOBAL in str(resultado.mensagem_erro)
+    assert "governança" in str(resultado.mensagem_erro)
+
+
+def test_governanca_singleton_com_o_id_certo_e_aceito_nominal() -> None:
+    """O nó `governanca-global` segue podendo ser criado, vazio ou com política válida."""
+    assert _validar(GrafoEstado(), _criar(ID_GOVERNANCA_GLOBAL, TipoNo.GOVERNANCA)).aprovado

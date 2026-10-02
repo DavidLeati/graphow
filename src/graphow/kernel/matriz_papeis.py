@@ -10,7 +10,8 @@ no portão, onde nenhum caminho alternativo escapa.
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
+from graphow.core.governanca import PROPRIEDADE_GOVERNANCA_DO_PROJETO, Gesto
+from graphow.core.types import PapelAutor, StatusQuestion, StatusSessao, StatusTask, TipoAresta, TipoNo
 
 # O Governanca guarda a política que decide o que os agentes podem fazer: um
 # agente que a escrevesse desligaria todos os portões. Só o humano a cria,
@@ -36,11 +37,51 @@ PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset({"a
 # pela lista negra e destravava a tarefa do mesmo jeito.
 STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES: frozenset[str] = frozenset({StatusQuestion.ABERTA.value})
 
-# O nível de autonomia amplia o que os agentes criam no projeto. Quem o escreve
-# é o humano, por `configurar_autonomia_projeto`; um agente que o escrevesse se
-# daria a camada que estrutura o trabalho. Na criação de um Projeto o agente
-# só declara o nível estrito.
-PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset({"nivel_autonomia"})
+# O nível de autonomia amplia o que os agentes criam no projeto, e a propriedade
+# `governanca` é a política que decide quem faz cada gesto nele. Quem as escreve
+# é o humano, sem árbitro nem exceção: é o meta-portão, porque um agente que
+# escrevesse a política se daria todos os gestos que ela governa. Na criação de
+# um Projeto o agente só declara o nível estrito e não declara `governanca`.
+PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO: frozenset[str] = frozenset(
+    {"nivel_autonomia", PROPRIEDADE_GOVERNANCA_DO_PROJETO}
+)
+
+# O árbitro encerra uma dúvida só com um destes status, os que a ontologia
+# declara. Um status inventado destravaria a Task sem ser resposta nem descarte.
+STATUS_DE_QUESTION_ESCRITOS_PELO_ARBITRO: frozenset[str] = frozenset(
+    {StatusQuestion.RESPONDIDA.value, StatusQuestion.DESCARTADA.value}
+)
+
+# Escrever este status num Goal o fecha, e escrever o da Sessao a encerra: são
+# os gestos `fechar_goal` e `encerrar_sessao` da política de governança.
+STATUS_QUE_FECHA_GOAL: str = StatusTask.CONCLUIDO.value
+STATUS_QUE_ENCERRA_SESSAO: str = StatusSessao.CONCLUIDA.value
+
+# O gesto `constraint` entrega ao árbitro o único tipo que TIPOS_EXCLUSIVOS_DO_HUMANO
+# deixa a um agente. O Governanca nunca sai da lista: a política não se escreve sozinha.
+TIPOS_LIBERADOS_POR_GESTO: Mapping[TipoNo, Gesto] = {TipoNo.CONSTRAINT: Gesto.CONSTRAINT}
+
+# Cópia deliberada de mcp/identidade_sessao.SEPARADOR_DO_SUFIXO_DE_CONEXAO: o
+# kernel não importa o servidor MCP, que importa o kernel. Um teste confere que
+# as duas constantes não se afastam.
+SEPARADOR_DO_SUFIXO_DE_CONEXAO: str = "#"
+
+
+def autor_sem_sufixo_de_conexao(autor: str) -> str:
+    """O autor sem o sufixo `#xxxx` que a conexão acrescenta para ter posse própria."""
+    cabeca, separador, _ = autor.rpartition(SEPARADOR_DO_SUFIXO_DE_CONEXAO)
+    return cabeca if separador else autor
+
+
+def eh_autoria_propria(autor_da_proposta: str, aberta_por: object) -> bool:
+    """Diz se quem propõe é quem abriu a dúvida, comparando sem o sufixo da conexão.
+
+    O árbitro que encerrasse a Question que ele mesmo abriu seria juiz em causa
+    própria. O sufixo muda a cada conexão; o nome declarado é o que fica.
+    """
+    if not isinstance(aberta_por, str) or not aberta_por:
+        return False
+    return autor_sem_sufixo_de_conexao(autor_da_proposta) == autor_sem_sufixo_de_conexao(aberta_por)
 
 SO_HUMANO: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO})
 HUMANO_E_PLANEJADOR: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.PLANEJADOR}
@@ -104,6 +145,33 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     TipoAresta.ORIENTA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
 }
 
+# Arestas cujo dono, além da tabela por papel, é decidido por um gesto da
+# política de governança: reter ao humano ou entregar ao árbitro. A tabela segue
+# valendo; o gesto só acrescenta quem pode, nunca tira.
+PARES_DO_GESTO_PROMOVER_APRENDIZADO: frozenset[tuple[TipoNo, TipoNo]] = frozenset(
+    {(TipoNo.APRENDIZADO, TipoNo.SETOR), (TipoNo.APRENDIZADO, TipoNo.PROJETO)}
+)
+
+
+def gesto_da_aresta(
+    tipo: TipoAresta,
+    par: tuple[TipoNo, TipoNo] | None,
+    eh_remocao: bool,
+) -> Gesto | None:
+    """O gesto de governança que decide a operação sobre a aresta, ou None se a tabela decide sozinha.
+
+    Retirar `bloqueia` é responder a dúvida; `escopa` é a camada de Constraint;
+    `vale_para` de um Aprendizado a um Setor ou Projeto é promovê-lo.
+    """
+    if tipo == TipoAresta.BLOQUEIA:
+        return Gesto.RESPONDER_QUESTAO if eh_remocao else None
+    if tipo == TipoAresta.ESCOPA:
+        return Gesto.CONSTRAINT
+    if tipo == TipoAresta.VALE_PARA and par in PARES_DO_GESTO_PROMOVER_APRENDIZADO:
+        return Gesto.PROMOVER_APRENDIZADO
+    return None
+
+
 # O dono pode depender do que a aresta liga. Consolidar memória é escrever um
 # Aprendizado que substitui vários; quem registra Aprendizado (executor e
 # revisor, donos de `deriva_de`) pode dizê-lo, e o planejador já detinha
@@ -117,8 +185,8 @@ DONOS_POR_PAR_DE_ARESTA: Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeArest
 }
 
 
-# Um projeto que o humano marcou como autônomo entrega ao agente a camada que
-# estrutura o trabalho — inclusive `contem`, sem a qual um Setor criado nasceria
+# Um projeto cuja política tem `estrutura: ilimitado` (antes, o `nivel_autonomia`
+# que o humano marcava) entrega ao agente a camada que estrutura o trabalho — inclusive `contem`, sem a qual um Setor criado nasceria
 # solto e a autonomia voltaria a ser inerte. O que a marcação nunca entrega é a
 # camada de governança: `escopa` amarra Constraint ao trabalho, retirar um
 # `bloqueia` encerraria a escalação ao humano, e `vale_para` promoveria memória

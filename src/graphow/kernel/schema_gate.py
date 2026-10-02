@@ -6,6 +6,7 @@ from typing import Any
 from graphow.core.exceptions import ErroPatchInvalido, ErroSegurancaPatch
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.governanca import (
+    ID_GOVERNANCA_GLOBAL,
     PROPRIEDADE_GOVERNANCA_DO_PROJETO,
     validar_configuracao_do_projeto,
     validar_configuracao_global,
@@ -206,11 +207,23 @@ class SchemaGate:
         """Confere a política declarada na criação de um Governanca ou de um Projeto."""
         propriedades = valor.get("propriedades", {})
         if tipo == TipoNo.GOVERNANCA:
+            if valor["id"] != ID_GOVERNANCA_GLOBAL:
+                return self._recusar_governanca_fantasma(str(valor["id"]))
             return self._recusar_governanca_malformada(validar_configuracao_global(propriedades))
         if tipo == TipoNo.PROJETO and PROPRIEDADE_GOVERNANCA_DO_PROJETO in propriedades:
             problemas = validar_configuracao_do_projeto(propriedades[PROPRIEDADE_GOVERNANCA_DO_PROJETO])
             return self._recusar_governanca_malformada(problemas)
         return ResultadoValidacao.sucesso()
+
+    def _recusar_governanca_fantasma(self, id_no: str) -> ResultadoValidacao:
+        """Só o singleton `governanca-global` é lido pela resolução: um segundo nó seria configuração fantasma."""
+        return ResultadoValidacao.falha(
+            f"O nó 'Governanca' '{id_no}' é recusado: a política de governança global vive só no "
+            f"nó '{ID_GOVERNANCA_GLOBAL}', e um segundo nó seria configuração que nenhum portão lê",
+            "SchemaGate",
+            {"id_esperado": ID_GOVERNANCA_GLOBAL},
+            modo=ModoFalhaMAST.ESTRUTURA_INCOMPLETA,
+        )
 
     def _recusar_governanca_malformada(self, problemas: list[str]) -> ResultadoValidacao:
         """Recusa a configuração de governança que a validação do domínio apontou como inválida."""

@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-18 módulos · 2976 linhas · 28 classes
+19 módulos · 3353 linhas · 29 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,16 +19,17 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 118 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
+| [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 191 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 335 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 161 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 229 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
-| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 201 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
+| [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 264 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 338 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 369 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 380 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
@@ -145,6 +146,34 @@ Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes 
 - `validar_caminho(item: ItemPatch, segmentos: tuple[str, ...]) -> ResultadoValidacao` — O caminho nomeia um nó ou uma aresta, numa forma que o log grava como ela é.
 - `validar_identidade(ctx: ContextoValidacaoNo, criados: CriadosNoLote) -> ResultadoValidacao` — O valor cria o elemento que o caminho nomeia, e esse id ainda não existe.
 
+## `kernel/gestos_de_no.py`
+
+Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMINHO_DO_STATUS` | `str` | `'/propriedades/status'` |
+
+### `ContextoPermissaoEdicao`
+
+*DTO imutável* — DTO imutável para parâmetros de validação de permissão de edição.
+
+**Campos:** `segmentos: Sequence[str]`, `item: ItemPatch`, `contexto: ContextoPapel`
+
+### `GestosDeNo`
+
+*serviço* — Aplica os gestos da política de governança às operações sobre nós.
+
+- `politica_do_no(id_no: str, contexto: ContextoPapel) -> PoliticaGovernanca` — Política efetiva do projeto do nó, lida só do estado do grafo.
+- `exigir(gesto: Gesto, id_no: str, contexto: ContextoPapel) -> ResultadoValidacao` — Aprova se a política do projeto do nó entrega o gesto ao papel; senão diz qual falta.
+- `validar_status_na_criacao(tipo_no: TipoNo, item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Goal nascido concluído e Sessão nascida encerrada passam pelo gesto que os fecharia.
+- `validar_tipo_exclusivo(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — Constraint e Governanca são do humano; o gesto `constraint` abre o primeiro ao árbitro.
+- `validar_exclusao(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — A exclusão que o gesto `excluir` entrega ao árbitro, menos a da Question que ele abriu.
+- `recusar_remocao(no: NoGrafo, ctx: ContextoPermissaoEdicao, motivo: str) -> ResultadoValidacao` — Diz que o papel não remove aquele tipo de nó, e por quê.
+- `validar_encerramento_de_questao(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — Encerrar a Question é o gesto `responder_questao`: do humano, ou do árbitro se a política o entrega.
+- `recusar_encerramento_de_questao(id_questao: str, papel: PapelAutor, politica: PoliticaGovernanca | None) -> ResultadoValidacao` — Explica que só a resposta do humano, ou do árbitro que a política autoriza, encerra a dúvida.
+- `validar_status_que_exige_gesto(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — Fechar um Goal e encerrar uma Sessão, por escrita de status, são gestos da política.
+
 ## `kernel/invariant_gate.py`
 
 Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate).
@@ -208,7 +237,12 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `TIPOS_CUJA_REMOCAO_EXIGE_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.QUESTION, TipoNo.APRENDIZADO})` |
 | `PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'alcance'})` |
 | `STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES` | `frozenset[str]` | `frozenset({StatusQuestion.ABERTA.value})` |
-| `PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'nivel_autonomia'})` |
+| `PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'nivel_autonomia', PROPRIEDADE_GOVERNANCA_DO_PROJETO})` |
+| `STATUS_DE_QUESTION_ESCRITOS_PELO_ARBITRO` | `frozenset[str]` | `frozenset({StatusQuestion.RESPONDIDA.value, StatusQuestion.DESCARTADA.v…` |
+| `STATUS_QUE_FECHA_GOAL` | `str` | `StatusTask.CONCLUIDO.value` |
+| `STATUS_QUE_ENCERRA_SESSAO` | `str` | `StatusSessao.CONCLUIDA.value` |
+| `TIPOS_LIBERADOS_POR_GESTO` | `Mapping[TipoNo, Gesto]` | `{TipoNo.CONSTRAINT: Gesto.CONSTRAINT}` |
+| `SEPARADOR_DO_SUFIXO_DE_CONEXAO` | `str` | `'#'` |
 | `SO_HUMANO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO})` |
 | `HUMANO_E_PLANEJADOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.PLANEJADOR}` |
 | `HUMANO_E_TRABALHO` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.EXECUTOR, PapelAutor.REVISOR}` |
@@ -216,6 +250,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `TODOS_OS_PAPEIS_DE_AGENTE` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |
+| `PARES_DO_GESTO_PROMOVER_APRENDIZADO` | `frozenset[tuple[TipoNo, TipoNo]]` | `frozenset({(TipoNo.APRENDIZADO, TipoNo.SETOR), (TipoNo.APRENDIZADO, Tip…` |
 | `DONOS_POR_PAR_DE_ARESTA` | `Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta]` | `{(TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosD…` |
 | `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA})` |
 
@@ -229,6 +264,9 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 
 ### Funções do módulo
 
+- `autor_sem_sufixo_de_conexao(autor: str) -> str` — O autor sem o sufixo `#xxxx` que a conexão acrescenta para ter posse própria.
+- `eh_autoria_propria(autor_da_proposta: str, aberta_por: object) -> bool` — Diz se quem propõe é quem abriu a dúvida, comparando sem o sufixo da conexão.
+- `gesto_da_aresta(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None, eh_remocao: bool) -> Gesto | None` — O gesto de governança que decide a operação sobre a aresta, ou None se a tabela decide sozinha.
 - `obter_donos_sob_autonomia_ilimitada(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None) -> DonosDeAresta` — Donos ampliados de um tipo de aresta dentro de um projeto autônomo.
 - `obter_donos_de_aresta(tipo: TipoAresta, par: tuple[TipoNo, TipoNo] | None) -> DonosDeAresta` — Consulta os donos de um tipo de aresta, negando o que não foi declarado.
 - `descrever_donos_de_aresta(tipo: TipoAresta) -> tuple[str, ...]` — Lista, em ordem estável, os papéis que podem criar o tipo de aresta.
@@ -321,7 +359,7 @@ Permissão por papel na camada de arestas: quem cria e remove cada aresta, confo
 
 ### Funções do módulo
 
-- `projeto_eh_ilimitado(projeto_id: str, estado: GrafoEstado) -> bool` — Checa se o nó de projeto possui configuração de autonomia ilimitada.
+- `descrever_reserva_do_gesto(gesto: Gesto, politica: PoliticaGovernanca) -> str` — Diz de quem é o gesto na política do projeto, para a recusa nomear o que falta.
 
 ## `kernel/politica_governanca.py`
 
@@ -359,12 +397,6 @@ Portão 2: Validação de Contratos de Permissão por Papel (Role Gate).
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
-
-### `ContextoPermissaoEdicao`
-
-*DTO imutável* — DTO imutável para parâmetros de validação de permissão de edição.
-
-**Campos:** `segmentos: Sequence[str]`, `item: ItemPatch`, `contexto: ContextoPapel`
 
 ### `RoleGate`
 
