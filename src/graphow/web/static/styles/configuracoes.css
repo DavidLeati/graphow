@@ -1,0 +1,124 @@
+/* ==========================================================================
+   CONFIGURAÇÕES — a governança global e a de cada projeto, aberta como aba no
+   centro. Só usa os tokens da moldura; o texto fraco segue o piso de contraste
+   dos painéis (--texto-fraco, 5,3:1 sobre o fundo da moldura).
+   ========================================================================== */
+
+.ferramenta.mod-configuracoes { max-width: 960px; }
+.cfg-escopo-nota { align-self: center; padding-top: 16px; font-size: var(--fonte-pequena); overflow-wrap: anywhere; }
+
+.cfg-secao { margin-bottom: 30px; }
+.cfg-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--texto-normal);
+}
+.cfg-titulo .svg-icone { color: var(--color-governanca); }
+.cfg-secao-texto { margin: -6px 0 12px; font-size: var(--fonte-pequena); }
+
+/* Cartões de preset ---------------------------------------------------------- */
+.cfg-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 4px; }
+.cfg-cartao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  text-align: left;
+  color: var(--texto-suave);
+  background: var(--moldura-fundo);
+  border: 1px solid var(--moldura-divisor);
+  border-radius: var(--raio-md);
+  cursor: pointer;
+  transition: border-color var(--transicao-rapida), background var(--transicao-rapida);
+}
+.cfg-cartao:hover:not(:disabled) { background: var(--moldura-elevado); border-color: var(--moldura-borda); }
+.cfg-cartao:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--acento-suave); border-color: var(--acento); }
+.cfg-cartao:disabled { opacity: 0.6; cursor: default; }
+.cfg-cartao.is-ativo { background: var(--moldura-selecao); border-color: var(--acento); }
+.cfg-cartao-topo { display: flex; align-items: center; gap: 8px; width: 100%; color: var(--texto-normal); }
+.cfg-cartao-topo .svg-icone { flex-shrink: 0; color: var(--texto-acento); }
+.cfg-cartao-nome { font-size: var(--fonte-ui); font-weight: 650; }
+.cfg-cartao-marca { display: inline-flex; margin-left: auto; min-width: 16px; color: var(--tom-ok); }
+.cfg-cartao-texto { font-size: var(--fonte-pequena); line-height: 1.5; color: var(--texto-suave); }
+.cfg-cartao-nota { font-size: var(--fonte-pequena); color: var(--texto-fraco); }
+.cfg-cartao-nota strong { color: var(--texto-normal); font-weight: 600; }
+
+/* Tabela de gestos ------------------------------------------------------------ */
+.cfg-tabela { border: 1px solid var(--moldura-divisor); border-radius: var(--raio-md); background: var(--moldura-fundo); overflow: hidden; }
+.cfg-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 230px) 90px;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--moldura-divisor);
+}
+.cfg-linha:first-child { border-top: none; }
+.cfg-linha.mod-cabecalho {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: var(--fonte-menor);
+  font-weight: 600;
+  color: var(--texto-fraco);
+  background: var(--moldura-elevado);
+}
+.cfg-gesto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cfg-gesto strong { font-size: var(--fonte-ui); font-weight: 600; color: var(--texto-normal); }
+.cfg-descricao { font-size: var(--fonte-pequena); line-height: 1.45; color: var(--texto-fraco); }
+.cfg-valor { min-width: 0; }
+.cfg-valor .seletor { width: 100%; }
+.cfg-valor-texto { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fonte-ui); color: var(--texto-normal); }
+.cfg-valor-texto .svg-icone { color: var(--texto-fraco); }
+.cfg-linha.mod-fixa { background: color-mix(in srgb, var(--moldura-elevado) 55%, transparent); }
+.cfg-selo {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: var(--fonte-menor);
+  font-weight: 600;
+  color: var(--texto-suave);
+  background: var(--moldura-campo);
+  border: 1px solid var(--moldura-campo-borda);
+  border-radius: 20px;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* Operação do projeto --------------------------------------------------------- */
+.cfg-operacao-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 20px; }
+.cfg-operacao .campo-nota { margin: 0; }
+.cfg-operacao-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; font-size: var(--fonte-pequena); }
+
+/* Auditoria -------------------------------------------------------------------- */
+.cfg-auditoria { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid var(--moldura-divisor); border-radius: var(--raio-md); background: var(--moldura-fundo); }
+.cfg-aud-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 8px 14px;
+  font-size: var(--fonte-pequena);
+  color: var(--texto-suave);
+  border-top: 1px solid var(--moldura-divisor);
+}
+.cfg-aud-item:first-child { border-top: none; }
+.cfg-aud-seq { font-variant-numeric: tabular-nums; color: var(--texto-fraco); }
+.cfg-aud-autor { color: var(--texto-normal); font-weight: 600; }
+.cfg-aud-tipo { color: var(--texto-suave); }
+.cfg-aud-ids { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.cfg-aud-id code { font-size: var(--fonte-pequena); color: inherit; overflow-wrap: anywhere; }
+
+/* Centro estreito (a lateral direita aberta, ou a janela pequena): a linha empilha. */
+@container (max-width: 640px) {
+  .ferramenta.mod-configuracoes { padding: 20px 16px 48px; }
+  .cfg-linha { grid-template-columns: minmax(0, 1fr) auto; }
+  .cfg-linha.mod-cabecalho { display: none; }
+  .cfg-gesto { grid-column: 1 / -1; }
+  .cfg-valor { grid-column: 1; }
+  .cfg-origem { grid-column: 2; justify-self: end; }
+}

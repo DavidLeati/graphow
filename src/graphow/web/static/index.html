@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/styles/canvas.css">
   <link rel="stylesheet" href="/styles/sobreposicoes.css">
   <link rel="stylesheet" href="/styles/quadro.css">
+  <link rel="stylesheet" href="/styles/configuracoes.css">
 </head>
 <body>
   <div id="app-container" class="moldura">
@@ -34,6 +35,7 @@
         <button class="faixa-botao" data-comando="terminal-patch" data-icone="terminal" data-icone-tamanho="18" title="Terminal de patch"></button>
       </div>
       <div class="faixa-grupo">
+        <button class="faixa-botao" data-comando="abrir-configuracoes" data-icone="settings" data-icone-tamanho="18" title="Configurações: governança e operação"></button>
         <button class="faixa-botao" data-comando="atalhos" data-icone="keyboard" data-icone-tamanho="18" title="Atalhos de teclado (?)"></button>
       </div>
     </nav>
@@ -136,6 +138,7 @@
         <section class="vista-ferramenta" id="ferramenta-diff" hidden></section>
         <section class="vista-ferramenta" id="ferramenta-patch" hidden></section>
         <section class="vista-ferramenta" id="ferramenta-leitura" hidden aria-label="Leitura da dúvida"></section>
+        <section class="vista-ferramenta" id="ferramenta-configuracoes" hidden aria-label="Configurações"></section>
       </div>
     </main>
     <div class="alca-redimensionar" id="alca-direita" title="Arraste para redimensionar"></div>

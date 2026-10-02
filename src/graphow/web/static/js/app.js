@@ -16,6 +16,7 @@ import { CanvasRenderer } from "./canvas_renderer.js";
 import { registrarComandos } from "./comandos_graphow.js";
 import { formatarAtalho, RegistroDeComandos } from "./comandos.js";
 import { ConexoesView } from "./conexoes_view.js";
+import { ConfiguracoesView } from "./configuracoes_view.js";
 import { DialogosDoGrafo } from "./dialogos_grafo.js";
 import { DialogosDeMemoria } from "./dialogos_memoria.js";
 import { escapeHtml } from "./dom.js";
@@ -164,6 +165,7 @@ class GraphowApp {
       ...dependencias,
       aoCarregar: (no) => this.abas.renomearFerramenta("leitura", no.rotulo),
     });
+    this.configuracoesView = new ConfiguracoesView(document.getElementById("ferramenta-configuracoes"), dependencias);
     this.barraStatus = new BarraDeStatus(document.getElementById("barra-status"), {
       state: this.state,
       acoes: { aoClicar: (item, evento) => this.aoClicarNoStatus(item, evento), zoom: () => this.interactions.zoom },
@@ -304,6 +306,7 @@ class GraphowApp {
     this.memoria.invalidar();
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
     if (this.abas.ativa.tipo === "leitura") this.leituraView.atualizar();
+    if (this.abas.ativa.tipo === "configuracoes") this.configuracoesView.atualizar();
   }
 
   async aposGravar({ ramoNovo = null } = {}) {
@@ -370,9 +373,11 @@ class GraphowApp {
     document.getElementById("ferramenta-diff").hidden = tipo !== "diff";
     document.getElementById("ferramenta-patch").hidden = tipo !== "patch";
     document.getElementById("ferramenta-leitura").hidden = tipo !== "leitura";
+    document.getElementById("ferramenta-configuracoes").hidden = tipo !== "configuracoes";
     document.querySelector(".vista-acoes").style.visibility = tipo ? "hidden" : "visible";
     if (tipo === "diff") this.forkDiffView.updateBranchOptions();
     if (tipo === "leitura") this.leituraView.abrir(aba.noId);
+    if (tipo === "configuracoes") this.configuracoesView.abrir();
   }
 
   // ------------------------------------------------------------------ grafo ou quadro

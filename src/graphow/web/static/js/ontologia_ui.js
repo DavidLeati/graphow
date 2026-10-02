@@ -35,7 +35,6 @@ export function apresentarTipo(tipo) {
 
 /** Cor do tipo como referência às variáveis do tema, que o canvas também usa. */
 export function corDoTipo(tipo) {
-  if (tipo === "Governanca") return "var(--color-governanca, #8b5cf6)";
   return `var(--color-${String(tipo || "note").toLowerCase()}, var(--color-note))`;
 }
 

@@ -81,4 +81,10 @@ export const api = {
   registrarAprendizado: (corpo) => pedir("/api/memoria/aprendizados", comCorpo("POST", corpo)),
   promoverAprendizado: (corpo) => pedir("/api/memoria/promocoes", comCorpo("POST", corpo)),
   salvarLayout: (corpo) => pedir("/api/layout", comCorpo("PUT", corpo)),
+  // Governança: o catálogo e a política global, a do projeto, o que o árbitro fez e a escrita (sempre humana).
+  governanca: (ramo) => pedir(`/api/governanca?${montarQuery({ ramo })}`),
+  governancaDoProjeto: (id, ramo) => pedir(`/api/projetos/${encodeURIComponent(id)}/governanca?${montarQuery({ ramo })}`),
+  auditoriaDoArbitro: (ramo, limite) => pedir(`/api/governanca/auditoria?${montarQuery({ ramo, limite })}`),
+  gravarGovernancaGlobal: (corpo) => pedir("/api/governanca/global", comCorpo("PUT", corpo)),
+  gravarGovernancaDoProjeto: (id, corpo) => pedir(`/api/projetos/${encodeURIComponent(id)}/governanca`, comCorpo("PUT", corpo)),
 };

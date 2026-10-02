@@ -19,6 +19,7 @@ const FERRAMENTAS = {
   diff: { titulo: "Comparar ramos", icone: "git-compare" },
   patch: { titulo: "Terminal de patch", icone: "terminal" },
   leitura: { titulo: "Leitura", icone: "help-circle" },
+  configuracoes: { titulo: "Configurações", icone: "settings" },
 };
 
 let contadorDeAbas = 0;

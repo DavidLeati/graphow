@@ -39,7 +39,7 @@ DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.FECHAR_GOAL: "Marcar um Goal como concluído",
     Gesto.ENCERRAR_SESSAO: "Encerrar uma Sessão",
     Gesto.LIBERAR_POSSE_ALHEIA: "Liberar a posse de uma tarefa que é de outro autor",
-    Gesto.INTEGRACAO: "Decidir a integração: ramo base e caminhos de colisão",
+    Gesto.INTEGRACAO: "Commitar e integrar no ramo base (merge local); o push segue humano",
     Gesto.MAX_CORRECOES: "Quantas correções em cadeia valem antes de escalar ao humano",
 })
 

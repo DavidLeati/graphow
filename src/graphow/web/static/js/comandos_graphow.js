@@ -81,6 +81,7 @@ export function registrarComandos(app) {
     { id: "criar-fork", nome: "Criar fork (novo ramo)…", icone: "git-fork", executar: () => app.dialogos.criarFork() },
     { id: "comparar-ramos", nome: "Comparar ramos", icone: "git-compare", executar: () => app.abas.abrirFerramenta("diff") },
     { id: "terminal-patch", nome: "Terminal de patch", icone: "terminal", executar: () => app.abas.abrirFerramenta("patch") },
+    { id: "abrir-configuracoes", nome: "Configurações: governança e operação", icone: "settings", executar: () => app.abas.abrirFerramenta("configuracoes") },
     { id: "recarregar", nome: "Reler os dados do servidor", icone: "refresh", executar: () => app.recarregarTudo() },
     { id: "atalhos", nome: "Atalhos de teclado", icone: "keyboard", atalho: "?", executar: () => app.mostrarAtalhos() },
   ];
