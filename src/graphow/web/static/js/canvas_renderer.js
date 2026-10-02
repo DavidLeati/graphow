@@ -1,6 +1,7 @@
 import { escapeHtml } from "./dom.js";
 import { descreverHistoricoDoNo, foiAlterado, formatarIdadeCurta } from "./idade.js";
 import { caminhoSvg, tracarCurva } from "./geometria_aresta.js";
+import { idsNaJanela, janelaComMargem, retanguloVisivel } from "./janela_visivel.js";
 
 const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 
@@ -23,11 +24,24 @@ export class CanvasRenderer {
     this.edgesLayer = document.getElementById("edges-layer");
     this.surface = document.getElementById("canvas-surface");
     this.state = state;
+    // So os cartoes perto da janela existem no DOM; os demais vivem em
+    // state.nodes e nascem quando a janela chega perto. Veja atualizarJanela.
     this.nodeElements = new Map();
-    // Largura e altura de cada cartao, medidas de uma vez ao fim de renderNodes.
-    // Ler offsetWidth no meio do desenho das arestas, entre uma escrita e outra
-    // no DOM, forcava um reflow por aresta.
+    // Largura e altura da ultima medida de cada cartao ja materializado, lidas
+    // de uma vez depois de anexar os cartoes novos. Ler offsetWidth no meio do
+    // desenho das arestas, entre uma escrita e outra no DOM, forcava um reflow
+    // por aresta. Cartao removido pela janela mantem a medida, e quem nunca foi
+    // materializado usa TAMANHO_PADRAO_DO_CARTAO.
     this.tamanhosDosCartoes = new Map();
+    // Quem diz o que a janela mostra: uma funcao que devolve o pan, o zoom, o
+    // tamanho do viewport e os ids que nao podem sair (o cartao arrastado). O
+    // renderer nao conhece o viewport; quem o conhece e o canvas_interactions.
+    this.fonteDaVista = null;
+    // O alvo do destaque de caminho e os conjuntos que ele liga, lembrados para
+    // que o cartao que nasce depois ja nasca destacado ou esmaecido.
+    this.alvoDeDestaque = null;
+    this.nosDoDestaque = null;
+    this.arestasDoDestaque = null;
     // Id da aresta -> <path> desenhado, e id do no -> ids das arestas que o
     // tocam. Ambos sao refeitos por renderEdges.
     this.elementosDasArestas = new Map();
@@ -139,28 +153,123 @@ export class CanvasRenderer {
     }
   }
 
+  /** Esvazia a camada de cartoes e materializa os que cabem na janela de agora. */
   renderNodes() {
     this.nodesLayer.innerHTML = "";
     this.nodeElements.clear();
+    for (const id of this.tamanhosDosCartoes.keys()) {
+      if (!this.state.nodes.has(id)) this.tamanhosDosCartoes.delete(id);
+    }
+    this.sincronizarCartoes();
+  }
 
-    for (const [id, node] of this.state.nodes.entries()) {
-      const pos = this.state.nodePositions.get(id) || { x: 100, y: 100 };
-      const el = document.createElement("div");
-      el.className = `node-card ${this.state.selectedElement?.id === id ? "selected" : ""}`;
-      if (node.esta_bloqueado) el.classList.add("blocked-task");
-      el.id = `node-${id}`;
-      el.style.left = `${pos.x}px`;
-      el.style.top = `${pos.y}px`;
+  /** O tamanho da janela do canvas e o que ela precisa manter, ou null se o canvas esta oculto. */
+  vistaDaJanela() {
+    if (!this.fonteDaVista) return { todos: true, idsFixos: [] };
+    const vista = this.fonteDaVista();
+    // Com o quadro na frente o canvas tem largura zero: calcular uma janela ali
+    // esvaziaria a camada, e ela volta pelo render() de quem reabre o canvas.
+    if (!vista.larguraDoViewport) return null;
+    return vista;
+  }
 
-      const statusBadge = node.propriedades?.status ? `<span class="badge badge-status">${escapeHtml(node.propriedades.status)}</span>` : "";
-      const lockBadge = node.lock_ativo ? `<span class="badge badge-locked">🔒 ${escapeHtml(node.lock_ativo)}</span>` : "";
-      const blockBadge = node.esta_bloqueado ? `<span class="badge badge-blocked">⚠️ Bloqueado</span>` : "";
+  /**
+   * Quais nos tem cartao no DOM agora: os que cruzam a janela do canvas
+   * crescida de meia janela para cada lado, mais os fixos (o cartao arrastado).
+   * `vista.todos` — sem fonte da vista — materializa tudo.
+   */
+  idsDosCartoesDaJanela(vista) {
+    if (vista.todos) return new Set(this.state.nodes.keys());
+    const janela = janelaComMargem(retanguloVisivel(vista));
+    const dentro = idsNaJanela({
+      posicoes: this.state.nodePositions,
+      tamanhos: this.tamanhosDosCartoes,
+      janela,
+      tamanhoPadrao: TAMANHO_PADRAO_DO_CARTAO,
+    });
+    const ids = new Set();
+    for (const id of dentro) {
+      if (this.state.nodes.has(id)) ids.add(id);
+    }
+    // Sem posicao gravada o cartao nasce em (100, 100); nao ha o que comparar
+    // com a janela, entao ele fica.
+    if (this.state.nodePositions.size < this.state.nodes.size) {
+      for (const id of this.state.nodes.keys()) {
+        if (!this.state.nodePositions.has(id)) ids.add(id);
+      }
+    }
+    for (const id of vista.idsFixos ?? []) {
+      if (this.state.nodes.has(id)) ids.add(id);
+    }
+    return ids;
+  }
 
-      // Tudo o que vem do grafo passa por escapeHtml: status, posse, tipo e id
-      // são escritos por agentes, e o card roda na origem que escreve como humano.
-      const tipoSeguro = escapeHtml(node.tipo);
-      const idSeguro = escapeHtml(id);
-      el.innerHTML = `
+  /**
+   * Faz o DOM dos cartoes acompanhar a janela: cria os que entraram, remove os
+   * que sairam e nao toca nos que ficaram. Mede so os recem-criados, de uma vez,
+   * depois de anexa-los todos. Devolve os ids criados.
+   */
+  sincronizarCartoes() {
+    const vista = this.vistaDaJanela();
+    if (!vista) return [];
+    const desejados = this.idsDosCartoesDaJanela(vista);
+
+    for (const [id, elemento] of this.nodeElements) {
+      if (desejados.has(id)) continue;
+      elemento.remove();
+      this.nodeElements.delete(id);
+    }
+
+    const fragmento = document.createDocumentFragment();
+    const criados = [];
+    for (const id of desejados) {
+      if (this.nodeElements.has(id)) continue;
+      const elemento = this.criarCartao(id, this.state.nodes.get(id));
+      fragmento.appendChild(elemento);
+      this.nodeElements.set(id, elemento);
+      criados.push(id);
+    }
+    if (criados.length) this.nodesLayer.appendChild(fragmento);
+    this.medirTamanhosDosCartoes(criados);
+    return criados;
+  }
+
+  /**
+   * Sincroniza o DOM com o que a janela do canvas mostra agora. E o que pan,
+   * zoom e a mudanca de tamanho do viewport disparam, e o que render() chama ao
+   * fim. Sincrono de proposito: quem agenda por quadro e o canvas_interactions.
+   */
+  atualizarJanela() {
+    const criados = this.sincronizarCartoes();
+    // O tamanho medido de um cartao novo pode diferir do padrao com que as
+    // arestas dele foram tracadas.
+    for (const id of criados) this.redesenharArestasDoNo(id);
+  }
+
+  /**
+   * Monta o cartao de um no, ja com os estados de agora: selecionado, bloqueado
+   * e o destaque de caminho. E o unico lugar que cria cartao — a janela cria
+   * em lote, na hora em que ele entra, e medirCartoes cria os ausentes.
+   */
+  criarCartao(id, node) {
+    const pos = this.state.nodePositions.get(id) || { x: 100, y: 100 };
+    const el = document.createElement("div");
+    el.className = `node-card ${this.state.selectedElement?.id === id ? "selected" : ""}`;
+    if (node.esta_bloqueado) el.classList.add("blocked-task");
+    if (this.nosDoDestaque) el.classList.add(this.nosDoDestaque.has(id) ? "node-highlighted" : "node-dimmed");
+    el.id = `node-${id}`;
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y}px`;
+
+    const statusBadge = node.propriedades?.status ? `<span class="badge badge-status">${escapeHtml(node.propriedades.status)}</span>` : "";
+    const lockBadge = node.lock_ativo ? `<span class="badge badge-locked">🔒 ${escapeHtml(node.lock_ativo)}</span>` : "";
+    const blockBadge = node.esta_bloqueado ? `<span class="badge badge-blocked">⚠️ Bloqueado</span>` : "";
+
+    // Tudo o que vem do grafo passa por escapeHtml: status, posse, tipo e id
+    // são escritos por agentes, e o card roda na origem que escreve como humano.
+    const tipoSeguro = escapeHtml(node.tipo);
+    const idSeguro = escapeHtml(id);
+    el.innerHTML = `
         <div class="node-header node-type-${tipoSeguro}">
           <span class="node-type-label">${tipoSeguro}</span>
           <span class="node-id-badge">#${escapeHtml(id.slice(-6))}</span>
@@ -181,40 +290,38 @@ export class CanvasRenderer {
         <div class="port port-bottom" data-port-bottom="${idSeguro}" title="Inferior"></div>
       `;
 
-      // Selection on click
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.state.selectElement("node", id);
-      });
+    // Selection on click
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.state.selectElement("node", id);
+    });
 
-      // Path highlighting on hover
-      el.addEventListener("mouseenter", () => {
-        this.hoveredNodeId = id;
-        this.applyPathHighlight(id);
-      });
+    // Path highlighting on hover
+    el.addEventListener("mouseenter", () => {
+      this.hoveredNodeId = id;
+      this.applyPathHighlight(id);
+    });
 
-      el.addEventListener("mouseleave", () => {
-        this.hoveredNodeId = null;
-        this.applyPathHighlight(this.state.selectedElement?.type === "node" ? this.state.selectedElement.id : null);
-      });
+    el.addEventListener("mouseleave", () => {
+      this.hoveredNodeId = null;
+      this.applyPathHighlight(this.state.selectedElement?.type === "node" ? this.state.selectedElement.id : null);
+    });
 
-      this.nodesLayer.appendChild(el);
-      this.nodeElements.set(id, el);
-    }
-
-    this.medirTamanhosDosCartoes();
+    return el;
   }
 
   /**
-   * Mede todos os cartoes numa unica passada, so com leituras: o navegador faz
-   * o layout uma vez, na primeira, e as demais saem do mesmo layout. O tamanho
-   * guardado e o da classe atual da superficie — em lod-macro o CSS encolhe o
-   * cartao —, por isso setLOD remede quando a classe muda.
+   * Mede os cartoes dados (por padrao, todos os presentes) numa unica passada,
+   * so com leituras: o navegador faz o layout uma vez, na primeira, e as demais
+   * saem do mesmo layout. O tamanho guardado e o da classe atual da superficie
+   * — em lod-macro o CSS encolhe o cartao —, por isso setLOD remede os
+   * presentes quando a classe muda. Os ausentes ficam com a medida antiga ate
+   * reaparecerem; e uma aproximacao, e quando voltam sao medidos de novo.
    */
-  medirTamanhosDosCartoes() {
-    this.tamanhosDosCartoes.clear();
-    for (const [id, elemento] of this.nodeElements) {
-      this.tamanhosDosCartoes.set(id, { largura: elemento.offsetWidth, altura: elemento.offsetHeight });
+  medirTamanhosDosCartoes(ids = this.nodeElements.keys()) {
+    for (const id of ids) {
+      const elemento = this.nodeElements.get(id);
+      if (elemento) this.tamanhosDosCartoes.set(id, { largura: elemento.offsetWidth, altura: elemento.offsetHeight });
     }
   }
 
@@ -321,19 +428,49 @@ export class CanvasRenderer {
    * ocupa de verdade — o arranjo automático. Em zoom distante o cartão encolhe
    * por CSS, e arranjar pelo tamanho encolhido deixaria os cartões colados
    * assim que a vista se aproximasse.
+   *
+   * Todos os nos, nao so os que a janela mantem no DOM: os ausentes sao
+   * montados num conteiner fora da tela, medidos junto com os presentes e
+   * descartados. E raro (so o arranjo automatico) e pode custar.
    */
   medirCartoes() {
     const encolhido = this.surface?.classList.contains("lod-macro");
     if (encolhido) this.surface.classList.remove("lod-macro");
+
+    const foraDaTela = document.createElement("div");
+    foraDaTela.style.cssText = "position:absolute;visibility:hidden;left:-99999px;top:0;width:1000px;";
+    const ausentes = new Map();
+    for (const [id, node] of this.state.nodes) {
+      if (this.nodeElements.has(id)) continue;
+      const elemento = this.criarCartao(id, node);
+      elemento.style.left = "0px";
+      elemento.style.top = "0px";
+      foraDaTela.appendChild(elemento);
+      ausentes.set(id, elemento);
+    }
+    this.nodesLayer.appendChild(foraDaTela);
+
+    // So leituras daqui ate remover o conteiner: um unico layout.
     const tamanhos = new Map();
     for (const [id, elemento] of this.nodeElements) {
       tamanhos.set(id, { largura: elemento.offsetWidth, altura: elemento.offsetHeight });
     }
+    for (const [id, elemento] of ausentes) {
+      tamanhos.set(id, { largura: elemento.offsetWidth, altura: elemento.offsetHeight });
+    }
+
+    foraDaTela.remove();
     if (encolhido) this.surface.classList.add("lod-macro");
     return tamanhos;
   }
 
   applyPathHighlight(targetNodeId) {
+    // Lembra o alvo e o que ele liga: um cartao que a janela criar depois nasce
+    // destacado ou esmaecido sem esperar o proximo hover.
+    this.alvoDeDestaque = targetNodeId || null;
+    this.nosDoDestaque = null;
+    this.arestasDoDestaque = null;
+
     if (!targetNodeId) {
       this.nodesLayer.querySelectorAll(".node-card").forEach((el) => {
         el.classList.remove("node-dimmed", "node-highlighted");
@@ -354,6 +491,8 @@ export class CanvasRenderer {
         connectedEdges.add(edgeId);
       }
     }
+    this.nosDoDestaque = connectedNodes;
+    this.arestasDoDestaque = connectedEdges;
 
     this.nodesLayer.querySelectorAll(".node-card").forEach((el) => {
       const id = el.id.replace("node-", "");

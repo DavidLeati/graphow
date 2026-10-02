@@ -32,6 +32,19 @@ export class CanvasInteractions {
     this.dragOffset = { x: 0, y: 0 };
     this.arrastePendente = null;
     this.quadroDoArraste = null;
+    this.quadroDaJanela = null;
+
+    // O renderer so mantém no DOM os cartões perto da janela e pergunta aqui o
+    // que ela mostra. O cartão arrastado não sai, mesmo que o ponteiro o leve
+    // para além da margem: tirá-lo do DOM no meio do gesto o perderia da mão.
+    this.renderer.fonteDaVista = () => ({
+      panX: this.panX,
+      panY: this.panY,
+      zoom: this.zoom,
+      larguraDoViewport: this.viewport.clientWidth,
+      alturaDoViewport: this.viewport.clientHeight,
+      idsFixos: this.draggingNode ? [this.draggingNode] : [],
+    });
 
     this.connectingFromId = null;
     this.tempEdgePath = null;
@@ -85,6 +98,13 @@ export class CanvasInteractions {
     window.addEventListener("mousemove", (e) => this.onMouseMove(e));
     window.addEventListener("mouseup", (e) => this.onMouseUp(e));
     this.viewport.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
+
+    // O viewport muda de tamanho sem pan nem zoom quando uma lateral abre ou
+    // fecha, e a janela do canvas muda junto. Também é o que traz os cartões de
+    // volta quando o canvas deixa de estar oculto.
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(() => this.renderer.atualizarJanela()).observe(this.viewport);
+    }
 
     // Double click to create node; on a container card, open it
     this.viewport.addEventListener("dblclick", (e) => {
@@ -184,9 +204,9 @@ export class CanvasInteractions {
   centralizarNo(id) {
     const pos = this.state.nodePositions.get(id);
     if (!pos) return false;
-    const card = document.getElementById(`node-${id}`);
-    const largura = card?.offsetWidth || 220;
-    const altura = card?.offsetHeight || 80;
+    // O cartão pode estar fora do DOM, longe da janela: o renderer responde com
+    // a última medida ou, se nunca o desenhou, com o tamanho padrão.
+    const { largura, altura } = this.renderer.retanguloDoCartao(id);
     this.panX = this.viewport.clientWidth / 2 - (pos.x + largura / 2) * this.zoom;
     this.panY = this.viewport.clientHeight / 2 - (pos.y + altura / 2) * this.zoom;
     this.updateTransform();
@@ -322,6 +342,8 @@ export class CanvasInteractions {
       this.state.savePositions();
       this.draggingNode = null;
       if (this.minimap) this.minimap.update();
+      // Solto longe da janela, o cartão que a segurava deixa de ser fixo.
+      this.agendarAtualizacaoDaJanela();
     }
     if (this.isPanning) {
       this.isPanning = false;
@@ -383,12 +405,25 @@ export class CanvasInteractions {
     this.state.saveViewport(this.panX, this.panY, this.zoom);
   }
 
+  /**
+   * Pan e zoom disparam a cada evento do mouse, e a janela só precisa estar
+   * certa no quadro que vai ser pintado: no máximo uma atualização por quadro.
+   */
+  agendarAtualizacaoDaJanela() {
+    if (this.quadroDaJanela) return;
+    this.quadroDaJanela = requestAnimationFrame(() => {
+      this.quadroDaJanela = null;
+      this.renderer.atualizarJanela();
+    });
+  }
+
   updateTransform() {
     this.surface.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
     const zoomInd = document.getElementById("zoom-indicator");
     if (zoomInd) zoomInd.textContent = `${Math.round(this.zoom * 100)}%`;
 
     this.renderer.setLOD(this.zoom);
+    this.agendarAtualizacaoDaJanela();
     if (this.minimap) this.minimap.updateFrustum();
     this.aoTransformar?.(this.zoom);
   }
