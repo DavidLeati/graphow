@@ -260,12 +260,12 @@ def _projeto_a_com_task_sob_goal() -> list[ItemPatch]:
     ]
 
 
-def test_vista_repete_o_veredito_do_kernel_quando_dois_projetos_empatam_edge_case() -> None:
-    """Caso de borda: Task de A orientada por Decision de B, os dois a quatro saltos; só a ordem das arestas decide.
+def test_vista_repete_o_veredito_do_kernel_com_orienta_de_outro_projeto_edge_case() -> None:
+    """Caso de borda: Task de A orientada por Decision de B, os dois a quatro saltos; a contenção decide.
 
-    A busca própria da vista seguia a ordem dos nós da fronteira e achava A; o
-    rastreador do kernel segue a ordem das arestas e acha B. A seção diz o que o
-    RoleGate aplica, e não o que outra busca concluiria.
+    Só `contem`, `produz` e `decompoe` dizem a que Projeto a Task pertence, então
+    a Decision de B não puxa a política de B: a Task segue com a de A. A seção
+    diz o que o RoleGate aplica, e não o que outra busca concluiria.
     """
     kernel = _kernel(
         _projeto_b_com_decisao(),
@@ -277,10 +277,10 @@ def test_vista_repete_o_veredito_do_kernel_quando_dois_projetos_empatam_edge_cas
 
     secao = _secao(_vista(kernel, "task-a2"))
 
-    assert RastreadorProjetoAncestral().rastrear("task-a2", estado) == "proj-b"
-    assert nome_do_preset(do_kernel) == "arbitragem_maxima"
+    assert RastreadorProjetoAncestral().rastrear("task-a2", estado) == "proj-a"
+    assert nome_do_preset(do_kernel) == "governanca_maxima"
     assert secao == list(descrever_governanca(do_kernel))
-    assert secao != [LINHA_DA_GOVERNANCA_MAXIMA]
+    assert secao == [LINHA_DA_GOVERNANCA_MAXIMA]
 
 
 def test_vista_de_task_sem_ambiguidade_diz_a_politica_do_seu_projeto_nominal() -> None:

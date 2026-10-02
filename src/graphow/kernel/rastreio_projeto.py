@@ -1,14 +1,21 @@
 """Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
 
+A subida segue só as arestas de contenção (`contem`, `produz`, `decompoe`).
+Qualquer outra aresta (`orienta`, `deriva_de`, `justifica`, `bloqueia`...) liga
+nós por significado, não por pertencimento, e a política de governança é do
+Projeto a que o nó pertence: deixar uma aresta de outro Projeto decidir isso
+permitiria puxar a política mais permissiva para um alvo alheio.
+
 Apenas arestas `depende_de` são garantidamente acíclicas pelo InvariantGate.
-`contem`, `substitui` e `deriva_de` podem formar ciclos, então a subida precisa
-de controle de visitados.
+As de contenção podem formar ciclos, então a subida precisa de controle de
+visitados.
 """
 
 from collections.abc import Sequence
 from typing import Any
 
 from graphow.core.models import ArestaGrafo, GrafoEstado, MetadadosTemporais, NoGrafo
+from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch
 
@@ -17,7 +24,7 @@ SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 
 
 class RastreadorProjetoAncestral:
-    """Encontra o Projeto que contém um nó, percorrendo as arestas de entrada."""
+    """Encontra o Projeto que contém um nó, subindo só pelas arestas de contenção."""
 
     def rastrear(self, id_no: str, estado: GrafoEstado) -> str | None:
         """Consulta iterativa que devolve o identificador do Projeto ancestral, se existir."""
@@ -47,8 +54,13 @@ class RastreadorProjetoAncestral:
         estado: GrafoEstado,
         visitados: set[str],
     ) -> tuple[str | None, list[str]]:
-        """Expande um nível de ancestrais e sinaliza o primeiro Projeto alcançado."""
+        """Expande um nível de ancestrais e sinaliza o Projeto alcançado, se houver.
+
+        Com mais de um Projeto no mesmo nível, vale o de menor id: a escolha não
+        depende da ordem em que as arestas foram gravadas.
+        """
         proxima_fronteira: list[str] = []
+        projetos_do_nivel: list[str] = []
         alvos = frozenset(fronteira)
         for aresta in self._arestas_que_chegam(estado, alvos):
             pai = estado.nos.get(aresta.origem_id)
@@ -56,17 +68,22 @@ class RastreadorProjetoAncestral:
                 continue
             visitados.add(pai.id)
             if pai.tipo == TipoNo.PROJETO:
-                return pai.id, proxima_fronteira
-            proxima_fronteira.append(pai.id)
-        return None, proxima_fronteira
+                projetos_do_nivel.append(pai.id)
+            else:
+                proxima_fronteira.append(pai.id)
+        return (min(projetos_do_nivel) if projetos_do_nivel else None), proxima_fronteira
 
     def _arestas_que_chegam(
         self,
         estado: GrafoEstado,
         destinos: frozenset[str],
     ) -> tuple[ArestaGrafo, ...]:
-        """Seleciona as arestas cujo destino pertence ao conjunto informado."""
-        return tuple(aresta for aresta in estado.arestas.values() if aresta.destino_id in destinos)
+        """Seleciona as arestas de contenção cujo destino pertence ao conjunto informado."""
+        return tuple(
+            aresta
+            for aresta in estado.arestas.values()
+            if aresta.destino_id in destinos and aresta.tipo in ARESTAS_DE_CONTENCAO
+        )
 
 
 def projetar_lote(operacoes: Sequence[ItemPatch], estado: GrafoEstado) -> GrafoEstado:

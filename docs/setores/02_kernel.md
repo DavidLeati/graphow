@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-22 módulos · 3644 linhas · 29 classes
+22 módulos · 3661 linhas · 29 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -28,7 +28,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 56 | Resolve a política de governança efetiva lendo o estado do grafo. |
-| [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 143 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
+| [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 160 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
@@ -397,7 +397,7 @@ Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
 
 ### `RastreadorProjetoAncestral`
 
-*serviço* — Encontra o Projeto que contém um nó, percorrendo as arestas de entrada.
+*serviço* — Encontra o Projeto que contém um nó, subindo só pelas arestas de contenção.
 
 - `rastrear(id_no: str, estado: GrafoEstado) -> str | None` — Consulta iterativa que devolve o identificador do Projeto ancestral, se existir.
 
