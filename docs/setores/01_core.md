@@ -10,7 +10,7 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 
 ## Inventário
 
-8 módulos · 735 linhas · 33 classes
+8 módulos · 743 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,9 +18,9 @@ Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 73 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
-| [`core/ontologia.py`](#coreontologia) | 66 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
+| [`core/ontologia.py`](#coreontologia) | 69 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 71 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
-| [`core/types.py`](#coretypes) | 115 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+| [`core/types.py`](#coretypes) | 120 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/events.py`
 
@@ -193,11 +193,11 @@ Versão declarada do vocabulário da ontologia e a impressão digital que a chec
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `VERSAO_ONTOLOGIA` | `str` | `'1.2.0'` |
+| `VERSAO_ONTOLOGIA` | `str` | `'1.3.0'` |
 | `ARESTAS_DE_CONTENCAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.CONTEM, TipoAresta.PRODUZ, TipoAresta.DECOMPOE})` |
 | `VERSAO_ONTOLOGIA_DESCONHECIDA` | `str` | `'0'` |
 | `TAMANHO_DA_ASSINATURA` | `int` | `12` |
-| `ASSINATURA_DECLARADA` | `str` | `'52c2da57e585'` |
+| `ASSINATURA_DECLARADA` | `str` | `'0d0a5e75ff80'` |
 
 ### Funções do módulo
 

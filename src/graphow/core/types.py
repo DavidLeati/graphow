@@ -10,6 +10,9 @@ class TipoNo(str, Enum):
     PROJETO = "Projeto"
     SETOR = "Setor"
     SESSAO = "Sessao"
+    # Raiz como o Projeto, sem contenção: guarda a política de governança global.
+    # Só o humano a cria, edita e remove, e nenhuma aresta a toca.
+    GOVERNANCA = "Governanca"
 
     # Camada de Trabalho
     GOAL = "Goal"
@@ -56,6 +59,8 @@ class PapelAutor(str, Enum):
     PLANEJADOR = "planejador"
     EXECUTOR = "executor"
     REVISOR = "revisor"
+    # Agente a quem a política de governança entrega os gestos que tira do humano.
+    ARBITRO = "arbitro"
     SISTEMA = "sistema"
 
 

@@ -26,7 +26,10 @@ from graphow.core.types import (
 # `deriva_de` passa a admitir a Evidence que avalia um Artifact ou uma Task, o
 # planejador registra Evidence de leitura de código, e a Evidence que declara
 # localização (`arquivo`, `linhas`, `trecho`) precisa declará-la inteira.
-VERSAO_ONTOLOGIA: str = "1.2.0"
+# 1.3.0: entram o tipo `Governanca`, raiz como o Projeto e exclusiva do humano,
+# em que nenhuma aresta toca, e o papel `arbitro`, a quem a política de
+# governança entrega os gestos que tira do humano.
+VERSAO_ONTOLOGIA: str = "1.3.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -63,4 +66,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "52c2da57e585"
+ASSINATURA_DECLARADA: str = "0d0a5e75ff80"

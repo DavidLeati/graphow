@@ -24,6 +24,9 @@ from graphow.kernel.rastreio_projeto import projetar_lote
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 
+# Raízes da hierarquia: nascem sem pai. O Governanca é raiz como o Projeto.
+TIPOS_RAIZ: frozenset[TipoNo] = frozenset({TipoNo.PROJETO, TipoNo.GOVERNANCA})
+
 
 @dataclass(frozen=True)
 class EstruturaAposLote:
@@ -55,7 +58,7 @@ class EstruturaAposLote:
         """Nós que o lote cria, ou de que o agente tira a contenção, e ficam sem pai."""
         desligados = self._pontas_de_arestas_perdidas(ARESTAS_DE_CONTENCAO, destino=True)
         com_pai = {aresta.destino_id for aresta in self._arestas_depois(ARESTAS_DE_CONTENCAO)}
-        return self._sobreviventes_sem(self.criados | desligados, com_pai, excluir=TipoNo.PROJETO)
+        return self._sobreviventes_sem(self.criados | desligados, com_pai, excluir=TIPOS_RAIZ)
 
     def aprendizados_sem_origem(self) -> tuple[str, ...]:
         """Aprendizados que o lote cria, ou de que o agente tira a origem, e ficam sem `deriva_de`."""
@@ -82,11 +85,11 @@ class EstruturaAposLote:
         )
         return frozenset(aresta.destino_id if destino else aresta.origem_id for aresta in perdidas)
 
-    def _sobreviventes_sem(self, candidatos: frozenset[str], sustentados: set[str], *, excluir: TipoNo) -> tuple[str, ...]:
-        """Candidatos que seguem no grafo, não são do tipo excluído e não estão sustentados."""
+    def _sobreviventes_sem(self, candidatos: frozenset[str], sustentados: set[str], *, excluir: frozenset[TipoNo]) -> tuple[str, ...]:
+        """Candidatos que seguem no grafo, não são de um tipo excluído e não estão sustentados."""
         return tuple(
             id_no for id_no in sorted(candidatos)
-            if id_no in self.depois.nos and self.depois.nos[id_no].tipo != excluir and id_no not in sustentados
+            if id_no in self.depois.nos and self.depois.nos[id_no].tipo not in excluir and id_no not in sustentados
         )
 
 

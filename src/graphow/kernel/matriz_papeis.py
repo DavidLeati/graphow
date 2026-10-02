@@ -12,7 +12,10 @@ from dataclasses import dataclass
 
 from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 
-TIPOS_EXCLUSIVOS_DO_HUMANO: frozenset[TipoNo] = frozenset({TipoNo.CONSTRAINT})
+# O Governanca guarda a política que decide o que os agentes podem fazer: um
+# agente que a escrevesse desligaria todos os portões. Só o humano a cria,
+# edita e remove, em qualquer projeto, inclusive sob autonomia ilimitada.
+TIPOS_EXCLUSIVOS_DO_HUMANO: frozenset[TipoNo] = frozenset({TipoNo.CONSTRAINT, TipoNo.GOVERNANCA})
 TIPOS_EDITAVEIS_PELO_SISTEMA: frozenset[TipoNo] = frozenset({TipoNo.RUN, TipoNo.SESSAO})
 
 # Apagar a dúvida é a forma mais direta de encerrá-la sem resposta. Constraint já
@@ -46,7 +49,7 @@ HUMANO_E_TRABALHO: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.EXECUTOR, Pap
 # dois lados justifica: o planejador decide sobre o trecho que leu.
 QUEM_JUSTIFICA: frozenset[PapelAutor] = HUMANO_E_TRABALHO | {PapelAutor.PLANEJADOR}
 TODOS_OS_PAPEIS_DE_AGENTE: frozenset[PapelAutor] = frozenset(
-    {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
+    {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR, PapelAutor.ARBITRO}
 )
 HUMANO_E_AGENTES: frozenset[PapelAutor] = SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE
 

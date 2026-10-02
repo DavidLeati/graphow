@@ -281,7 +281,18 @@ class SchemaGate:
                 "SchemaGate",
                 modo=ModoFalhaMAST.REFERENCIA_INEXISTENTE,
             )
+        if TipoNo.GOVERNANCA in (tipo_origem, tipo_destino):
+            return self._recusar_aresta_em_governanca(tipo_aresta)
         return self._validar_par_declarado(tipo_aresta, (tipo_origem, tipo_destino))
+
+    def _recusar_aresta_em_governanca(self, tipo_aresta: TipoAresta) -> ResultadoValidacao:
+        """O Governanca é raiz isolada: nenhuma aresta o toca, como origem ou destino."""
+        return ResultadoValidacao.falha(
+            f"Aresta '{tipo_aresta.value}' não pode tocar um nó 'Governanca', "
+            "nem como origem nem como destino: ele é raiz isolada da política de governança",
+            "SchemaGate",
+            modo=ModoFalhaMAST.PAR_DE_ARESTA_INVALIDO,
+        )
 
     def _validar_par_declarado(
         self,

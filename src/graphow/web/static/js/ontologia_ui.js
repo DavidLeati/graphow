@@ -14,6 +14,7 @@ export const ORDEM_DE_TRABALHO = ["Goal", "Task", "Question", "Decision", "Const
 
 const APRESENTACAO_DOS_TIPOS = {
   Projeto: { nome: "Projeto", plural: "Projetos", icone: "briefcase", descricao: "Raiz macro da iniciativa" },
+  Governanca: { nome: "Governança", plural: "Governanças", icone: "shield", descricao: "Política de governança global: o que os agentes podem fazer, só o humano a escreve" },
   Setor: { nome: "Setor", plural: "Setores", icone: "folder", descricao: "Domínio ou subsistema técnico" },
   Sessao: { nome: "Sessão", plural: "Sessões", icone: "folder-clock", descricao: "Janela de contexto temporal" },
   Goal: { nome: "Goal", plural: "Goals", icone: "target", descricao: "Intenção ou objetivo de alto nível" },
@@ -34,6 +35,7 @@ export function apresentarTipo(tipo) {
 
 /** Cor do tipo como referência às variáveis do tema, que o canvas também usa. */
 export function corDoTipo(tipo) {
+  if (tipo === "Governanca") return "var(--color-governanca, #8b5cf6)";
   return `var(--color-${String(tipo || "note").toLowerCase()}, var(--color-note))`;
 }
 
