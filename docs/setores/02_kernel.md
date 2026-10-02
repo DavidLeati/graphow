@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.kernel`
 
-Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado.
+Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.
 
 ## Inventário
 
-23 módulos · 3959 linhas · 30 classes
+23 módulos · 3960 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -28,7 +28,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 269 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
-| [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 65 | Resolve a política de governança efetiva lendo o estado do grafo. |
+| [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |

@@ -7,7 +7,7 @@
 
 ## 📌 Visão Geral
 
-O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre desenvolvedores humanos e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores).
+O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre desenvolvedores humanos e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores e, onde a política de governança o autoriza, o Árbitro).
 
 A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
 1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
@@ -61,6 +61,7 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Projeto`**: Raiz macro da iniciativa.
 - **`Setor`**: Domínio ou subsistema técnico/funcional.
 - **`Sessao`**: Janela de contexto temporal e transacional.
+- **`Governanca`**: O singleton `governanca-global`, com a política de governança global (`preset` e `personalizada`). Raiz como o `Projeto`, sem arestas, e só o humano o cria, edita ou remove. A política de cada projeto mora na propriedade `governanca` do próprio `Projeto` (veja a seção Governança Configurável, abaixo).
 
 ### 2. Camada de Trabalho (Grafo de Intenção e Execução)
 - **`Goal`**: Intenção ou objetivo de alto nível.
@@ -72,7 +73,7 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Evidence`**: Dado empírico, benchmark ou prova que justifica decisões.
 - **`Run`**: Registro de execução e telemetria de um modelo de IA.
 - **`Note`**: Anotação livre, aviso reativo ou contexto efêmero. Com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
-- **`Aprendizado`**: Memória de longo prazo, o que sobrevive ao projeto. Nasce com origem obrigatória (`deriva_de`) e só alcança outros projetos quando o humano o promove (`vale_para` ou `alcance: global`).
+- **`Aprendizado`**: Memória de longo prazo, o que sobrevive ao projeto. Nasce com origem obrigatória (`deriva_de`) e só alcança outros projetos quando é promovido (`vale_para`, pelo humano ou pelo árbitro conforme a política; `alcance: global`, sempre pelo humano).
 
 ### 3. Matriz de Arestas Permitidas (13 Tipos)
 
@@ -88,13 +89,13 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`ocorreu_em`** | `Run` $\rightarrow$ `Sessao` | humano, sistema / humano, sistema | Associação de execução agêntica à sessão. |
 | **`decompoe`** | `Goal` $\rightarrow$ `Task`, `Task` $\rightarrow$ `Task` | humano, planejador | Decomposição hierárquica de tarefas. |
 | **`depende_de`** | `Task` $\rightarrow$ `Task` | humano, planejador | Pré-requisito de execução (DAG acíclico estrito). |
-| **`bloqueia`** | `Question` $\rightarrow$ `Task` | todos / **humano** | Bloqueia a conclusão da tarefa até resolução humana. |
+| **`bloqueia`** | `Question` $\rightarrow$ `Task` | todos / **humano**, ou o árbitro com `responder_questao` | Bloqueia a conclusão da tarefa até a resolução do humano ou, conforme a política, do árbitro. |
 | **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, planejador, executor, revisor | Fundamentação empírica de decisões. |
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
 | **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador; entre `Aprendizado`s também executor e revisor | Evolução e invalidação histórica. Entre aprendizados é consolidação: um que substitui vários. O substituído fica no grafo, marcado; a vista carrega só o vigente, e a linha do substituto diz quem ele absorveu. |
-| **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano** | Restrição mandatória sobre a execução. |
+| **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano**, ou o árbitro com `constraint` | Restrição mandatória sobre a execução. |
 | **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Evidence` $\rightarrow$ `Artifact` / `Task`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
-| **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano** | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a autonomia ilimitada a abre a agentes. |
+| **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano**, ou o árbitro com `promover_aprendizado` | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a estrutura ilimitada a abre a agentes comuns. |
 | **`orienta`** | `Decision` $\rightarrow$ `Task` / `Goal` | humano, planejador | A decisão que vale para a tarefa ou o objetivo, herdada pela decomposição. Chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão. O executor não a cria nem a remove: não mexe no que governa a própria tarefa. |
 
 ---
@@ -103,23 +104,27 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 
 Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6902 e processada sequencialmente:
 
-1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
+1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Também confere a política de governança declarada (`preset` e `personalizada` do nó `Governanca` e da propriedade `governanca` do `Projeto`): preset ou gesto desconhecido, valor fora do domínio do gesto e um segundo nó `Governanca` com id diferente de `governanca-global` caem com `estrutura_incompleta`, e nenhuma aresta toca o `Governanca`. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
-   - **`humano`**: Acesso irrestrito (único autorizado a criar/editar `Constraint`, encerrar uma `Question` e estruturar a camada de navegação).
+   - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro.
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
+   - **`arbitro`**: O agente a quem a política de governança do projeto entrega os gestos que tira do humano. Por si só cria só `Evidence`, `Decision` e `Note`; o resto vem da política do projeto do alvo e é recusado onde ela o deixa com o humano. Nunca promove a global, nunca altera a governança, não encerra a `Question` que abriu nem promove o `Aprendizado` que registrou, e não fecha `Task`. Servidor: `graphow mcp --papel arbitro`.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
 
    Estas regras valem para **todo** papel não humano, e valem no kernel, não no
    nome da ferramenta: escrever na `Question` um status que não seja `aberta`
    (ou remover o status), remover uma `Question`, remover a aresta `bloqueia`,
    escrever `alcance` num `Aprendizado` ou criar `vale_para`, remover um
-   `Aprendizado` e escrever `nivel_autonomia` num `Projeto` exigem sessão
-   humana. Sem as três primeiras, um agente encerrava a própria escalação com
-   um `propor_patch` e concluía a tarefa em seguida; sem as duas seguintes,
-   promoveria a própria memória a memória de todos; sem a última, se daria
-   autonomia ilimitada.
+   `Aprendizado` exigem o humano, ou o árbitro quando a política do projeto
+   lhe entrega o gesto (`responder_questao`, `promover_aprendizado`, `excluir`);
+   escrever `nivel_autonomia` ou `governanca` num `Projeto`, mexer no nó
+   `Governanca` e promover à global exigem o humano, sempre. Sem as três
+   primeiras, um agente encerrava a própria escalação com um `propor_patch` e
+   concluía a tarefa em seguida; sem as duas seguintes, promoveria a própria
+   memória a memória de todos; sem a última, se daria autonomia ilimitada ou
+   desligaria todos os portões pela política.
 
    A remoção é julgada pelo que está no grafo, nunca pelo valor enviado: o tipo
    e as pontas de uma aresta removida vêm do estado, e um agente remove só o
@@ -133,6 +138,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
+   - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
    - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor, e isso inclui criar ou remover as arestas que redefinem a tarefa (`depende_de`, `decompoe`, `orienta`, `escopa`, `substitui`). `bloqueia` e `deriva_de` seguem livres: a escalação e a proveniência continuam chegando à tarefa travada.
 4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
@@ -140,6 +146,52 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    Quando outro processo ocupa a posição entre a validação e o commit, o kernel revalida contra o log atualizado, dobrando só o que o outro gravou, e tenta de novo depois de uma espera sorteada que dobra a cada perda, até dez vezes. Com quatro tentativas coladas, três processos gravando juntos perdiam de 2% a 7% dos lotes; no mesmo cenário, agora, nenhum de 900. Ler o que outro processo gravou custa a janela nova, lida pelo SQL (0,6 ms num log de 14 mil eventos), e não o ramo inteiro (117 ms).
 
    Abrir o banco parte do último **instantâneo** da projeção (`projection/instantaneo.py`), guardado no mesmo arquivo, e dobra só o que veio depois dele: 55 a 80 ms num log de 14 mil eventos, contra 200 ms do replay completo. O instantâneo é cache, não verdade. Ele só vale se o evento na posição do corte for o mesmo de quando foi gravado e se a impressão digital do código de projeção for a de agora; qualquer divergência cai no replay, e `reparar-sequencias` apaga todos.
+
+---
+
+## ⚖️ Governança Configurável
+
+Quem faz cada gesto que antes era sempre do humano deixou de ser fixo: é uma
+**política**, em dois níveis (global e por projeto), guardada no próprio grafo
+para o replay dar o mesmo veredito. São dez gestos: `responder_questao`,
+`promover_aprendizado`, `constraint`, `estrutura`, `excluir`, `fechar_goal`,
+`encerrar_sessao`, `liberar_posse_alheia`, `integracao` e `max_correcoes`.
+Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
+`arbitro` fazem); `estrutura` vale `estrito` ou `ilimitado`, e `max_correcoes` é
+um inteiro de 0 a 5, as reprovações em cadeia antes do teto (a de ordem N escala; 2 = a original e a primeira correção). A tabela completa está na
+[Especificação Ontológica](docs/ONTOLOGY.md#5-governança-configurável).
+
+**Três presets.** `governanca_maxima` (todos os gestos com o humano, estrutura
+estrita, `max_correcoes` 2) é o padrão, e vale sem nó `Governanca`. `arbitragem_maxima`
+entrega ao árbitro todos os gestos que a política pode delegar (estrutura
+ilimitada, `max_correcoes` 2). Os dois são fixos. `personalizada` é a única editável,
+gesto a gesto, e fica sempre guardada à parte: trocar para um preset fixo não a
+apaga, e voltar a ela a recupera intacta.
+
+**Herança global para projeto.** O nó `governanca-global` guarda a política
+global. Cada `Projeto` herda dela (`herdar`, o padrão), escolhe um preset próprio
+ou usa uma `personalizada` parcial, em que cada gesto pode ser sobrescrito ou
+`herdar` da global por gesto. Um `Projeto` com o `nivel_autonomia: ilimitado`
+legado, sem política própria, segue valendo `estrutura: ilimitado`. A política de
+um nó é a do projeto que o contém pelas arestas de contenção (`contem`, `produz`,
+`decompoe`); se são vários projetos, vale a mais restritiva, gesto a gesto.
+
+**O que é sempre humano**, em qualquer preset: a **promoção global** de um
+`Aprendizado`, **configurar a governança** (o nó `Governanca` e as propriedades
+`governanca` e `nivel_autonomia` do projeto) e o **push** do git. É o meta-portão:
+um agente que escrevesse a política se daria todos os gestos. O árbitro também não
+responde a `Question` que abriu nem promove o `Aprendizado` que registrou.
+
+**O veredito é regra do kernel, não gesto.** Em todo preset, um agente só conclui
+uma `Task` com veredito de revisão `aprovado` (de revisor, humano ou árbitro);
+uma correção aprovada supera a rejeição que a motivou, e o aceite no teto de
+reprovações em cadeia, por uma `Decision`, é a outra porta.
+
+**Como configurar.**
+
+- **Aba Configurações.** Na interface web (`graphow web`), a engrenagem da faixa de ícones à esquerda (ou o comando "Configurações: governança e operação" da paleta, `Ctrl+P`) abre a aba. Escolha o escopo (Global ou um projeto), um preset nos cartões e, na `personalizada`, o valor de cada gesto; no projeto cada gesto pode `herdar`. A tabela mostra a origem de cada valor, as linhas sempre humanas e a auditoria do que o árbitro fez. Escolher um preset já grava.
+- **`configurar_governanca`.** O equivalente pelo MCP, numa sessão humana: `escopo` (`global` ou o id de um `Projeto`), `preset` e `personalizada` opcional. Devolve a política efetiva e a origem de cada gesto. `configurar_autonomia_projeto` segue como o caminho legado.
+- **Subagente `graphow-arbitro`.** Despachado pela raiz da orquestração quando a política lhe concede o gesto, decide num contexto novo o que a política entrega ao árbitro (responder ou descartar `Question`, promover `Aprendizado` ao Setor ou Projeto, criar `Constraint`, fechar `Goal`, liberar posse órfã, encerrar sessão esquecida) e escala ao humano o resto.
 
 ---
 
@@ -240,7 +292,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho e matriz das 13 arestas permitidas.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 13 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dez gestos, os presets, a herança e a regra do veredito.
 
 ---
 
@@ -382,6 +434,7 @@ identidade.
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
+| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dez gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas, ramo base, caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em
@@ -408,6 +461,7 @@ Quatro leituras sustentam a moldura, todas resolvidas no servidor:
 | `GET /api/ontologia` | Tipos de nó, pares de aresta aceitos e vocabulário de status, lidos da tabela do `SchemaGate` — a tela não mantém cópia |
 | `POST /api/nodes` com `contido_em` | Cria o contêiner e a aresta `contem` até o pai no mesmo lote: se o portão recusar a aresta, o nó também não entra |
 | `GET /api/memoria` | Os aprendizados e as sessões do ramo para o painel de memória, na mesma leitura do acervo de notas. `POST /api/memoria/aprendizados` e `POST /api/memoria/promocoes` recebem do humano o registro e a promoção, sob a identidade do servidor |
+| `GET /api/governanca`, `PUT /api/governanca/global`, `GET`/`PUT /api/projetos/<id>/governanca`, `GET /api/governanca/auditoria?limite=` | A política global e a do projeto (a configuração guardada, a política efetiva e a origem de cada gesto, mais o catálogo de gestos e presets lido da própria política), a escrita pelo humano e os eventos do árbitro. `POST /api/tarefas/<id>/liberar-posse` devolve a posse de uma tarefa |
 
 ---
 
@@ -485,7 +539,7 @@ fica fora do cabeçalho da vista de propósito: ele é obrigatório em toda leit
 então tudo que entra ali sai do orçamento de tokens de todo agente.
 
 Cada evento também declara **em qual vocabulário foi escrito**
-(`versao_ontologia`, hoje `1.2.0`), gravado no log e devolvido na linha do tempo
+(`versao_ontologia`, hoje `1.3.0`), gravado no log e devolvido na linha do tempo
 e no SSE. Sem isso, um log relido depois de um tipo mudar de nome projeta errado
 em silêncio. A versão não pode mentir: `core/ontologia.py` calcula uma
 assinatura dos termos em vigor, e um teste a compara com a versão declarada —
@@ -596,7 +650,7 @@ montados com as peças que já existiam, e cada degrau tem número em
 | :--- | :--- | :--- | :--- |
 | **Curto prazo** | A sessão viva: alvo, restrições, bloqueios, decisões, vizinhança | O trabalho de sempre | `ler_vista` sob orçamento |
 | **Médio prazo** | O fechamento da sessão encerrada: decisões vigentes, dúvidas abertas, restrições, último artefato, e a condensação em prosa | O fechamento é projeção do log, calculada no rollup na primeira consulta depois de cada commit. A prosa é uma `Note` escrita por um agente a partir da `Task` de condensação que o próprio grafo abre quando a sessão encerra | `ler_vista` numa sessão encerrada abre pelo fechamento; o panorama do Setor mostra o fechamento de cada sessão |
-| **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção pelo humano com `promover_aprendizado` | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico. Vai inteira (como aplicar, alcance, origem) a linha do que casa com o texto do alvo, até cinco por herança; as demais levam só a afirmação, e `expandir_no` traz o resto |
+| **Longo prazo** | O `Aprendizado`: o que sobrevive ao projeto, com origem obrigatória | `registrar_aprendizado` por qualquer papel; promoção com `promover_aprendizado`, pelo humano ou pelo árbitro conforme a política (a global, sempre pelo humano) | Seção **Aprendizados Aplicáveis** na vista de qualquer alvo: por herança pela hierarquia, por casamento lexical e, se injetado, por índice semântico. Vai inteira (como aplicar, alcance, origem) a linha do que casa com o texto do alvo, até cinco por herança; as demais levam só a afirmação, e `expandir_no` traz o resto |
 
 Três princípios seguram o desenho. Nada derivado é gravado quando pode ser
 projetado: o fechamento é uma dobra do estado, e uma sessão reaberta atualiza
@@ -617,9 +671,9 @@ Esquecer é marcar, nunca apagar: `substitui` entre aprendizados deixa o antigo
 no grafo, no painel e no acervo com `SUBSTITUIDO`, e a vista carrega só o
 vigente, cuja linha diz quem ele substitui. Enquanto o substituto não é
 promovido, o antigo segue valendo, avisado de que há um substituto à espera:
-substituir é propor, promover é o humano aceitar. `contradiz` de uma
+substituir é propor, promover é aceitar, e quem aceita é o humano ou, conforme a política, o árbitro. `contradiz` de uma
 `Evidence` nova marca o aprendizado com `CONTRADITO` sem tirá-lo da vista,
-`valido_ate` tira o vencido, e remover é do humano. O
+`valido_ate` tira o vencido, e remover é do humano (ou do árbitro, com o gesto `excluir`). O
 índice semântico é opcional e injetável no `MaterializadorContexto`, com padrão
 nulo: sem configurar, não custa nada e não traz dependência.
 
@@ -629,8 +683,7 @@ comportamento `AprendizadosAcumulados` abre nela uma `Task` de consolidar
 (`acao: consolidar_aprendizados`), com os ids vigentes na descrição. Quem a
 pega agrupa por tema e registra, por `registrar_aprendizado`, um aprendizado
 por grupo, com `substitui` para os absorvidos e `deriva_de` para as origens
-deles. Nada é apagado: os absorvidos saem da vista quando o humano promove o
-consolidado. É a mesma compactação que a condensação faz com a sessão, um
+deles. Nada é apagado: os absorvidos saem da vista quando o consolidado é promovido, pelo humano ou pelo árbitro conforme a política do projeto. É a mesma compactação que a condensação faz com a sessão, um
 nível acima, e a vista de retomada aponta a `Task` enquanto ela estiver aberta.
 
 **A memória tem ambiente padrão e tem lugar na tela.** O hook de início não
@@ -639,8 +692,8 @@ repositório, dentro do `Setor` `Memoria`, que o harness cria na primeira vez e
 reaproveita depois. E o canvas tem um painel de **Memória** na lateral esquerda:
 os aprendizados do ramo com origem, alcance e marcas, promovidos ou não, e as
 sessões com o fechamento e o estado da condensação. Registrar e promover ficam
-ali, no inspetor e no menu de qualquer nó de trabalho; promover continua gesto
-humano, e a tela escreve como humano.
+ali, no inspetor e no menu de qualquer nó de trabalho; a tela escreve como humano,
+e a promoção global é sempre dele.
 
 **Os agentes ficam sabendo.** Três canais dizem ao agente o que o grafo
 espera dele, sem depender de ninguém lembrar: a vista de retomada que o hook de
@@ -702,6 +755,12 @@ condutor. A duração vem das transcrições, e a cota da linha
 `Cota: 5h <n>%, semana <n>%` que a raiz escreve no despacho e na parada. Os `Run` dos agentes
 despachados vêm do hook `SubagentStop`, que está na fiação de
 [`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
+
+Quando a política de governança do projeto entrega gestos ao árbitro, a raiz
+despacha também o subagente `graphow-arbitro`, que decide em contexto novo o que
+a política lhe dá (e devolve `Escaladas` para o que segue humano). A orquestração
+lê a política na vista, e a `integracao` (commit e merge local) e o `max_correcoes`
+seguem o que ela diz; o push é sempre do humano.
 
 A skill que conduz esse arranjo, `graphow-orquestracao`, está em
 [`.agents/skills/graphow-orquestracao`](.agents/skills/graphow-orquestracao/SKILL.md),

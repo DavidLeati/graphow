@@ -6,7 +6,7 @@
 
 **Pacote:** `graphow.web`
 
-Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas.
+Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas. Inclui a aba Configurações (governança global e por projeto, auditoria do árbitro) e as rotas que a servem, com o catálogo de gestos e presets lido da própria política.
 
 ## Inventário
 

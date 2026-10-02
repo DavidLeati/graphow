@@ -12,7 +12,8 @@ PILARES: tuple[tuple[str, str], ...] = (
     (
         "Caminho Único de Escrita",
         "Humanos e agentes submetem o mesmo JSON Patch (RFC 6902) aos quatro portões. "
-        "O papel do autor vem da conexão, nunca do payload.",
+        "O papel do autor vem da conexão, nunca do payload, e a política de governança do projeto "
+        "decide quem exerce cada gesto: o humano ou o árbitro.",
     ),
     (
         "Divulgação Progressiva",
@@ -29,6 +30,7 @@ PILARES: tuple[tuple[str, str], ...] = (
 ROTEAMENTO_POR_INTENCAO: tuple[tuple[str, str], ...] = (
     ("Entender o vocabulário do domínio", "Setor 01 — `graphow.core`"),
     ("Mudar regra de permissão ou invariante", "Setor 02 — `graphow.kernel`"),
+    ("Mudar quem exerce um gesto (humano ou árbitro), presets e herança", "Setores 01 e 02 — `graphow.core.governanca` e `graphow.kernel`"),
     ("Mexer em persistência, migração ou reparo", "Setor 03 — `graphow.storage`"),
     ("Investigar divergência entre grafo e log", "Setores 03 e 04"),
     ("Ajustar o que o agente recebe de contexto", "Setor 06 — `graphow.context`"),

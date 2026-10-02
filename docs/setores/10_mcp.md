@@ -6,7 +6,7 @@
 
 **Pacote:** `graphow.mcp`
 
-Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos.
+Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
 
 ## Inventário
 

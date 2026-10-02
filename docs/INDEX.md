@@ -8,14 +8,14 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 191 módulos · 25557 linhas · 362 classes**
+**15 alas · 191 módulos · 25560 linhas · 362 classes**
 
 ---
 
 ## Pilares
 
 1. **O Log é a Verdade** — Event store append-only. O grafo é uma dobra determinística dos eventos, com `UNIQUE(ramo_id, seq)` garantindo ordem total e commit em transação única.
-2. **Caminho Único de Escrita** — Humanos e agentes submetem o mesmo JSON Patch (RFC 6902) aos quatro portões. O papel do autor vem da conexão, nunca do payload.
+2. **Caminho Único de Escrita** — Humanos e agentes submetem o mesmo JSON Patch (RFC 6902) aos quatro portões. O papel do autor vem da conexão, nunca do payload, e a política de governança do projeto decide quem exerce cada gesto: o humano ou o árbitro.
 3. **Divulgação Progressiva** — As políticas caminham no grafo a partir do alvo e a renderização descarta seções por prioridade, preservando restrições e a afordância de expansão.
 4. **Linhagem e Fork Barato** — Rastreio reverso do Artifact até o Goal. Ramificação é o ponteiro `(ramo_base, seq_corte)`, sem cópia de prefixo.
 
@@ -27,6 +27,7 @@ e o inventário das alas. O catálogo detalhado de cada ala vive em
 | :--- | :--- |
 | Entender o vocabulário do domínio | Setor 01 — `graphow.core` |
 | Mudar regra de permissão ou invariante | Setor 02 — `graphow.kernel` |
+| Mudar quem exerce um gesto (humano ou árbitro), presets e herança | Setores 01 e 02 — `graphow.core.governanca` e `graphow.kernel` |
 | Mexer em persistência, migração ou reparo | Setor 03 — `graphow.storage` |
 | Investigar divergência entre grafo e log | Setores 03 e 04 |
 | Ajustar o que o agente recebe de contexto | Setor 06 — `graphow.context` |
@@ -58,7 +59,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 9 | 1125 | 37 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 3959 | 30 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 3960 | 30 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2199 | 23 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
@@ -70,22 +71,22 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 10 | 1418 | 18 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3324 | 52 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 13 | 2179 | 25 |
-| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 10 | 1377 | 30 |
+| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 10 | 1379 | 30 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 
 ### Missão de cada ala
 
-**01. Núcleo Ontológico** — Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST e a hierarquia de exceções de domínio. Não depende de nenhum outro setor.
+**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
-**02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado.
+**02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.
 
 **03. Persistência Append-Only** — Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, migra bancos antigos e repara sequências duplicadas.
 
 **04. Projeção Determinística** — Dobra os eventos do log no estado em memória e mantém a projeção reconciliada com o que foi persistido por outros escritores.
 
-**05. Motor Reativo** — Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância.
+**05. Motor Reativo** — Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância. A Task de condensar a sessão e a de consolidar aprendizados dizem no roteiro quem promove, conforme a política do Projeto, e a consolidação não reabre enquanto há consolidado esperando promoção.
 
-**06. Divulgação Progressiva** — Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade.
+**06. Divulgação Progressiva** — Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade. Diz ao agente a governança vigente (seção Governanca e protocolo) a partir da política do Projeto do alvo, e a vista do árbitro traz o que ele precisa para decidir.
 
 **07. Linhagem e Ramificação** — Rastreio causal reverso até o Goal raiz, replay pontual com instantâneos e forks registrados como ponteiro para o ponto de corte.
 
@@ -93,11 +94,11 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 **09. Observabilidade e Taxonomia MAST** — Traduz o modo de falha que o portão declarou em categoria MAST e recebe os spans GenAI do kernel, em memória ou em arquivo NDJSON.
 
-**10. Superfície MCP** — Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos.
+**10. Superfície MCP** — Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
 
 **11. Linha de Comando e Transporte** — Interface de terminal, resolução de dependências por subcomando e formatação de eventos para transporte SSE.
 
-**12. Canvas e API REST** — Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas.
+**12. Canvas e API REST** — Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas. Inclui a aba Configurações (governança global e por projeto, auditoria do árbitro) e as rotas que a servem, com o catálogo de gestos e presets lido da própria política.
 
 **13. Harness de Avaliação** — Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da sessão, com e sem o recorte do grafo. Existe para que essa métrica tenha número em vez de afirmação, e declara o que ela não mede: sucesso de tarefa exige um agente real.
 

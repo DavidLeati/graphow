@@ -27,13 +27,13 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         1,
         "core",
         "Núcleo Ontológico",
-        "Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST e a hierarquia de exceções de domínio. Não depende de nenhum outro setor.",
+        "Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.",
     ),
     DefinicaoSetor(
         2,
         "kernel",
         "Kernel de Escrita (PatchBoard)",
-        "Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado.",
+        "Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.",
     ),
     DefinicaoSetor(
         3,
@@ -51,13 +51,13 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         5,
         "reactive",
         "Motor Reativo",
-        "Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância.",
+        "Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância. A Task de condensar a sessão e a de consolidar aprendizados dizem no roteiro quem promove, conforme a política do Projeto, e a consolidação não reabre enquanto há consolidado esperando promoção.",
     ),
     DefinicaoSetor(
         6,
         "context",
         "Divulgação Progressiva",
-        "Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade.",
+        "Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade. Diz ao agente a governança vigente (seção Governanca e protocolo) a partir da política do Projeto do alvo, e a vista do árbitro traz o que ele precisa para decidir.",
     ),
     DefinicaoSetor(
         7,
@@ -81,7 +81,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         10,
         "mcp",
         "Superfície MCP",
-        "Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos.",
+        "Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.",
     ),
     DefinicaoSetor(
         11,
@@ -93,7 +93,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         12,
         "web",
         "Canvas e API REST",
-        "Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas.",
+        "Servidor HTTP, controladores REST por área e o canal de tempo real que leva cada commit ao canvas. Inclui a aba Configurações (governança global e por projeto, auditoria do árbitro) e as rotas que a servem, com o catálogo de gestos e presets lido da própria política.",
     ),
     DefinicaoSetor(
         13,

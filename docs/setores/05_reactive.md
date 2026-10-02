@@ -6,7 +6,7 @@
 
 **Pacote:** `graphow.reactive`
 
-Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância.
+Comportamentos desacoplados que observam commits e propõem patches derivados, com limite de cascata e guarda de reentrância. A Task de condensar a sessão e a de consolidar aprendizados dizem no roteiro quem promove, conforme a política do Projeto, e a consolidação não reabre enquanto há consolidado esperando promoção.
 
 ## Inventário
 

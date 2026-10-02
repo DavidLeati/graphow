@@ -4,7 +4,8 @@ A composição em si é pura e mora em `core/governanca.py`; aqui só se acha o 
 global e o Projeto do alvo. A política vive no grafo para o replay ser
 determinístico: o veredito do kernel depende só do log.
 
-Nenhum portão consulta isto ainda: ligar a política ao RoleGate é do passo seguinte.
+O RoleGate (`gestos_de_no.py`, `permissao_de_aresta.py`), a autorização do MCP, as
+vistas e o motor reativo leem a política por aqui.
 """
 
 from graphow.core.governanca import (

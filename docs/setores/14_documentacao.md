@@ -10,7 +10,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-10 módulos · 1377 linhas · 30 classes
+10 módulos · 1379 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 | [`documentacao/leitura_fonte.py`](#documentacaoleiturafonte) | 89 | Acesso ao código-fonte do repositório, atrás de interface injetável. |
 | [`documentacao/modelo.py`](#documentacaomodelo) | 170 | Modelos imutáveis do catálogo de código extraído do repositório. |
 | [`documentacao/publicacao.py`](#documentacaopublicacao) | 141 | Publicação dos documentos gerados, com escrita atrás de interface injetável. |
-| [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 142 | Renderização do índice de navegação da biblioteca de documentação. |
+| [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 144 | Renderização do índice de navegação da biblioteca de documentação. |
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
 | [`documentacao/setores.py`](#documentacaosetores) | 161 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
 | [`documentacao/skill.py`](#documentacaoskill) | 70 | Instalação da skill do agente no diretório de skills do ambiente. |

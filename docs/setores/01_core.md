@@ -6,7 +6,7 @@
 
 **Pacote:** `graphow.core`
 
-Vocabulário da ontologia, modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST e a hierarquia de exceções de domínio. Não depende de nenhum outro setor.
+Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 ## Inventário
 

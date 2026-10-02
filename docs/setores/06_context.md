@@ -6,7 +6,7 @@
 
 **Pacote:** `graphow.context`
 
-Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade.
+Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estrito de tokens, descartando seções por prioridade. Diz ao agente a governança vigente (seção Governanca e protocolo) a partir da política do Projeto do alvo, e a vista do árbitro traz o que ele precisa para decidir.
 
 ## Inventário
 
