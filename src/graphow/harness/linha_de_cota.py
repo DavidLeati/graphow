@@ -7,16 +7,18 @@ em texto, no despacho do condutor e na mensagem em que para o laço, e o harness
 que já lê as transcrições, grava os números no Run.
 
 O formato é de gente, então a leitura é tolerante: o `%` é opcional, a vírgula
-decimal vale, e os espaços e a caixa não importam.
+decimal vale, e os espaços e a caixa não importam. A linha precisa começar por
+`Cota:`, admitidos à frente espaço, marcador de lista e ênfase, para uma cota
+citada no meio de outra linha, como a instrução literal de uma `Humano:`, não contar.
 """
 
 from dataclasses import dataclass
 import re
 
 PADRAO_DA_COTA: re.Pattern[str] = re.compile(
-    r"cota\s*:\s*\**\s*5\s*h\s*(?P<cinco_horas>\d+(?:[.,]\d+)?)\s*%?\s*[,;]\s*"
+    r"^[ \t>*_-]*cota\s*:\s*[*_]*\s*5\s*h\s*(?P<cinco_horas>\d+(?:[.,]\d+)?)\s*%?\s*[,;]\s*"
     r"semana\w*\s*(?P<semanal>\d+(?:[.,]\d+)?)\s*%?",
-    re.IGNORECASE,
+    re.IGNORECASE | re.MULTILINE,
 )
 MARCAS_DA_COTA: tuple[str, ...] = ("Cota", "cota", "COTA")
 # As chaves no Run são o prefixo mais o momento: cota_5h_inicio, cota_semanal_fim.

@@ -258,6 +258,23 @@ def test_texto_sem_linha_de_cota_nao_inventa_numero_edge_case(texto: str) -> Non
     assert ultima_cota(texto) is None
 
 
+def test_cota_com_marcador_e_negrito_conta_nominal() -> None:
+    """A linha de cota pode vir como item de lista e com ênfase, como a raiz a escreve no resumo."""
+    assert ultima_cota("Parei.\n- **Cota:** 5h 86%, semana 31%") == CotaDeclarada(86, 31)
+
+
+def test_cota_citada_numa_linha_humano_nao_conta_edge_case() -> None:
+    """Caso de borda: a instrução literal do humano que cita uma cota no meio da linha não é a leitura da raiz."""
+    assert ultima_cota("Alvo: goal-1\nHumano: segue so ate a cota: 5h 80%, semana 20%") is None
+
+
+def test_cota_real_vence_a_citada_numa_linha_humano_depois_dela_edge_case() -> None:
+    """Caso de borda: com a linha `Humano:` depois da `Cota:`, vale a leitura real, não a cota citada."""
+    texto = "Alvo: goal-1\nSessao: sess-1\nCota: 5h 40%, semana 12%\nHumano: para quando a cota: 5h 80%, semana 20%"
+
+    assert ultima_cota(texto) == CotaDeclarada(40, 12)
+
+
 def _com_instante(linha: str, instante: str) -> str:
     """A mesma entrada com o instante em que o ambiente a gravou."""
     return json.dumps({**json.loads(linha), "timestamp": instante})

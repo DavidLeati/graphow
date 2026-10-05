@@ -10,7 +10,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-15 módulos · 1802 linhas · 20 classes
+15 módulos · 1804 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/leitura_por_shell.py`](#harnessleituraporshell) | 110 | Os caminhos que um comando de shell lê, tirados do texto do comando por heurística conservadora. |
-| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 53 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
+| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 55 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 197 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
@@ -254,7 +254,7 @@ A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transc
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `PADRAO_DA_COTA` | `re.Pattern[str]` | `re.compile('cota\\s*:\\s*\\**\\s*5\\s*h\\s*(?P<cinco_horas>\\d+(?:[.,]\…` |
+| `PADRAO_DA_COTA` | `re.Pattern[str]` | `re.compile('^[ \\t>*_-]*cota\\s*:\\s*[*_]*\\s*5\\s*h\\s*(?P<cinco_horas…` |
 | `MARCAS_DA_COTA` | `tuple[str, ...]` | `('Cota', 'cota', 'COTA')` |
 | `PREFIXO_COTA_5H` | `str` | `'cota_5h_'` |
 | `PREFIXO_COTA_SEMANAL` | `str` | `'cota_semanal_'` |
