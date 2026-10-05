@@ -65,13 +65,14 @@ Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitad
        Sessao: <id_sessao>
 
    O que ele devolve em `Escaladas` volta a ser do humano, e você não despacha o árbitro de novo para o mesmo item.
-4. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma e quem as decide (o árbitro, ou o humano, para ir respondendo enquanto o trabalho anda).
+4. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma e quem as decide (o árbitro, ou o humano, para ir respondendo enquanto o trabalho anda). Da linha `Custo:` do condutor, repita a soma de minutos e tokens dos filhos e cada `ALERTA` com o id: o executor é neto da raiz, não aparece no painel, e o custo dele só ficaria visível na medição depois do fato. A soma vem do retorno; você continua sem ler transcrição nem Run.
 5. **Seguir ou parar.** Volte ao passo 2 enquanto nenhum portão de "Onde parar" fechar.
 6. **Parar** é terminar o turno com um resumo curto ao humano, dizendo:
    - por que parou;
    - o que fechou desde a última parada, e o que o árbitro decidiu (respostas, descartes, promoções, Goals fechados), com os ids, porque a decisão dele fica no grafo e o humano a revê;
    - os Goals que ficaram sem tarefa aberta, quando fechá-los é dele;
    - as Questions abertas, as que o árbitro escalou inclusive, com id e uma linha, para responder na interface do graphow;
+   - os `ALERTA` de `Custo:` da sequência, com o id da Task, e a sugestão de `graphow orquestracao-medir --goal <id> --por-rodada` para o detalhe;
    - o que roda quando ele disser "segue";
    - a cota, numa linha própria, no mesmo formato do despacho: `Cota: 5h <n>%, semana <n>%`, com a leitura de `get_usage` feita ao parar. O harness lê a última linha dessas que você escreveu e a grava no Run da sua sessão; é ela que fecha a conta da última rodada.
 

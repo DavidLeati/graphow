@@ -52,9 +52,10 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
     Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
     Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
+    Governanca: <a linha da seção Governanca da vista do Goal, como está>
     Fila: <n> prontas, <m> impedidas (<motivos>)
-    Governanca: <a linha da seção Governanca da vista do Goal>
     Goal concluido: sim | nao
+    Custo: <id Task ou Artifact> <subagente> <min> min, <n> ferramentas, <tokens> tok; ...
     Resumo: <no máximo três linhas>
 
 | Retorno | O que a raiz faz |
@@ -67,6 +68,7 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
 | `Aceites` | a correção foi reprovada de novo só com critérios de acompanhamento: o condutor fechou a original e abriu a Task de acompanhamento com o que ficou. Diz as duas ao humano na linha da rodada; não para por isso |
 | `Questoes` | com `responder_questao` no humano, diz o id ao humano na linha da rodada; com o gesto no árbitro, despacha-o com `Alvo: <id da Question>` e diz na linha quem a decidiu. Não para por isso |
 | `Integrar` | portão: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Com `integracao` no humano, para e diz a ele o ramo e os arquivos: o merge e a renumeração são dele, ou da sessão principal se ele pedir. Com `integracao` no árbitro, a raiz commita e faz o merge local, e para só se ele conflitar ou pedir renumerar. Em ambos, no "segue" a rodada seguinte confere de novo com `graphow base-colisoes`; o push nunca é da raiz |
+| `Custo` | o que cada filho da rodada gastou, lido pelo condutor do bloco de uso do retorno: o executor é neto da raiz e não aparece no painel. A raiz soma minutos e tokens na linha da rodada e repete cada `ALERTA` com o id (executor acima de ~40 min ou ~100 ferramentas: a Task estourou o tamanho). Ao parar, lista os `ALERTA` da sequência e sugere `graphow orquestracao-medir --goal <id> --por-rodada` para o detalhe. Não para por isso |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
 ## A pergunta ao explorador

@@ -91,6 +91,7 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 
 ## 5. Revisar
 
+- Executor que passou de cerca de 40 minutos ou 100 chamadas de ferramenta, pelo bloco de uso do retorno: a Task estourou o tamanho do passo 3. Ponha `ALERTA` na entrada dele em `Custo:` e diga no `Resumo` que a Task estourou o tamanho. Ao decompor ou despachar as próximas Tasks da mesma natureza, aplique antes o corte por etapa do passo 3. Não é Aprendizado seu: se valer registrar, peça no despacho seguinte (ver "Nunca").
 - `Decision:` no retorno do executor: leia cada uma e decida se ela governa a tarefa. Se governar, ligue por `orienta` antes da revisão, para o revisor julgar contra ela.
 - `RESULTADO: pronto_para_revisao`: despache o `graphow-revisor` com `Artifact: <id>` e `Sessao: <id>`; se a Task é `leve`, o `graphow-revisor-sonnet`, com o mesmo prompt. Nunca revise você mesmo o que despachou.
 - `VEREDITO: fora_da_trilha`, do `graphow-revisor-sonnet`: o diff da Task leve muda comportamento, e a Evidence da triagem aponta o trecho. Marque `trilha: completa` na Task por `propor_patch` e só depois despache o `graphow-revisor` com o mesmo Artifact. Nessa ordem, uma rodada que pare no meio retoma pelo revisor certo. A triagem não é veredito: o que vale é o do `graphow-revisor`, e o passo 6 segue a partir dele.
@@ -171,6 +172,9 @@ A resposta inteira cabe em cerca de 800 tokens. Omita as linhas que não se apli
     Governanca: <a linha da seção Governanca da vista do Goal, como está>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
+    Custo: <id Task ou Artifact> <subagente> <min> min, <n> ferramentas, <tokens> tok; ...
     Resumo: <no máximo três linhas>
+
+`Custo:` traz uma entrada por filho despachado na rodada, lida do bloco `<usage>` que volta no retorno de cada chamada `Agent` (`subagent_tokens`, `tool_uses`, `duration_ms`, em minutos arredondados). O executor é filho seu e a transcrição dele não aparece no painel do app: sem esta linha, um executor de 75 minutos só aparece na medição depois do fato. Filho sem bloco de uso fica de fora, em vez de estimado. Os exploradores podem ir somados numa entrada só, e, com muitos filhos, agregue os pequenos para caber nos 800 tokens. Entrada com `ALERTA` segue o passo 5.
 
 `Goal concluido: sim` quando o Goal tem tarefas e todas estão concluídas: `proximas_tarefas(id_goal)` volta sem tarefa, e as impedidas são só `concluida`. Goal sem nenhuma Task ainda precisa de decomposição, então é `nao`. Fechar o Goal não é seu: é do humano, ou do árbitro quando a política entrega `fechar_goal`, e a raiz decide qual dos dois pelo `Governanca:` que você devolve.
