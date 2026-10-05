@@ -93,6 +93,7 @@ class ExecutorLinhaDeComando:
             "reparar-sequencias": self._executar_reparar_sequencias,
             "docs-gerar": self._executar_docs_gerar,
             "avaliar": self._executar_avaliar,
+            "transcricao-medir": self._executar_transcricao_medir,
             "skill-instalar": self._executar_skill_instalar,
         }
         manipulador = manipuladores_sem_banco.get(contexto.argumentos.comando)
@@ -158,6 +159,27 @@ class ExecutorLinhaDeComando:
         from graphow.avaliacao import executar_avaliacao
 
         for linha in executar_avaliacao().formatar():
+            contexto.console.escrever_linha(linha)
+        return CODIGO_SUCESSO
+
+    def _executar_transcricao_medir(self, contexto: ContextoExecucao) -> int:
+        """Mede as transcricoes em disco; o banco, se existir, so e lido numa copia em memoria.
+
+        Fica entre os comandos sem banco porque abrir o repositorio de eventos
+        acerta pragma e esquema no arquivo, e esta medicao nao escreve nada.
+        """
+        from graphow.avaliacao.transcricoes import (
+            coletar_transcricoes,
+            formatar_transcricoes,
+            medir_transcricoes,
+            vista_somente_leitura,
+        )
+
+        argumentos = contexto.argumentos
+        transcricoes = coletar_transcricoes(Path(caminho).expanduser() for caminho in argumentos.caminhos)
+        with vista_somente_leitura(contexto.localizacao_banco.caminho) as view:
+            medicoes = medir_transcricoes(transcricoes, view)
+        for linha in formatar_transcricoes(medicoes, argumentos.top):
             contexto.console.escrever_linha(linha)
         return CODIGO_SUCESSO
 

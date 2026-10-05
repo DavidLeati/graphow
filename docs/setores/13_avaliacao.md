@@ -10,7 +10,7 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 
 ## Inventário
 
-13 módulos · 2179 linhas · 25 classes
+15 módulos · 2627 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,14 +19,16 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
+| [`avaliacao/forma_do_contexto.py`](#avaliacaoformadocontexto) | 235 | A forma do contexto dos Run, somada para o relatório: peso por turno, saídas grandes, pausas e leituras fora do alvo. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
-| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 319 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
+| [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 346 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
-| [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 143 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
+| [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 158 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/relatorio_rodadas.py`](#avaliacaorelatoriorodadas) | 69 | As linhas de `orquestracao-medir --por-rodada`: onde, dentro de um Goal, o tempo e a cota foram gastos. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
 | [`avaliacao/rodadas.py`](#avaliacaorodadas) | 208 | As rodadas de um Goal: cada Run do condutor, com quanto durou e quanto da cota gastou. |
 | [`avaliacao/tarefas_gravadas.py`](#avaliacaotarefasgravadas) | 263 | Corpus de dez tarefas gravadas, com o grafo que as cerca. |
+| [`avaliacao/transcricoes.py`](#avaliacaotranscricoes) | 171 | `graphow transcricao-medir`: a forma do contexto lida direto das transcrições, sem passar pelo banco. |
 
 ## `avaliacao/__init__.py`
 
@@ -159,6 +161,45 @@ Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gra
 
 - `medir_escala(kernel: WriteKernel, ramo_id: str) -> RelatorioDeEscala` — Ponto de entrada da medição de escala sobre um kernel já montado.
 
+## `avaliacao/forma_do_contexto.py`
+
+A forma do contexto dos Run, somada para o relatório: peso por turno, saídas grandes, pausas e leituras fora do alvo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_ARQUIVO_DA_EVIDENCIA` | `str` | `'arquivo'` |
+| `CAMPO_TURNOS` | `str` | `'mensagens_de_modelo'` |
+| `CAMPOS_DA_FORMA` | `tuple[str, ...]` | `(CAMPO_CONTEXTO_MEDIO, CAMPO_MAIOR_SAIDA, CAMPO_MAIOR_PAUSA, CAMPO_CAMI…` |
+| `RUNS_MAIS_CAROS` | `int` | `3` |
+| `FERRAMENTAS_MOSTRADAS` | `int` | `3` |
+| `SEGUNDOS_POR_MINUTO` | `int` | `60` |
+
+### `FormaAgregada`
+
+*DTO imutável* — A forma do contexto de vários Run: médias ponderadas pelos turnos, picos e somas.
+
+**Campos:** `contexto_medio: int | None`, `contexto_maximo: int | None`, `turnos_maximo: int | None`, `maior_saida: int | None`, `saidas_grandes: int`, `pausas_longas: int`, `maior_pausa_s: int | None`, `leituras_fora_do_alvo: int | None`, `saidas_grandes_por_ferramenta: Mapping[str, int]`
+
+### `RunCaro`
+
+*DTO imutável* — Um Run pelo que custou: quem, quanto, quanto tempo, quantos turnos e o contexto médio.
+
+**Campos:** `agente: str`, `tokens: int`, `duracao_s: int | None`, `turnos: int`, `contexto_medio: int | None`
+
+### Funções do módulo
+
+- `agregar_forma(runs: Iterable[tuple[Mapping[str, Any], int | None]]) -> FormaAgregada | None` — A forma somada dos Run, cada um com as suas leituras fora do alvo; None quando nenhum traz forma.
+- `formatar_forma(forma: FormaAgregada) -> str` — A linha da forma do contexto, cada trecho só quando o dado existe.
+- `runs_mais_caros(runs: Iterable[Mapping[str, Any]], quantos: int) -> tuple[RunCaro, ...]` — Os Run de maior custo em tokens, do mais caro ao mais barato; os sem token ficam de fora.
+- `formatar_run_caro(run: RunCaro) -> str` — O Run caro numa frase: agente, tokens, duração, turnos e contexto médio.
+- `leituras_fora_do_run(propriedades: Mapping[str, Any], view: GrafoView) -> int | None` — Quantos caminhos lidos pelo Run caem fora do alvo das Tasks que ele assumiu; None sem Task ou sem alvo.
+- `caminhos_lidos(propriedades: Mapping[str, Any]) -> tuple[str, ...]` — Os caminhos lidos pelas ferramentas de leitura e pelo shell, sem repetição.
+- `alvos_das_tarefas(view: GrafoView, ids_tarefas: Iterable[str]) -> tuple[str, ...]` — Os `arquivos_alvo` das Tasks e o `arquivo` das Evidence derivadas delas; vazio quando nenhuma existe.
+- `contar_fora_do_alvo(caminhos: Iterable[str], alvos: Iterable[str]) -> int | None` — Quantos caminhos não casam com alvo nenhum; None quando não há alvo contra o qual medir.
+- `casa_com_alvo(caminho: str, alvo: str) -> bool` — O caminho lido é o alvo, termina nele, é o sufixo dele ou está dentro da pasta que ele nomeia.
+- `normalizar_caminho_lido(caminho: str) -> str` — Barra normal, sem `./` na frente nem barra no fim, em minúsculas: a forma em que dois caminhos se comparam.
+- `tokens_do_run(propriedades: Mapping[str, Any]) -> int` — A soma das quatro categorias de token; zero quando o Run não traz nenhuma.
+
 ## `avaliacao/medicao.py`
 
 Medição de tokens por tarefa, com e sem o recorte do grafo.
@@ -199,7 +240,7 @@ Medição da orquestração: o mesmo conjunto de tarefas sob configurações dif
 
 *DTO imutável* — O que um Goal custou e rendeu sob a configuração com que foi orquestrado.
 
-**Campos:** `id_goal: str`, `rotulo: str`, `configuracao: str`, `tarefas: int`, `concluidas: int`, `concluidas_sem_retrabalho: int`, `com_retrabalho: int`, `correcoes: int`, `rejeicoes: int`, `aprovacoes: int`, `aceites_pelo_teto: int`, `modelos_por_tarefa: Mapping[str, int]`, `tarefas_leves: int`, `tokens_por_agente: Mapping[str, int]`, `tokens_cache_leitura: int`, `runs_sem_tokens_por_motivo: Mapping[str, int]`, `rodadas: tuple[Rodada, ...]`
+**Campos:** `id_goal: str`, `rotulo: str`, `configuracao: str`, `tarefas: int`, `concluidas: int`, `concluidas_sem_retrabalho: int`, `com_retrabalho: int`, `correcoes: int`, `rejeicoes: int`, `aprovacoes: int`, `aceites_pelo_teto: int`, `modelos_por_tarefa: Mapping[str, int]`, `tarefas_leves: int`, `tokens_por_agente: Mapping[str, int]`, `tokens_cache_leitura: int`, `runs_sem_tokens_por_motivo: Mapping[str, int]`, `rodadas: tuple[Rodada, ...]`, `forma: FormaAgregada | None`, `runs_mais_caros: tuple[RunCaro, ...]`
 
 - `tokens() -> int` `[property]` — Todos os tokens atribuídos ao Goal, de todos os agentes.
 - `tokens_sem_cache_leitura() -> int` `[property]` — Os tokens sem a leitura de cache, que domina o total e custa bem menos que os outros.
@@ -378,4 +419,34 @@ Corpus de dez tarefas gravadas, com o grafo que as cerca.
 ### Funções do módulo
 
 - `montar_cenario_gravado() -> WriteKernel` — Reconstrói o grafo das dez tarefas sempre da mesma forma, do zero.
+
+## `avaliacao/transcricoes.py`
+
+`graphow transcricao-medir`: a forma do contexto lida direto das transcrições, sem passar pelo banco.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `EXTENSAO_DE_TRANSCRICAO` | `str` | `'.jsonl'` |
+| `SUFIXO_DOS_METADADOS` | `str` | `'.meta.json'` |
+| `CAMPO_TIPO_DO_AGENTE` | `str` | `'agentType'` |
+| `PASTA_DE_SUBAGENTES` | `str` | `'subagents'` |
+| `CARACTERES_DA_SESSAO` | `int` | `8` |
+| `TOP_PADRAO` | `int` | `20` |
+| `SEM_TRANSCRICOES` | `str` | `'Nenhuma transcricao legivel: nada a medir.'` |
+| `CAMPO_CACHE_LEITURA` | `str` | `CHAVES_DE_USO['cache_read_input_tokens']` |
+
+### `MedicaoDeTranscricao`
+
+*DTO imutável* — Uma transcrição medida: de onde veio, quem a escreveu, as propriedades que viraria no Run e as leituras fora do alvo.
+
+**Campos:** `rotulo: str`, `agente: str`, `propriedades: Mapping[str, Any]`, `leituras_fora_do_alvo: int | None`
+
+- `tokens() -> int` `[property]` — O custo em tokens, as quatro categorias somadas.
+
+### Funções do módulo
+
+- `coletar_transcricoes(entradas: Iterable[Path]) -> tuple[tuple[Path, str], ...]` — Cada transcrição com o rótulo que o relatório mostra; a pasta é varrida por inteiro.
+- `medir_transcricoes(transcricoes: Iterable[tuple[Path, str]], view: GrafoView | None) -> tuple[MedicaoDeTranscricao, ...]` — A medição de cada transcrição legível, da mais cara à mais barata.
+- `formatar_transcricoes(medicoes: tuple[MedicaoDeTranscricao, ...], top: int) -> tuple[str, ...]` — As `top` transcrições mais caras, uma por linha, e o agregado de todas.
+- `vista_somente_leitura(caminho: Path | None) -> Iterator[GrafoView | None]` — A vista do ramo principal sobre uma cópia em memória do banco; None quando o banco não existe.
 

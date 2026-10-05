@@ -16,6 +16,11 @@ A leitura de cache fica à parte do total: ela domina a soma e custa uma fraçã
 do token de entrada, e comparar arranjos só pelo total é comparar quanto
 contexto cada um releu. Os Run sem tokens se contam pelo motivo que o harness
 gravou, e as rodadas do condutor dão a duração e a cota; ver rodadas.py.
+
+Quando os Run trazem a forma do contexto (contexto por turno, saídas de
+ferramenta grandes, pausas longas, caminhos lidos), ela se agrega por Goal, com
+as leituras fora do alvo das tarefas, e os três Run mais caros ficam à vista:
+é onde a Task grande demais aparece; ver forma_do_contexto.py.
 """
 
 from collections import Counter, defaultdict
@@ -24,6 +29,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from graphow.avaliacao.forma_do_contexto import (
+    FormaAgregada,
+    RunCaro,
+    agregar_forma,
+    leituras_fora_do_run,
+    runs_mais_caros,
+)
 from graphow.avaliacao.rodadas import (
     MarcasNoTempo,
     Rodada,
@@ -85,6 +97,8 @@ class MedicaoDeGoal:
     tokens_cache_leitura: int = 0
     runs_sem_tokens_por_motivo: Mapping[str, int] = field(default_factory=dict)
     rodadas: tuple[Rodada, ...] = ()
+    forma: FormaAgregada | None = None
+    runs_mais_caros: tuple[RunCaro, ...] = ()
 
     @property
     def tokens(self) -> int:
@@ -230,7 +244,20 @@ class MedidorDeOrquestracao:
             "tokens_cache_leitura": sum(_inteiro(run.propriedades.get(CAMPO_CACHE_LEITURA)) // divisor for run, divisor in atribuidos),
             "runs_sem_tokens_por_motivo": dict(sorted(sem_tokens.items())),
             "rodadas": situar(montar_rodadas([par for par in atribuidos if eh_condutor(par[0])], raizes), _marcas(trabalho, atribuidos)),
+            **self._forma(atribuidos),
         }
+
+    def _forma(self, atribuidos: Iterable[tuple[NoGrafo, int]]) -> dict[str, Any]:
+        """A forma do contexto dos Run do Goal e os mais caros; nada quando nenhum Run a traz.
+
+        A forma não se divide entre Goals como o custo: o Run da sessão que
+        serviu a vários entra inteiro em cada um.
+        """
+        runs = [run for run, _ in atribuidos]
+        forma = agregar_forma((run.propriedades, leituras_fora_do_run(run.propriedades, self._view)) for run in runs)
+        if forma is None:
+            return {}
+        return {"forma": forma, "runs_mais_caros": runs_mais_caros(run.propriedades for run in runs)}
 
     def _runs_atribuidos(self, trabalho: TrabalhoDoGoal, goals_por_sessao: Mapping[str, int]) -> list[tuple[NoGrafo, int]]:
         """Cada Run que cabe ao Goal, com o divisor da parte dele."""

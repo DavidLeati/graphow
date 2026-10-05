@@ -9,11 +9,16 @@ modelos, porque rodam em Sonnet sob qualquer arranjo.
 O custo por tarefa concluída ganha minutos de condutor, pontos da cota semanal
 e tokens sem a leitura de cache quando os Run os trazem. Cada trecho novo só
 aparece com o dado: um banco só com Run antigos dá o relatório de sempre.
+
+Com a forma do contexto nos Run, cada Goal ganha a linha `contexto:` (peso por
+turno, saídas grandes, pausas longas, leituras fora do alvo) e a dos três Run
+mais caros, para a Task monolítica aparecer pelo nome do agente.
 """
 
 from collections import defaultdict
 from collections.abc import Sequence
 
+from graphow.avaliacao.forma_do_contexto import formatar_forma, formatar_run_caro
 from graphow.avaliacao.orquestracao import SEM_MOTIVO, MedicaoDeGoal
 from graphow.avaliacao.relatorio_rodadas import linhas_das_rodadas, nota_das_rodadas
 
@@ -41,7 +46,7 @@ def _bloco_do_goal(medicao: MedicaoDeGoal, por_rodada: bool) -> tuple[str, ...]:
 
 
 def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:
-    """Três linhas: a contagem de tarefas e revisões, os modelos marcados e o custo."""
+    """A contagem de tarefas e revisões, os modelos marcados, o custo e, com o dado, a forma do contexto."""
     agentes = ", ".join(f"{agente} {_numero(total)}" for agente, total in medicao.tokens_por_agente.items())
     return (
         f"[{medicao.id_goal}] {medicao.rotulo} | configuracao: {medicao.configuracao}",
@@ -50,7 +55,17 @@ def _linhas_do_goal(medicao: MedicaoDeGoal) -> tuple[str, ...]:
         f" | revisao: {medicao.rejeicoes} rejeitadas, {medicao.aprovacoes} aprovadas{_aceites(medicao.aceites_pelo_teto)}",
         f"  modelo por tarefa: {_modelos(medicao)}",
         f"  tokens {_numero(medicao.tokens)}{_sem_cache(medicao)} ({agentes or 'nenhum Run atribuido'}){_sem_tokens(medicao)}",
-    )
+    ) + _linhas_da_forma(medicao)
+
+
+def _linhas_da_forma(medicao: MedicaoDeGoal) -> tuple[str, ...]:
+    """A forma do contexto e os Run mais caros; nada quando os Run do Goal não a trazem."""
+    if medicao.forma is None:
+        return ()
+    linhas = (f"  {formatar_forma(medicao.forma)}",)
+    if not medicao.runs_mais_caros:
+        return linhas
+    return linhas + ("  mais caros: " + "; ".join(formatar_run_caro(run) for run in medicao.runs_mais_caros),)
 
 
 def _sem_cache(medicao: MedicaoDeGoal) -> str:

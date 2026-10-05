@@ -165,6 +165,27 @@ def _registrar_comando_de_orquestracao(
     _registrar_comando_de_colisoes(subparsers, parser_base)
 
 
+def _registrar_comando_de_transcricoes(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra a linha de base da forma do contexto, lida das transcrições em disco.
+
+    Os Run antigos não trazem a forma do contexto; reler o harness sobre eles
+    escreveria no banco. O banco aqui só é lido, e só para os alvos das Tasks.
+    """
+    parser_transcricoes = subparsers.add_parser(
+        "transcricao-medir",
+        parents=[parser_base],
+        help=(
+            "Mede transcricoes .jsonl (pasta = recursivo): tokens, duracao, contexto por turno, saidas de "
+            "ferramenta grandes, pausas longas e leituras fora do alvo, da mais cara a mais barata"
+        ),
+    )
+    parser_transcricoes.add_argument("caminhos", nargs="+", help="Arquivos .jsonl ou pastas com transcricoes")
+    parser_transcricoes.add_argument("--top", type=int, default=20, help="Quantas transcricoes listar (padrao: 20)")
+
+
 def _registrar_comando_de_colisoes(
     subparsers: argparse._SubParsersAction,
     parser_base: argparse.ArgumentParser,
@@ -334,6 +355,7 @@ def construir_parser() -> argparse.ArgumentParser:
     _registrar_comandos_de_manutencao(subparsers, parser_base)
     _registrar_comando_de_avaliacao(subparsers, parser_base)
     _registrar_comando_de_orquestracao(subparsers, parser_base)
+    _registrar_comando_de_transcricoes(subparsers, parser_base)
     _registrar_comando_de_skill(subparsers, parser_base)
     _registrar_comando_de_notas(subparsers, parser_base)
     _registrar_comandos_de_servidor(subparsers, parser_base)
