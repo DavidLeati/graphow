@@ -10,7 +10,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-13 módulos · 1474 linhas · 17 classes
+15 módulos · 1802 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,14 +18,16 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 83 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
+| [`harness/forma_da_transcricao.py`](#harnessformadatranscricao) | 207 | A forma do contexto de uma execução: quanto cada turno carregou, o que as ferramentas devolveram, onde parou e o que leu. |
 | [`harness/hook_adapter.py`](#harnesshookadapter) | 87 | Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE). |
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
+| [`harness/leitura_por_shell.py`](#harnessleituraporshell) | 110 | Os caminhos que um comando de shell lê, tirados do texto do comando por heurística conservadora. |
 | [`harness/linha_de_cota.py`](#harnesslinhadecota) | 53 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 197 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
-| [`harness/transcricao.py`](#harnesstranscricao) | 304 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
+| [`harness/transcricao.py`](#harnesstranscricao) | 315 | O consumo de uma execução lido da transcrição que o ambiente grava: tokens, modelos e tarefas. |
 
 ## `harness/ambiente_padrao.py`
 
@@ -138,6 +140,53 @@ Leitura do JSON que o ambiente entrega na entrada padrão do hook.
 - `ler_entrada_de_hook(fonte: IO[str]) -> EntradaDeHook` — Lê e interpreta o payload do hook a partir de um fluxo de texto.
 - `preparar_fluxos_do_hook(entrada: IO[str] | None, saida: IO[str] | None) -> None` — Põe a entrada e a saída padrão em UTF-8: o ambiente fala UTF-8, e o Windows abre os canos em cp1252.
 
+## `harness/forma_da_transcricao.py`
+
+A forma do contexto de uma execução: quanto cada turno carregou, o que as ferramentas devolveram, onde parou e o que leu.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CHAVES_DE_CONTEXTO` | `tuple[str, ...]` | `('input_tokens', 'cache_read_input_tokens', 'cache_creation_input_token…` |
+| `LIMITE_DE_SAIDA_GRANDE` | `int` | `2000` |
+| `PAUSA_LONGA_S` | `int` | `300` |
+| `LIMITE_DE_CAMINHOS_LIDOS` | `int` | `200` |
+| `CAMPO_DE_CAMINHO_POR_FERRAMENTA` | `Mapping[str, str]` | `{'Read': 'file_path', 'Grep': 'path', 'Glob': 'path'}` |
+| `FERRAMENTAS_DE_SHELL` | `frozenset[str]` | `frozenset({'Bash', 'PowerShell'})` |
+| `CAMPO_DO_COMANDO` | `str` | `'command'` |
+| `SEPARADOR_DO_NOME_MCP` | `str` | `'__'` |
+| `FERRAMENTA_DESCONHECIDA` | `str` | `'?'` |
+| `CAMPO_CONTEXTO_MEDIO` | `str` | `'contexto_medio_turno'` |
+| `CAMPO_CONTEXTO_MAXIMO` | `str` | `'contexto_maximo_turno'` |
+| `CAMPO_MAIOR_SAIDA` | `str` | `'maior_saida_ferramenta'` |
+| `CAMPO_SAIDAS_GRANDES` | `str` | `'saidas_acima_2000'` |
+| `CAMPO_PAUSAS_LONGAS` | `str` | `'pausas_acima_5min'` |
+| `CAMPO_MAIOR_PAUSA` | `str` | `'maior_pausa_s'` |
+| `CAMPO_CAMINHOS_LIDOS` | `str` | `'caminhos_lidos'` |
+| `CAMPO_CAMINHOS_LIDOS_SHELL` | `str` | `'caminhos_lidos_shell'` |
+| `CAMPO_SAIDAS_GRANDES_POR_FERRAMENTA` | `str` | `'saidas_grandes_por_ferramenta'` |
+
+### `AcumuladorDeForma`
+
+*serviço* — Junta, entrada por entrada, o que dá a forma do contexto; o contexto por turno vem dos usos já deduplicados.
+
+- `registrar_resposta(identificador: str, instante: datetime | None, conteudo: object) -> None` — O instante de um bloco da resposta do modelo e os caminhos que as chamadas dele leem.
+- `registrar_resultados(conteudo: object) -> None` — O tamanho do texto de cada resposta de ferramenta, uma vez por chamada respondida.
+- `consolidar(usos: Iterable[Mapping[str, Any]]) -> FormaDoContexto` — A forma do que foi registrado, com o contexto de cada mensagem do modelo.
+
+### `FormaDoContexto`
+
+*DTO imutável* — O contexto de cada turno, o tamanho de cada saída de ferramenta, as pausas e os caminhos lidos.
+
+**Campos:** `contextos: tuple[int, ...]`, `saidas_de_ferramenta: tuple[int, ...]`, `pausas_s: tuple[int, ...]`, `caminhos_lidos: tuple[str, ...]`, `caminhos_lidos_shell: tuple[str, ...]`, `ferramentas_das_saidas: tuple[str, ...]`
+
+- `em_propriedades() -> dict[str, Any]` — As propriedades do Run, cada grupo só quando a transcrição trouxe o dado.
+
+### `_JanelaDaMensagem`
+
+*serviço* — O primeiro e o último instante em que os blocos de uma mesma mensagem foram gravados.
+
+**Campos:** `inicio: datetime`, `fim: datetime`
+
 ## `harness/hook_adapter.py`
 
 Adaptador de ciclo de vida via hooks de harness (ex: Claude Code / IDE).
@@ -177,6 +226,27 @@ Interface abstrata para adaptadores de ciclo de vida do harness.
 - `registrar_fim_sessao(id_sessao: str, resumo: str) -> bool` `[abstract]` — Marca a conclusão de uma sessão no grafo compartilhado.
 - `registrar_reabertura_sessao(id_sessao: str) -> bool` `[abstract]` — Devolve a `ativa` uma sessão que o fim já encerrou e o ambiente retomou.
 - `registrar_execucao_run(id_sessao: str, modelo: str, dados_execucao: Mapping[str, Any]) -> str` `[abstract]` — Registra um nó Run associado à sessão e retorna o ID gerado.
+
+## `harness/leitura_por_shell.py`
+
+Os caminhos que um comando de shell lê, tirados do texto do comando por heurística conservadora.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LEITORES_SIMPLES` | `frozenset[str]` | `frozenset({'cat', 'head', 'tail', 'less', 'wc', 'get-content', 'gc', 't…` |
+| `LEITORES_COM_PADRAO` | `frozenset[str]` | `frozenset({'grep', 'rg', 'sed'})` |
+| `LEITOR_POR_PARAMETRO` | `str` | `'select-string'` |
+| `PARAMETROS_DE_CAMINHO` | `frozenset[str]` | `frozenset({'-path', '-literalpath'})` |
+| `FLAGS_DE_PADRAO` | `frozenset[str]` | `frozenset({'-e', '-f', '--regexp', '--file', '--expression'})` |
+| `FLAGS_DE_EDICAO` | `frozenset[str]` | `frozenset({'-i', '--in-place'})` |
+| `SEPARADORES` | `frozenset[str]` | `frozenset({';', '|', '||', '&&', '&', '(', ')'})` |
+| `ASPAS` | `str` | `'"\''` |
+| `CARACTERES_DE_REDIRECIONAMENTO` | `str` | `'<>&'` |
+| `MARCA_DE_HEREDOC` | `str` | `'<<'` |
+
+### Funções do módulo
+
+- `caminhos_lidos_no_comando(comando: str) -> tuple[str, ...]` — Os caminhos que os leitores reconhecidos do comando leem, na ordem; vazio na dúvida.
 
 ## `harness/linha_de_cota.py`
 
@@ -307,10 +377,10 @@ O consumo de uma execução lido da transcrição que o ambiente grava: tokens, 
 
 *DTO imutável* — O que uma execução gastou e em que trabalhou, pronto para virar propriedades do Run.
 
-**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`, `inicio: datetime | None`, `fim: datetime | None`, `cota_do_despacho: CotaDeclarada | None`, `ultima_cota_escrita: CotaDeclarada | None`
+**Campos:** `tokens: Mapping[str, int]`, `mensagens_de_modelo: int`, `modelos: tuple[str, ...]`, `tarefas: tuple[str, ...]`, `autores_mcp: tuple[str, ...]`, `inicio: datetime | None`, `fim: datetime | None`, `cota_do_despacho: CotaDeclarada | None`, `ultima_cota_escrita: CotaDeclarada | None`, `forma: FormaDoContexto`
 
 - `modelo_principal() -> str` `[property]` — O modelo que mais respondeu; vazio quando nenhum respondeu.
-- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores e quando.
+- `em_propriedades() -> dict[str, Any]` — As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores, quando e a forma do contexto.
 
 ### `LeituraDaTranscricao`
 

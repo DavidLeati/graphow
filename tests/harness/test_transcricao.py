@@ -256,3 +256,97 @@ def test_linha_de_cota_tolera_o_formato_de_gente_nominal(texto: str, esperada: C
 def test_texto_sem_linha_de_cota_nao_inventa_numero_edge_case(texto: str) -> None:
     """Caso de borda: sem os dois percentuais depois de `Cota:`, não há cota."""
     assert ultima_cota(texto) is None
+
+
+def _com_instante(linha: str, instante: str) -> str:
+    """A mesma entrada com o instante em que o ambiente a gravou."""
+    return json.dumps({**json.loads(linha), "timestamp": instante})
+
+
+def _chamada(nome: str, id_chamada: str, **entrada: str) -> dict:
+    """Um bloco de chamada de ferramenta."""
+    return {"type": "tool_use", "id": id_chamada, "name": nome, "input": entrada}
+
+
+def _resultado(id_chamada: str, conteudo: object) -> str:
+    """A resposta de uma ferramenta, com o conteúdo em texto solto ou em blocos."""
+    bloco = {"type": "tool_result", "tool_use_id": id_chamada, "content": conteudo}
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [bloco]}})
+
+
+def test_forma_do_contexto_conta_cada_mensagem_e_cada_resposta_uma_vez_nominal(tmp_path: Path) -> None:
+    """Contexto por turno, saídas grandes, pausa longa e caminhos lidos, sem dobrar a mensagem repetida por bloco."""
+    uso_1 = {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100, "cache_creation_input_tokens": 90}
+    uso_2 = {"input_tokens": 2, "output_tokens": 1, "cache_read_input_tokens": 398}
+    leitura = _chamada("Read", "toolu_r", file_path="C:/Repo/src/a.py")
+    busca = _chamada("Grep", "toolu_g", pattern="x", path="src")
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _com_instante(_resposta("msg-1", uso_1), "2026-10-01T10:00:00.000Z"),
+        _com_instante(_resposta("msg-1", uso_1, conteudo=[leitura, busca]), "2026-10-01T10:00:05.000Z"),
+        _resultado("toolu_r", "x" * 2500),
+        _resultado("toolu_g", [{"type": "text", "text": "y" * 300}, {"type": "text", "text": "z" * 1800}]),
+        _com_instante(_resposta("msg-2", uso_2, conteudo=[_chamada("Read", "toolu_r2", file_path="C:/Repo/src/a.py")]), "2026-10-01T10:06:06.000Z"),
+        _resultado("toolu_r2", "pequeno"),
+    ])
+
+    propriedades = ler_consumo(caminho).em_propriedades()
+
+    assert (propriedades["contexto_medio_turno"], propriedades["contexto_maximo_turno"]) == (300, 400)
+    assert (propriedades["maior_saida_ferramenta"], propriedades["saidas_acima_2000"]) == (2500, 2)
+    assert (propriedades["pausas_acima_5min"], propriedades["maior_pausa_s"]) == (1, 361)
+    assert propriedades["caminhos_lidos"] == ["C:/Repo/src/a.py", "src"]
+
+
+def test_transcricao_sem_forma_nao_inventa_propriedade_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: sem ferramenta, sem instante e com a mensagem sintética zerada, nada da forma vira zero."""
+    caminho = _gravar(tmp_path / "t.jsonl", [_resposta("msg-1", {"input_tokens": 0}, modelo="<synthetic>")])
+
+    propriedades = ler_consumo(caminho).em_propriedades()
+
+    chaves = {"contexto_medio_turno", "maior_saida_ferramenta", "pausas_acima_5min", "maior_pausa_s", "caminhos_lidos"}
+    assert not chaves & propriedades.keys()
+
+
+def test_caminhos_lidos_param_no_limite_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a varredura de um explorador não infla o Run além de 200 caminhos."""
+    chamadas = [_chamada("Read", f"toolu_{indice}", file_path=f"f{indice}.py") for indice in range(250)]
+    caminho = _gravar(tmp_path / "t.jsonl", [_resposta("msg-1", {"input_tokens": 1}, conteudo=chamadas)])
+
+    caminhos = ler_consumo(caminho).em_propriedades()["caminhos_lidos"]
+
+    assert len(caminhos) == 200
+    assert caminhos[0] == "f0.py"
+
+
+def test_shell_e_saidas_grandes_por_ferramenta_tem_campos_proprios_nominal(tmp_path: Path) -> None:
+    """A leitura pelo Bash vai para `caminhos_lidos_shell`, e cada saída grande conta para a ferramenta que a deu."""
+    chamadas = [
+        _chamada("Bash", "toolu_b", command="cd /c/x; sed -n 1,80p src/a.py; grep -n \"x\" -r src/b.py | head"),
+        _chamada("mcp__graphow-executor__ler_vista", "toolu_v", id_no="task-1"),
+        _chamada("Read", "toolu_r", file_path="src/c.py"),
+    ]
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _resposta("msg-1", {"input_tokens": 1}, conteudo=chamadas),
+        _resultado("toolu_b", "b" * 2500),
+        _resultado("toolu_v", "v" * 4000),
+        _resultado("toolu_r", "r" * 100),
+    ])
+
+    propriedades = ler_consumo(caminho).em_propriedades()
+
+    assert propriedades["caminhos_lidos_shell"] == ["src/a.py", "src/b.py"]
+    assert propriedades["caminhos_lidos"] == ["src/c.py"]
+    assert propriedades["saidas_grandes_por_ferramenta"] == {"Bash": 1, "ler_vista": 1}
+
+
+def test_sem_saida_grande_nao_ha_contagem_por_ferramenta_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: saídas pequenas não deixam um dicionário vazio no Run."""
+    caminho = _gravar(tmp_path / "t.jsonl", [
+        _resposta("msg-1", {"input_tokens": 1}, conteudo=[_chamada("Bash", "toolu_b", command="ls")]),
+        _resultado("toolu_b", "pouco"),
+    ])
+
+    propriedades = ler_consumo(caminho).em_propriedades()
+
+    assert "saidas_grandes_por_ferramenta" not in propriedades
+    assert "caminhos_lidos_shell" not in propriedades

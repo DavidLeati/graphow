@@ -26,6 +26,10 @@ são problemas diferentes, e antes os dois viravam o mesmo None.
 Da transcrição sai também a cota do plano que a raiz declarou em texto: a do
 despacho, na primeira mensagem do usuário, e a última que o modelo escreveu.
 Qual delas vale depende de quem é o Run; ver harness/linha_de_cota.py.
+
+Da mesma leitura sai a forma do contexto, que diz por que um Run custou o que
+custou: o contexto por turno, as saídas de ferramenta grandes, as pausas que
+deixam o cache expirar e os caminhos lidos; ver harness/forma_da_transcricao.py.
 """
 
 from collections import Counter
@@ -36,6 +40,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from graphow.harness.forma_da_transcricao import AcumuladorDeForma, FormaDoContexto
 from graphow.harness.linha_de_cota import MARCAS_DA_COTA, CotaDeclarada, ultima_cota
 
 CHAVES_DE_USO: Mapping[str, str] = {
@@ -71,6 +76,7 @@ class ConsumoDaTranscricao:
     fim: datetime | None = None
     cota_do_despacho: CotaDeclarada | None = None
     ultima_cota_escrita: CotaDeclarada | None = None
+    forma: FormaDoContexto = field(default_factory=FormaDoContexto)
 
     @property
     def modelo_principal(self) -> str:
@@ -78,7 +84,7 @@ class ConsumoDaTranscricao:
         return self.modelos[0] if self.modelos else ""
 
     def em_propriedades(self) -> dict[str, Any]:
-        """As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores e quando."""
+        """As propriedades do Run: tokens por categoria, modelos, tarefas assumidas, com que autores, quando e a forma do contexto."""
         return {
             **dict(self.tokens),
             "mensagens_de_modelo": self.mensagens_de_modelo,
@@ -86,6 +92,7 @@ class ConsumoDaTranscricao:
             "tarefas": list(self.tarefas),
             "autores_mcp": list(self.autores_mcp),
             **self._duracao(),
+            **self.forma.em_propriedades(),
         }
 
     def _duracao(self) -> dict[str, Any]:
@@ -120,6 +127,7 @@ class AcumuladorDeConsumo:
         self._fim: datetime | None = None
         self._cota_do_despacho: CotaDeclarada | None = None
         self._ultima_cota: CotaDeclarada | None = None
+        self._forma: AcumuladorDeForma = AcumuladorDeForma()
 
     def abrir_com(self, despacho: Mapping[str, Any]) -> None:
         """Lê a cota do prompt de despacho, a primeira entrada do usuário na transcrição do subagente."""
@@ -144,12 +152,14 @@ class AcumuladorDeConsumo:
             return
         if entrada.get("type") == "user":
             self._autores.extend(_autores_devolvidos(mensagem.get("content"), self._chamadas_de_assumir))
+            self._forma.registrar_resultados(mensagem.get("content"))
             return
         if entrada.get("type") != "assistant":
             return
         identificador = str(mensagem.get("id") or entrada.get("uuid") or len(self._usos))
         if isinstance(mensagem.get("usage"), dict):
             self._usos[identificador] = mensagem["usage"]
+        self._forma.registrar_resposta(identificador, ler_instante(entrada.get("timestamp")), mensagem.get("content"))
         modelo = mensagem.get("model")
         if isinstance(modelo, str) and modelo and modelo != MODELO_SINTETICO:
             self._modelos[identificador] = modelo
@@ -175,6 +185,7 @@ class AcumuladorDeConsumo:
             fim=self._fim,
             cota_do_despacho=self._cota_do_despacho,
             ultima_cota_escrita=self._ultima_cota,
+            forma=self._forma.consolidar(self._usos.values()),
         )
 
 
