@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphow"
-version = "0.3.2"
+version = "0.4.0"
 description = "Ambiente de grafo agêntico bilateral para alinhamento entre humanos e agentes de IA"
 readme = "README.md"
 license = "MIT"
