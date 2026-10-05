@@ -80,6 +80,7 @@ Despache com o subagente do `modelo` da Task, `graphow-executor` ou, com `opus`,
 - `VEREDITO: fora_da_trilha`, do `graphow-revisor-sonnet`: o diff da Task leve muda comportamento, e a Evidence da triagem aponta o trecho. Marque `trilha: completa` na Task por `propor_patch` e só depois despache o `graphow-revisor` com o mesmo Artifact. Nessa ordem, uma rodada que pare no meio retoma pelo revisor certo. A triagem não é veredito: o que vale é o do `graphow-revisor`, e o passo 6 segue a partir dele.
 - `RESULTADO: posse_perdida`: o servidor do executor reiniciou e ele perdeu a posse; o Artifact e a Evidence estão gravados, e a Task ficou `em_andamento` sob o autor antigo. Revise como em `pronto_para_revisao`. Aprovada, feche normalmente (passo 6): o executor de fechamento retoma a posse órfã. Rejeitada, nem a correção nem o aceite pelo teto (passo 6) andam enquanto a posse antiga segura a Task: abra Question nela pedindo ao humano que devolva a posse, e siga a rejeição numa rodada seguinte.
 - `RESULTADO: fora_do_alvo`: acerte `arquivos_alvo` por `propor_patch`, e a Task volta numa rodada seguinte. Se ela já tinha voltado `fora_do_alvo` antes, abra Question.
+- `RESULTADO: falta_contexto`: o executor precisou de código fora do que a vista aponta e parou antes de procurar, com a posse liberada. Despache o `graphow-explorador` com a `Pergunta` dele, leia você mesmo as linhas apontadas e registre a Evidence localizada com `produz` da Sessao e `deriva_de` para a Task: é por essa aresta que ela entra em `Evidencias Relacionadas` na vista do executor. Com a Evidence registrada, despache a Task de novo nesta rodada, se couber; senão, na seguinte. Segunda `falta_contexto` na mesma Task é o teste do executor frio falhando duas vezes: redesenhe (Decision com `orienta`, ou divida a Task) se a leitura mostra o que faltava, senão abra Question.
 - `RESULTADO: falhou`: leia a Evidence da falha. Desenho novo vira Decision com `orienta`; modelo mais forte vira `modelo: opus` com `motivo_modelo`. Sem saída clara, abra Question.
 - `RESULTADO: bloqueada`: há Question aberta ou posse de outro. Siga com o resto. Vinda de um `Fechar:`, com `fechamento_sem_veredito_aprovado` no resumo, é o kernel dizendo que a Task não tem veredito vigente `aprovado` nem aceite legítimo: volte ao veredito real dela (passos 5 e 6) em vez de repetir o fechamento.
 
@@ -127,7 +128,7 @@ Não espere a resposta em `aguardar_resposta`, ainda que a skill graphow-mcp e a
 - ambiguidade que a leitura do código não resolve;
 - restrição que falta: proponha o texto exato da `Constraint`; quem a cria é o humano, ou o árbitro se a política lhe entrega o gesto `constraint`, nunca você;
 - posse de outro numa Task que ninguém desta rodada assumiu e cujo veredito vigente não é `aprovado`: pode ser posse órfã, e quem a devolve é o humano, ou o árbitro se a política lhe entrega `liberar_posse_alheia`. Com `aprovado`, não trave: feche (passo 6), e o fechamento retoma a posse;
-- segunda rejeição com critério `bloqueante` (sem ele, é o aceite do passo 6), segundo `fora_do_alvo` ou `falhou` sem saída.
+- segunda rejeição com critério `bloqueante` (sem ele, é o aceite do passo 6), segundo `fora_do_alvo`, segunda `falta_contexto` que a leitura não resolve ou `falhou` sem saída.
 
 ## Nunca
 

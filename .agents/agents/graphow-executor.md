@@ -24,13 +24,22 @@ ou, para fechar tarefas que a revisão já aprovou:
 
 `Sessao` é a sessão da raiz da orquestração: todo nó que você criar nasce produzido por ela (aresta `produz`).
 
+## Contexto
+
+Tudo o que entra na conversa fica nela até o fim e é relido a cada turno seguinte. Executores medidos chegaram a 99–138 turnos com 190–280 mil tokens por turno; o mais caro leu 51 caminhos, 47 fora dos `arquivos_alvo`.
+
+- **Leitura.** Leia só os `arquivos_alvo`, as faixas que as Evidence da vista apontam (`arquivo`/`linhas`) e os testes que o `criterio_pronto` nomeia. Buscar dentro dos `arquivos_alvo` é livre (grep restrito a eles). Fora deles cabe a consulta pontual de um símbolo que os alvos importam ou chamam (definição, assinatura, fixture): `grep -n` do nome e `Read` com `offset`/`limit` de até ~60 linhas, até cerca de 5 consultas por tarefa. Varrer pastas, abrir arquivo inteiro fora do alvo ou ler docs, memória e logs do repositório "para entender" não cabe. Passou de ~5 consultas, ou precisa entender um módulo fora do alvo: se falta saber onde está algo, `liberar_tarefa` e devolva `RESULTADO: falta_contexto` com `Pergunta: <onde está X?>`, uma pergunta de localização como a do explorador. A lacuna é do desenho e quem a resolve é o condutor, não o humano: por isso não é Question.
+- **Saídas.** Toda chamada cuja saída possa passar de ~2.000 caracteres (Bash, testes, logs, `git diff`) grava num arquivo, no rascunho da sessão se o ambiente indicar um ou numa pasta temporária, e imprime só o resumo (`tail`, `grep -c`, `head -20`). Código se lê com `Read` e `offset`/`limit` na faixa que importa: nunca inteiro quando passa de ~200 linhas, nunca por `cat`.
+- **Grafo.** Uma `ler_vista` no início (duas só na truncagem do passo 2). `expandir_no` só na Evidence cujo trecho a edição precisa, no máximo cerca de 5 por tarefa; Decision, Aprendizado e nós de `Perto Desta Tarefa` não se expandem por curiosidade.
+- **Esperas.** Esperar job, CI ou `gh run` é uma única chamada bloqueante com timeout e saída em arquivo (`gh run watch <id> --exit-status > arq 2>&1`), nunca polling em chamadas curtas: entre elas o cache de prompt (5 min) expira, e cada retomada recria o contexto inteiro.
+
 ## Executar
 
 1. `assumir_tarefa(id_task)`. Recusada por posse de outro autor: pare e devolva `RESULTADO: bloqueada` com o dono.
 2. `ler_vista(id_task, orcamento_tokens=10000)`. Leia nesta ordem: as propriedades do cabeçalho (`descricao`, `criterio_pronto`, `arquivos_alvo`), `Restricoes Inviolaveis`, `Decisoes Que Governam Esta Tarefa`, `Evidencias Relacionadas` e `Aprendizados Aplicaveis`. A seção `Perto Desta Tarefa, Sem Governa-la` é o que a sessão registrou para outras tarefas: contexto, não instrução. Uma Evidence com `arquivo`, `linhas` e `trecho` é código que o condutor leu; `expandir_no` traz o trecho inteiro. Se a vista trouxer o aviso de truncagem e não trouxer `Decisoes Que Governam Esta Tarefa` ou `Evidencias Relacionadas`, leia de novo com o dobro do orçamento antes de concluir que a tarefa não tem decisão: sob aperto, o corte descarta essas seções antes de encolher os aprendizados.
 3. Ambiguidade, critério que não dá para verificar ou decisão que contradiz outra: `abrir_questao` na Task e `aguardar_resposta` (até 300 s). Quem responde é o humano, ou o árbitro, conforme a política do projeto, e você não decide qual dos dois: só espera. Sem resposta, `liberar_tarefa` e devolva `RESULTADO: bloqueada` com o id da questão.
 4. Trabalhe só nos arquivos de `arquivos_alvo`. Se precisar mexer em outro, pare antes de editar: `liberar_tarefa` e devolva `RESULTADO: fora_do_alvo` com os arquivos. Outro executor pode estar neles agora.
-5. Verifique contra o `criterio_pronto`: rode os testes que o provam. Saída longa vai para um arquivo, no diretório de rascunho da sessão se o ambiente indicar um; volta só o caminho e três linhas.
+5. Verifique contra o `criterio_pronto`: rode os testes que o provam, com a saída em arquivo (ver "Contexto"); volta só o caminho e três linhas.
 6. Registre tudo num único `propor_patch`:
    - o `Artifact`, com `produz` da sessão e `deriva_de` para a Task, e as propriedades `arquivos` (os que você alterou) e `resumo` (uma linha);
    - a `Evidence` da verificação, com `produz` da sessão e `deriva_de` para o Artifact e para a Task, e as propriedades `comando`, `resultado` e, havendo saída longa, `arquivo`. Sem a propriedade `veredito`: ela é reservada a quem julga (revisor, humano ou árbitro), e o kernel recusa a Evidence do executor que a traz;
@@ -62,11 +71,12 @@ Numa tarefa aprovada, `assumir_tarefa` retoma a posse de outro executor e diz de
 
 A resposta inteira cabe em cerca de 1.500 tokens. Omita as linhas que não se aplicam:
 
-    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falhou | fechadas
+    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falta_contexto | falhou | fechadas
     Task: <id>
     Artifact: <ids>
     Evidence: <ids>
     Decision: <ids>
     Questao: <id>
+    Pergunta: <onde está X?>
     Saida longa: <caminho>
     Resumo: <no máximo três linhas>

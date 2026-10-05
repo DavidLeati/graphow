@@ -82,12 +82,13 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 
 ## O retorno do executor
 
-    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falhou | fechadas
+    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falta_contexto | falhou | fechadas
     Task: <id>
     Artifact: <ids>
     Evidence: <ids>
     Decision: <ids>
     Questao: <id>
+    Pergunta: <onde está X?>
     Saida longa: <caminho>
     Resumo: <no máximo três linhas>
 
@@ -97,6 +98,7 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 | `posse_perdida` | o servidor do executor reiniciou e a posse ficou com o autor antigo; Artifact e Evidence estão gravados. Despacha o revisor com o Artifact, como em `pronto_para_revisao`; aprovada, o fechamento retoma a posse órfã; rejeitada, Question para o humano devolver a posse antes da correção |
 | `bloqueada` | há Question aberta, ou a posse é de outro; segue com o resto do lote |
 | `fora_do_alvo` | acerta `arquivos_alvo` na Task (por `propor_patch`); ela volta numa rodada seguinte |
+| `falta_contexto` | o executor precisou de código fora da vista e parou sem procurar, com a posse liberada. Despacha o explorador com a `Pergunta`, lê as linhas apontadas e registra a Evidence localizada com `deriva_de` para a Task; com ela registrada, despacha a Task de novo nesta rodada, se couber, senão na seguinte. Na segunda vez na mesma Task, redesenha (Decision ou divisão) ou abre Question |
 | `falhou` | lê a Evidence da falha; desenho novo vira Decision, modelo mais forte vira `modelo: opus`; sem saída, Question |
 | `fechadas` | as tarefas estão `concluido`; a rodada devolve |
 
