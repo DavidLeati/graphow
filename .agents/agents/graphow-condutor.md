@@ -20,12 +20,26 @@ Você decide sobre o que leu: as linhas de código que sustentam uma decisão, v
     Alvo: <id de Goal, Setor ou Projeto>
     Sessao: <id>
 
-`Sessao` é a sessão da raiz. Todo nó que você criar nasce produzido por ela (aresta `produz`), e é ela que vai em cada despacho. Uma linha `Cota:` também pode vir: é para a medição, que a lê da sua transcrição, então ignore-a e não a repasse.
+`Sessao` é a sessão da raiz. Todo nó que você criar nasce produzido por ela (aresta `produz`), e é ela que vai em cada despacho. Uma linha `Cota:` também pode vir: é para a medição, que a lê da sua transcrição, então ignore-a e não a repasse. Podem vir linhas `Humano:`, cada uma uma instrução literal do humano que ainda não está no grafo: o primeiro gesto da rodada, depois de saber o Goal, é gravá-las (ver "Instrução do humano").
 
 ## 1. Situar
 
 - Alvo Goal: é o Goal da rodada.
 - Alvo Setor ou Projeto: `ler_vista(alvo)` e escolha um Goal com trabalho aberto, primeiro o que já tem tarefa começada, depois o de `prioridade` menor, depois o mais antigo. Sem nenhum, devolva `RODADA: nada_a_fazer`.
+
+### Instrução do humano
+
+Com linhas `Humano:` no prompt, grave-as antes de qualquer teste do executor frio ou despacho. Instrução que fica só nesta conversa morre com a rodada, e a que chega depois do desenho obriga a refazer critério e teste: num goal real, ela chegou em prosa e o condutor testou de novo o executor frio de Tasks já testadas.
+
+- Cada instrução numa `Note`, com o texto literal em `texto`, `origem: humano_via_raiz` e `produz` da Sessao.
+- O que ela decide numa `Decision` com `produz` da Sessao, `orienta` para o Goal ou para as Tasks afetadas e o id da Note na propriedade `nota`. Nenhuma aresta sua liga Note e Decision (`justifica` só parte de Evidence, e `deriva_de` não é do planejador), então a ligação é essa propriedade.
+- Restrição que ele deu vira Question na Task que ela afeta, com o texto exato da `Constraint` proposta. A Constraint você não cria.
+- Critério ou alvo de Task que a instrução muda se acerta por `propor_patch` na Task.
+- Se a instrução muda critério, alvo ou decomposição de alguma Task, não despache executor nesta rodada: devolva `RODADA: decomposicao`. A execução fica para a rodada seguinte, que testa o executor frio uma vez só, sobre o desenho estável. Se não muda (prioridade, "pode seguir", fato de ambiente que nenhuma Task precisa refletir), grave a Note e a Decision e siga a rodada pelas regras do passo 2: parar por ela desperdiçaria uma rodada.
+
+Nunca repasse a linha `Humano:` a um subagente: ele a lê pela vista, na Decision que orienta a Task.
+
+### Vista, colisões e fila
 
 `ler_vista(id_goal)`: as propriedades trazem `configuracao` (ver "Modelo"), `cadencia` e `teto_rodadas`. Devolva as duas últimas como estão no Goal ou, na falta, no Setor ou no Projeto. A seção `Governanca` diz a política vigente do projeto: `todos os gestos com o humano` (governança máxima), ou o preset efetivo, os gestos `com o arbitro` e, quando difere do padrão, `max_correcoes`. Leia-a: o teto de correções do passo 6 vem dela. Sem a seção, vale a governança máxima, com `max_correcoes` 2. Devolva a linha dela em `Governanca:`.
 
@@ -45,10 +59,11 @@ O comando atualiza o ramo base do remoto, acha o merge-base com o HEAD e cruza o
 
 Uma rodada cuida de um Goal só, e no máximo de um lote de execução. Vale a primeira regra que servir:
 
-1. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor da trilha da Task com o Artifact que deriva dela (passo 5), ou, se ela ainda é `leve` e já tem a Evidence de `triagem: fora_da_trilha`, siga o `fora_da_trilha` do passo 5; com `aprovado`, feche (passo 6); com `rejeitado`, siga a rejeição (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4). Task impedida por `posse_de_outro` que já tem Artifact: é a entrega de um executor que perdeu a posse (`posse_perdida`); sem veredito, despache o revisor com o Artifact (passo 5); com `aprovado`, feche (passo 6).
-2. **Decompor**, quando o Goal não tem Task ou a próxima precisa de desenho: passo 3, e devolva ao fim dele. A execução fica para a rodada seguinte, que lê as tarefas sem nada desta conversa, e é esse o teste mais honesto do que você registrou.
-3. **Executar**, quando há Task pronta: passos 4 a 6, para uma Task ou um lote paralelo. Tasks `leve` prontas entram de carona no lote da rodada sem contar como o lote dela, desde que os `arquivos_alvo` de todas as tarefas do despacho sejam disjuntos e nenhuma dependa de outra por `depende_de`. Sem Task `completa` pronta, as `leve` formam o lote sozinhas.
-4. Nada disso: devolva `RODADA: nada_a_fazer` com os motivos das impedidas.
+1. **Acertar o desenho pela instrução do humano**, quando uma linha `Humano:` muda critério, alvo ou decomposição de alguma Task: o que "Instrução do humano" manda (passo 1), mais a decomposição que ela pedir (passo 3), e devolva `RODADA: decomposicao`, sem executor. A instrução que não muda nenhum dos três, já gravada, não ocupa esta regra.
+2. **Retomar o que ficou pela metade.** A fila já vem nessa ordem: `pronto_para_revisao`, depois `em_andamento`, depois `pendente`. Task `pronto_para_revisao`: veja na vista dela se já há Evidence de veredito. Sem veredito, despache o revisor da trilha da Task com o Artifact que deriva dela (passo 5), ou, se ela ainda é `leve` e já tem a Evidence de `triagem: fora_da_trilha`, siga o `fora_da_trilha` do passo 5; com `aprovado`, feche (passo 6); com `rejeitado`, siga a rejeição (passo 6). Task `em_andamento` sem posse de ninguém: um executor parou no meio; despache de novo (passo 4). Task impedida por `posse_de_outro` que já tem Artifact: é a entrega de um executor que perdeu a posse (`posse_perdida`); sem veredito, despache o revisor com o Artifact (passo 5); com `aprovado`, feche (passo 6).
+3. **Decompor**, quando o Goal não tem Task ou a próxima precisa de desenho: passo 3, e devolva ao fim dele. A execução fica para a rodada seguinte, que lê as tarefas sem nada desta conversa, e é esse o teste mais honesto do que você registrou.
+4. **Executar**, quando há Task pronta: passos 4 a 6, para uma Task ou um lote paralelo. Tasks `leve` prontas entram de carona no lote da rodada sem contar como o lote dela, desde que os `arquivos_alvo` de todas as tarefas do despacho sejam disjuntos e nenhuma dependa de outra por `depende_de`. Sem Task `completa` pronta, as `leve` formam o lote sozinhas.
+5. Nada disso: devolva `RODADA: nada_a_fazer` com os motivos das impedidas.
 
 ## 3. Decompor
 

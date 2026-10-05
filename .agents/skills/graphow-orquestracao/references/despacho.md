@@ -10,7 +10,7 @@ A raiz despacha o condutor e, quando a política de governança do projeto entre
 
 | Subagente | Quem despacha | Prompt | Devolve |
 | :--- | :--- | :--- | :--- |
-| `graphow-condutor` | a raiz | `Alvo: <id de Goal, Setor ou Projeto>`, `Sessao: <id>` e, se houver a leitura, `Cota: 5h <n>%, semana <n>%` | `RODADA: ...` |
+| `graphow-condutor` | a raiz | `Alvo: <id de Goal, Setor ou Projeto>`, `Sessao: <id>`, se o humano deu instrução nova, uma `Humano: <instrução literal>` por instrução e, se houver a leitura, `Cota: 5h <n>%, semana <n>%` | `RODADA: ...` |
 | `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
@@ -28,7 +28,17 @@ A raiz despacha o condutor e, quando a política de governança do projeto entre
 
 A raiz não escreve no grafo, então a cota vai em texto: o harness lê essa linha na primeira mensagem da transcrição do condutor e a grava no Run dele, e `graphow orquestracao-medir --por-rodada` tira dela quanto cada rodada gastou. O condutor ignora a linha e não a repassa. Sem `get_usage` (no `claude -p`, por exemplo), o despacho vai sem ela.
 
-Nunca vai no prompt: trecho da conversa, conteúdo de arquivo, decisão tomada (ela está no grafo, ligada por `orienta`), critério de aceite (está em `criterio_pronto`), nem o que o executor anterior fez (está no Artifact e nas Evidence).
+`Humano` é a instrução que o humano deu na conversa desde a última rodada e que o grafo ainda não tem, copiada literal, uma linha por instrução, antes da `Cota`:
+
+    Alvo: goal-42
+    Sessao: 7f3c...
+    Humano: prova num clone do ambiente de teste, em dia útil
+    Humano: confere as duas Questions sem resposta antes de seguir
+    Cota: 5h 40%, semana 12%
+
+O condutor a grava no grafo antes de qualquer teste ou despacho. Se ela muda critério, alvo ou decomposição de alguma Task, ele acerta o desenho e devolve `RODADA: decomposicao` sem executar, e a execução vai para a rodada seguinte, sobre o desenho já acertado; se não muda, a rodada segue normalmente. A `Cota` fica por último, por ordem: o harness só aceita a cota no começo da linha, então a que uma `Humano` citasse no meio do texto não conta.
+
+Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano` é a exceção, e só ela), conteúdo de arquivo, resumo de rodada, decisão tomada (ela está no grafo, ligada por `orienta`), critério de aceite (está em `criterio_pronto`), nem o que o executor anterior fez (está no Artifact e nas Evidence).
 
 ## O retorno do condutor
 

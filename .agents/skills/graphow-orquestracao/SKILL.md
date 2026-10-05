@@ -51,9 +51,12 @@ Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitad
 
        Alvo: <id>
        Sessao: <id_sessao>
+       Humano: <instrução do humano, literal>
        Cota: 5h <n>%, semana <n>%
 
-   A linha `Cota:` é a leitura de `get_usage` feita antes da rodada (ver "Onde parar"), com os percentuais inteiros como a ferramenta os dá. Você não escreve no grafo, então a cota vai em texto: o harness a lê da transcrição do condutor e a grava no Run dele, para a medição saber quanto cada rodada gastou. Sem `get_usage`, despache sem a linha.
+   A linha `Cota:` é a leitura de `get_usage` feita antes da rodada (ver "Onde parar"), com os percentuais inteiros como a ferramenta os dá. Você não escreve no grafo, então a cota vai em texto: o harness a lê da transcrição do condutor e a grava no Run dele, para a medição saber quanto cada rodada gastou. Sem `get_usage`, despache sem a linha. Ela vem sempre por último e numa linha própria: o harness só a aceita no começo da linha.
+
+   A linha `Humano:` é opcional e serve a uma coisa só: a instrução que o humano deu na conversa desde a última rodada e que ainda não está no grafo (provar num clone, ajustar o critério de uma Task, conferir uma Question). Copie as palavras dele, sem resumir nem interpretar, uma linha por instrução. Trecho de conversa, conteúdo de arquivo e resumo de rodada continuam fora: o resto do prompt é ponteiro. O condutor grava a instrução no grafo antes de testar ou despachar qualquer coisa. Se ela muda critério, alvo ou decomposição de alguma Task, a rodada que a recebe acerta o desenho e não executa; se não muda, a rodada segue normalmente. Num goal real, a instrução que chegou em prosa e depois do desenho fez o condutor refazer critérios e testar de novo o executor frio de Tasks já testadas.
 
    Uma rodada por vez, porque duas ao mesmo tempo disputariam o mesmo Goal. O paralelismo fica dentro da rodada, entre tarefas com arquivos disjuntos.
 3. **Despachar o árbitro**, quando a rodada devolver o que a política lhe entrega (ver "A política decide quem para"): uma chamada por Question aberta, em primeiro plano, sem `Cota:`, com um prompt que é só ponteiro:
@@ -139,7 +142,7 @@ Em `governanca_maxima` nada muda em relação ao que a orquestração sempre fez
 
 - As chamadas permitidas estão em "A regra que sustenta o resto". Tudo fora delas enche a conversa que devia ficar leve.
 - Não cole o retorno de uma rodada no despacho da seguinte. O condutor novo lê o grafo.
-- A raiz cresce perto de mil tokens por rodada. Quando o `context` do `get_usage` passar de 50% da janela, ou depois de umas 50 rodadas se a ferramenta não existir (no `claude -p`, por exemplo), pare no próximo portão e sugira limpar. A raiz nova volta pelo mesmo alvo, porque o estado está no grafo. A sessão não consegue se limpar e se chamar de novo sozinha: no app, o `clear_session("self")` encerra o processo ao fim do turno, e nada de dentro dela sobrevive para mandar a mensagem seguinte.
+- A raiz cresce perto de mil tokens por rodada, e o tamanho dela custa mesmo parada. Enquanto espera o condutor, o cache de prompt (5 minutos) expira, e cada retomada recria o contexto inteiro da raiz: numa medição de 414 transcrições reais, a raiz teve 281 mil tokens de contexto por turno em média e 110 pausas acima de 5 minutos. Quando o `context` do `get_usage` passar de 150 mil tokens ou de 50% da janela, o que vier primeiro, ou depois de umas 50 rodadas se a ferramenta não existir (no `claude -p`, por exemplo), pare no próximo portão e sugira limpar. A raiz nova volta pelo mesmo alvo, porque o estado está no grafo. A sessão não consegue se limpar e se chamar de novo sozinha: no app, o `clear_session("self")` encerra o processo ao fim do turno, e nada de dentro dela sobrevive para mandar a mensagem seguinte.
 - O protocolo de memória que o hook imprime vale para quem escreve no grafo. Aqui quem escreve são o condutor e os subagentes dele, com a proveniência de cada um. A raiz não registra Evidence, Decision nem Aprendizado.
 
 ## Medir a divisão de modelos
