@@ -10,7 +10,7 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2574 linhas · 26 classes
+17 módulos · 2593 linhas · 26 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,12 +24,12 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 235 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
 | [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 249 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
-| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 110 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões. |
+| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 128 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões. |
 | [`mcp/server.py`](#mcpserver) | 143 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 195 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 316 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 317 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -288,7 +288,7 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 ## `mcp/orquestracao_tarefa.py`
 
-O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões.
+O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |

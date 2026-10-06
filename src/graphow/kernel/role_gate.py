@@ -351,6 +351,9 @@ class RoleGate:
         resultado_de_gesto = self._gestos.validar_status_que_exige_gesto(no, ctx)
         if not resultado_de_gesto.aprovado:
             return resultado_de_gesto
+        resultado_de_acao_externa = self._gestos.validar_acao_externa(no, ctx)
+        if not resultado_de_acao_externa.aprovado:
+            return resultado_de_acao_externa
         if not self._eh_fechamento_de_task(no, item):
             return ResultadoValidacao.sucesso()
         if papel in (PapelAutor.PLANEJADOR, PapelAutor.REVISOR):

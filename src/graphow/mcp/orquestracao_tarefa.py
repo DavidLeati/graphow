@@ -1,10 +1,12 @@
-"""O que `criar_tarefa` grava para a orquestração: modelo, trilha, arquivos-alvo, correção e decisões.
+"""O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões.
 
 Quem orquestra decide na própria Task qual modelo a executa, e o motivo vai
 junto para a escolha ficar auditável no log: um modelo sem motivo é recusado
 aqui, porque o SchemaGate não valida propriedades. Pelo mesmo motivo a trilha
 é conferida aqui: só `leve` ou `completa`, e a leve nunca em Opus, que é o
-custo que ela existe para evitar. Os arquivos-alvo são o que decide o
+custo que ela existe para evitar. A entrega também: `artefato` ou
+`acao_externa`, porque um valor inventado tiraria a Task da reserva que a
+política faz da ação externa. Os arquivos-alvo são o que decide o
 paralelismo. E as decisões que valem para a tarefa viram arestas `orienta` no
 mesmo lote, que é por onde o executor que nunca viu a conversa as encontra.
 """
@@ -15,6 +17,8 @@ from typing import Any
 from graphow.core.orquestracao import (
     CAMPO_ARQUIVOS_ALVO,
     CAMPO_CORRIGE,
+    CAMPO_ENTREGA,
+    ENTREGAS,
     CAMPO_MODELO,
     CAMPO_MOTIVO_DO_MODELO,
     CAMPO_TRILHA,
@@ -36,7 +40,7 @@ MODELO_FORA_DA_TRILHA_LEVE: str = "opus"
 
 def recusar_orquestracao_invalida(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
     """A primeira recusa entre modelo e trilha; None quando a chamada pode seguir."""
-    return _recusar_modelo_sem_motivo(argumentos) or _recusar_trilha(argumentos)
+    return _recusar_modelo_sem_motivo(argumentos) or _recusar_trilha(argumentos) or _recusar_entrega(argumentos)
 
 
 def _recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -65,6 +69,17 @@ def _recusar_trilha(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _recusar_entrega(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A recusa da entrega desconhecida; None quando ela serve ou falta."""
+    entrega = ler_texto(argumentos, CAMPO_ENTREGA).lower()
+    if not entrega or entrega in ENTREGAS:
+        return None
+    return {
+        "sucesso": False,
+        "erro": f"'entrega' aceita {', '.join(sorted(ENTREGAS))}; recebido '{entrega}'",
+    }
+
+
 def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]:
     """As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma."""
     propriedades: dict[str, Any] = {}
@@ -75,6 +90,9 @@ def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any
     trilha = ler_texto(argumentos, CAMPO_TRILHA).lower()
     if trilha:
         propriedades[CAMPO_TRILHA] = trilha
+    entrega = ler_texto(argumentos, CAMPO_ENTREGA).lower()
+    if entrega:
+        propriedades[CAMPO_ENTREGA] = entrega
     arquivos = ler_textos(argumentos.get(CAMPO_ARQUIVOS_ALVO))
     if arquivos:
         propriedades[CAMPO_ARQUIVOS_ALVO] = list(arquivos)

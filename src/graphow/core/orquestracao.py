@@ -26,6 +26,16 @@ TRILHA_LEVE: str = "leve"
 TRILHA_COMPLETA: str = "completa"
 TRILHAS: frozenset[str] = frozenset({TRILHA_LEVE, TRILHA_COMPLETA})
 
+# Na Task: o que ela entrega. O artefato (arquivo, documento, dado) é o caso de
+# sempre e vale quando falta. A ação externa é o gesto no mundo que não deixa
+# arquivo para trás, como enviar um e-mail, marcar uma reunião ou publicar um
+# post: quem a executa é o gesto `acao_externa` da política de governança, do
+# humano por padrão, e a prova vai numa Evidence com `fonte` e `resultado`.
+CAMPO_ENTREGA: str = "entrega"
+ENTREGA_ARTEFATO: str = "artefato"
+ENTREGA_ACAO_EXTERNA: str = "acao_externa"
+ENTREGAS: frozenset[str] = frozenset({ENTREGA_ARTEFATO, ENTREGA_ACAO_EXTERNA})
+
 # No Goal: o rótulo da configuração de modelos com que ele foi orquestrado,
 # para a medição comparar o mesmo conjunto de tarefas sob arranjos diferentes.
 CAMPO_CONFIGURACAO: str = "configuracao"

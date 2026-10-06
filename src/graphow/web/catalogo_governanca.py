@@ -39,8 +39,9 @@ DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.FECHAR_GOAL: "Marcar um Goal como concluído",
     Gesto.ENCERRAR_SESSAO: "Encerrar uma Sessão",
     Gesto.LIBERAR_POSSE_ALHEIA: "Liberar a posse de uma tarefa que é de outro autor",
-    Gesto.INTEGRACAO: "Commitar e integrar no ramo base (merge local); o push segue humano",
+    Gesto.INTEGRACAO: "Quando a entrega é código num repositório: commitar e integrar no ramo base (merge local); o push segue humano",
     Gesto.MAX_CORRECOES: "Reprovações em cadeia antes do teto: a de ordem N já escala (2 = a original e a primeira correção)",
+    Gesto.ACAO_EXTERNA: "Executar a tarefa que é um gesto no mundo, sem arquivo (enviar e-mail, marcar reunião): o humano, ou o executor que tem as ferramentas",
 })
 
 DESCRICOES_DOS_PRESETS: Mapping[str, str] = MappingProxyType({
@@ -53,8 +54,8 @@ DESCRICOES_DOS_PRESETS: Mapping[str, str] = MappingProxyType({
 DESCRICOES_DA_OPERACAO: Mapping[str, str] = MappingProxyType({
     CAMPO_CADENCIA: "Quando a orquestração para e devolve a palavra ao humano",
     CAMPO_TETO_RODADAS: "Quantas rodadas a orquestração roda antes de parar",
-    CAMPO_RAMO_BASE: "Ramo do git em que o trabalho do Goal vai ser integrado",
-    CAMPO_CAMINHOS_DE_COLISAO: "Globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo",
+    CAMPO_RAMO_BASE: "Só quando o trabalho mora num repositório git: o ramo em que o Goal vai ser integrado",
+    CAMPO_CAMINHOS_DE_COLISAO: "Só com ramo base: globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo",
 })
 
 

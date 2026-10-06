@@ -97,6 +97,13 @@ def _linha_de_correcoes(politica: PoliticaGovernanca) -> list[str]:
     return [f"- max_correcoes: {politica.max_correcoes} reprovacoes em cadeia antes do teto (a de ordem {politica.max_correcoes} escala)"]
 
 
+def _linha_de_acao_externa(politica: PoliticaGovernanca) -> list[str]:
+    """Diz que o executor executa a Task de ação externa, quando a política a entrega a ele."""
+    if not politica.acao_externa_com_executor:
+        return []
+    return ["- acao_externa com o executor: ele assume e entrega a Task de entrega acao_externa"]
+
+
 def descrever_governanca(politica: PoliticaGovernanca) -> tuple[str, ...]:
     """As linhas da seção: o preset efetivo e o que não está com o humano; uma só na governança máxima."""
     preset = nome_do_preset(politica)
@@ -108,6 +115,7 @@ def descrever_governanca(politica: PoliticaGovernanca) -> tuple[str, ...]:
         linhas.append(f"- com o arbitro: {_nomes(com_arbitro)}")
     linhas.extend(_linha_de_estrutura(politica))
     linhas.extend(_linha_de_correcoes(politica))
+    linhas.extend(_linha_de_acao_externa(politica))
     linhas.append(f"- sempre do humano: {SEMPRE_HUMANOS}")
     return tuple(linhas)
 

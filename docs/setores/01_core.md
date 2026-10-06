@@ -10,17 +10,17 @@ Vocabulário da ontologia (versão 1.4.0: o tipo Governanca, o papel arbitro e a
 
 ## Inventário
 
-9 módulos · 1127 linhas · 37 classes
+9 módulos · 1154 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 76 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/governanca.py`](#coregovernanca) | 372 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
+| [`core/governanca.py`](#coregovernanca) | 389 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 71 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
-| [`core/orquestracao.py`](#coreorquestracao) | 78 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
+| [`core/orquestracao.py`](#coreorquestracao) | 88 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
 | [`core/types.py`](#coretypes) | 120 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/events.py`
@@ -144,6 +144,7 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 | `CHAVES_DA_CONFIGURACAO` | `frozenset[str]` | `frozenset({CHAVE_PRESET, CHAVE_PERSONALIZADA})` |
 | `VALOR_HUMANO` | `str` | `'humano'` |
 | `VALOR_ARBITRO` | `str` | `'arbitro'` |
+| `VALOR_EXECUTOR` | `str` | `'executor'` |
 | `VALOR_ESTRITO` | `str` | `'estrito'` |
 | `VALOR_ILIMITADO` | `str` | `'ilimitado'` |
 | `MAX_CORRECOES_MINIMO` | `int` | `0` |
@@ -153,7 +154,8 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 | `ORIGEM_LEGADO` | `str` | `'legado:nivel_autonomia'` |
 | `PREFIXO_ORIGEM_PRESET` | `str` | `'preset:'` |
 | `PREFIXO_ORIGEM_PROJETO_RESTRITIVO` | `str` | `'projeto:'` |
-| `GESTOS_POR_PAPEL` | `frozenset[Gesto]` | `frozenset((gesto for gesto in Gesto if gesto not in (Gesto.ESTRUTURA, G…` |
+| `GESTOS_COM_LEITURA_PROPRIA` | `frozenset[Gesto]` | `frozenset({Gesto.ESTRUTURA, Gesto.MAX_CORRECOES, Gesto.ACAO_EXTERNA})` |
+| `GESTOS_POR_PAPEL` | `frozenset[Gesto]` | `frozenset((gesto for gesto in Gesto if gesto not in GESTOS_COM_LEITURA_…` |
 | `_VALORES_DE_PAPEL` | `frozenset[str]` | `frozenset({VALOR_HUMANO, VALOR_ARBITRO})` |
 | `VALORES_ACEITOS` | `Mapping[Gesto, frozenset[str]]` | `MappingProxyType({**{gesto: _VALORES_DE_PAPEL for gesto in GESTOS_POR_P…` |
 | `_GOVERNANCA_MAXIMA` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({**{gesto: VALOR_HUMANO for gesto in GESTOS_POR_PAPEL}…` |
@@ -174,6 +176,7 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 - `origem(gesto: Gesto) -> str` — De onde o valor veio: global, projeto, preset:<nome> ou legado:nivel_autonomia.
 - `permite(gesto: Gesto, papel: PapelAutor) -> bool` — Diz se o papel pode fazer o gesto: o humano sempre, o árbitro quando a política o entrega.
 - `estrutura_ilimitada() -> bool` `[property]` — Verdadeiro quando todos os agentes ganham os tipos de nó e a camada `contem`.
+- `acao_externa_com_executor() -> bool` `[property]` — Verdadeiro quando o executor assume e entrega a Task de ação externa; senão ela é do humano.
 - `max_correcoes() -> int` `[property]` — Reprovações em cadeia antes do teto: a de ordem `max_correcoes` já escala (profundidade_correcao + 1 >= max_correcoes).
 
 ### `PresetDoProjeto` (str, Enum)
@@ -284,6 +287,10 @@ Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisã
 | `TRILHA_LEVE` | `str` | `'leve'` |
 | `TRILHA_COMPLETA` | `str` | `'completa'` |
 | `TRILHAS` | `frozenset[str]` | `frozenset({TRILHA_LEVE, TRILHA_COMPLETA})` |
+| `CAMPO_ENTREGA` | `str` | `'entrega'` |
+| `ENTREGA_ARTEFATO` | `str` | `'artefato'` |
+| `ENTREGA_ACAO_EXTERNA` | `str` | `'acao_externa'` |
+| `ENTREGAS` | `frozenset[str]` | `frozenset({ENTREGA_ARTEFATO, ENTREGA_ACAO_EXTERNA})` |
 | `CAMPO_CONFIGURACAO` | `str` | `'configuracao'` |
 | `CAMPO_RAMO_BASE` | `str` | `'ramo_base'` |
 | `CAMPO_CAMINHOS_DE_COLISAO` | `str` | `'caminhos_de_colisao'` |

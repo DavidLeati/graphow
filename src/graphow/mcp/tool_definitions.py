@@ -31,7 +31,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "propor_patch",
-        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia. Formas aceitas: add e remove em /nos/<id> e /arestas/<id>, add e replace em /nos/<id>/rotulo, add, replace e remove em /nos/<id>/propriedades/<chave>; o resto volta com caminho_invalido. add só cria: o id do caminho é o do campo id do valor e não pode existir ainda (elemento_ja_existente); para editar um nó, use replace no rótulo ou numa propriedade. É por aqui que o trabalho vira memória: registre Evidence (fato observado: saída de teste, log, leitura) e Decision (escolha com motivo) produzidas pela sessão assim que acontecem, não só no fim; é delas que o fechamento, a condensação e o Aprendizado saem.",
+        "description": "Propõe mutações no estado compartilhado via JSON Patch RFC 6902 com validação atômica. Todo nó criado, exceto Projeto, precisa no mesmo lote de uma aresta de contenção chegando nele (produz vinda da Sessao, ou decompoe); sem ela o lote é recusado com no_fora_da_hierarquia. Formas aceitas: add e remove em /nos/<id> e /arestas/<id>, add e replace em /nos/<id>/rotulo, add, replace e remove em /nos/<id>/propriedades/<chave>; o resto volta com caminho_invalido. add só cria: o id do caminho é o do campo id do valor e não pode existir ainda (elemento_ja_existente); para editar um nó, use replace no rótulo ou numa propriedade. É por aqui que o trabalho vira memória: registre Evidence (fato observado: leitura, fonte consultada, saída de verificação) e Decision (escolha com motivo) produzidas pela sessão assim que acontecem, não só no fim; é delas que o fechamento, a condensação e o Aprendizado saem.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -73,7 +73,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "proximas_tarefas",
-        "description": "Lista as tarefas executáveis de uma sessão ou de um Goal (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão. Cada tarefa traz modelo, arquivos_alvo e criterio_pronto: só rodam em paralelo tarefas com arquivos_alvo disjuntos. Na correção, corrige traz a Evidence do veredito que a motivou, e profundidade_correcao conta as correções na cadeia até a original: 0 na original, 1 na primeira correção, 2 na correção de uma correção.",
+        "description": "Lista as tarefas executáveis de uma sessão ou de um Goal (dependências concluídas, sem dúvida aberta, sem posse de outro agente) e, em 'impedidas', o que ficou de fora com o motivo de cada exclusão. Cada tarefa traz modelo, trilha, entrega, arquivos_alvo e criterio_pronto: só rodam em paralelo tarefas com arquivos_alvo disjuntos, e a de entrega acao_externa é do humano, salvo quando a política entrega o gesto acao_externa ao executor. Na correção, corrige traz a Evidence do veredito que a motivou, e profundidade_correcao conta as correções na cadeia até a original: 0 na original, 1 na primeira correção, 2 na correção de uma correção.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -160,7 +160,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "rotulo": {"type": "string", "description": "Nome do setor (ex: Engenharia, Produto)."},
+                "rotulo": {"type": "string", "description": "Nome do setor (ex: Engenharia, Pesquisa, Comercial)."},
                 "id_projeto": {"type": "string", "description": "ID do Projeto pai."},
             },
             "required": ["rotulo", "id_projeto"],
@@ -172,7 +172,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "rotulo": {"type": "string", "description": "Nome da sessão (ex: Sprint 1, Refactor)."},
+                "rotulo": {"type": "string", "description": "Nome da sessão (ex: Sprint 1, Levantamento de fornecedores)."},
                 "id_setor": {"type": "string", "description": "ID do Setor pai."},
             },
             "required": ["rotulo", "id_setor"],
@@ -180,7 +180,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "criar_tarefa",
-        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), a trilha, os arquivos que ela toca e as decisões que a orientam.",
+        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), a trilha, a entrega, os arquivos que ela toca e as decisões que a orientam.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -191,9 +191,10 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "id_tarefa_pai": {"type": "string", "description": "ID de Task pai caso seja uma sub-tarefa (decompoe). Na tarefa de correção, a tarefa que a revisão rejeitou."},
                 "depende_de": {"type": "string", "description": "ID de Task pré-requisito (depende_de)."},
                 "modelo": {"type": "string", "description": "Modelo que deve executar a tarefa, como 'sonnet' ou 'opus'. Exige motivo_modelo: a escolha fica auditável no log."},
-                "motivo_modelo": {"type": "string", "description": "Por que este modelo: lógica de domínio, mudança em vários módulos, tarefa que já falhou uma revisão."},
-                "trilha": {"type": "string", "enum": ["leve", "completa"], "description": "Trilha da tarefa. 'leve' só para tarefa trivial de texto, comentário ou documentação, sem linha de código com efeito: pula o teste do executor frio e vai ao revisor Sonnet. Recusada com modelo opus. Ausente vale 'completa'."},
-                "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do repositório. Só rodam em paralelo tarefas com arquivos_alvo disjuntos."},
+                "motivo_modelo": {"type": "string", "description": "Por que este modelo: julgamento de domínio, mudança que atravessa várias partes do trabalho, tarefa que já falhou uma revisão."},
+                "trilha": {"type": "string", "enum": ["leve", "completa"], "description": "Trilha da tarefa. 'leve' só para tarefa trivial de texto (redação, revisão de texto, comentário ou documentação), sem mudança com efeito em código, dado ou configuração: pula o teste do executor frio e vai ao revisor Sonnet. Recusada com modelo opus. Ausente vale 'completa'."},
+                "entrega": {"type": "string", "enum": ["artefato", "acao_externa"], "description": "O que a tarefa entrega. 'artefato' (padrão): arquivo, documento ou dado. 'acao_externa': um gesto no mundo que não deixa arquivo, como enviar um e-mail ou marcar uma reunião; o gesto acao_externa da política decide se é do humano (padrão) ou do executor, e a prova vai numa Evidence com fonte e resultado."},
+                "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do trabalho (código, documentos, planilhas). Só rodam em paralelo tarefas com arquivos_alvo disjuntos; a de ação externa não leva."},
                 "decisoes": {"type": "array", "items": {"type": "string"}, "description": "IDs das Decision que valem para esta tarefa. Cada uma ganha a aresta orienta, que é por onde o executor as encontra."},
                 "corrige": {"type": "string", "description": "Na tarefa de correção, o id da Evidence de revisão rejeitada que a motivou. Com id_tarefa_pai, a tarefa rejeitada passa a depender da correção e sai da fila até ela fechar."},
             },
@@ -238,13 +239,13 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "configurar_governanca",
-        "description": "Grava a política de governança, que decide quem exerce cada gesto antes só do humano (responder_questao, promover_aprendizado, constraint, estrutura, excluir, fechar_goal, encerrar_sessao, liberar_posse_alheia, integracao, max_correcoes): o humano, ou o árbitro. É o caminho novo, que substitui configurar_autonomia_projeto. Sempre do humano: nenhum papel de agente, árbitro inclusive, a configura. Presets: governanca_maxima e arbitragem_maxima são fixos; só a personalizada é editável, e ela fica sempre guardada à parte, sem ser apagada ao trocar de preset. escopo 'global' grava o nó governanca-global (criado se não existir); o id de um Projeto grava a política dele, em que a personalizada é parcial e o gesto ausente herda a global. Devolve a política efetiva resultante e a origem de cada gesto.",
+        "description": "Grava a política de governança, que decide quem exerce cada gesto antes só do humano (responder_questao, promover_aprendizado, constraint, estrutura, excluir, fechar_goal, encerrar_sessao, liberar_posse_alheia, integracao, max_correcoes, acao_externa): o humano, ou o árbitro; na acao_externa, o humano ou o executor. É o caminho novo, que substitui configurar_autonomia_projeto. Sempre do humano: nenhum papel de agente, árbitro inclusive, a configura. Presets: governanca_maxima e arbitragem_maxima são fixos; só a personalizada é editável, e ela fica sempre guardada à parte, sem ser apagada ao trocar de preset. escopo 'global' grava o nó governanca-global (criado se não existir); o id de um Projeto grava a política dele, em que a personalizada é parcial e o gesto ausente herda a global. Devolve a política efetiva resultante e a origem de cada gesto.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "escopo": {"type": "string", "description": "'global' ou o ID de um Projeto."},
                 "preset": {"type": "string", "enum": ["governanca_maxima", "arbitragem_maxima", "personalizada", "herdar"], "description": "No escopo global: governanca_maxima, arbitragem_maxima ou personalizada. Num Projeto também 'herdar', que vale a política global."},
-                "personalizada": {"type": "object", "description": "Opcional: gesto -> valor ('humano' ou 'arbitro'; estrutura: 'estrito' ou 'ilimitado'; max_correcoes: inteiro de 0 a 5). É mesclada na personalizada já salva. Num Projeto, o valor 'herdar' apaga a sobrescrita do gesto."},
+                "personalizada": {"type": "object", "description": "Opcional: gesto -> valor ('humano' ou 'arbitro'; estrutura: 'estrito' ou 'ilimitado'; max_correcoes: inteiro de 0 a 5; acao_externa: 'humano' ou 'executor'). É mesclada na personalizada já salva. Num Projeto, o valor 'herdar' apaga a sobrescrita do gesto."},
             },
             "required": ["escopo", "preset"],
         },

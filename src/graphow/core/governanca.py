@@ -37,6 +37,7 @@ CHAVES_DA_CONFIGURACAO: frozenset[str] = frozenset({CHAVE_PRESET, CHAVE_PERSONAL
 
 VALOR_HUMANO: str = "humano"
 VALOR_ARBITRO: str = "arbitro"
+VALOR_EXECUTOR: str = "executor"
 VALOR_ESTRITO: str = "estrito"
 VALOR_ILIMITADO: str = "ilimitado"
 
@@ -65,6 +66,7 @@ class Gesto(str, Enum):
     LIBERAR_POSSE_ALHEIA = "liberar_posse_alheia"
     INTEGRACAO = "integracao"
     MAX_CORRECOES = "max_correcoes"
+    ACAO_EXTERNA = "acao_externa"
 
 
 class PresetGovernanca(str, Enum):
@@ -84,29 +86,35 @@ class PresetDoProjeto(str, Enum):
     PERSONALIZADA = "personalizada"
 
 
-# Gestos que se decidem por papel (humano ou árbitro). `estrutura` e
-# `max_correcoes` não são permissões: têm leitura própria na política.
-GESTOS_POR_PAPEL: frozenset[Gesto] = frozenset(
-    gesto for gesto in Gesto if gesto not in (Gesto.ESTRUTURA, Gesto.MAX_CORRECOES)
-)
+# Gestos que se decidem por papel (humano ou árbitro). `estrutura`,
+# `max_correcoes` e `acao_externa` não são permissões ao árbitro: têm leitura
+# própria na política. A ação externa (a Task que entrega um gesto no mundo,
+# não um arquivo) é do humano ou do executor que tem as ferramentas para ela.
+GESTOS_COM_LEITURA_PROPRIA: frozenset[Gesto] = frozenset({Gesto.ESTRUTURA, Gesto.MAX_CORRECOES, Gesto.ACAO_EXTERNA})
+GESTOS_POR_PAPEL: frozenset[Gesto] = frozenset(gesto for gesto in Gesto if gesto not in GESTOS_COM_LEITURA_PROPRIA)
 
 _VALORES_DE_PAPEL: frozenset[str] = frozenset({VALOR_HUMANO, VALOR_ARBITRO})
 
 VALORES_ACEITOS: Mapping[Gesto, frozenset[str]] = MappingProxyType({
     **{gesto: _VALORES_DE_PAPEL for gesto in GESTOS_POR_PAPEL},
     Gesto.ESTRUTURA: frozenset({VALOR_ESTRITO, VALOR_ILIMITADO}),
+    Gesto.ACAO_EXTERNA: frozenset({VALOR_HUMANO, VALOR_EXECUTOR}),
 })
 
 _GOVERNANCA_MAXIMA: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
     **{gesto: VALOR_HUMANO for gesto in GESTOS_POR_PAPEL},
     Gesto.ESTRUTURA: VALOR_ESTRITO,
     Gesto.MAX_CORRECOES: 2,
+    Gesto.ACAO_EXTERNA: VALOR_HUMANO,
 })
 
 _ARBITRAGEM_MAXIMA: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
     **{gesto: VALOR_ARBITRO for gesto in GESTOS_POR_PAPEL},
     Gesto.ESTRUTURA: VALOR_ILIMITADO,
     Gesto.MAX_CORRECOES: 2,
+    # A arbitragem entrega ao árbitro o que é julgamento; agir no mundo em nome
+    # do humano não é julgamento, e segue com ele até a política dizer o contrário.
+    Gesto.ACAO_EXTERNA: VALOR_HUMANO,
 })
 
 PRESETS_FIXOS: Mapping[PresetGovernanca, Mapping[Gesto, ValorDeGesto]] = MappingProxyType({
@@ -138,8 +146,9 @@ class PoliticaGovernanca:
     def permite(self, gesto: Gesto, papel: PapelAutor) -> bool:
         """Diz se o papel pode fazer o gesto: o humano sempre, o árbitro quando a política o entrega.
 
-        Não se aplica a `estrutura` (veja `estrutura_ilimitada`) nem a
-        `max_correcoes` (veja `max_correcoes`): perguntar por eles é erro de quem chama.
+        Não se aplica a `estrutura` (veja `estrutura_ilimitada`), a
+        `max_correcoes` (veja `max_correcoes`) nem a `acao_externa` (veja
+        `acao_externa_com_executor`): perguntar por eles é erro de quem chama.
         """
         if gesto not in GESTOS_POR_PAPEL:
             raise ValueError(f"O gesto '{gesto.value}' não se decide por papel; leia o valor dele direto")
@@ -151,6 +160,11 @@ class PoliticaGovernanca:
     def estrutura_ilimitada(self) -> bool:
         """Verdadeiro quando todos os agentes ganham os tipos de nó e a camada `contem`."""
         return self.valores[Gesto.ESTRUTURA] == VALOR_ILIMITADO
+
+    @property
+    def acao_externa_com_executor(self) -> bool:
+        """Verdadeiro quando o executor assume e entrega a Task de ação externa; senão ela é do humano."""
+        return self.valores[Gesto.ACAO_EXTERNA] == VALOR_EXECUTOR
 
     @property
     def max_correcoes(self) -> int:
@@ -278,7 +292,10 @@ def _aplicar_legado(politica: PoliticaGovernanca, nivel_autonomia: Any) -> Polit
 
 
 def _mais_restritivo(gesto: Gesto, valores: Sequence[ValorDeGesto]) -> ValorDeGesto:
-    """O valor que menos entrega do gesto: humano, estrito ou o menor número de reprovações em cadeia."""
+    """O valor que menos entrega do gesto: humano, estrito ou o menor número de reprovações em cadeia.
+
+    Na `acao_externa`, o humano vence o executor, como vence o árbitro nos gestos por papel.
+    """
     if gesto == Gesto.MAX_CORRECOES:
         return min(int(valor) for valor in valores)
     restritivo = VALOR_ESTRITO if gesto == Gesto.ESTRUTURA else VALOR_HUMANO
@@ -298,7 +315,7 @@ def _projeto_que_restringiu(
 def compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca:
     """Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
 
-    O humano vence o árbitro, `estrito` vence `ilimitado` e vale o menor
+    O humano vence o árbitro e o executor, `estrito` vence `ilimitado` e vale o menor
     `max_correcoes`. A origem do gesto aponta o Projeto que o restringiu, e no
     empate o de menor id: a resposta não depende da ordem do mapa. Com um Projeto
     só, é a política dele, sem mudar nem as origens.

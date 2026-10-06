@@ -1,7 +1,7 @@
 """Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto.
 
 Cada gesto (responder uma Question, governar Constraint, excluir, fechar Goal,
-encerrar Sessão) era só do humano. A política de governança do projeto do nó o
+encerrar Sessão, executar a ação externa) era só do humano. A política de governança do projeto do nó o
 reserva ao humano ou o entrega ao árbitro, e este módulo é a leitura dela no
 portão de nós. A política vem só do estado do grafo (`resolver_politica_do_no`),
 então o replay do log repete o veredito.
@@ -16,7 +16,8 @@ from typing import Any
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.governanca import Gesto, PoliticaGovernanca
 from graphow.core.models import NoGrafo
-from graphow.core.types import PapelAutor, TipoNo
+from graphow.core.orquestracao import CAMPO_ENTREGA, ENTREGA_ACAO_EXTERNA, VEREDITO_APROVADO, ler_texto
+from graphow.core.types import PapelAutor, StatusTask, TipoNo
 from graphow.kernel.matriz_papeis import (
     STATUS_DE_QUESTION_ESCRITOS_PELO_ARBITRO,
     STATUS_QUE_ENCERRA_SESSAO,
@@ -28,8 +29,16 @@ from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, ResultadoValid
 from graphow.kernel.permissao_de_aresta import ContextoPapel, descrever_reserva_do_gesto
 from graphow.kernel.politica_governanca import resolver_politica_do_no
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral
+from graphow.projection.graph_view import GrafoView
+from graphow.projection.revisao import veredito_efetivo
 
 CAMINHO_DO_STATUS: str = "/propriedades/status"
+CAMINHO_DA_ENTREGA: str = f"/propriedades/{CAMPO_ENTREGA}"
+
+# Os status que dizem que o executor pegou ou entregou a Task. Fechar a Task
+# aprovada (`concluido`) segue com ele, e a posse que o fechamento pede também:
+# a revisão já julgou a prova do humano.
+STATUS_DE_QUEM_EXECUTA: frozenset[str] = frozenset({StatusTask.EM_ANDAMENTO.value, StatusTask.PRONTO_PARA_REVISAO.value})
 
 
 @dataclass(frozen=True)
@@ -167,6 +176,48 @@ class GestosDeNo:
                 Gesto.ENCERRAR_SESSAO, no.id, ctx.contexto, o_que=f"escrever o status da Sessao '{no.id}'"
             )
         return ResultadoValidacao.sucesso()
+
+    def validar_acao_externa(self, no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao:
+        """A Task de ação externa é do humano, salvo quando a política a entrega ao executor.
+
+        O executor não assume nem entrega a Task cuja `entrega` é `acao_externa`
+        (enviar e-mail, marcar reunião) enquanto o gesto `acao_externa` for do
+        humano, e não troca a `entrega` de Task nenhuma: seria o atalho para
+        tirá-la da reserva. Vale também pelo `propor_patch`, não só pelo
+        `assumir_tarefa`.
+        """
+        if no.tipo != TipoNo.TASK or ctx.contexto.proposta.papel != PapelAutor.EXECUTOR:
+            return ResultadoValidacao.sucesso()
+        item = ctx.item
+        if item.path.endswith(CAMINHO_DA_ENTREGA):
+            return self._falha(
+                f"Papel 'executor' nao pode alterar a entrega da Task '{no.id}': quem desenha a tarefa e o planejador",
+                {"id_task": no.id},
+            )
+        if not self._executa_acao_externa(no, item) or self._executor_pode_executar(no, item, ctx.contexto):
+            return ResultadoValidacao.sucesso()
+        return self._falha(
+            f"Papel 'executor' nao pode executar a Task '{no.id}': a entrega e acao externa e a politica de "
+            "governanca do projeto reserva o gesto 'acao_externa' ao humano. Devolva a tarefa: a pessoa a executa "
+            "e registra a prova",
+            {"gesto": Gesto.ACAO_EXTERNA.value, "id_task": no.id},
+        )
+
+    def _executa_acao_externa(self, no: NoGrafo, item: ItemPatch) -> bool:
+        """A operação pega ou entrega uma Task de ação externa."""
+        if ler_texto(no.propriedades, CAMPO_ENTREGA) != ENTREGA_ACAO_EXTERNA or not item.path.endswith(CAMINHO_DO_STATUS):
+            return False
+        return item.op != OperacaoPatch.REMOVE and str(item.value) in STATUS_DE_QUEM_EXECUTA
+
+    def _executor_pode_executar(self, no: NoGrafo, item: ItemPatch, contexto: ContextoPapel) -> bool:
+        """A política entrega o gesto ao executor, ou a posse é a do fechamento da Task já aprovada."""
+        if self.politica_do_no(no.id, contexto).acao_externa_com_executor:
+            return True
+        return str(item.value) == StatusTask.EM_ANDAMENTO.value and self._aprovada(no.id, contexto)
+
+    def _aprovada(self, id_task: str, contexto: ContextoPapel) -> bool:
+        """A revisão já aprovou a Task: a posse que o executor pede agora é para fechá-la."""
+        return veredito_efetivo(GrafoView(contexto.estado), id_task) == VEREDITO_APROVADO
 
     def _exigir_do_nao_sistema(
         self,

@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-18 módulos · 2521 linhas · 31 classes
+18 módulos · 2529 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/corte.py`](#contextcorte) | 94 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
-| [`context/governanca_vigente.py`](#contextgovernancavigente) | 123 | A governança vigente dita ao agente: o protocolo e as vistas leem a mesma política. |
+| [`context/governanca_vigente.py`](#contextgovernancavigente) | 131 | A governança vigente dita ao agente: o protocolo e as vistas leem a mesma política. |
 | [`context/materializer.py`](#contextmaterializer) | 210 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |

@@ -29,6 +29,7 @@ const NOMES_DOS_GESTOS = {
   liberar_posse_alheia: "Liberar posse alheia",
   integracao: "Integração",
   max_correcoes: "Reprovações em cadeia antes do teto",
+  acao_externa: "Ações externas (sem arquivo)",
 };
 
 const NOMES_DOS_VALORES = {
@@ -36,6 +37,7 @@ const NOMES_DOS_VALORES = {
   arbitro: "Humano e árbitro",
   estrito: "Só o humano",
   ilimitado: "Todos os agentes",
+  executor: "Humano e executor",
 };
 
 /** Os gestos que a política nunca delega: sempre do humano, só para leitura. */

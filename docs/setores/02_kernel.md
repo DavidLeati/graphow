@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-23 módulos · 4000 linhas · 30 classes
+23 módulos · 4054 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 118 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
-| [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 191 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
+| [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 358 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 252 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
@@ -30,7 +30,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 269 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 384 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 387 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 120 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
@@ -165,6 +165,8 @@ Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pe
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CAMINHO_DO_STATUS` | `str` | `'/propriedades/status'` |
+| `CAMINHO_DA_ENTREGA` | `str` | `f'/propriedades/{CAMPO_ENTREGA}'` |
+| `STATUS_DE_QUEM_EXECUTA` | `frozenset[str]` | `frozenset({StatusTask.EM_ANDAMENTO.value, StatusTask.PRONTO_PARA_REVISA…` |
 
 ### `ContextoPermissaoEdicao`
 
@@ -185,6 +187,7 @@ Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pe
 - `validar_encerramento_de_questao(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — Encerrar a Question é o gesto `responder_questao`: do humano, ou do árbitro se a política o entrega.
 - `recusar_encerramento_de_questao(id_questao: str, papel: PapelAutor, politica: PoliticaGovernanca | None) -> ResultadoValidacao` — Explica que só a resposta do humano, ou do árbitro que a política autoriza, encerra a dúvida.
 - `validar_status_que_exige_gesto(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — Fechar um Goal e encerrar uma Sessão, por escrita de status, são gestos da política.
+- `validar_acao_externa(no: NoGrafo, ctx: ContextoPermissaoEdicao) -> ResultadoValidacao` — A Task de ação externa é do humano, salvo quando a política a entrega ao executor.
 
 ## `kernel/invariant_gate.py`
 

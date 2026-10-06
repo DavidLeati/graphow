@@ -15,6 +15,8 @@ from graphow.core.orquestracao import (
     CAMPO_ARQUIVOS_ALVO,
     CAMPO_CORRIGE,
     CAMPO_CRITERIO_PRONTO,
+    CAMPO_ENTREGA,
+    ENTREGA_ARTEFATO,
     CAMPO_MODELO,
     CAMPO_TRILHA,
     TRILHA_COMPLETA,
@@ -86,7 +88,10 @@ class TarefaExecutavel:
     despacha: qual executor chamar, e o que pode rodar em paralelo sem dois
     agentes editando o mesmo arquivo. A trilha diz se a tarefa pula o teste do
     executor frio e vai ao revisor Sonnet; a Task sem ela vem como completa,
-    para quem despacha não tratar ausência como caso à parte. A profundidade da correção diz quantas
+    para quem despacha não tratar ausência como caso à parte; a entrega, pelo
+    mesmo motivo, vem como `artefato` quando falta, e `acao_externa` diz que a
+    tarefa é um gesto no mundo, que a política reserva ao humano ou entrega ao
+    executor. A profundidade da correção diz quantas
     reprovações a tarefa já carrega, que é o que o teto de correções conta.
     """
 
@@ -97,6 +102,7 @@ class TarefaExecutavel:
     depende_de: tuple[str, ...] = field(default_factory=tuple)
     modelo: str = ""
     trilha: str = TRILHA_COMPLETA
+    entrega: str = ENTREGA_ARTEFATO
     arquivos_alvo: tuple[str, ...] = field(default_factory=tuple)
     corrige: str = ""
     profundidade_correcao: int = 0
@@ -111,6 +117,7 @@ class TarefaExecutavel:
             "depende_de": list(self.depende_de),
             "modelo": self.modelo,
             "trilha": self.trilha,
+            "entrega": self.entrega,
             "arquivos_alvo": list(self.arquivos_alvo),
             "corrige": self.corrige,
             "profundidade_correcao": self.profundidade_correcao,
@@ -173,6 +180,7 @@ class FilaDeTrabalho:
             depende_de=self._identificadores_de_dependencia(no.id),
             modelo=ler_texto(no.propriedades, CAMPO_MODELO),
             trilha=ler_texto(no.propriedades, CAMPO_TRILHA).lower() or TRILHA_COMPLETA,
+            entrega=ler_texto(no.propriedades, CAMPO_ENTREGA).lower() or ENTREGA_ARTEFATO,
             arquivos_alvo=ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO)),
             corrige=ler_texto(no.propriedades, CAMPO_CORRIGE),
             profundidade_correcao=profundidade_da_correcao(self._view, no.id),
