@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from graphow.api.cli import GraphowCLI, descrever_localizacao_banco
+from graphow.api.cli_setup import executar_setup
 from graphow.api.console import EscritorConsole, EscritorConsolePadrao
 from graphow.documentacao import MontadorDocumentacaoDoRepositorio
 from graphow.documentacao.publicacao import DocumentoGerado
@@ -95,6 +96,7 @@ class ExecutorLinhaDeComando:
             "avaliar": self._executar_avaliar,
             "transcricao-medir": self._executar_transcricao_medir,
             "skill-instalar": self._executar_skill_instalar,
+            "setup": lambda contexto: executar_setup(contexto.argumentos, contexto.console, RAIZ_PROJETO),
         }
         manipulador = manipuladores_sem_banco.get(contexto.argumentos.comando)
         if manipulador is not None:

@@ -1,7 +1,13 @@
 {
   "_comentario": [
     "Fiacao dos hooks de sessao do Claude Code ao subcomando 'graphow harness'.",
-    "Copie o bloco 'hooks' para o seu settings.json (usuario ou projeto).",
+    "Nao copie este arquivo a mao: 'graphow setup --escrever-settings' mescla o",
+    "bloco 'hooks' no ~/.claude/settings.json com o caminho absoluto do executavel",
+    "(o 'graphow' sem caminho daqui so funciona se o venv estiver no PATH do",
+    "processo do Claude Code, o que no app desktop em geral nao e verdade) e troca",
+    "o hook do harness que ja estiver la em vez de duplicar. 'graphow setup' sem a",
+    "opcao imprime o bloco pronto para colar. O teste test_ambiente confere que",
+    "este arquivo e o que o setup gera continuam iguais.",
     "SessionStart emite execucao_solicitada e abre a Sessao no ambiente padrao da",
     "memoria do repositorio em que o hook roda: o Projeto com o nome da pasta do",
     "repositorio (um worktree conta como o repositorio principal) e o Setor",
@@ -11,23 +17,15 @@
     "vai a vista de retomada (aprendizados aplicaveis, o que a sessao anterior",
     "deixou, a Task de condensar pendente e o protocolo de memoria).",
     "SessionEnd emite execucao_concluida e fecha a Sessao; ao fechar, o motor",
-    "reativo abre na Sessao a Task de condensacao, que um agente pega na sessao",
-    "seguinte. O que o ambiente escrevia num arquivo a parte passa a entrar no",
-    "grafo por aqui, e 'graphow notas-gerar' projeta os aprendizados em notas.",
-    "A versao anterior passava $CLAUDE_SESSION_ID e $CLAUDE_MODEL, variaveis que o",
-    "ambiente nao define: o id da sessao e o diretorio chegam no JSON da entrada",
-    "padrao. Com a variavel vazia o comando terminava em IndexError. '--entrada-hook'",
-    "le esse JSON no proprio subcomando, sem depender de 'jq' no PATH.",
-    "SessionEnd tambem le a transcricao da sessao (transcript_path) e grava no Run os",
-    "tokens por categoria, o modelo que de fato respondeu e as mensagens do modelo,",
-    "cada mensagem contada uma vez. SubagentStop grava um Run por subagente, pendurado",
-    "na sessao que o despachou, com os tokens, o modelo e as tarefas que ele assumiu:",
-    "e com esses Run que 'graphow orquestracao-medir' compara configuracoes de modelo.",
-    "Da transcricao saem tambem inicio, fim e duracao_s (primeiro e ultimo timestamp)",
-    "e, sem tokens, o motivo_sem_consumo. A linha 'Cota: 5h <n>%, semana <n>%' que a",
-    "raiz escreve vira cota_5h_inicio e cota_semanal_inicio no Run do condutor (do",
-    "prompt de despacho) e cota_5h_fim e cota_semanal_fim no Run da sessao (da ultima",
-    "linha que a raiz escreveu)."
+    "reativo abre na Sessao a Task de condensacao, que um agente pega na sessao seguinte.",
+    "O id da sessao e o diretorio chegam no JSON da entrada padrao, nunca por",
+    "variavel de ambiente: '--entrada-hook' le esse JSON no proprio subcomando.",
+    "SessionEnd tambem le a transcricao (transcript_path) e grava no Run os tokens",
+    "por categoria, o modelo que respondeu e as mensagens do modelo. SubagentStop",
+    "grava um Run por subagente, pendurado na sessao que o despachou, com tokens,",
+    "modelo e as tarefas que ele assumiu: e com esses Run que 'graphow",
+    "orquestracao-medir' compara configuracoes de modelo. A linha 'Cota: 5h <n>%,",
+    "semana <n>%' que a raiz escreve vira a cota de inicio e de fim dos Run."
   ],
   "hooks": {
     "SessionStart": [
@@ -35,7 +33,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "graphow harness --fase inicio --entrada-hook",
+            "command": "graphow",
+            "args": [
+              "harness",
+              "--fase",
+              "inicio",
+              "--entrada-hook"
+            ],
             "timeout": 10
           }
         ]
@@ -46,7 +50,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "graphow harness --fase fim --entrada-hook",
+            "command": "graphow",
+            "args": [
+              "harness",
+              "--fase",
+              "fim",
+              "--entrada-hook"
+            ],
             "timeout": 10
           }
         ]
@@ -57,7 +67,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "graphow harness --fase subagente --entrada-hook",
+            "command": "graphow",
+            "args": [
+              "harness",
+              "--fase",
+              "subagente",
+              "--entrada-hook"
+            ],
             "timeout": 10
           }
         ]

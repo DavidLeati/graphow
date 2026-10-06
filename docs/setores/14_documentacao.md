@@ -10,19 +10,22 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-10 módulos · 1379 linhas · 30 classes
+13 módulos · 1702 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`documentacao/__init__.py`](#documentacaoinit) | 58 | Geração do catálogo de documentação a partir do próprio código-fonte. |
+| [`documentacao/ambiente.py`](#documentacaoambiente) | 103 | Configuração do Claude Code para o graphow: hooks, permissões e servidor da sessão. |
 | [`documentacao/extrator.py`](#documentacaoextrator) | 155 | Extração do catálogo de código a partir da árvore sintática dos módulos. |
+| [`documentacao/instalacao_ambiente.py`](#documentacaoinstalacaoambiente) | 111 | Instalação das skills e dos subagentes do graphow no diretório do Claude Code. |
 | [`documentacao/leitura_fonte.py`](#documentacaoleiturafonte) | 89 | Acesso ao código-fonte do repositório, atrás de interface injetável. |
 | [`documentacao/modelo.py`](#documentacaomodelo) | 170 | Modelos imutáveis do catálogo de código extraído do repositório. |
 | [`documentacao/publicacao.py`](#documentacaopublicacao) | 141 | Publicação dos documentos gerados, com escrita atrás de interface injetável. |
 | [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 144 | Renderização do índice de navegação da biblioteca de documentação. |
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
 | [`documentacao/setores.py`](#documentacaosetores) | 161 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
-| [`documentacao/skill.py`](#documentacaoskill) | 70 | Instalação da skill do agente no diretório de skills do ambiente. |
+| [`documentacao/settings_claude.py`](#documentacaosettingsclaude) | 108 | Mescla dos hooks e das permissões do graphow no settings.json do Claude Code. |
+| [`documentacao/skill.py`](#documentacaoskill) | 71 | Instalação da skill do agente no diretório de skills do ambiente. |
 | [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 263 | Confere os exemplos de linha de comando dos guias contra o parser real. |
 
 ## `documentacao/__init__.py`
@@ -36,6 +39,38 @@ Geração do catálogo de documentação a partir do próprio código-fonte.
 - `montar_catalogo() -> CatalogoRepositorio` — Consulta o código e devolve o catálogo, sem escrever nada.
 - `montar_documentos() -> tuple[DocumentoGerado, ...]` — Renderiza os documentos em memória, para comparação de deriva.
 - `publicar() -> ResultadoPublicacao` — Comando: grava o índice e os dossiês em `docs/`.
+
+## `documentacao/ambiente.py`
+
+Configuração do Claude Code para o graphow: hooks, permissões e servidor da sessão.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DO_EXECUTAVEL` | `str` | `'graphow'` |
+| `NOME_DO_SERVIDOR_DA_SESSAO` | `str` | `'graphow'` |
+| `TEMPO_LIMITE_DO_HOOK_S` | `int` | `10` |
+| `FASES_DOS_HOOKS` | `tuple[tuple[str, str], ...]` | `(('SessionStart', 'inicio'), ('SessionEnd', 'fim'), ('SubagentStop', 's…` |
+| `FERRAMENTAS_DE_LEITURA_DA_SESSAO` | `tuple[str, ...]` | `('ler_vista', 'expandir_no', 'buscar', 'proximas_tarefas', 'minhas_ques…` |
+| `SERVIDORES_DOS_SUBAGENTES` | `tuple[str, ...]` | `('graphow-condutor', 'graphow-executor', 'graphow-revisor', 'graphow-ar…` |
+| `COMANDOS_DE_MEDICAO` | `tuple[str, ...]` | `('base-colisoes', 'orquestracao-medir', 'transcricao-medir')` |
+| `PADRAO_COMANDO_DO_AGENTE` | `re.Pattern[str]` | `re.compile(f'^(?P<prefixo>[ \\t]*command:[ \\t]*){NOME_DO_EXECUTAVEL}(?…` |
+
+### `ConfiguracaoDoAmbiente`
+
+*DTO imutável* — O executável que hooks e servidores chamam e o autor da sessão principal.
+
+**Campos:** `executavel: str`, `autor: str`
+
+- `hooks() -> dict[str, list[dict[str, object]]]` — Os três hooks do harness, no formato do bloco `hooks` do settings.json.
+- `hook(fase: str) -> dict[str, object]` — Um hook de comando com argumentos em lista, sem shell no meio para citar caminho.
+- `permissoes() -> tuple[str, ...]` — O que a orquestração usa sem parar em pedido de permissão.
+- `bloco_do_settings() -> dict[str, object]` — O trecho do settings.json que liga hooks e permissões.
+- `comando_do_servidor_da_sessao() -> str` — O `claude mcp add` que registra, uma vez por usuário, o servidor da sessão principal.
+
+### Funções do módulo
+
+- `resolver_executavel() -> str` — O graphow ao lado do interpretador que roda (o do venv), senão o do PATH, senão o nome.
+- `fixar_executavel_no_agente(definicao: str, executavel: str) -> str` — Troca o `command: graphow` do servidor MCP do subagente pelo caminho do executável.
 
 ## `documentacao/extrator.py`
 
@@ -54,6 +89,44 @@ Extração do catálogo de código a partir da árvore sintática dos módulos.
 *serviço* — Traduz arquivos-fonte em registros de catálogo, sem tocar em disco.
 
 - `extrair_modulo(arquivo: ArquivoFonte) -> ModuloDocumentado` — Analisa um módulo e devolve tudo que ele expõe.
+
+## `documentacao/instalacao_ambiente.py`
+
+Instalação das skills e dos subagentes do graphow no diretório do Claude Code.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SKILLS_DO_REPOSITORIO` | `tuple[str, ...]` | `('graphow-mcp', 'graphow-orquestracao')` |
+| `PASTA_DAS_SKILLS` | `Path` | `Path('.agents') / 'skills'` |
+| `PASTA_DOS_AGENTES` | `Path` | `Path('.agents') / 'agents'` |
+| `PADRAO_DOS_AGENTES` | `str` | `'graphow-*.md'` |
+| `DIRETORIO_CLAUDE_PADRAO` | `str` | `'~/.claude'` |
+
+### `CopiaPlanejada`
+
+*DTO imutável* — Um arquivo do ambiente: onde ele vai morar e o conteúdo que deve ter.
+
+**Campos:** `destino: Path`, `conteudo: bytes`
+
+- `em_dia() -> bool` — Verdadeiro quando o disco já tem exatamente este conteúdo.
+
+### `InstaladorDoAmbiente`
+
+*serviço* — Copia as duas skills e os subagentes, com o servidor MCP de cada um no executável dado.
+
+- `instalar() -> ResultadoDoAmbiente` — Grava o plano inteiro, sobrescrevendo as cópias anteriores.
+- `desatualizados() -> tuple[Path, ...]` — Os arquivos do ambiente que faltam ou diferem do repositório.
+- `planejar() -> tuple[CopiaPlanejada, ...]` — Todas as cópias, skills primeiro e subagentes depois.
+
+### `RepositorioSemAmbiente` (GraphowError)
+
+*serviço* — A origem não tem as skills e os subagentes: o pacote não veio de um checkout do graphow.
+
+### `ResultadoDoAmbiente`
+
+*DTO imutável* — O que a instalação gravou: arquivos por skill e os subagentes.
+
+**Campos:** `arquivos_por_skill: tuple[tuple[str, int], ...]`, `agentes: tuple[Path, ...]`
 
 ## `documentacao/leitura_fonte.py`
 
@@ -266,6 +339,35 @@ Definição das alas temáticas da biblioteca e montagem do catálogo.
 
 - `montar() -> CatalogoRepositorio` — Consulta pura: percorre as definições e devolve o catálogo montado.
 
+## `documentacao/settings_claude.py`
+
+Mescla dos hooks e das permissões do graphow no settings.json do Claude Code.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SUFIXO_DA_COPIA` | `str` | `'.graphow.bak'` |
+| `SUBCOMANDO_DO_HARNESS` | `str` | `'harness'` |
+
+### `MescladorDeSettings`
+
+*serviço* — Lê o settings.json, mescla a configuração do graphow e grava, com cópia do anterior.
+
+- `mesclar() -> ResultadoDaMescla` — Escreve o settings mesclado e devolve o que mudou.
+
+### `ResultadoDaMescla`
+
+*DTO imutável* — Onde a mescla escreveu, a cópia que guardou e as permissões que acrescentou.
+
+**Campos:** `caminho: Path`, `copia: Path | None`, `permissoes_acrescentadas: tuple[str, ...]`
+
+### `SettingsInvalido` (GraphowError)
+
+*serviço* — O settings.json existe mas não é um objeto JSON: a mescla não sobrescreve o que não entende.
+
+### Funções do módulo
+
+- `e_hook_do_harness(hook: object) -> bool` — Reconhece o hook do graphow harness nas duas formas: comando inteiro ou executável com args.
+
 ## `documentacao/skill.py`
 
 Instalação da skill do agente no diretório de skills do ambiente.
@@ -293,6 +395,10 @@ Instalação da skill do agente no diretório de skills do ambiente.
 ### `SkillNaoEncontrada` (GraphowError)
 
 *serviço* — A origem não tem a skill: o pacote foi instalado fora de um checkout do repositório.
+
+### Funções do módulo
+
+- `listar_arquivos_da_skill(origem: Path) -> tuple[Path, ...]` — Os arquivos da skill, em ordem estável em qualquer sistema, sem os caches do interpretador.
 
 ## `documentacao/verificacao_guias.py`
 

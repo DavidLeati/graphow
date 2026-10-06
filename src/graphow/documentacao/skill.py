@@ -33,6 +33,16 @@ class ResultadoDaInstalacao:
     arquivos_copiados: tuple[str, ...]
 
 
+def listar_arquivos_da_skill(origem: Path) -> tuple[Path, ...]:
+    """Os arquivos da skill, em ordem estável em qualquer sistema, sem os caches do interpretador."""
+    arquivos = (
+        caminho
+        for caminho in origem.rglob("*")
+        if caminho.is_file() and not PASTAS_IGNORADAS.intersection(caminho.relative_to(origem).parts)
+    )
+    return tuple(sorted(arquivos, key=lambda caminho: caminho.relative_to(origem).as_posix()))
+
+
 class InstaladorDeSkill:
     """Copia a skill inteira (SKILL.md, referências e scripts) para o diretório de skills."""
 
@@ -49,17 +59,8 @@ class InstaladorDeSkill:
                 {"origem": str(self._origem)},
             )
         alvo = self._destino / NOME_DA_SKILL
-        copiados = [self._copiar(arquivo, alvo) for arquivo in self._listar_arquivos()]
+        copiados = [self._copiar(arquivo, alvo) for arquivo in listar_arquivos_da_skill(self._origem)]
         return ResultadoDaInstalacao(destino=alvo, arquivos_copiados=tuple(copiados))
-
-    def _listar_arquivos(self) -> tuple[Path, ...]:
-        """Os arquivos da skill, em ordem estável em qualquer sistema, sem os caches do interpretador."""
-        arquivos = (
-            caminho
-            for caminho in self._origem.rglob("*")
-            if caminho.is_file() and not PASTAS_IGNORADAS.intersection(caminho.relative_to(self._origem).parts)
-        )
-        return tuple(sorted(arquivos, key=lambda caminho: caminho.relative_to(self._origem).as_posix()))
 
     def _copiar(self, arquivo: Path, alvo: Path) -> str:
         """Copia um arquivo preservando o caminho relativo dentro da skill."""

@@ -2,6 +2,7 @@
 
 import argparse
 
+from graphow.api.cli_setup import registrar_comando_de_setup
 from graphow.core.types import PapelAutor
 from graphow.documentacao.skill import DIRETORIO_DE_SKILLS_PADRAO
 from graphow.harness.servico_harness import FaseDoHarness
@@ -357,6 +358,7 @@ def construir_parser() -> argparse.ArgumentParser:
     _registrar_comando_de_orquestracao(subparsers, parser_base)
     _registrar_comando_de_transcricoes(subparsers, parser_base)
     _registrar_comando_de_skill(subparsers, parser_base)
+    registrar_comando_de_setup(subparsers, parser_base)
     _registrar_comando_de_notas(subparsers, parser_base)
     _registrar_comandos_de_servidor(subparsers, parser_base)
     return parser

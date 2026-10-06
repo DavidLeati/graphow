@@ -10,14 +10,15 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-10 módulos · 1462 linhas · 18 classes
+11 módulos · 1581 linhas · 18 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_execucao.py`](#apicliexecucao) | 301 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
+| [`api/cli_execucao.py`](#apicliexecucao) | 303 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 242 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
-| [`api/cli_parser.py`](#apicliparser) | 362 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 364 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_setup.py`](#apiclisetup) | 115 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
 | [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
@@ -112,6 +113,22 @@ Construção do analisador de argumentos da linha de comando do Graphow.
 ### Funções do módulo
 
 - `construir_parser() -> argparse.ArgumentParser` — Monta o analisador completo com todos os subcomandos registrados.
+
+## `api/cli_setup.py`
+
+O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CODIGO_EM_DIA` | `int` | `0` |
+| `CODIGO_DESATUALIZADO` | `int` | `1` |
+| `ARQUIVO_DE_SETTINGS` | `str` | `'settings.json'` |
+| `OPCOES_DE_MODO` | `tuple[tuple[str, str], ...]` | `(('--escrever-settings', 'Mescla hooks e permissoes no settings.json, c…` |
+
+### Funções do módulo
+
+- `registrar_comando_de_setup(subparsers: argparse._SubParsersAction, parser_base: argparse.ArgumentParser) -> None` — Registra o setup do ambiente, que não toca o banco.
+- `executar_setup(argumentos: argparse.Namespace, console: EscritorConsole, raiz_padrao: Path) -> int` — Instala ou confere o ambiente e imprime o que segue manual.
 
 ## `api/colisoes_base.py`
 
