@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-18 módulos · 2519 linhas · 31 classes
+18 módulos · 2521 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,7 +24,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 348 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
-| [`context/protocolo.py`](#contextprotocolo) | 125 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
+| [`context/protocolo.py`](#contextprotocolo) | 127 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
 | [`context/secoes.py`](#contextsecoes) | 277 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
@@ -332,7 +332,7 @@ O protocolo da memória dito ao agente: o mesmo texto no hook de início e no ap
 | `TITULO_DO_PROTOCOLO` | `str` | `'Protocolo de memoria do graphow'` |
 | `NOME_DO_SERVIDOR_MCP` | `str` | `'graphow'` |
 | `TIPOS_DE_REGISTRO` | `tuple[TipoNo, ...]` | `(TipoNo.EVIDENCE, TipoNo.DECISION, TipoNo.NOTE, TipoNo.ARTIFACT, TipoNo…` |
-| `EXIGENCIAS_DO_PAPEL` | `Mapping[PapelAutor, str]` | `{PapelAutor.PLANEJADOR: "Sua Evidence e leitura de codigo: nasce com `a…` |
+| `EXIGENCIAS_DO_PAPEL` | `Mapping[PapelAutor, str]` | `{PapelAutor.PLANEJADOR: "Sua Evidence diz onde viu: `arquivo`, `linhas`…` |
 | `PASSOS_DO_PROTOCOLO` | `tuple[str, ...]` | `('Durante o trabalho, registre no grafo o que descobriu e decidiu, prod…` |
 | `PASSO_DO_BANCO` | `str` | `'Nao edite o banco por fora: toda escrita passa pelas ferramentas.'` |
 | `GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA` | `str` | `'Promover aprendizado e encerrar a sessao sao gestos humanos'` |

@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 199 módulos · 26824 linhas · 376 classes**
+**15 alas · 199 módulos · 26868 linhas · 376 classes**
 
 ---
 
@@ -58,12 +58,12 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
-| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 9 | 1125 | 37 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 3960 | 30 |
+| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 9 | 1127 | 37 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 4000 | 30 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2199 | 23 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 18 | 2519 | 31 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 18 | 2521 | 31 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 282 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 15 | 1804 | 20 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
@@ -76,7 +76,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 ### Missão de cada ala
 
-**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.4.0: o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 **02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.
 

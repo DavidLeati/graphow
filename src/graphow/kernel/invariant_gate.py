@@ -116,8 +116,9 @@ class InvariantGate:
     def _validar_localizacao_de_evidencia(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
         """Recusa a Evidence que ficaria sem o ponteiro inteiro quando precisa dele.
 
-        A do planejador é leitura de código e nasce com `arquivo`, `linhas` e
-        `trecho`; a de qualquer papel que cite `linhas` ou `trecho` cita os três.
+        A do planejador sustenta decisões e nasce com o ponteiro: `arquivo`,
+        `linhas` e `trecho`, ou `fonte`, `local` opcional e `trecho`; a de
+        qualquer papel que cite `linhas`, `local` ou `trecho` o cita inteiro.
         Vale na criação e na edição: sem isso a Evidence nasceria inteira e
         perderia o trecho no lote seguinte. Ver kernel/localizacao.py.
         """
@@ -130,8 +131,9 @@ class InvariantGate:
     def _recusar_evidencia_sem_localizacao(self, evidencia: EvidenciaNoLote, problema: str) -> ResultadoValidacao:
         """Diz o que falta no ponteiro, para o autor refazer o lote sem adivinhar."""
         return ResultadoValidacao.falha(
-            f"Evidence '{evidencia.id}' sem localizacao inteira: {problema}. Evidence de leitura de codigo "
-            "carrega 'arquivo', 'linhas' ('120' ou '120-135') e 'trecho' (o texto literal dessas linhas)",
+            f"Evidence '{evidencia.id}' sem localizacao inteira: {problema}. A Evidence localizada carrega "
+            "'arquivo', 'linhas' ('120' ou '120-135') e 'trecho' (o texto literal dessas linhas), ou, quando "
+            "o fato nao mora num arquivo com linhas, 'fonte', 'local' opcional e 'trecho'",
             "InvariantGate",
             {"id_no": evidencia.id, "papel_de_quem_criou": evidencia.papel_de_quem_criou},
             modo=ModoFalhaMAST.EVIDENCIA_SEM_LOCALIZACAO,

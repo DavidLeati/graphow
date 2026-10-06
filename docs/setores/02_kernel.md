@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-23 módulos · 3960 linhas · 30 classes
+23 módulos · 4000 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,8 +21,8 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 191 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 356 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
-| [`kernel/localizacao.py`](#kernellocalizacao) | 157 | Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal. |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 358 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 252 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
@@ -205,14 +205,16 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 
 ## `kernel/localizacao.py`
 
-Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal.
+Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CAMPO_ARQUIVO` | `str` | `'arquivo'` |
 | `CAMPO_LINHAS` | `str` | `'linhas'` |
 | `CAMPO_TRECHO` | `str` | `'trecho'` |
-| `CAMPOS_QUE_DECLARAM_PONTEIRO` | `tuple[str, ...]` | `(CAMPO_LINHAS, CAMPO_TRECHO)` |
+| `CAMPO_FONTE` | `str` | `'fonte'` |
+| `CAMPO_LOCAL` | `str` | `'local'` |
+| `CAMPOS_QUE_DECLARAM_PONTEIRO` | `tuple[str, ...]` | `(CAMPO_LINHAS, CAMPO_LOCAL, CAMPO_TRECHO)` |
 | `PADRAO_DE_FAIXA` | `re.Pattern[str]` | `re.compile('^\\s*(\\d+)\\s*(?:[-–]\\s*(\\d+)\\s*)?$')` |
 
 ### `EvidenciaNoLote`
@@ -221,7 +223,7 @@ Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e 
 
 **Campos:** `id: str`, `papel_de_quem_criou: str`, `propriedades: Mapping[str, Any]`
 
-- `exige_localizacao() -> bool` `[property]` — Do planejador, sempre; de qualquer papel, quando cita linhas ou trecho.
+- `exige_localizacao() -> bool` `[property]` — Do planejador, sempre; de qualquer papel, quando cita linhas, local ou trecho.
 
 ### `FaixaDeLinhas`
 

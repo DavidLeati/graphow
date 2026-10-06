@@ -42,14 +42,16 @@ TIPOS_DE_REGISTRO: tuple[TipoNo, ...] = (
 # O que o portão exige a mais de um papel, dito antes da primeira recusa.
 EXIGENCIAS_DO_PAPEL: Mapping[PapelAutor, str] = {
     PapelAutor.PLANEJADOR: (
-        "Sua Evidence e leitura de codigo: nasce com `arquivo`, `linhas` ('120-135') e o `trecho` literal "
-        "dessas linhas, ou o InvariantGate recusa com evidencia_sem_localizacao."
+        "Sua Evidence diz onde viu: `arquivo`, `linhas` ('120-135') e o `trecho` literal dessas linhas, "
+        "ou, quando o fato nao mora num arquivo com linhas, `fonte` (URL, documento, conversa com data), "
+        "`local` opcional (pagina, secao) e o `trecho` literal; sem isso o InvariantGate recusa com "
+        "evidencia_sem_localizacao."
     ),
 }
 
 PASSOS_DO_PROTOCOLO: tuple[str, ...] = (
     "Durante o trabalho, registre no grafo o que descobriu e decidiu, produzido pela sessao "
-    "(aresta produz vinda dela): Evidence para fato observado (saida de teste, log, leitura), "
+    "(aresta produz vinda dela): Evidence para fato observado (leitura, fonte consultada, saida de verificacao), "
     "Decision para escolha com motivo, Note para o resto; Task por `criar_tarefa`, os demais por `propor_patch`.",
     "Duvida que trava o trabalho vira `abrir_questao`; espere a pessoa em `aguardar_resposta`.",
     "Antes de terminar, destile o que vale alem desta sessao com `registrar_aprendizado` "

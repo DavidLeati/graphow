@@ -58,8 +58,8 @@ def _kernel(nivel: str = "estrito", *, com_governanca: bool = True) -> WriteKern
 
 
 def test_versao_e_assinatura_da_ontologia_nominal() -> None:
-    """A 1.3.0 traz o tipo e o papel novos, e a assinatura declarada os confere."""
-    assert VERSAO_ONTOLOGIA == "1.3.0"
+    """A 1.4.0 mantém o tipo e o papel da 1.3.0, e a assinatura declarada os confere."""
+    assert VERSAO_ONTOLOGIA == "1.4.0"
     assert calcular_assinatura_da_ontologia() == ASSINATURA_DECLARADA
 
 

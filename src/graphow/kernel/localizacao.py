@@ -1,16 +1,23 @@
-"""Localização de uma Evidence de leitura de código: arquivo, faixa de linhas e trecho literal.
+"""Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal.
 
 A exploração devolve ponteiros, e o planejador registra como Evidence o que leu
 neles. Uma Evidence sem o ponteiro é interpretação com autoridade de fato
-registrado: ninguém volta ao código para conferir. O portão não lê o disco,
-porque o replay do log precisa dar o mesmo veredito anos depois; ele garante a
-forma que torna a conferência possível: o caminho, uma faixa de linhas válida e
-um trecho que cabe nela.
+registrado: ninguém volta à fonte para conferir. O portão não lê o disco nem a
+web, porque o replay do log precisa dar o mesmo veredito anos depois; ele
+garante a forma que torna a conferência possível.
 
-A regra vale em dois casos. A Evidence do planejador é sempre leitura de código,
-então nasce localizada. E qualquer Evidence que cite `linhas` ou `trecho` cita o
-ponteiro inteiro, de qualquer papel: localização pela metade não se confere.
-`arquivo` sozinho segue livre, para o log de teste ou o relatório anexado.
+O ponteiro tem duas formas. A de arquivo é `arquivo`, uma faixa de `linhas`
+válida e um `trecho` que cabe nela: o código, a ata em Markdown, o CSV. A de
+fonte genérica é `fonte` (uma URL, um documento, uma conversa com data e
+participantes), `local` livre opcional (página, seção, minuto) e o `trecho`
+literal: o fato que não mora num arquivo com linhas, como a fala da diretoria
+numa reunião ou o parágrafo de um relatório publicado.
+
+A regra vale em dois casos. A Evidence do planejador sustenta decisões, então
+nasce localizada. E qualquer Evidence que cite `linhas`, `local` ou `trecho`
+cita o ponteiro inteiro, de qualquer papel: localização pela metade não se
+confere. `arquivo` ou `fonte` sozinhos seguem livres, para o log de teste, o
+relatório anexado ou o registro de um envio.
 
 O portão julga a Evidence como ela vai ficar gravada. Uma projeção própria das
 operações deixava passar o que o conversor de eventos trata de outro jeito: um
@@ -33,7 +40,9 @@ from graphow.projection.acumulador import AcumuladorProjecao
 CAMPO_ARQUIVO: str = "arquivo"
 CAMPO_LINHAS: str = "linhas"
 CAMPO_TRECHO: str = "trecho"
-CAMPOS_QUE_DECLARAM_PONTEIRO: tuple[str, ...] = (CAMPO_LINHAS, CAMPO_TRECHO)
+CAMPO_FONTE: str = "fonte"
+CAMPO_LOCAL: str = "local"
+CAMPOS_QUE_DECLARAM_PONTEIRO: tuple[str, ...] = (CAMPO_LINHAS, CAMPO_LOCAL, CAMPO_TRECHO)
 
 # "120", "120-135" ou "120–135": o travessão entra porque é como modelos escrevem faixas.
 PADRAO_DE_FAIXA: re.Pattern[str] = re.compile(r"^\s*(\d+)\s*(?:[-–]\s*(\d+)\s*)?$")
@@ -78,14 +87,43 @@ def contar_linhas(trecho: str) -> int:
     return len(linhas)
 
 
+def _preenchido(valor: object) -> bool:
+    """Texto com algo além de espaço."""
+    return isinstance(valor, str) and bool(valor.strip())
+
+
 def diagnosticar_localizacao(propriedades: Mapping[str, Any]) -> str | None:
-    """O que falta ou está errado no ponteiro; None quando ele está inteiro."""
-    arquivo = propriedades.get(CAMPO_ARQUIVO)
-    if not isinstance(arquivo, str) or not arquivo.strip():
-        return "falta 'arquivo': o caminho do arquivo lido, relativo a raiz do repositorio"
+    """O que falta ou está errado no ponteiro; None quando ele está inteiro.
+
+    Com `arquivo`, vale a forma de arquivo; sem ele e com `fonte`, a genérica.
+    """
+    if _preenchido(propriedades.get(CAMPO_ARQUIVO)):
+        return _diagnosticar_faixa_e_trecho(propriedades)
+    if _preenchido(propriedades.get(CAMPO_FONTE)):
+        return _diagnosticar_ponteiro_de_fonte(propriedades)
+    return (
+        "falta 'arquivo' ou 'fonte': o caminho do arquivo lido, relativo a raiz do trabalho, "
+        "ou a fonte de onde o fato veio (URL, documento, conversa com data e participantes)"
+    )
+
+
+def _diagnosticar_ponteiro_de_fonte(propriedades: Mapping[str, Any]) -> str | None:
+    """A fonte genérica pede o trecho literal; `linhas`, se vier, é conferida como no arquivo."""
+    if propriedades.get(CAMPO_LINHAS) is not None:
+        return _diagnosticar_faixa_e_trecho(propriedades)
+    if not _preenchido(propriedades.get(CAMPO_TRECHO)):
+        return "falta 'trecho': o texto literal do que a fonte diz"
+    return None
+
+
+def _diagnosticar_faixa_e_trecho(propriedades: Mapping[str, Any]) -> str | None:
+    """A faixa de `linhas` e o `trecho` literal que cabe nela."""
     faixa = interpretar_faixa(propriedades.get(CAMPO_LINHAS))
     if faixa is None:
-        return "'linhas' ausente ou invalida: use '120' ou '120-135', com inicio >= 1 e fim >= inicio"
+        return (
+            "'linhas' ausente ou invalida: use '120' ou '120-135', com inicio >= 1 e fim >= inicio; "
+            "para pagina, secao ou minuto, use 'fonte' e 'local' no lugar de 'arquivo' e 'linhas'"
+        )
     trecho = propriedades.get(CAMPO_TRECHO)
     if not isinstance(trecho, str) or not trecho.strip():
         return "falta 'trecho': o texto literal das linhas citadas"
@@ -108,7 +146,7 @@ class EvidenciaNoLote:
 
     @property
     def exige_localizacao(self) -> bool:
-        """Do planejador, sempre; de qualquer papel, quando cita linhas ou trecho."""
+        """Do planejador, sempre; de qualquer papel, quando cita linhas, local ou trecho."""
         if self.papel_de_quem_criou == PapelAutor.PLANEJADOR.value:
             return True
         return any(self.propriedades.get(campo) is not None for campo in CAMPOS_QUE_DECLARAM_PONTEIRO)

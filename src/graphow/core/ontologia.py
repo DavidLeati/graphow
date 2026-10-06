@@ -29,7 +29,9 @@ from graphow.core.types import (
 # 1.3.0: entram o tipo `Governanca`, raiz como o Projeto e exclusiva do humano,
 # em que nenhuma aresta toca, e o papel `arbitro`, a quem a política de
 # governança entrega os gestos que tira do humano.
-VERSAO_ONTOLOGIA: str = "1.3.0"
+# 1.4.0: a localização de uma Evidence ganha a forma de fonte genérica
+# (`fonte`, `local`, `trecho`), para o fato que não mora num arquivo com linhas.
+VERSAO_ONTOLOGIA: str = "1.4.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},

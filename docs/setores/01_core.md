@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.core`
 
-Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+Vocabulário da ontologia (versão 1.4.0: o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 ## Inventário
 
-9 módulos · 1125 linhas · 37 classes
+9 módulos · 1127 linhas · 37 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Vocabulário da ontologia (versão 1.3.0: o tipo Governanca e o papel arbitro), 
 | [`core/falhas.py`](#corefalhas) | 76 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/governanca.py`](#coregovernanca) | 372 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
-| [`core/ontologia.py`](#coreontologia) | 69 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
+| [`core/ontologia.py`](#coreontologia) | 71 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 78 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
 | [`core/types.py`](#coretypes) | 120 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
@@ -259,7 +259,7 @@ Versão declarada do vocabulário da ontologia e a impressão digital que a chec
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `VERSAO_ONTOLOGIA` | `str` | `'1.3.0'` |
+| `VERSAO_ONTOLOGIA` | `str` | `'1.4.0'` |
 | `ARESTAS_DE_CONTENCAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.CONTEM, TipoAresta.PRODUZ, TipoAresta.DECOMPOE})` |
 | `VERSAO_ONTOLOGIA_DESCONHECIDA` | `str` | `'0'` |
 | `TAMANHO_DA_ASSINATURA` | `int` | `12` |

@@ -1,4 +1,4 @@
-"""A Evidence de leitura de código nasce com o ponteiro inteiro: arquivo, linhas e trecho.
+"""A Evidence localizada nasce com o ponteiro inteiro: arquivo, linhas e trecho, ou fonte e trecho.
 
 O explorador aponta trechos e o planejador registra o que leu neles. Sem o
 ponteiro, uma interpretação errada ganharia autoridade de fato registrado.
@@ -84,6 +84,59 @@ def test_diagnostico_aponta_o_campo_que_falta_nominal() -> None:
     assert "arquivo" in str(diagnosticar_localizacao({**PONTEIRO, "arquivo": " "}))
     assert "linhas" in str(diagnosticar_localizacao({**PONTEIRO, "linhas": "x"}))
     assert "trecho" in str(diagnosticar_localizacao({**PONTEIRO, "trecho": ""}))
+
+
+PONTEIRO_DE_FONTE: dict[str, object] = {
+    "fonte": "reuniao com a diretoria, 2026-10-03 (Ana, Bruno)",
+    "local": "pauta de fornecedores",
+    "trecho": "preco por kg pesa mais que prazo",
+}
+
+
+def test_fonte_generica_dispensa_arquivo_e_linhas_nominal() -> None:
+    """A conversa, a URL ou o relatório publicado se citam por fonte, local livre e trecho."""
+    assert diagnosticar_localizacao(PONTEIRO_DE_FONTE) is None
+    assert diagnosticar_localizacao({**PONTEIRO_DE_FONTE, "local": None}) is None
+
+
+def test_fonte_generica_sem_trecho_e_incompleta_edge_case() -> None:
+    """Caso de borda: dizer de onde veio sem dizer o que a fonte diz não se confere."""
+    assert "trecho" in str(diagnosticar_localizacao({**PONTEIRO_DE_FONTE, "trecho": " "}))
+
+
+def test_fonte_generica_com_linhas_confere_a_faixa_edge_case() -> None:
+    """Caso de borda: quem cita linhas, mesmo numa fonte, cita uma faixa válida que o trecho cabe."""
+    assert "linhas" in str(diagnosticar_localizacao({**PONTEIRO_DE_FONTE, "linhas": "x"}))
+    assert diagnosticar_localizacao({**PONTEIRO_DE_FONTE, "linhas": "4"}) is None
+
+
+def test_sem_arquivo_nem_fonte_o_diagnostico_pede_um_dos_dois_edge_case() -> None:
+    """Caso de borda: só o trecho não diz de onde veio."""
+    problema = str(diagnosticar_localizacao({"trecho": "preco pesa mais"}))
+    assert "arquivo" in problema
+    assert "fonte" in problema
+
+
+def test_planejador_justifica_decisao_com_fonte_que_nao_e_arquivo_nominal(kernel: WriteKernel) -> None:
+    """O fato de uma reunião sustenta a decisão sem virar arquivo antes."""
+    recibo = _submeter(
+        kernel,
+        PapelAutor.PLANEJADOR,
+        _no("evi", TipoNo.EVIDENCE, dict(PONTEIRO_DE_FONTE)),
+        _aresta("sess", "evi", TipoAresta.PRODUZ),
+        _no("dec", TipoNo.DECISION),
+        _aresta("sess", "dec", TipoAresta.PRODUZ),
+        _aresta("evi", "dec", TipoAresta.JUSTIFICA),
+    )
+
+    assert recibo.sucesso, recibo.mensagem
+
+
+def test_executor_com_local_sem_trecho_e_recusado_edge_case(kernel: WriteKernel) -> None:
+    """Caso de borda: `local` declara ponteiro, e o ponteiro vem inteiro de qualquer papel."""
+    recibo = _registrar_evidencia(kernel, PapelAutor.EXECUTOR, {"fonte": "https://exemplo.org/relatorio", "local": "p. 4"})
+
+    assert recibo.modo_de_falha == "evidencia_sem_localizacao"
 
 
 def test_trecho_maior_que_a_faixa_nao_e_literal_edge_case() -> None:
