@@ -101,6 +101,11 @@ export class ExploradorView {
       this.acoes.abrirEscopo(this.indice.escopoDe(id), { novaAba });
       return;
     }
+    // Shift + clique num item que está no canvas soma-o à seleção, como no canvas.
+    if (evento.shiftKey && this.state.nodes.has(id)) {
+      this.state.alternarNoNaSelecao(id);
+      return;
+    }
     this.acoes.focarNo(id, this.indice.info.get(id));
   }
 
@@ -337,7 +342,7 @@ export class ExploradorView {
   montarTitulo(no, { conteiner, expandido = false }) {
     const tipo = apresentarTipo(no.tipo);
     const ativo = conteiner && this.acoes.escopoAtivo()?.id === no.id;
-    const selecionado = this.state.selectedElement?.id === no.id;
+    const selecionado = this.state.selectedElement?.id === no.id || this.state.nosSelecionados.has(no.id);
     const classes = [
       "arvore-titulo",
       conteiner ? "mod-conteiner" : "mod-item",

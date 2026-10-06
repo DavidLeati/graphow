@@ -21,6 +21,10 @@ export class GraphowState {
     // a raiz das sessões do hook, que é um âmbito ({ tipo: "Ambito", ambito }).
     this.escopo = null;
     this.selectedElement = null; // { type: 'node' | 'edge', id: string, data: object }
+    // Todos os nós selecionados, o principal incluído. selectedElement segue
+    // sendo o principal — o que o inspetor e os painéis mostram —, e este
+    // conjunto é o que as ações em lote (excluir, arrastar) usam.
+    this.nosSelecionados = new Set();
     this.nodes = new Map(); // id -> nodeData
     this.edges = new Map(); // id -> edgeData
     this.nodePositions = new Map(); // id -> { x, y }
@@ -218,7 +222,44 @@ export class GraphowState {
     } else if (type === "edge") {
       this.selectedElement = { type: "edge", id, data: this.edges.get(id) };
     }
+    this.nosSelecionados = new Set(this.selectedElement?.type === "node" ? [id] : []);
     this.notify("SELECTION_CHANGED", { selection: this.selectedElement });
+  }
+
+  /**
+   * Shift ou Ctrl + clique: o nó entra na seleção e vira o principal, ou sai
+   * dela e o principal passa ao último que ficou. Uma aresta selecionada não
+   * se mistura com nós: o primeiro nó somado a substitui.
+   */
+  alternarNoNaSelecao(id) {
+    if (!this.nodes.has(id)) return;
+    const ids = new Set(this.nosSelecionados);
+    if (ids.has(id)) ids.delete(id);
+    else ids.add(id);
+    this.definirNosSelecionados(ids, ids.has(id) ? id : null);
+  }
+
+  /** O laço: soma os nós ao que já estava selecionado, ou substitui a seleção. */
+  selecionarNos(ids, { somar = false } = {}) {
+    const presentes = ids.filter((id) => this.nodes.has(id));
+    const conjunto = new Set(somar ? [...this.nosSelecionados, ...presentes] : presentes);
+    this.definirNosSelecionados(conjunto, presentes.at(-1) ?? null);
+  }
+
+  definirNosSelecionados(ids, principal) {
+    const escolhido = principal && ids.has(principal) ? principal : [...ids].at(-1) ?? null;
+    this.nosSelecionados = ids;
+    this.selectedElement = escolhido ? { type: "node", id: escolhido, data: this.nodes.get(escolhido) } : null;
+    this.notify("SELECTION_CHANGED", { selection: this.selectedElement });
+  }
+
+  /** Os nós selecionados que ainda estão no canvas, na ordem em que entraram. */
+  idsDosNosSelecionados() {
+    return [...this.nosSelecionados].filter((id) => this.nodes.has(id));
+  }
+
+  emSelecaoMultipla() {
+    return this.nosSelecionados.size > 1;
   }
 
   setSimulationRole(role) {

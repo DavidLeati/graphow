@@ -30,6 +30,10 @@ export class CanvasInteractions {
 
     this.draggingNode = null;
     this.dragOffset = { x: 0, y: 0 };
+    // Arrastar um nó da seleção múltipla leva todos: id -> deslocamento até o ponteiro.
+    this.deslocamentosDoGrupo = null;
+    // Shift + arrastar no fundo desenha o laço que seleciona os nós que ele toca.
+    this.laco = null;
     this.arrastePendente = null;
     this.quadroDoArraste = null;
     this.quadroDaJanela = null;
@@ -43,7 +47,7 @@ export class CanvasInteractions {
       zoom: this.zoom,
       larguraDoViewport: this.viewport.clientWidth,
       alturaDoViewport: this.viewport.clientHeight,
-      idsFixos: this.draggingNode ? [this.draggingNode] : [],
+      idsFixos: this.deslocamentosDoGrupo ? [...this.deslocamentosDoGrupo.keys()] : this.draggingNode ? [this.draggingNode] : [],
     });
 
     this.connectingFromId = null;
@@ -259,13 +263,22 @@ export class CanvasInteractions {
       return;
     }
 
-    // Check node drag
+    // Shift ou Ctrl sobre um cartão é somar à seleção, que o clique trata: não arrasta.
     const nodeCard = e.target.closest(".node-card");
+    if (nodeCard && (e.shiftKey || e.ctrlKey || e.metaKey)) return;
     if (nodeCard) {
       const id = nodeCard.id.replace("node-", "");
       this.draggingNode = id;
+      this.inicioDoArraste = { x: e.clientX, y: e.clientY };
+      this.renderer.suprimirClique = false;
       const pos = this.state.nodePositions.get(id) || { x: 0, y: 0 };
       this.dragOffset = { x: (e.clientX / this.zoom) - pos.x, y: (e.clientY / this.zoom) - pos.y };
+      this.deslocamentosDoGrupo = this.state.emSelecaoMultipla() && this.state.nosSelecionados.has(id) ? this.medirGrupo(e) : null;
+      return;
+    }
+
+    if (e.shiftKey) {
+      this.iniciarLaco(e);
       return;
     }
 
@@ -283,16 +296,24 @@ export class CanvasInteractions {
       return;
     }
 
+    if (this.laco) {
+      this.atualizarLaco(e);
+      return;
+    }
+
     if (this.draggingNode) {
-      const newX = (e.clientX / this.zoom) - this.dragOffset.x;
-      const newY = (e.clientY / this.zoom) - this.dragOffset.y;
-      this.state.nodePositions.set(this.draggingNode, { x: newX, y: newY });
-      const nodeEl = document.getElementById(`node-${this.draggingNode}`);
-      if (nodeEl) {
-        nodeEl.style.left = `${newX}px`;
-        nodeEl.style.top = `${newY}px`;
+      const deslocamentos = this.deslocamentosDoGrupo || new Map([[this.draggingNode, this.dragOffset]]);
+      for (const [id, deslocamento] of deslocamentos) {
+        const newX = (e.clientX / this.zoom) - deslocamento.x;
+        const newY = (e.clientY / this.zoom) - deslocamento.y;
+        this.state.nodePositions.set(id, { x: newX, y: newY });
+        const nodeEl = document.getElementById(`node-${id}`);
+        if (nodeEl) {
+          nodeEl.style.left = `${newX}px`;
+          nodeEl.style.top = `${newY}px`;
+        }
       }
-      this.agendarRedesenhoDoArraste(this.draggingNode);
+      this.agendarRedesenhoDoArraste([...deslocamentos.keys()]);
       return;
     }
 
@@ -313,8 +334,8 @@ export class CanvasInteractions {
    * e o minimapa é caro e o navegador só pinta uma vez por quadro: os eventos
    * que chegam entre dois quadros se juntam num único redesenho.
    */
-  agendarRedesenhoDoArraste(id) {
-    this.arrastePendente = id;
+  agendarRedesenhoDoArraste(ids) {
+    this.arrastePendente = ids;
     if (this.quadroDoArraste) return;
     this.quadroDoArraste = requestAnimationFrame(() => {
       this.quadroDoArraste = null;
@@ -324,13 +345,17 @@ export class CanvasInteractions {
 
   aplicarArrastePendente() {
     if (this.arrastePendente === null || this.arrastePendente === undefined) return;
-    const id = this.arrastePendente;
+    const ids = this.arrastePendente;
     this.arrastePendente = null;
-    this.renderer.redesenharArestasDoNo(id);
+    for (const id of ids) this.renderer.redesenharArestasDoNo(id);
     if (this.minimap) this.minimap.update();
   }
 
   onMouseUp(e) {
+    if (this.laco) {
+      this.concluirLaco(e);
+      return;
+    }
     if (this.draggingNode) {
       // Solta com a última posição já nas arestas: o quadro agendado, se ainda
       // não rodou, perde a vez para esta aplicação síncrona.
@@ -340,7 +365,11 @@ export class CanvasInteractions {
       }
       this.aplicarArrastePendente();
       this.state.savePositions();
+      // O clique que fecha um arraste não é seleção: soltar o grupo não pode
+      // reduzi-lo ao cartão que estava sob o ponteiro.
+      this.renderer.suprimirClique = Math.hypot(e.clientX - this.inicioDoArraste.x, e.clientY - this.inicioDoArraste.y) >= 5;
       this.draggingNode = null;
+      this.deslocamentosDoGrupo = null;
       if (this.minimap) this.minimap.update();
       // Solto longe da janela, o cartão que a segurava deixa de ser fixo.
       this.agendarAtualizacaoDaJanela();
@@ -374,6 +403,57 @@ export class CanvasInteractions {
       }
       this.connectingFromId = null;
     }
+  }
+
+  /** O deslocamento de cada nó selecionado até o ponteiro, para o grupo andar junto. */
+  medirGrupo(e) {
+    const deslocamentos = new Map();
+    for (const id of this.state.idsDosNosSelecionados()) {
+      const pos = this.state.nodePositions.get(id);
+      if (pos) deslocamentos.set(id, { x: (e.clientX / this.zoom) - pos.x, y: (e.clientY / this.zoom) - pos.y });
+    }
+    return deslocamentos;
+  }
+
+  iniciarLaco(e) {
+    e.preventDefault();
+    const elemento = document.createElement("div");
+    elemento.className = "laco-selecao";
+    this.viewport.appendChild(elemento);
+    this.laco = { elemento, inicio: { x: e.clientX, y: e.clientY }, fim: { x: e.clientX, y: e.clientY } };
+    this.atualizarLaco(e);
+  }
+
+  /** O laço é desenhado em coordenada do viewport, por cima do pan e do zoom. */
+  atualizarLaco(e) {
+    const { elemento, inicio } = this.laco;
+    this.laco.fim = { x: e.clientX, y: e.clientY };
+    const caixa = this.viewport.getBoundingClientRect();
+    elemento.style.left = `${Math.min(inicio.x, e.clientX) - caixa.left}px`;
+    elemento.style.top = `${Math.min(inicio.y, e.clientY) - caixa.top}px`;
+    elemento.style.width = `${Math.abs(e.clientX - inicio.x)}px`;
+    elemento.style.height = `${Math.abs(e.clientY - inicio.y)}px`;
+  }
+
+  /**
+   * Soma à seleção os nós cujo cartão cruza o laço. Um laço sem tamanho é um
+   * Shift + clique no fundo, que não mexe em nada.
+   */
+  concluirLaco(e) {
+    const { elemento, inicio } = this.laco;
+    this.laco = null;
+    elemento.remove();
+    if (Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) < 5) return;
+    const a = this.pontoNoMundo({ clientX: inicio.x, clientY: inicio.y });
+    const b = this.pontoNoMundo(e);
+    const laco = { x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y), x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y) };
+    const tocados = [];
+    for (const [id, pos] of this.state.nodePositions) {
+      if (!this.state.nodes.has(id)) continue;
+      const { largura, altura } = this.renderer.retanguloDoCartao(id);
+      if (pos.x < laco.x2 && pos.x + largura > laco.x1 && pos.y < laco.y2 && pos.y + altura > laco.y1) tocados.push(id);
+    }
+    if (tocados.length) this.state.selecionarNos(tocados, { somar: true });
   }
 
   startEdgeConnection(origemId, e) {

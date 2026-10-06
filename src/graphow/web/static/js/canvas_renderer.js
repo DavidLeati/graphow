@@ -49,10 +49,12 @@ export class CanvasRenderer {
     // tocam. Ambos sao refeitos por renderEdges.
     this.elementosDasArestas = new Map();
     this.arestasPorNo = new Map();
-    // O id selecionado que o DOM desenhado reflete, para atualizarSelecao saber
-    // o que desmarcar.
-    this.idSelecionadoNoDom = null;
+    // Os ids selecionados que o DOM desenhado reflete, para atualizarSelecao
+    // saber o que desmarcar.
+    this.idsSelecionadosNoDom = new Set();
     this.hoveredNodeId = null;
+    // Ligado pelo canvas quando um arraste acaba sobre o cartão: o clique que vem junto não seleciona.
+    this.suprimirClique = false;
     this.setupDefs();
     // A idade e relativa: sem este relogio, um card diria "3 min" a tarde
     // inteira, e uma idade errada e pior do que idade nenhuma.
@@ -107,7 +109,14 @@ export class CanvasRenderer {
   render() {
     this.renderNodes();
     this.renderEdges();
-    this.idSelecionadoNoDom = this.state.selectedElement?.id ?? null;
+    this.idsSelecionadosNoDom = this.idsSelecionadosAgora();
+  }
+
+  /** Os ids marcados agora: os nós da seleção, ou a aresta selecionada. */
+  idsSelecionadosAgora() {
+    const ids = new Set(this.state.nosSelecionados);
+    if (this.state.selectedElement?.type === "edge") ids.add(this.state.selectedElement.id);
+    return ids;
   }
 
   /**
@@ -119,15 +128,15 @@ export class CanvasRenderer {
    * lembra: assim uma seleção perdida no caminho não deixa um cartão marcado.
    */
   atualizarSelecao() {
-    const anterior = this.idSelecionadoNoDom ?? null;
-    const atual = this.state.selectedElement?.id ?? null;
-    if (anterior === atual) return;
-    this.idSelecionadoNoDom = atual;
+    const anteriores = this.idsSelecionadosNoDom;
+    const atuais = this.idsSelecionadosAgora();
+    const ids = [...anteriores, ...atuais].filter((id) => anteriores.has(id) !== atuais.has(id));
+    if (ids.length === 0) return;
+    this.idsSelecionadosNoDom = atuais;
 
-    const ids = [anterior, atual].filter((id) => id !== null);
     for (const id of ids) {
-      this.nodeElements.get(id)?.classList.toggle("selected", id === atual);
-      this.elementosDasArestas.get(id)?.classList.toggle("selected", id === atual);
+      this.nodeElements.get(id)?.classList.toggle("selected", atuais.has(id));
+      this.elementosDasArestas.get(id)?.classList.toggle("selected", atuais.has(id));
     }
 
     // Arestas `produz` só aparecem enquanto uma ponta está selecionada: as das
@@ -305,7 +314,7 @@ export class CanvasRenderer {
   criarCartao(id, node) {
     const pos = this.state.nodePositions.get(id) || { x: 100, y: 100 };
     const el = document.createElement("div");
-    el.className = `node-card ${this.state.selectedElement?.id === id ? "selected" : ""}`;
+    el.className = `node-card ${this.state.nosSelecionados.has(id) ? "selected" : ""}`;
     if (node.esta_bloqueado) el.classList.add("blocked-task");
     if (this.nosDoDestaque) el.classList.add(this.nosDoDestaque.has(id) ? "node-highlighted" : "node-dimmed");
     el.id = `node-${id}`;
@@ -341,10 +350,15 @@ export class CanvasRenderer {
         <div class="port port-bottom" data-port-bottom="${idSeguro}" title="Inferior"></div>
       `;
 
-    // Selection on click
+    // Clique seleciona; Shift ou Ctrl + clique soma o nó à seleção ou o tira dela.
     el.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.state.selectElement("node", id);
+      if (this.suprimirClique) {
+        this.suprimirClique = false;
+        return;
+      }
+      if (e.shiftKey || e.ctrlKey || e.metaKey) this.state.alternarNoNaSelecao(id);
+      else this.state.selectElement("node", id);
     });
 
     // Path highlighting on hover
@@ -412,11 +426,10 @@ export class CanvasRenderer {
     ids.add(arestaId);
   }
 
-  /** Arestas `produz` ficam ocultas, a menos que uma ponta esteja selecionada. */
+  /** Arestas `produz` ficam ocultas, a menos que uma ponta esteja entre os nós selecionados. */
   arestaVisivel(edge) {
     if (!this.state.hideStructuralEdges || edge.tipo !== "produz") return true;
-    const selecionado = this.state.selectedElement?.id;
-    return selecionado === edge.origem_id || selecionado === edge.destino_id;
+    return this.state.nosSelecionados.has(edge.origem_id) || this.state.nosSelecionados.has(edge.destino_id);
   }
 
   /** O atributo `d` da aresta, a partir da posicao e do tamanho em cache dos dois cartoes. */
