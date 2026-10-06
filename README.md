@@ -300,13 +300,78 @@ que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 ### Pré-requisitos
 - Python $\ge$ 3.11
+- [Claude Code](https://claude.com/claude-code) (CLI ou app desktop), para a memória e a orquestração
 
-### Instalação em Modo Editável
+### 1. Instalar o pacote
+
+A instalação tem de ser editável e a partir de um checkout: o `graphow setup`
+copia as skills e os subagentes de `.agents/`, que não vão dentro do pacote.
+
 ```bash
 git clone https://github.com/DavidLeati/graphow.git
 cd graphow
-pip install -e .
+python -m venv .venv
+.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install -e ".[dev]"         # [dev] traz o pytest; sem testes, basta "pip install -e ."
 ```
+
+### 2. Ligar o graphow ao Claude Code
+
+```bash
+graphow setup --escrever-settings
+```
+
+O comando faz, de uma vez, o que antes eram cinco passos à mão:
+
+| O quê | Para onde |
+| :--- | :--- |
+| Skills `graphow-mcp` e `graphow-orquestracao` | `~/.claude/skills/` |
+| Os sete subagentes da orquestração, com o servidor MCP de cada um apontando para o caminho absoluto do `graphow` | `~/.claude/agents/` |
+| Hooks `SessionStart`, `SessionEnd` e `SubagentStop`, também com o caminho absoluto | `~/.claude/settings.json` |
+| Permissões: leitura do servidor da sessão, os quatro servidores de subagente e os comandos de medição | `~/.claude/settings.json` |
+
+O caminho absoluto é o que torna o setup confiável: com o pacote num venv, o
+`graphow` só está no PATH de quem ativou o venv, e o processo do app desktop não
+o acha. O hook falhava calado e a memória não chegava.
+
+A mescla no `settings.json` preserva o que já estiver lá, troca o hook do
+harness em vez de duplicá-lo e guarda o arquivo anterior em
+`settings.json.graphow.bak`. Sem `--escrever-settings`, o setup não toca no
+arquivo e imprime o bloco para você colar.
+
+### 3. O que segue manual
+
+O setup termina imprimindo os três passos que ficam com você:
+
+1. **Registrar o servidor MCP da sessão principal**, uma vez por usuário. O
+   setup imprime o comando pronto, com o caminho do executável:
+   `claude mcp add --scope user graphow -- "<executável>" mcp --papel humano --autor <você>`.
+   O papel é `humano`, e as permissões liberam só as ferramentas de leitura.
+   Responder Question, promover Aprendizado e o resto continuam pedindo sua
+   confirmação. Outros ambientes (Cursor, Claude Desktop, Antigravity) estão no
+   [guia do MCP](.agents/skills/graphow-mcp/references/mcp_setup_guide.md).
+2. **Gravar a política de governança** de cada projeto, na aba Configurações do
+   `graphow web`. Sem política vale a `governanca_maxima`: o árbitro recusa todo
+   gesto, e todo portão para em você.
+3. **Reiniciar o Claude Code e conferir** a linha `Banco:` que o hook de início
+   imprime: raiz, subagentes e hooks precisam usar o mesmo banco
+   (`graphow banco-info`).
+
+Nada precisa existir no grafo antes: a primeira sessão cria o Projeto do
+repositório e o Setor `Memoria` (ver [Harness](#-harness-o-grafo-sabe-que-a-sessão-existe)).
+
+### 4. Atualizar
+
+As cópias em `~/.claude` não se atualizam sozinhas. Depois de cada `git pull`,
+rode o setup de novo; para só saber se envelheceram (sai com 1 se sim):
+
+```bash
+graphow setup --conferir
+```
+
+Opções para casos fora do padrão: `--claude-dir` (outro diretório do Claude
+Code), `--executavel` (outro `graphow`), `--autor` (padrão: o usuário do
+sistema) e `--origem` (outro checkout).
 
 ---
 
@@ -342,7 +407,13 @@ graphow mcp --papel executor --autor executor-sonnet --autor-por-conexao
 # Regenerar o catálogo de documentação a partir do código
 graphow docs-gerar
 
-# Instalar (ou atualizar) a skill do agente em ~/.claude/skills, onde todo projeto a vê
+# Instalar (ou atualizar) skills, subagentes, hooks e permissões no Claude Code
+graphow setup --escrever-settings
+
+# Só conferir se as cópias em ~/.claude estão em dia (sai com código 1 se não estiverem)
+graphow setup --conferir
+
+# Instalar só a skill graphow-mcp, para ambientes sem a orquestração
 graphow skill-instalar
 
 # Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
@@ -619,8 +690,10 @@ recusado pelo analisador — antes era escrito como caminho vazio no patch:
 graphow harness --fase fim --sessao sess-1 --resumo "sprint encerrada"
 ```
 
-A fiação pronta está em `.agents/hooks/graphow_harness_hooks.json`, e
-`graphow docs-gerar --conferir` passa cada comando desse arquivo pelo analisador
+`graphow setup --escrever-settings` grava os três hooks no
+`~/.claude/settings.json` com o caminho absoluto do executável. A mesma fiação,
+com `graphow` sem caminho, está em `.agents/hooks/graphow_harness_hooks.json`,
+e `graphow docs-gerar --conferir` passa cada comando desse arquivo pelo analisador
 real e recusa qualquer exemplo que dependa de variável de ambiente.
 
 O motor reativo escreve com origem `comportamento`, distinta de `harness` e de
@@ -698,9 +771,10 @@ e a promoção global é sempre dele.
 **Os agentes ficam sabendo.** Três canais dizem ao agente o que o grafo
 espera dele, sem depender de ninguém lembrar: a vista de retomada que o hook de
 início imprime no contexto, as `instructions` do servidor MCP e a skill
-`graphow-mcp`, que `graphow skill-instalar` copia para o diretório de skills do
-ambiente (`~/.claude/skills` por padrão, `--destino` para outro) e atualiza a
-cada execução, no lugar das cópias por projeto que envelhecem.
+`graphow-mcp`, que `graphow setup` copia para o diretório de skills do
+ambiente (`~/.claude/skills` por padrão) e atualiza a cada execução, no lugar
+das cópias por projeto que envelhecem; `graphow setup --conferir` diz se a
+cópia envelheceu.
 
 **O acervo de notas é projeção.** `graphow notas-gerar` renderiza um diretório
 de notas em Markdown a partir dos aprendizados promovidos, uma nota por
@@ -764,8 +838,9 @@ seguem o que ela diz; o push é sempre do humano.
 
 A skill que conduz esse arranjo, `graphow-orquestracao`, está em
 [`.agents/skills/graphow-orquestracao`](.agents/skills/graphow-orquestracao/SKILL.md),
-e os subagentes que ela despacha em `.agents/agents`. O instalador cuida só da
-`graphow-mcp`; a orquestração se copia para `~/.claude`, como diz a
+e os subagentes que ela despacha em `.agents/agents`. `graphow setup` copia os
+dois para `~/.claude`, com o servidor MCP de cada subagente apontando para o
+caminho do executável; o resto da configuração está na
 [configuração](.agents/skills/graphow-orquestracao/references/configuracao.md).
 
 ---

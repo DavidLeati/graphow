@@ -4,14 +4,13 @@ O Graphow fixa o papel na abertura da conexão MCP, e nenhum argumento de ferram
 
 ## 1. Onde a skill e os subagentes moram
 
-A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor`, `graphow-revisor-sonnet` e `graphow-arbitro`. O ambiente só os encontra em `~/.claude`. Copie os dois de um checkout do graphow e repita a cópia a cada atualização:
+A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor`, `graphow-revisor-sonnet` e `graphow-arbitro`. O ambiente só os encontra em `~/.claude`. O setup copia as duas skills (esta e a `graphow-mcp`, que o condutor pré-carrega com `skills: [graphow-mcp]`) e os subagentes, e grava hooks e permissões (seções 3 e 4):
 
 ```powershell
-Copy-Item -Recurse -Force .agents/skills/graphow-orquestracao ~/.claude/skills/
-Copy-Item -Force .agents/agents/graphow-*.md ~/.claude/agents/
+graphow setup --escrever-settings
 ```
 
-`graphow skill-instalar` instala só a `graphow-mcp`, que esta skill exige e que o condutor pré-carrega (`skills: [graphow-mcp]`).
+Na cópia, o `command: graphow` do servidor MCP de cada subagente vira o caminho absoluto do executável que rodou o setup. Sem isso, o subagente só sobe o servidor se o venv estiver no PATH do processo do Claude Code. Repita o setup a cada atualização do graphow; `graphow setup --conferir` diz se alguma cópia envelheceu, e sai com 1 se sim.
 
 Os subagentes sobem o servidor com `graphow mcp --autor-por-conexao`, e a rodada usa `perspectiva` em `ler_vista`, `orienta` e as propriedades de orquestração de `criar_tarefa`. Tudo isso precisa estar no código que o executável `graphow` roda. Com uma versão anterior, o servidor do subagente recusa a opção e não sobe.
 
@@ -35,7 +34,7 @@ Subagente aninhado sobe o próprio servidor. Isso foi testado em 2026-09-23: um 
 
 ## 3. Hooks
 
-Copie para o `settings.json` do Claude Code os três hooks do arquivo `.agents/hooks/graphow_harness_hooks.json` do repositório do graphow:
+`graphow setup --escrever-settings` grava no `settings.json` do Claude Code os três hooks do arquivo `.agents/hooks/graphow_harness_hooks.json`, com o caminho absoluto do executável:
 
 - `SessionStart` abre a Sessao da raiz e imprime a vista de retomada, com o id que a raiz passa ao condutor;
 - `SessionEnd` fecha a Sessao e grava no `Run` os tokens da raiz e a última linha `Cota:` que ela escreveu;
@@ -49,7 +48,7 @@ Sem o `SubagentStop`, `graphow orquestracao-medir` só enxerga o custo da raiz.
 
 ## 4. Permissões
 
-Para as rodadas não pararem em pedido de permissão, libere no `settings.json` as ferramentas dos quatro servidores de subagente: `mcp__graphow-condutor`, `mcp__graphow-executor`, `mcp__graphow-revisor` e `mcp__graphow-arbitro`. Com `ramo_base` gravado (seção 5), libere também `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor, árbitro e explorador não editam. Com `integracao` no árbitro, a raiz commita e faz o merge local, e libere para ela `Bash(git status *)`, `Bash(git add *)`, `Bash(git commit *)`, `Bash(git merge *)` e `Bash(git diff *)`, sem `git push`.
+Para as rodadas não pararem em pedido de permissão, o setup libera no `settings.json` as ferramentas dos quatro servidores de subagente (`mcp__graphow-condutor`, `mcp__graphow-executor`, `mcp__graphow-revisor` e `mcp__graphow-arbitro`), as de leitura do servidor `graphow` da sessão principal e os comandos de medição, entre eles `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada quando há `ramo_base` (seção 5). O condutor chama `graphow` pelo nome no Bash: com o venv fora do PATH, ative-o antes de abrir o Claude Code ou ponha a pasta `Scripts` (`bin` no Linux e no macOS) do venv no PATH. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor, árbitro e explorador não editam. Com `integracao` no árbitro, a raiz commita e faz o merge local, e libere para ela `Bash(git status *)`, `Bash(git add *)`, `Bash(git commit *)`, `Bash(git merge *)` e `Bash(git diff *)`, sem `git push`.
 
 ## 5. Ramo base
 
