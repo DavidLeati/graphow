@@ -82,7 +82,7 @@ A Task `leve` pula esse teste: o custo de lê-la como o executor frio é maior q
 
 Task de `entrega: acao_externa`: quem a executa é quem tem o gesto `acao_externa` na seção `Governanca` (passo 1).
 
-- Gesto com o humano (sem a linha `- acao_externa com o executor`, o padrão, inclusive em governança máxima e arbitragem máxima): não despache executor, que o kernel o recusaria, e pule o teste do executor frio. Devolva a Task à raiz na linha `Acao externa: <id Task> | <rótulo> | criterio: <criterio_pronto>` e siga com as outras tarefas da rodada. A raiz leva ao humano e, quando ele disser que fez, registra em nome dele a prova (Evidence com `fonte` e `resultado`) e deixa a Task `pronto_para_revisao`; dali a revisão e o fechamento seguem o ciclo normal (passos 5 e 6).
+- Gesto com o humano (sem a linha `- acao_externa com o executor`: o padrão, e o que vale em governança máxima): não despache executor, que o kernel o recusaria, e pule o teste do executor frio. Devolva a Task à raiz na linha `Acao externa: <id Task> | <rótulo> | criterio: <criterio_pronto>` e siga com as outras tarefas da rodada. A raiz leva ao humano e, quando ele disser que fez, registra em nome dele a prova (Evidence com `fonte` e `resultado`) e deixa a Task `pronto_para_revisao`; dali a revisão e o fechamento seguem o ciclo normal (passos 5 e 6).
 - Gesto com o executor: teste o executor frio e despache como qualquer Task completa, sem exigir `arquivos_alvo`.
 
 Nos dois casos ela nunca entra em lote paralelo, como toda Task sem `arquivos_alvo`.

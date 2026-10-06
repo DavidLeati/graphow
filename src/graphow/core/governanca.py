@@ -112,9 +112,9 @@ _ARBITRAGEM_MAXIMA: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
     **{gesto: VALOR_ARBITRO for gesto in GESTOS_POR_PAPEL},
     Gesto.ESTRUTURA: VALOR_ILIMITADO,
     Gesto.MAX_CORRECOES: 2,
-    # A arbitragem entrega ao árbitro o que é julgamento; agir no mundo em nome
-    # do humano não é julgamento, e segue com ele até a política dizer o contrário.
-    Gesto.ACAO_EXTERNA: VALOR_HUMANO,
+    # A arbitragem entrega aos agentes tudo o que a política pode delegar, e a
+    # ação externa vai ao executor, que a faz quando tem as ferramentas para ela.
+    Gesto.ACAO_EXTERNA: VALOR_EXECUTOR,
 })
 
 PRESETS_FIXOS: Mapping[PresetGovernanca, Mapping[Gesto, ValorDeGesto]] = MappingProxyType({

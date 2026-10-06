@@ -231,7 +231,7 @@ Enviar um e-mail, marcar uma reunião, publicar: a Task entrega um gesto no mund
 }
 ```
 
-Quem a executa é o gesto `acao_externa` da política: o humano, que é o padrão em todo preset, ou o executor, só pela política personalizada. Com o gesto no humano, o `assumir_tarefa` do executor é recusado; a pessoa faz o gesto, e a sessão humana registra a prova em nome dela. Com o gesto no executor, ele faz o gesto com as ferramentas que tem e registra a prova. O lote é o mesmo nos dois casos: um `Artifact` sem `arquivos`, com o `resumo` do que foi feito, e a `Evidence` de prova com `fonte` e `resultado`, ligada por `deriva_de` ao `Artifact` e à Task.
+Quem a executa é o gesto `acao_externa` da política: o humano, que é o padrão e o que vale em `governanca_maxima`, ou o executor, que é o que vale em `arbitragem_maxima` e o que a política personalizada pode escolher. Com o gesto no humano, o `assumir_tarefa` do executor é recusado; a pessoa faz o gesto, e a sessão humana registra a prova em nome dela. Com o gesto no executor, ele faz o gesto com as ferramentas que tem e registra a prova. O lote é o mesmo nos dois casos: um `Artifact` sem `arquivos`, com o `resumo` do que foi feito, e a `Evidence` de prova com `fonte` e `resultado`, ligada por `deriva_de` ao `Artifact` e à Task.
 
 ```json
 {

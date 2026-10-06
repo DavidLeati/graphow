@@ -41,7 +41,7 @@ DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.LIBERAR_POSSE_ALHEIA: "Liberar a posse de uma tarefa que é de outro autor",
     Gesto.INTEGRACAO: "Quando a entrega é código num repositório: commitar e integrar no ramo base (merge local); o push segue humano",
     Gesto.MAX_CORRECOES: "Reprovações em cadeia antes do teto: a de ordem N já escala (2 = a original e a primeira correção)",
-    Gesto.ACAO_EXTERNA: "Executar a tarefa que é um gesto no mundo, sem arquivo (enviar e-mail, marcar reunião): o humano, ou o executor que tem as ferramentas",
+    Gesto.ACAO_EXTERNA: "Executar a tarefa que é um gesto no mundo, sem arquivo (enviar e-mail, marcar reunião): só o humano, ou também o executor, quando ele tem as ferramentas",
 })
 
 DESCRICOES_DOS_PRESETS: Mapping[str, str] = MappingProxyType({

@@ -204,7 +204,7 @@ que o humano e o árbitro o fazem. O catálogo vive em `core/governanca.py`.
 | `liberar_posse_alheia` | `humano`, `arbitro` | `liberar_tarefa` sobre o lock de outro autor | humano / arbitro |
 | `integracao` | `humano`, `arbitro` | Lido só pela skill: commit e merge local na base. O push é sempre humano | humano / arbitro |
 | `max_correcoes` | inteiro de 0 a 5 | Lido pela skill: reprovações em cadeia antes do teto (a de ordem N já escala; 2 = a original e a primeira correção) | 2 / 2 |
-| `acao_externa` | `humano`, `executor` | Assumir e entregar a `Task` de `entrega: acao_externa` (enviar e-mail, marcar reunião). Sob `humano`, o `RoleGate` recusa o executor que a assume ou a põe em revisão, e o que troca a `entrega`; a posse para fechar a Task já aprovada segue livre. Agir em nome da pessoa não é julgamento, e nem a arbitragem máxima o delega: só a `personalizada` o entrega ao executor | humano / humano |
+| `acao_externa` | `humano`, `executor` | Assumir e entregar a `Task` de `entrega: acao_externa` (enviar e-mail, marcar reunião). Sob `humano`, o `RoleGate` recusa o executor que a assume ou a põe em revisão, e o que troca a `entrega`; a posse para fechar a Task já aprovada segue livre. A `arbitragem_maxima` o entrega ao executor, e a `personalizada` escolhe | humano / executor |
 
 `estrutura`, `max_correcoes` e `acao_externa` não são permissões por papel do
 árbitro: a política tem leitura própria deles (`estrutura_ilimitada`,

@@ -163,7 +163,8 @@ para o replay dar o mesmo veredito. São onze gestos: `responder_questao`,
 um inteiro de 0 a 5, as reprovações em cadeia antes do teto (a de ordem N escala; 2 = a original e a primeira correção), e
 `acao_externa` vale `humano` ou `executor`: quem assume e entrega a `Task` cuja
 entrega é um gesto no mundo, sem arquivo (enviar um e-mail, marcar uma reunião).
-Os dois presets fixos a deixam com o humano; só a `personalizada` a entrega ao executor. A tabela completa está na
+A `governanca_maxima` a deixa com o humano, a `arbitragem_maxima` a entrega ao
+executor, e a `personalizada` escolhe. A tabela completa está na
 [Especificação Ontológica](docs/ONTOLOGY.md#5-governança-configurável).
 
 **Três presets.** `governanca_maxima` (todos os gestos com o humano, estrutura

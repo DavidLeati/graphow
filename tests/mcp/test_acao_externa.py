@@ -162,13 +162,31 @@ def test_task_de_artefato_segue_livre_para_o_executor_edge_case() -> None:
     assert _chamar(_servidor(kernel, "executor-sonnet#e1", "executor"), "assumir_tarefa", id_task="task-a")["sucesso"]
 
 
-@pytest.mark.parametrize("preset", [PresetGovernanca.GOVERNANCA_MAXIMA, PresetGovernanca.ARBITRAGEM_MAXIMA])
-def test_os_dois_presets_fixos_deixam_a_acao_externa_com_o_humano_nominal(preset: PresetGovernanca) -> None:
-    """Agir no mundo em nome da pessoa não é julgamento: nem a arbitragem máxima o delega."""
-    politica = politica_do_preset(preset)
+def test_governanca_maxima_deixa_a_acao_externa_com_o_humano_nominal() -> None:
+    """O padrão: sem escolha do humano, a ação externa é dele."""
+    politica = politica_do_preset(PresetGovernanca.GOVERNANCA_MAXIMA)
 
     assert politica.valor(Gesto.ACAO_EXTERNA) == VALOR_HUMANO
     assert politica.acao_externa_com_executor is False
+
+
+def test_arbitragem_maxima_entrega_a_acao_externa_ao_executor_nominal() -> None:
+    """A arbitragem entrega aos agentes tudo o que a política pode delegar, a ação externa inclusive."""
+    politica = politica_do_preset(PresetGovernanca.ARBITRAGEM_MAXIMA)
+
+    assert politica.valor(Gesto.ACAO_EXTERNA) == VALOR_EXECUTOR
+    assert politica.acao_externa_com_executor is True
+
+
+def test_executor_assume_a_acao_externa_sob_arbitragem_maxima_nominal() -> None:
+    """O projeto em arbitragem máxima deixa o executor pegar a tarefa de envio."""
+    kernel = _montar()
+    recibo = _chamar(
+        _servidor(kernel, "david", "humano"), "configurar_governanca", escopo="proj-a", preset="arbitragem_maxima",
+    )
+    assert recibo["sucesso"], recibo
+
+    assert _chamar(_servidor(kernel, "executor-sonnet#e1", "executor"), "assumir_tarefa", id_task="t-envio")["sucesso"]
 
 
 def test_composicao_mais_restritiva_devolve_a_acao_externa_ao_humano_edge_case() -> None:

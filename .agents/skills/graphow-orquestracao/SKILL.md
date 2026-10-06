@@ -139,7 +139,7 @@ A política de governança do projeto diz, gesto a gesto, quem decide: `humano` 
 | `max_correcoes` | 2 | O condutor lê o número da política: o teto de correções deixa de ser fixo. |
 | `excluir` | O humano. | O árbitro só exclui o que o humano mandar, nunca por iniciativa da orquestração. |
 | `estrutura` | `estrito`: só o humano cria Projeto, Setor e a contenção. | `ilimitado`: todo agente cria todos os tipos de nó, menos Constraint, Governanca e Projeto. |
-| `acao_externa` | O padrão nos dois presets: `Acao externa:` para a raiz, que leva à pessoa e registra a prova quando ela disser que fez. | Não vai ao árbitro. Só a política personalizada a entrega ao executor (`acao_externa: executor`, com `configurar_governanca`), e então o condutor despacha o executor como em qualquer Task. |
+| `acao_externa` | `Acao externa:` para a raiz, que leva à pessoa e registra a prova quando ela disser que fez. | Não vai ao árbitro: vai ao executor, e o condutor o despacha como em qualquer Task. É o que vale em `arbitragem_maxima`; a política personalizada também pode escolhê-lo (`acao_externa: executor`, com `configurar_governanca`). |
 
 Duas regras valem em qualquer linha. A raiz não despacha o árbitro para o que ele não tem na política: a recusa do kernel custaria uma rodada, e a seção `Governanca` já diz o que está com ele. E o árbitro não decide o que ele mesmo abriu: Question dele fica aberta, e o humano a resolve.
 
