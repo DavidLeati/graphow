@@ -232,3 +232,42 @@
   cursor: grab;
 }
 #minimap-frustum:active { cursor: grabbing; }
+
+/* Ações em lote: só com mais de um nó selecionado. No alto, porque o pé do
+   canvas já tem a paleta e o minimapa; desce quando o aviso de viagem está lá. */
+.barra-lote {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  /* translate, e não transform: o surgir anima o transform e apagaria o centro. */
+  translate: -50% 0;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  font-size: var(--fonte-ui);
+  color: var(--texto-suave);
+  background: rgba(22, 26, 34, 0.97);
+  border: 1px solid var(--moldura-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-flutuante);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+  animation: surgir 0.1s ease-out;
+}
+.barra-lote[hidden] { display: none; }
+.canvas-viagem:not([hidden]) ~ .barra-lote { top: 56px; }
+.barra-lote strong { color: var(--texto-normal); }
+.barra-lote-separador { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--moldura-borda); }
+.vista-conteudo.modo-quadro .barra-lote { display: none !important; }
+
+/* O laço do Shift + arrastar, desenhado sobre o viewport */
+.laco-selecao {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+  border-radius: 2px;
+}

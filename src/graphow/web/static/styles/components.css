@@ -520,6 +520,8 @@ input:disabled + .alternador-trilho { opacity: 0.5; }
 }
 .modal-texto { line-height: 1.6; }
 .modal-texto strong { color: var(--texto-normal); }
+.lista-confirmacao { display: block; margin: 8px 0; padding-left: 12px; border-left: 2px solid var(--moldura-borda); }
+.lista-confirmacao > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-botoes {
   display: flex;
   justify-content: flex-end;

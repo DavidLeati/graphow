@@ -9,6 +9,7 @@
 import { abrirMenuDeContexto } from "./menu_contexto.js";
 import { AbasWorkspace } from "./abas_workspace.js";
 import { api } from "./api.js";
+import { BarraDeLote } from "./barra_lote.js";
 import { BarraDeStatus } from "./barra_status.js";
 import { BuscaView } from "./busca_view.js";
 import { CanvasInteractions } from "./canvas_interactions.js";
@@ -32,7 +33,7 @@ import { LeituraDaQuestaoView } from "./leitura_questao_view.js";
 import { LineageView } from "./lineage_view.js";
 import { MarcadoresView } from "./marcadores_view.js";
 import { MemoriaView } from "./memoria_view.js";
-import { itensDoMenuDaAresta, itensDoMenuDeRamos, itensDoMenuDoFundo, itensDoMenuDoNo } from "./menus_do_grafo.js";
+import { itensDoMenuDaAresta, itensDoMenuDaSelecao, itensDoMenuDeRamos, itensDoMenuDoFundo, itensDoMenuDoNo } from "./menus_do_grafo.js";
 import { Minimap } from "./minimap.js";
 import { abrirModal, avisar } from "./modais.js";
 import { apresentarTipo, corDoTipo, definirVocabulario, ehConteiner, tiposDeTrabalho } from "./ontologia_ui.js";
@@ -170,6 +171,7 @@ class GraphowApp {
       state: this.state,
       acoes: { aoClicar: (item, evento) => this.aoClicarNoStatus(item, evento), zoom: () => this.interactions.zoom },
     });
+    this.barraLote = new BarraDeLote(document.getElementById("barra-lote"), { state: this.state });
   }
 
   /** O que os painéis podem pedir à aplicação — nada além disso atravessa a fronteira. */
@@ -428,8 +430,20 @@ class GraphowApp {
   descartarSelecaoForaDaTela() {
     const selecao = this.state.selectedElement;
     if (!selecao || this.focoPendente) return;
+    if (this.state.emSelecaoMultipla()) {
+      const presentes = this.state.idsDosNosSelecionados();
+      if (presentes.length !== this.state.nosSelecionados.size) this.state.definirNosSelecionados(new Set(presentes), selecao.id);
+      return;
+    }
     const presente = selecao.type === "node" ? this.state.nodes.has(selecao.id) : this.state.edges.has(selecao.id);
     if (!presente) this.state.selectElement(null, null);
+  }
+
+  /** Delete, a barra de lote e a paleta: a aresta selecionada, o nó, ou todos os nós da seleção num lote só. */
+  excluirSelecao() {
+    const selecao = this.state.selectedElement;
+    if (selecao?.type === "edge") return this.dialogos.excluirAresta(this.state.edges.get(selecao.id));
+    return this.dialogos.excluirNosEmLote(this.state.idsDosNosSelecionados());
   }
 
   tipoDeConteinerSugerido() {
@@ -534,6 +548,7 @@ class GraphowApp {
       this.minimap.update();
       this.recorteView.render();
       this.barraStatus.render();
+      this.barraLote.render();
       this.atualizarVazio();
       this.quadro.render();
     } else if (tipo === "SELECTION_CHANGED") {
@@ -541,6 +556,7 @@ class GraphowApp {
       // Só troca a marca de seleção: recriar os cartões e as arestas a cada
       // clique custava segundos num grafo de mil nós.
       this.renderer.atualizarSelecao();
+      this.barraLote.render();
       this.destacar(null);
       this.inspector.render();
       this.explorador.render();
@@ -693,7 +709,9 @@ class GraphowApp {
   }
 
   aoMenuDoCanvas({ evento, noId, arestaId, x, y }) {
-    if (noId && this.state.nodes.has(noId)) {
+    if (noId && this.state.emSelecaoMultipla() && this.state.nosSelecionados.has(noId)) {
+      abrirMenuDeContexto(evento, itensDoMenuDaSelecao(this));
+    } else if (noId && this.state.nodes.has(noId)) {
       this.state.selectElement("node", noId);
       abrirMenuDeContexto(evento, itensDoMenuDoNo(this, this.state.nodes.get(noId)));
     } else if (arestaId && this.state.edges.has(arestaId)) {
@@ -867,7 +885,9 @@ class GraphowApp {
     const doCanvas = [
       ["Arrastar o fundo", "Mover o canvas"], ["Espaço + arrastar", "Mover o canvas"], ["Roda do mouse", "Zoom no cursor"],
       ["Duplo clique no fundo", "Novo nó naquele ponto"], ["Duplo clique num contêiner", "Abrir o contêiner"],
-      ["Arrastar de uma porta", "Criar aresta"], ["Clique direito", "Menu do nó, da aresta ou do fundo"], ["Esc", "Limpar a seleção"],
+      ["Arrastar de uma porta", "Criar aresta"], ["Clique direito", "Menu do nó, da aresta ou do fundo"],
+      ["Shift ou Ctrl + clique", "Somar o nó à seleção ou tirá-lo dela"], ["Shift + arrastar o fundo", "Selecionar os nós dentro do laço"],
+      ["Arrastar um nó da seleção", "Mover todos os selecionados"], ["Esc", "Limpar a seleção"],
     ];
     const comAtalho = [...this.comandos.comandos.values()].filter((comando) => comando.atalho || comando.atalhoExibido);
     const linhas = comAtalho.map((comando) => {

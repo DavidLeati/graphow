@@ -10,6 +10,20 @@ import { apresentarStatus, apresentarTipo, ehConteiner, niveisDeAutonomia, statu
 
 const ROTULO_DO_FILHO = { Projeto: "Novo setor…", Setor: "Nova sessão…", Sessao: "Novo nó nesta sessão…" };
 
+/** Clique direito num nó da seleção múltipla: o menu age sobre todos eles. */
+export function itensDoMenuDaSelecao(app) {
+  const total = app.state.idsDosNosSelecionados().length;
+  const viajando = app.state.isTimeTraveling;
+  return [
+    { secao: `${total} nós selecionados` },
+    { rotulo: "Copiar os IDs", icone: "copy", acao: () => app.comandos.executar("copiar-id") },
+    { rotulo: "Revisar na exclusão em lote…", icone: "list-tree", desabilitado: viajando, acao: () => app.comandos.executar("exclusao-lote") },
+    { rotulo: "Limpar a seleção", icone: "x", acao: () => app.comandos.executar("limpar-selecao") },
+    "-",
+    { rotulo: `Excluir ${total} nós…`, icone: "trash", perigo: true, desabilitado: viajando, acao: () => app.excluirSelecao() },
+  ];
+}
+
 export function itensDoMenuDoNo(app, no) {
   const viajando = app.state.isTimeTraveling;
   const itens = ehConteiner(no.tipo) ? itensDeConteiner(app, no, viajando) : itensDeTrabalho(app, no);

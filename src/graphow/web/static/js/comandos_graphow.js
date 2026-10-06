@@ -19,6 +19,12 @@ export function registrarComandos(app) {
     return caixa ? { x: caixa.left, y: caixa.bottom + 4 } : { x: window.innerWidth / 2, y: 80 };
   };
   const recorte = (mudanca) => app.recorteView.aplicar(mudanca);
+  // Na seleção múltipla vão todos os IDs, um por linha; fora dela, o da seleção.
+  const copiarIds = async () => {
+    const ids = app.state.emSelecaoMultipla() ? app.state.idsDosNosSelecionados() : [app.state.selectedElement.id];
+    const copiou = await copiarTexto(ids.join("\n"));
+    avisar(copiou ? (ids.length > 1 ? `${ids.length} IDs copiados` : "ID copiado") : "Não foi possível copiar", "info");
+  };
 
   const comandos = [
     // Navegar
@@ -49,8 +55,9 @@ export function registrarComandos(app) {
     { id: "novo-projeto", nome: "Novo projeto", icone: "briefcase", disponivel: noPresente, executar: () => app.dialogos.novoConteiner({ tipo: "Projeto" }) },
     { id: "renomear-selecao", nome: "Renomear a seleção", icone: "pencil", atalho: "f2", disponivel: () => noPresente() && Boolean(selecionado()), executar: () => app.dialogos.renomear(selecionado()) },
     { id: "fixar-selecao", nome: "Fixar ou desafixar a seleção nos marcadores", icone: "bookmark", disponivel: () => Boolean(selecionado()), executar: () => app.alternarMarcador(selecionado()) },
-    { id: "copiar-id", nome: "Copiar o ID da seleção", icone: "copy", disponivel: () => Boolean(app.state.selectedElement), executar: async () => avisar((await copiarTexto(app.state.selectedElement.id)) ? "ID copiado" : "Não foi possível copiar", "info") },
-    { id: "excluir-selecao", nome: "Excluir a seleção…", icone: "trash", disponivel: () => noPresente() && Boolean(selecionado()), executar: () => app.dialogos.excluirNo(selecionado()) },
+    { id: "copiar-id", nome: "Copiar o ID da seleção", icone: "copy", disponivel: () => Boolean(app.state.selectedElement), executar: () => copiarIds() },
+    { id: "excluir-selecao", nome: "Excluir a seleção…", icone: "trash", atalho: ["delete", "backspace"], disponivel: () => noPresente() && Boolean(app.state.selectedElement), executar: () => app.excluirSelecao() },
+    { id: "limpar-selecao", nome: "Limpar a seleção", icone: "x", atalhoExibido: "escape", disponivel: () => Boolean(app.state.selectedElement), executar: () => app.state.selectElement(null, null) },
     { id: "exclusao-lote", nome: "Exclusão em lote…", icone: "trash", disponivel: noPresente, executar: () => app.dialogos.exclusaoEmLote() },
 
     // Memória

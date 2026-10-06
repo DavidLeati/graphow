@@ -100,7 +100,7 @@ function realcar(texto, termo) {
   return `${escapeHtml(texto.slice(0, posicao))}<mark class="realce-busca">${escapeHtml(texto.slice(posicao, posicao + alvo.length))}</mark>${escapeHtml(texto.slice(posicao + alvo.length))}`;
 }
 
-const TECLAS_LEGIVEIS = { arrowleft: "←", arrowright: "→", arrowup: "↑", arrowdown: "↓", enter: "↵", escape: "Esc" };
+const TECLAS_LEGIVEIS = { arrowleft: "←", arrowright: "→", arrowup: "↑", arrowdown: "↓", enter: "↵", escape: "Esc", delete: "Del", backspace: "⌫" };
 
 /** "ctrl+shift+f" vira "Ctrl + Shift + F" para exibição. */
 export function formatarAtalho(atalho) {

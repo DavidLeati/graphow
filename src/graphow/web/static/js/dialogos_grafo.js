@@ -338,6 +338,29 @@ export class DialogosDoGrafo {
     return this.concluir(recibo, "Projeto excluído");
   }
 
+  /**
+   * Exclui os nós da seleção múltipla num lote só. O Projeto não desce em
+   * cascata aqui, como no diálogo de lote: sai o nó, e o que ele contém fica.
+   */
+  async excluirNosEmLote(ids) {
+    const nos = ids.map((id) => this.state.nodes.get(id)).filter(Boolean);
+    if (nos.length === 0) return false;
+    if (nos.length === 1) return this.excluirNo(nos[0]);
+    // A mensagem vai num <p>: a lista é de spans, porque um <ul> ali fecharia o parágrafo.
+    const nomes = nos.slice(0, 8).map((no) => `<span>${escapeHtml(no.rotulo)} <code>${escapeHtml(apresentarTipo(no.tipo).nome)}</code></span>`).join("");
+    const resto = nos.length > 8 ? `<span>e mais ${nos.length - 8}…</span>` : "";
+    const aviso = nos.some((no) => ehConteiner(no.tipo)) ? "<br>O que os contêineres contêm <strong>não</strong> é removido junto e fica fora da hierarquia." : "";
+    const ok = await confirmar({
+      titulo: "Excluir a seleção",
+      mensagem: `Remover <strong>${nos.length}</strong> nós num único lote?<span class="lista-confirmacao">${nomes}${resto}</span>O lote é atômico: ou tudo sai, ou nada sai.${aviso}`,
+      rotuloConfirmar: `Excluir ${nos.length}`,
+      perigo: true,
+    });
+    if (!ok) return false;
+    const recibo = await api.removerLote({ ids_nos: nos.map((no) => no.id), ids_arestas: [], ramo_id: this.ramo });
+    return this.concluir(recibo, `${nos.length} nós removidos`);
+  }
+
   exclusaoEmLote() {
     const nos = [...this.state.nodes.values()];
     if (nos.length === 0) {
@@ -346,7 +369,7 @@ export class DialogosDoGrafo {
     }
     const linhas = nos.map((no) => `
       <label class="linha-lote" data-texto="${escapeHtml(`${no.rotulo} ${no.id} ${no.tipo}`.toLowerCase())}">
-        <input type="checkbox" value="${escapeHtml(no.id)}">
+        <input type="checkbox" value="${escapeHtml(no.id)}" ${this.state.nosSelecionados.has(no.id) ? "checked" : ""}>
         <span class="conexao-icone" style="color:${corDoTipo(no.tipo)}">${icone(apresentarTipo(no.tipo).icone, { tamanho: 14 })}</span>
         <span class="linha-lote-rotulo">${escapeHtml(no.rotulo)}</span><code>${escapeHtml(no.id)}</code>
       </label>`).join("");
@@ -356,7 +379,7 @@ export class DialogosDoGrafo {
       corpo: `
         <div class="lote-topo"><input type="search" class="entrada mod-busca" data-filtro placeholder="Filtrar por título, tipo ou ID…"><label class="alternador-rotulado"><input type="checkbox" data-todos><span>Marcar os visíveis</span></label></div>
         <div class="lote-lista">${linhas}</div>
-        <p class="campo-nota" data-contagem>0 selecionados · o lote é atômico: ou tudo sai, ou nada sai.</p>`,
+        <p class="campo-nota" data-contagem>${this.state.idsDosNosSelecionados().length} selecionados · o lote é atômico: ou tudo sai, ou nada sai.</p>`,
       botoes: [
         { rotulo: "Cancelar" },
         { rotulo: "Excluir selecionados", primario: true, perigo: true, acao: (modal) => this.enviarLote(modal) },
