@@ -82,7 +82,7 @@ A Arena roda sobre banco isolado, e é o único caso em que vale passar `--db`:
 
 ## A skill do agente
 
-A skill `graphow-mcp` (esta pasta) é o detalhe do protocolo: cookbook de patches, matriz de papéis e roteiro. `graphow setup` a instala em `~/.claude/skills`, junto da `graphow-orquestracao` e dos subagentes. Rode de novo depois de atualizar o graphow, porque a cópia não se atualiza sozinha; para só saber se ela envelheceu:
+A skill `graphow-mcp` (esta pasta) é o detalhe do protocolo: cookbook de patches, matriz de papéis e roteiro. `graphow setup` a instala em `~/.claude/skills`, junto da `graphow-orquestracao`, da `graphow-gerente` e dos subagentes. Rode de novo depois de atualizar o graphow, porque a cópia não se atualiza sozinha; para só saber se ela envelheceu:
 
 ```powershell
 graphow setup --conferir

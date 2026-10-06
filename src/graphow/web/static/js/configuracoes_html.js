@@ -23,7 +23,13 @@ const CAMPOS_DA_OPERACAO = [
   ["teto_rodadas", "Teto de rodadas"],
   ["ramo_base", "Ramo base"],
   ["caminhos_de_colisao", "Caminhos de colisão"],
+  ["gravacao_do_gerente", "Gravação do gerente"],
 ];
+
+const NOMES_DA_GRAVACAO_DO_GERENTE = {
+  apos_aprovacao: "Após a aprovação",
+  durante_alinhamento: "Durante o alinhamento",
+};
 
 export function htmlDoSeletorDeEscopo(projetos, escopo) {
   const opcoes = projetos.map((projeto) => `<option value="${escapeHtml(projeto.id)}" ${projeto.id === escopo ? "selected" : ""}>${escapeHtml(projeto.rotulo)}</option>`);
@@ -107,6 +113,11 @@ function htmlDoCampoDaOperacao(chave, rotulo, catalogo, valores) {
   if (chave === "cadencia") {
     const opcoes = (meta.valores || []).map((opcao) => `<option value="${escapeHtml(opcao)}" ${opcao === valor ? "selected" : ""}>${escapeHtml(opcao)}</option>`);
     controle = `<select class="seletor" ${atributos}><option value="" ${valor ? "" : "selected"}>Não definida</option>${opcoes.join("")}</select>`;
+  } else if (chave === "gravacao_do_gerente") {
+    const nome = (opcao) => NOMES_DA_GRAVACAO_DO_GERENTE[opcao] || opcao;
+    const opcoes = (meta.valores || []).map((opcao) => `<option value="${escapeHtml(opcao)}" ${opcao === valor ? "selected" : ""}>${escapeHtml(nome(opcao))}</option>`);
+    const padrao = meta.padrao ? ` (${nome(meta.padrao)})` : "";
+    controle = `<select class="seletor" ${atributos}><option value="" ${valor ? "" : "selected"}>Padrão${escapeHtml(padrao)}</option>${opcoes.join("")}</select>`;
   } else if (chave === "teto_rodadas") {
     controle = `<input class="entrada mod-numero" type="number" min="${meta.minimo ?? 1}" step="1" ${atributos} value="${escapeHtml(valor)}">`;
   } else if (chave === "caminhos_de_colisao") {

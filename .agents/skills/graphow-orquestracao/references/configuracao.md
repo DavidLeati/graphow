@@ -4,7 +4,7 @@ O Graphow fixa o papel na abertura da conexão MCP, e nenhum argumento de ferram
 
 ## 1. Onde a skill e os subagentes moram
 
-A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor`, `graphow-revisor-sonnet` e `graphow-arbitro`. O ambiente só os encontra em `~/.claude`. O setup copia as duas skills (esta e a `graphow-mcp`, que o condutor pré-carrega com `skills: [graphow-mcp]`) e os subagentes, e grava hooks e permissões (seções 3 e 4):
+A skill é versionada no repositório do graphow, em `.agents/skills/graphow-orquestracao`, e os subagentes que ela usa ficam em `.agents/agents`: `graphow-condutor`, `graphow-explorador`, `graphow-executor`, `graphow-executor-opus`, `graphow-revisor`, `graphow-revisor-sonnet` e `graphow-arbitro`. O ambiente só os encontra em `~/.claude`. O setup copia as skills (esta, a `graphow-mcp`, que o condutor pré-carrega com `skills: [graphow-mcp]`, e a `graphow-gerente`, que prepara o Goal antes da orquestração) e os subagentes, e grava hooks e permissões (seções 3 e 4):
 
 ```powershell
 graphow setup --escrever-settings

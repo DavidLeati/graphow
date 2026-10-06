@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-23 módulos · 4054 linhas · 30 classes
+23 módulos · 4065 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 269 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 280 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 387 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
@@ -394,6 +394,9 @@ Planeja a escrita da política de governança, comum à ferramenta MCP e à inte
 | `CAMPO_CADENCIA` | `str` | `'cadencia'` |
 | `CAMPO_TETO_RODADAS` | `str` | `'teto_rodadas'` |
 | `CADENCIAS_ACEITAS` | `tuple[str, ...]` | `('tarefa', 'goal', 'setor')` |
+| `CAMPO_GRAVACAO_DO_GERENTE` | `str` | `'gravacao_do_gerente'` |
+| `GRAVACAO_APOS_APROVACAO` | `str` | `'apos_aprovacao'` |
+| `GRAVACOES_DO_GERENTE_ACEITAS` | `tuple[str, ...]` | `(GRAVACAO_APOS_APROVACAO, 'durante_alinhamento')` |
 | `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_CADENCIA, CAMPO_TETO_RODADAS, CAMPO_RAMO_BASE, CAMPO_CAMINHOS_DE…` |
 | `TETO_DE_RODADAS_MINIMO` | `int` | `1` |
 

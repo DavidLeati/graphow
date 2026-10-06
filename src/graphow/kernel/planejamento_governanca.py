@@ -7,7 +7,8 @@ operações, o texto das recusas e a política efetiva que a gravação produz s
 daqui, para o MCP e a web não divergirem.
 
 Também mora aqui a escrita das propriedades operacionais do Projeto (cadência,
-teto de rodadas, ramo base e globs de colisão), que a tela grava no mesmo lote.
+teto de rodadas, ramo base, globs de colisão e quando o gerente grava), que a
+tela grava no mesmo lote.
 """
 
 from collections.abc import Mapping
@@ -38,11 +39,18 @@ ROTULO_DA_GOVERNANCA_GLOBAL: str = "Governanca global"
 CAMPO_CADENCIA: str = "cadencia"
 CAMPO_TETO_RODADAS: str = "teto_rodadas"
 CADENCIAS_ACEITAS: tuple[str, ...] = ("tarefa", "goal", "setor")
+# Quando a skill graphow-gerente grava a definição da demanda: só depois da
+# aprovação do rascunho (o padrão, também quando a propriedade falta) ou a cada
+# confirmação do humano durante o alinhamento.
+CAMPO_GRAVACAO_DO_GERENTE: str = "gravacao_do_gerente"
+GRAVACAO_APOS_APROVACAO: str = "apos_aprovacao"
+GRAVACOES_DO_GERENTE_ACEITAS: tuple[str, ...] = (GRAVACAO_APOS_APROVACAO, "durante_alinhamento")
 PROPRIEDADES_OPERACIONAIS: tuple[str, ...] = (
     CAMPO_CADENCIA,
     CAMPO_TETO_RODADAS,
     CAMPO_RAMO_BASE,
     CAMPO_CAMINHOS_DE_COLISAO,
+    CAMPO_GRAVACAO_DO_GERENTE,
 )
 TETO_DE_RODADAS_MINIMO: int = 1
 
@@ -164,6 +172,8 @@ def _valor_operacional_valido(chave: str, valor: Any) -> bool:
     """Confere o valor contra o domínio da propriedade operacional."""
     if chave == CAMPO_CADENCIA:
         return valor in CADENCIAS_ACEITAS
+    if chave == CAMPO_GRAVACAO_DO_GERENTE:
+        return valor in GRAVACOES_DO_GERENTE_ACEITAS
     if chave == CAMPO_TETO_RODADAS:
         return isinstance(valor, int) and not isinstance(valor, bool) and valor >= TETO_DE_RODADAS_MINIMO
     if chave == CAMPO_RAMO_BASE:
@@ -178,6 +188,7 @@ def _dominio_operacional(chave: str) -> str:
         CAMPO_TETO_RODADAS: f"um inteiro a partir de {TETO_DE_RODADAS_MINIMO}",
         CAMPO_RAMO_BASE: "um texto nao vazio",
         CAMPO_CAMINHOS_DE_COLISAO: "uma lista de globs (textos nao vazios)",
+        CAMPO_GRAVACAO_DO_GERENTE: f"um de {', '.join(GRAVACOES_DO_GERENTE_ACEITAS)}",
     }
     return dominios[chave]
 

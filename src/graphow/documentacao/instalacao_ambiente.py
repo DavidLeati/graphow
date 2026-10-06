@@ -14,7 +14,7 @@ from graphow.core.exceptions import GraphowError
 from graphow.documentacao.ambiente import fixar_executavel_no_agente
 from graphow.documentacao.skill import ARQUIVO_PRINCIPAL, listar_arquivos_da_skill
 
-SKILLS_DO_REPOSITORIO: tuple[str, ...] = ("graphow-mcp", "graphow-orquestracao")
+SKILLS_DO_REPOSITORIO: tuple[str, ...] = ("graphow-mcp", "graphow-orquestracao", "graphow-gerente")
 PASTA_DAS_SKILLS: Path = Path(".agents") / "skills"
 PASTA_DOS_AGENTES: Path = Path(".agents") / "agents"
 PADRAO_DOS_AGENTES: str = "graphow-*.md"
@@ -46,7 +46,7 @@ class ResultadoDoAmbiente:
 
 
 class InstaladorDoAmbiente:
-    """Copia as duas skills e os subagentes, com o servidor MCP de cada um no executável dado."""
+    """Copia as skills e os subagentes, com o servidor MCP de cada um no executável dado."""
 
     def __init__(self, repositorio: Path, diretorio_claude: Path, executavel: str) -> None:
         self._repositorio: Path = repositorio

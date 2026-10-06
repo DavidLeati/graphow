@@ -171,6 +171,7 @@ export function operacaoDoFormulario(campos) {
         teto_rodadas: teto.valor,
         ramo_base: textoOuNulo(campos.ramo_base),
         caminhos_de_colisao: listaDeCaminhos(campos.caminhos_de_colisao),
+        gravacao_do_gerente: textoOuNulo(campos.gravacao_do_gerente),
       },
     },
   };
@@ -183,6 +184,7 @@ export function camposDaOperacao(operacao) {
     teto_rodadas: operacao?.teto_rodadas ?? TEXTO_VAZIO,
     ramo_base: operacao?.ramo_base ?? TEXTO_VAZIO,
     caminhos_de_colisao: (operacao?.caminhos_de_colisao || []).join("\n"),
+    gravacao_do_gerente: operacao?.gravacao_do_gerente ?? TEXTO_VAZIO,
   };
 }
 

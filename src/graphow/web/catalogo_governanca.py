@@ -25,7 +25,10 @@ from graphow.core.orquestracao import CAMPO_CAMINHOS_DE_COLISAO, CAMPO_RAMO_BASE
 from graphow.kernel.planejamento_governanca import (
     CADENCIAS_ACEITAS,
     CAMPO_CADENCIA,
+    CAMPO_GRAVACAO_DO_GERENTE,
     CAMPO_TETO_RODADAS,
+    GRAVACAO_APOS_APROVACAO,
+    GRAVACOES_DO_GERENTE_ACEITAS,
     TETO_DE_RODADAS_MINIMO,
     VALOR_HERDAR,
 )
@@ -56,6 +59,7 @@ DESCRICOES_DA_OPERACAO: Mapping[str, str] = MappingProxyType({
     CAMPO_TETO_RODADAS: "Quantas rodadas a orquestração roda antes de parar",
     CAMPO_RAMO_BASE: "Só quando o trabalho mora num repositório git: o ramo em que o Goal vai ser integrado",
     CAMPO_CAMINHOS_DE_COLISAO: "Só com ramo base: globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo",
+    CAMPO_GRAVACAO_DO_GERENTE: "Quando o gerente grava a definição da demanda: depois da aprovação ou a cada confirmação",
 })
 
 
@@ -116,4 +120,9 @@ def _descrever_operacao() -> dict[str, Any]:
         },
         CAMPO_RAMO_BASE: {"descricao": DESCRICOES_DA_OPERACAO[CAMPO_RAMO_BASE]},
         CAMPO_CAMINHOS_DE_COLISAO: {"descricao": DESCRICOES_DA_OPERACAO[CAMPO_CAMINHOS_DE_COLISAO]},
+        CAMPO_GRAVACAO_DO_GERENTE: {
+            "descricao": DESCRICOES_DA_OPERACAO[CAMPO_GRAVACAO_DO_GERENTE],
+            "valores": list(GRAVACOES_DO_GERENTE_ACEITAS),
+            "padrao": GRAVACAO_APOS_APROVACAO,
+        },
     }

@@ -45,7 +45,7 @@ O procedimento da rodada (decompor, explorar sem interpretar, escolher o modelo 
 
 A tarefa trivial de texto (um comentário no código, um parágrafo de documento, uma correção de redação) vai na trilha leve (`trilha: leve` na Task): pula o teste do executor frio, roda em Sonnet mesmo sob `tudo-opus` e vai ao revisor Sonnet. Num goal real, trocar um comentário pagou o ciclo inteiro em Opus.
 
-Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitado`: ele diz o que quer, e os agentes decidem como. Constraint é do humano ou, com o gesto `constraint` no árbitro, dele; o condutor nunca a cria e, quando uma restrição fizer falta, a propõe numa Question.
+Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitado`: ele diz o que quer, e os agentes decidem como. Quando a demanda chega em prosa (um chamado, um pedido), a skill `graphow-gerente` a alinha com o humano e grava o Goal com os critérios de aceite, as Constraints e as Decisions de negócio antes da primeira rodada. Constraint é do humano ou, com o gesto `constraint` no árbitro, dele; o condutor nunca a cria e, quando uma restrição fizer falta, a propõe numa Question.
 
 ## O laço
 

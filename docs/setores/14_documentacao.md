@@ -96,7 +96,7 @@ Instalação das skills e dos subagentes do graphow no diretório do Claude Code
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `SKILLS_DO_REPOSITORIO` | `tuple[str, ...]` | `('graphow-mcp', 'graphow-orquestracao')` |
+| `SKILLS_DO_REPOSITORIO` | `tuple[str, ...]` | `('graphow-mcp', 'graphow-orquestracao', 'graphow-gerente')` |
 | `PASTA_DAS_SKILLS` | `Path` | `Path('.agents') / 'skills'` |
 | `PASTA_DOS_AGENTES` | `Path` | `Path('.agents') / 'agents'` |
 | `PADRAO_DOS_AGENTES` | `str` | `'graphow-*.md'` |
@@ -112,7 +112,7 @@ Instalação das skills e dos subagentes do graphow no diretório do Claude Code
 
 ### `InstaladorDoAmbiente`
 
-*serviço* — Copia as duas skills e os subagentes, com o servidor MCP de cada um no executável dado.
+*serviço* — Copia as skills e os subagentes, com o servidor MCP de cada um no executável dado.
 
 - `instalar() -> ResultadoDoAmbiente` — Grava o plano inteiro, sobrescrevendo as cópias anteriores.
 - `desatualizados() -> tuple[Path, ...]` — Os arquivos do ambiente que faltam ou diferem do repositório.

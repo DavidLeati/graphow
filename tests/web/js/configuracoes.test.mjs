@@ -34,6 +34,7 @@ const CATALOGO = {
     teto_rodadas: { descricao: "Rodadas", minimo: 1 },
     ramo_base: { descricao: "Ramo" },
     caminhos_de_colisao: { descricao: "Globs" },
+    gravacao_do_gerente: { descricao: "Quando o gerente grava", valores: ["apos_aprovacao", "durante_alinhamento"], padrao: "apos_aprovacao" },
   },
 };
 
@@ -91,9 +92,9 @@ test("o valor escolhido volta como o catálogo o declara: o inteiro de max_corre
 
 test("a operação em branco apaga as propriedades, e o teto inválido não chega ao servidor", () => {
   const vazia = operacaoDoFormulario({ cadencia: "", teto_rodadas: "", ramo_base: "  ", caminhos_de_colisao: "" });
-  assert.deepEqual(vazia.corpo.operacao, { cadencia: null, teto_rodadas: null, ramo_base: null, caminhos_de_colisao: null });
-  const cheia = operacaoDoFormulario({ cadencia: "setor", teto_rodadas: "4", ramo_base: "main", caminhos_de_colisao: "src/**\n\n tests/** " });
-  assert.deepEqual(cheia.corpo.operacao, { cadencia: "setor", teto_rodadas: 4, ramo_base: "main", caminhos_de_colisao: ["src/**", "tests/**"] });
+  assert.deepEqual(vazia.corpo.operacao, { cadencia: null, teto_rodadas: null, ramo_base: null, caminhos_de_colisao: null, gravacao_do_gerente: null });
+  const cheia = operacaoDoFormulario({ cadencia: "setor", teto_rodadas: "4", ramo_base: "main", caminhos_de_colisao: "src/**\n\n tests/** ", gravacao_do_gerente: "durante_alinhamento" });
+  assert.deepEqual(cheia.corpo.operacao, { cadencia: "setor", teto_rodadas: 4, ramo_base: "main", caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" });
   assert.ok(operacaoDoFormulario({ teto_rodadas: "0" }).erro);
   assert.ok(operacaoDoFormulario({ teto_rodadas: "2,5" }).erro);
   assert.equal(listaDeCaminhos("   \n"), null);
@@ -136,6 +137,13 @@ test("a operação mostra o que está gravado e a lista de caminhos uma por linh
   const html = htmlDaOperacao(CATALOGO, valores, false);
   assert.match(html, /<option value="goal" selected>/);
   assert.match(html, /src\/\*\*\ntests\/\*\*<\/textarea>/);
+});
+
+test("a gravação do gerente é um seletor que mostra o padrão quando o projeto não a definiu", () => {
+  const vazio = htmlDaOperacao(CATALOGO, { gravacao_do_gerente: "" }, false);
+  assert.match(vazio, /<option value="" selected>Padrão \(Após a aprovação\)<\/option>/);
+  const definido = htmlDaOperacao(CATALOGO, { gravacao_do_gerente: "durante_alinhamento" }, false);
+  assert.match(definido, /<option value="durante_alinhamento" selected>Durante o alinhamento<\/option>/);
 });
 
 test("a auditoria lista seq, autor e ids tocados, sem campo de justificativa", () => {

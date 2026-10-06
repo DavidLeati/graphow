@@ -194,6 +194,7 @@ def test_operacao_grava_as_propriedades_do_projeto_no_mesmo_lote_nominal() -> No
         "teto_rodadas": 8,
         "ramo_base": "origin/stage",
         "caminhos_de_colisao": ["db/*"],
+        "gravacao_do_gerente": None,
     }
     leitura = governanca.obter_projeto("proj-01").corpo
     assert leitura["operacao"]["ramo_base"] == "origin/stage"
@@ -243,6 +244,19 @@ def test_operacao_nula_apaga_a_propriedade_nominal() -> None:
     assert apagada.status == HTTPStatus.OK, apagada.corpo
     assert "ramo_base" not in kernel.obter_estado().nos["proj-01"].propriedades
     assert apagada.corpo["operacao"]["ramo_base"] is None
+
+
+def test_gravacao_do_gerente_grava_e_recusa_valor_fora_do_dominio_nominal() -> None:
+    """A gravação do gerente aceita os dois modos, e um valor inventado volta com o domínio na recusa."""
+    kernel, governanca = _montar()
+
+    gravada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": "durante_alinhamento"}))
+    recusada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": "sempre"}))
+
+    assert gravada.status == HTTPStatus.OK, gravada.corpo
+    assert kernel.obter_estado().nos["proj-01"].propriedades["gravacao_do_gerente"] == "durante_alinhamento"
+    assert recusada.status == HTTPStatus.BAD_REQUEST
+    assert "apos_aprovacao, durante_alinhamento" in recusada.corpo["problemas"][0]
 
 
 def test_projeto_inexistente_responde_404_edge_case() -> None:

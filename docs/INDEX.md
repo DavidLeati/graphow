@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 199 módulos · 26985 linhas · 376 classes**
+**15 alas · 199 módulos · 27005 linhas · 376 classes**
 
 ---
 
@@ -59,7 +59,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 9 | 1154 | 37 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 4054 | 30 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 4065 | 30 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2207 | 23 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
@@ -69,7 +69,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2593 | 26 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 11 | 1581 | 18 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3325 | 52 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3334 | 52 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 15 | 2627 | 28 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1702 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |

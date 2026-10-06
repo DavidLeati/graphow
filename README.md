@@ -331,7 +331,7 @@ O comando faz, de uma vez, o que antes eram cinco passos à mão:
 
 | O quê | Para onde |
 | :--- | :--- |
-| Skills `graphow-mcp` e `graphow-orquestracao` | `~/.claude/skills/` |
+| Skills `graphow-mcp`, `graphow-orquestracao` e `graphow-gerente` | `~/.claude/skills/` |
 | Os sete subagentes da orquestração, com o servidor MCP de cada um apontando para o caminho absoluto do `graphow` | `~/.claude/agents/` |
 | Hooks `SessionStart`, `SessionEnd` e `SubagentStop`, também com o caminho absoluto | `~/.claude/settings.json` |
 | Permissões: leitura do servidor da sessão, os quatro servidores de subagente e os comandos de medição | `~/.claude/settings.json` |
@@ -792,6 +792,36 @@ qualquer nota escrita à mão. O hook de fim de sessão do ambiente escreve no
 grafo pelo harness, e é dali que o motor reativo pede a condensação.
 
 ---
+
+## 🧭 Gerente: da demanda ao Goal
+
+A orquestração começa num `Goal`, e o `Goal` é do humano: ele diz o que quer,
+os agentes decidem como. O que vem antes (entender a demanda, separar
+desenvolvimento de suporte, esclarecer as decisões de negócio, fixar restrições
+e critérios de aceite) era trabalho que o humano fazia sozinho. A skill
+`graphow-gerente`, em
+[`.agents/skills/graphow-gerente`](.agents/skills/graphow-gerente/SKILL.md),
+faz esse trabalho com ele, na sessão principal:
+
+1. **Triar.** Entra no grafo o que trabalha como desenvolvimento e vira um Goal
+   com entrega verificável; suporte do dia a dia é respondido e fica fora. O que
+   entra é **melhoria** (poucos pontos do sistema, um Goal) ou **projeto**
+   (muitos pontos, vários Goals, em geral sob um Setor próprio).
+2. **Alinhar.** Pergunta só o que muda a conclusão, separa fato de hipótese e
+   não avança de etapa sem o humano dizer que segue.
+3. **Propor.** Mostra o rascunho inteiro: Goal, critérios de aceite,
+   Constraints, Decisions com o motivo, o que ficou em aberto e o que ficou fora.
+4. **Gravar.** Pela conexão `humano` da sessão, num `propor_patch`. As Decisions
+   orientam o Goal e descem a toda a decomposição.
+5. **Entregar** o Goal à `graphow-orquestracao` e, ao fim, **revisar** a entrega
+   contra o que foi decidido.
+
+O gerente não é um papel novo do kernel: ele propõe e o humano decide, então
+Goal e Constraint continuam sendo gestos do humano. Quando ele grava é uma
+propriedade operacional do Projeto, `gravacao_do_gerente`, na aba Configurações
+ao lado da cadência: `apos_aprovacao` (o padrão) só grava depois de o humano
+aprovar o rascunho; `durante_alinhamento` grava cada Decision, Constraint ou
+Evidence assim que o humano a confirma na conversa.
 
 ## 🎼 Orquestração: um Goal, vários agentes, o estado no grafo
 

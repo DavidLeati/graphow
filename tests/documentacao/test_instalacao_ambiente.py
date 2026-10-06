@@ -1,4 +1,4 @@
-"""Testes da instalação do ambiente: as duas skills e os subagentes, e a conferência do que envelheceu."""
+"""Testes da instalação do ambiente: as skills e os subagentes, e a conferência do que envelheceu."""
 
 from pathlib import Path
 
@@ -10,12 +10,13 @@ RAIZ_DO_REPOSITORIO: Path = Path(__file__).resolve().parents[2]
 EXECUTAVEL: str = "C:/venv/Scripts/graphow.exe"
 
 
-def test_instalacao_copia_as_duas_skills_e_os_subagentes_nominal(tmp_path: Path) -> None:
-    """A orquestração e os subagentes, que se copiavam à mão, chegam junto da graphow-mcp."""
+def test_instalacao_copia_as_skills_e_os_subagentes_nominal(tmp_path: Path) -> None:
+    """A orquestração, o gerente e os subagentes, que se copiavam à mão, chegam junto da graphow-mcp."""
     resultado = InstaladorDoAmbiente(RAIZ_DO_REPOSITORIO, tmp_path, EXECUTAVEL).instalar()
 
-    assert dict(resultado.arquivos_por_skill).keys() == {"graphow-mcp", "graphow-orquestracao"}
+    assert dict(resultado.arquivos_por_skill).keys() == {"graphow-mcp", "graphow-orquestracao", "graphow-gerente"}
     assert (tmp_path / "skills" / "graphow-orquestracao" / "SKILL.md").is_file()
+    assert (tmp_path / "skills" / "graphow-gerente" / "SKILL.md").is_file()
     assert {agente.name for agente in resultado.agentes} >= {"graphow-condutor.md", "graphow-executor.md"}
     condutor = (tmp_path / "agents" / "graphow-condutor.md").read_text(encoding="utf-8")
     assert f'command: "{EXECUTAVEL}"' in condutor

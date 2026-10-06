@@ -185,6 +185,7 @@ def test_governanca_do_projeto_herdar_por_gesto_e_operacao_nominal() -> None:
         "teto_rodadas": 5,
         "ramo_base": "origin/stage",
         "caminhos_de_colisao": ["db/*"],
+        "gravacao_do_gerente": None,
     }
     assert lida["politica_global"]["excluir"] == "arbitro"
 

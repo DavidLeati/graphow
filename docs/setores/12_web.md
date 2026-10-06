@@ -10,11 +10,11 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-27 módulos · 3325 linhas · 52 classes
+27 módulos · 3334 linhas · 52 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`web/catalogo_governanca.py`](#webcatalogogovernanca) | 119 | O catálogo de governança publicado para a interface: gestos, valores aceitos e presets. |
+| [`web/catalogo_governanca.py`](#webcatalogogovernanca) | 128 | O catálogo de governança publicado para a interface: gestos, valores aceitos e presets. |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
