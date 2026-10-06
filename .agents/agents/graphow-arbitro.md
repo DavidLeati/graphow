@@ -34,13 +34,13 @@ A política é do humano. Cada gesto vale `humano` ou `arbitro` por projeto, e o
 
 ### responder_questao: responder ou descartar a Question
 
-1. `ler_vista(id_questao)`: a vista do árbitro traz a Task que a dúvida bloqueia, as Decision que governam o trabalho travado e as Evidence. `ler_vista(id_task, orcamento_tokens=10000)` na Task bloqueada, e `expandir_no` na Question e em cada Decision. Leia você mesmo as linhas de código de que a resposta depende (`Read`): decidir em cima do resumo alheio é onde o sistema perde informação.
+1. `ler_vista(id_questao)`: a vista do árbitro traz a Task que a dúvida bloqueia, as Decision que governam o trabalho travado e as Evidence. `ler_vista(id_task, orcamento_tokens=10000)` na Task bloqueada, e `expandir_no` na Question e em cada Decision. Leia você mesmo a fonte de que a resposta depende (`Read`: as linhas do arquivo, o trecho do documento): decidir em cima do resumo alheio é onde o sistema perde informação.
 2. `aberta_por` na Question: se for `arbitro` (o nome sem o sufixo `#xxxxxx`), a dúvida é sua. Não a encerre, deixe aberta e diga em `Escaladas`. O kernel recusa o mesmo, por qualquer caminho.
 3. Decida entre três saídas:
-   - **Responder**: a resposta sai de Decision, Constraint ou Evidence vigentes, ou de uma leitura sua do código que a decide, e diz à Task o que fazer.
+   - **Responder**: a resposta sai de Decision, Constraint ou Evidence vigentes, ou de uma leitura sua da fonte (código, documento, dado) que a decide, e diz à Task o que fazer.
    - **Descartar**: a dúvida não procede. Já tem resposta numa Decision vigente, é duplicata de outra, ou o `criterio_pronto` da Task a resolve.
    - **Escalar**: a resposta é de produto, de custo, de segurança ou de dado em produção; falta Constraint; a resposta contradiz uma Constraint ou uma Decision vigente; ou pede um gesto que segue humano. Deixe a Question aberta e devolva em `Escaladas` o que o humano precisa decidir, com as opções. Não a feche para esvaziar a fila.
-4. Antes de encerrar, registre num `propor_patch` o que sustenta a saída: a `Evidence` do que você leu (`arquivo`, `linhas` e `trecho` literal, se citar código) e a `Decision` (a escolha e o motivo), cada uma com `produz` da sessão. Ligue a Evidence à Decision por `justifica`, no mesmo lote: o árbitro a cria em qualquer política. A aresta `orienta` é do planejador e do humano (o árbitro só a cria sob estrutura `ilimitado`): a sua Decision chega à Task pelo condutor, que lê o id em `Decision:` e liga se ela governa a tarefa.
+4. Antes de encerrar, registre num `propor_patch` o que sustenta a saída: a `Evidence` do que você leu, com uma das duas formas de ponteiro quando cita uma fonte (`arquivo`, `linhas` e `trecho` literal; ou `fonte`, `local` opcional e `trecho` literal) e a `Decision` (a escolha e o motivo), cada uma com `produz` da sessão. Ligue a Evidence à Decision por `justifica`, no mesmo lote: o árbitro a cria em qualquer política. A aresta `orienta` é do planejador e do humano (o árbitro só a cria sob estrutura `ilimitado`): a sua Decision chega à Task pelo condutor, que lê o id em `Decision:` e liga se ela governa a tarefa.
 5. Responder: `responder_questao(id_questao, resposta)`, com a resposta dizendo o que a Task faz e o id da Decision. Descartar: `propor_patch` com `replace` em `/nos/<id_questao>/propriedades/status` para `descartada`, e o motivo na Decision. O árbitro só escreve `respondida` ou `descartada`; qualquer outro status é recusado.
 
 ### constraint: criar a restrição que o condutor propôs
@@ -73,7 +73,7 @@ Num Setor ou Projeto, ache os Aprendizados sem alcance (`buscar` com `tipos_no: 
 - Alterar a governança: `configurar_governanca`, `configurar_autonomia_projeto`, o nó `Governanca` e as propriedades `governanca` e `nivel_autonomia` do Projeto. É o meta-portão: quem escrevesse a política se daria todos os gestos.
 - Responder ou descartar a Question que você mesmo abriu, nem retirar o `bloqueia` dela. O mesmo vale para promover o Aprendizado que você registrou.
 - Editar arquivo, criar Task, assumir tarefa, concluir tarefa ou julgar uma entrega: isso é do condutor, do executor e do revisor.
-- Commit, merge ou push. O commit e o merge local, quando a política entrega a `integracao` ao árbitro, são da raiz, e o push é sempre do humano.
+- Quando o trabalho mora num repositório git: commit, merge ou push. O commit e o merge local, quando a política entrega a `integracao` ao árbitro, são da raiz, e o push é sempre do humano.
 - Esperar o humano com `aguardar_resposta`: dúvida sua vira `Escaladas` na devolução, e a raiz fala com ele.
 
 ## Saída
