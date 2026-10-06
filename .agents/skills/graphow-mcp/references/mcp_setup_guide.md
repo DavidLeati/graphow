@@ -114,7 +114,7 @@ No Claude Code, `graphow setup --escrever-settings` grava os três hooks no `~/.
 graphow harness --fase inicio --entrada-hook
 ```
 
-Nada precisa existir no grafo antes do primeiro hook. Sem `--setor`, a sessão nasce no ambiente padrão da memória do repositório em que o hook rodou (o `cwd` do payload): o `Projeto` com o nome da pasta do repositório e o `Setor` `Memoria` dentro dele, criados na primeira sessão e reaproveitados nas seguintes. Um worktree do git conta como o repositório principal. Passe `--setor <id>` só se quiser a sessão em outro Setor.
+Nada precisa existir no grafo antes do primeiro hook. Sem `--setor`, a sessão nasce no ambiente padrão da memória da pasta de trabalho em que o hook rodou (o `cwd` do payload): o `Projeto` com o nome dessa pasta e o `Setor` `Memoria` dentro dele, criados na primeira sessão e reaproveitados nas seguintes. Quando a pasta mora num repositório git, o nome é o da raiz do repositório, e um worktree conta como o repositório principal. Passe `--setor <id>` só se quiser a sessão em outro Setor.
 
 O id da sessão não chega por variável de ambiente. A primeira versão do arquivo passava `$CLAUDE_SESSION_ID`, que o ambiente nunca define: o comando chegava com a sessão vazia e terminava em erro dentro do kernel. Em harness onde você já conhece o id, declare-o:
 

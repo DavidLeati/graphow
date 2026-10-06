@@ -4,7 +4,7 @@ Patches prontos para `propor_patch`, por papel. Nenhum deles declara o papel do 
 
 ## planejador: decompor em tarefas com dependência
 
-Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O `depende_de` só passa se não fechar ciclo, e só o planejador e o humano podem criá-lo.
+Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O `depende_de` só passa se não fechar ciclo, e só o planejador e o humano podem criá-lo. O exemplo é código; um relatório decomposto em levantar os números e redigir tem a mesma forma, com a redação dependendo do levantamento.
 
 ```json
 {
@@ -72,7 +72,7 @@ Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O
 
 ## planejador: registrar o trecho lido e a decisão que ele sustenta
 
-O planejador decide em cima do código que leu, e o que leu entra como `Evidence` com o ponteiro inteiro: `arquivo`, `linhas` e o `trecho` literal dessas linhas. Sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai. A `Decision` diz onde vale por `orienta`, e é por essa aresta que ela chega à vista de quem executa a tarefa, mesmo que a tarefa tenha nascido noutra sessão.
+O planejador decide em cima do que leu, e o que leu entra como `Evidence` com o ponteiro inteiro. Quando a fonte é um arquivo (código, ata em Markdown, CSV), o ponteiro é `arquivo`, `linhas` e o `trecho` literal dessas linhas; sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai. A outra forma, para o que não mora num arquivo com linhas, está na receita seguinte. A `Decision` diz onde vale por `orienta`, e é por essa aresta que ela chega à vista de quem executa a tarefa, mesmo que a tarefa tenha nascido noutra sessão.
 
 ```json
 {
@@ -127,6 +127,40 @@ O planejador decide em cima do código que leu, e o que leu entra como `Evidence
 }
 ```
 
+## planejador: registrar o que leu numa fonte que não é arquivo
+
+Página web, PDF, conversa: o ponteiro é `fonte` (a URL, o documento, ou a conversa com data e participantes), `local` opcional e livre (página, seção, minuto) e o `trecho` literal. Sem `trecho`, o lote cai com `evidencia_sem_localizacao`; `linhas` é de arquivo, e para página ou seção vale `local`.
+
+```json
+{
+  "justificativa": "Indice de reajuste confirmado na fonte oficial",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/evi-ipca-setembro",
+      "value": {
+        "id": "evi-ipca-setembro",
+        "tipo": "Evidence",
+        "rotulo": "O IPCA acumulado em 12 meses ate setembro e 4,42%",
+        "propriedades": {
+          "fonte": "https://www.ibge.gov.br/indicadores/ipca",
+          "local": "tabela de variacao acumulada em 12 meses, linha set/2026",
+          "trecho": "set/2026 | 4,42",
+          "relevancia": "e o indice que o contrato manda aplicar no reajuste"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-evi-ipca-setembro",
+      "value": { "id": "prod-evi-ipca-setembro", "origem_id": "sess-sprint-01", "destino_id": "evi-ipca-setembro", "tipo": "produz" }
+    }
+  ]
+}
+```
+
+A `Decision` que essa leitura sustenta se liga como na receita anterior, por `justifica` e `orienta`.
+
 ## executor: começar o trabalho
 
 Não escreva `em_andamento` por patch. `assumir_tarefa(id_task)` toma a posse e move o status na mesma operação, e sem essa posse o InvariantGate recusa qualquer mudança de status sua com `posse_de_tarefa_ausente`.
@@ -147,9 +181,8 @@ Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_d
         "tipo": "Artifact",
         "rotulo": "src/graphow/parsers/csv.py",
         "propriedades": {
-          "caminho": "src/graphow/parsers/csv.py",
-          "linhas": 120,
-          "testes_associados": "tests/test_csv_parser.py"
+          "arquivos": ["src/graphow/parsers/csv.py", "tests/test_csv_parser.py"],
+          "resumo": "parser CSV com tratamento de erros de encoding e testes de unidade"
         }
       }
     },
@@ -182,9 +215,87 @@ Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_d
 }
 ```
 
+`arquivos` lista o que a entrega alterou e `resumo` diz em uma linha o que ela é. Num documento ou numa planilha, `arquivos` aponta o documento ou a planilha, e o resto do lote é igual. Quando a entrega é código, os testes que a provam entram em `arquivos` junto do código.
+
+## executor: registrar a ação externa
+
+Enviar um e-mail, marcar uma reunião, publicar: a Task entrega um gesto no mundo, não um arquivo. O planejador a cria com `entrega: acao_externa` e sem `arquivos_alvo`, e o critério diz o que prova o gesto:
+
+```json
+{
+  "titulo": "Enviar o relatorio de fechamento de setembro a diretoria",
+  "id_sessao": "sess-sprint-01",
+  "criterio_pronto": "E-mail enviado a diretoria@ com o relatorio em anexo, registrado com data e hora do envio",
+  "entrega": "acao_externa",
+  "depende_de": "task-relatorio-fechamento"
+}
+```
+
+Quem a executa é o gesto `acao_externa` da política: o humano, que é o padrão em todo preset, ou o executor, só pela política personalizada. Com o gesto no humano, o `assumir_tarefa` do executor é recusado; a pessoa faz o gesto, e a sessão humana registra a prova em nome dela. Com o gesto no executor, ele faz o gesto com as ferramentas que tem e registra a prova. O lote é o mesmo nos dois casos: um `Artifact` sem `arquivos`, com o `resumo` do que foi feito, e a `Evidence` de prova com `fonte` e `resultado`, ligada por `deriva_de` ao `Artifact` e à Task.
+
+```json
+{
+  "justificativa": "Relatorio de setembro enviado a diretoria",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/art-envio-fechamento",
+      "value": {
+        "id": "art-envio-fechamento",
+        "tipo": "Artifact",
+        "rotulo": "Envio do relatorio de setembro a diretoria",
+        "propriedades": { "resumo": "e-mail com o relatorio em anexo enviado a diretoria@" }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-art-envio-fechamento",
+      "value": { "id": "prod-art-envio-fechamento", "origem_id": "sess-sprint-01", "destino_id": "art-envio-fechamento", "tipo": "produz" }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-art-envio-task",
+      "value": { "id": "deriv-art-envio-task", "origem_id": "art-envio-fechamento", "destino_id": "task-envio-fechamento", "tipo": "deriva_de" }
+    },
+    {
+      "op": "add",
+      "path": "/nos/evi-envio-fechamento",
+      "value": {
+        "id": "evi-envio-fechamento",
+        "tipo": "Evidence",
+        "rotulo": "E-mail do fechamento enviado",
+        "propriedades": { "fonte": "caixa de saida", "resultado": "enviado 06/10 14:02 para diretoria@" }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/prod-evi-envio-fechamento",
+      "value": { "id": "prod-evi-envio-fechamento", "origem_id": "sess-sprint-01", "destino_id": "evi-envio-fechamento", "tipo": "produz" }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-evi-envio-art",
+      "value": { "id": "deriv-evi-envio-art", "origem_id": "evi-envio-fechamento", "destino_id": "art-envio-fechamento", "tipo": "deriva_de" }
+    },
+    {
+      "op": "add",
+      "path": "/arestas/deriv-evi-envio-task",
+      "value": { "id": "deriv-evi-envio-task", "origem_id": "evi-envio-fechamento", "destino_id": "task-envio-fechamento", "tipo": "deriva_de" }
+    },
+    {
+      "op": "replace",
+      "path": "/nos/task-envio-fechamento/propriedades/status",
+      "value": "pronto_para_revisao"
+    }
+  ]
+}
+```
+
+A `Evidence` de prova leva `fonte` sem `trecho`, e por isso passa livre: é registro de envio, não citação. O lote pede a posse da Task (`assumir_tarefa` antes, `liberar_tarefa` depois). Daí em diante o ciclo é o de sempre: o revisor julga se a fonte e o resultado batem com o critério, e o executor fecha a Task aprovada; a posse para fechar segue livre a ele mesmo com o gesto no humano.
+
 ## revisor: anexar a evidência da auditoria
 
-O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deriva_de` o artefato que avaliou e a tarefa, e o `veredito` diz se passou (`aprovado`) ou não (`rejeitado`, com o trecho que o prova). Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico. A propriedade `veredito` também é só de quem julga (revisor, humano, árbitro): é ela que o kernel lê para deixar o executor concluir.
+O revisor registra o que verificou e para por aí. A `Evidence` aponta por `deriva_de` o artefato que avaliou e a tarefa, e o `veredito` diz se passou (`aprovado`) ou não (`rejeitado`, com o ponteiro que o prova, de arquivo ou de fonte). A verificação é o que prova o critério: quando a entrega é código, rodar os testes, como no exemplo; num texto, dado ou análise, ler o documento e conferir números e fontes; na ação externa, julgar se a `fonte` e o `resultado` da prova batem com o critério. Acrescentar `"value": "concluido"` ao status da tarefa neste mesmo lote derrubaria tudo com `violacao_permissao_papel`: fechar `Task` é de executor e humano, e o patch é atômico. A propriedade `veredito` também é só de quem julga (revisor, humano, árbitro): é ela que o kernel lê para deixar o executor concluir.
 
 ```json
 {
@@ -253,13 +364,15 @@ Criar o nó `Question` por `propor_patch` é tecnicamente possível e quase semp
 }
 ```
 
+Fora do código a dúvida tem a mesma forma: "A ata de 03/10 fala em reajuste de 5% e a planilha de custos em 4,5%: qual entra no relatório?".
+
 O `titulo` é o rótulo do nó, e é o que o card mostra no canvas: mande uma linha. O corpo vai em `pergunta` e pode ser tão longo quanto a dúvida exigir. Sem `titulo`, ele é derivado do começo da pergunta — e uma pergunta de vinte linhas vira um título truncado.
 
 Você abre a dúvida e espera em `aguardar_resposta`. Mover a `Question` para `respondida` ou `descartada`, removê-la ou tirar o `bloqueia` são operações do humano, ou do árbitro quando a política lhe entrega `responder_questao`, por qualquer caminho. Planejador, executor e revisor são recusados, e o árbitro não encerra a que ele mesmo abriu.
 
 ## revisor: condensar a sessão encerrada
 
-A Task de condensar (`acao: condensar_sessao`) foi aberta pelo grafo quando a sessão `sess-sprint-01` encerrou. Depois de `assumir_tarefa` nela e de `ler_vista("sess-sprint-01")`, a condensação é uma `Note` produzida pela sessão, com `deriva_de` para cada nó de onde saiu uma afirmação do corpo. Sem o `produz`, a Note nasce fora da hierarquia; sem os `deriva_de`, é opinião sem origem.
+A Task de condensar (`acao: condensar_sessao`) foi aberta pelo grafo quando a sessão `sess-sprint-01` encerrou. Depois de `assumir_tarefa` nela e de `ler_vista("sess-sprint-01")`, a condensação é uma `Note` produzida pela sessão, com `deriva_de` para cada nó de onde saiu uma afirmação do corpo. Sem o `produz`, a Note nasce fora da hierarquia; sem os `deriva_de`, é opinião sem origem. O exemplo condensa a cadeia de código acima; a de um relatório ou de uma ação externa se condensa igual, com `deriva_de` para o `Artifact` e a `Evidence` de prova.
 
 ```json
 {

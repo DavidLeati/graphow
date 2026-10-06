@@ -11,7 +11,7 @@ A raiz despacha o condutor e, quando a política de governança do projeto entre
 | Subagente | Quem despacha | Prompt | Devolve |
 | :--- | :--- | :--- | :--- |
 | `graphow-condutor` | a raiz | `Alvo: <id de Goal, Setor ou Projeto>`, `Sessao: <id>`, se o humano deu instrução nova, uma `Humano: <instrução literal>` por instrução e, se houver a leitura, `Cota: 5h <n>%, semana <n>%` | `RODADA: ...` |
-| `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta>` | `PONTEIROS` ou `NAO ENCONTRADO` |
+| `graphow-explorador` | o condutor | `Pergunta: <onde está X?>` e, se souber, `Comece por: <pasta ou fonte>` | `PONTEIROS` ou `NAO ENCONTRADO` |
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
 | `graphow-revisor-sonnet` | o condutor, para a Task `trilha: leve` | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...`, inclusive `fora_da_trilha` |
@@ -38,7 +38,7 @@ A raiz não escreve no grafo, então a cota vai em texto: o harness lê essa lin
 
 O condutor a grava no grafo antes de qualquer teste ou despacho. Se ela muda critério, alvo ou decomposição de alguma Task, ele acerta o desenho e devolve `RODADA: decomposicao` sem executar, e a execução vai para a rodada seguinte, sobre o desenho já acertado; se não muda, a rodada segue normalmente. A `Cota` fica por último, por ordem: o harness só aceita a cota no começo da linha, então a que uma `Humano` citasse no meio do texto não conta.
 
-Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano` é a exceção, e só ela), conteúdo de arquivo, resumo de rodada, decisão tomada (ela está no grafo, ligada por `orienta`), critério de aceite (está em `criterio_pronto`), nem o que o executor anterior fez (está no Artifact e nas Evidence).
+Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano` é a exceção, e só ela), conteúdo de arquivo ou de documento, resumo de rodada, decisão tomada (ela está no grafo, ligada por `orienta`), critério de aceite (está em `criterio_pronto`), nem o que o executor anterior fez (está no Artifact e nas Evidence).
 
 ## O retorno do condutor
 
@@ -52,6 +52,7 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
     Aceites: <id original> -> <id Task de acompanhamento>
     Questoes: <id> na <id Task>: <uma linha>
     Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
+    Acao externa: <id Task> | <rótulo> | criterio: <criterio_pronto>
     Governanca: <a linha da seção Governanca da vista do Goal, como está>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
@@ -67,7 +68,8 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
 | `Correcoes` | diz ao humano na linha da rodada; não para por isso |
 | `Aceites` | a correção foi reprovada de novo só com critérios de acompanhamento: o condutor fechou a original e abriu a Task de acompanhamento com o que ficou. Diz as duas ao humano na linha da rodada; não para por isso |
 | `Questoes` | com `responder_questao` no humano, diz o id ao humano na linha da rodada; com o gesto no árbitro, despacha-o com `Alvo: <id da Question>` e diz na linha quem a decidiu. Não para por isso |
-| `Integrar` | portão: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Com `integracao` no humano, para e diz a ele o ramo e os arquivos: o merge e a renumeração são dele, ou da sessão principal se ele pedir. Com `integracao` no árbitro, a raiz commita e faz o merge local, e para só se ele conflitar ou pedir renumerar. Em ambos, no "segue" a rodada seguinte confere de novo com `graphow base-colisoes`; o push nunca é da raiz |
+| `Acao externa` | portão humano, em qualquer política: uma linha por Task de `entrega: acao_externa` pronta com o gesto `acao_externa` no humano. O condutor não despachou executor para ela e seguiu com as outras tarefas. A raiz mostra à pessoa a tarefa e o critério e espera. Quando ela disser que fez, a raiz registra em nome dela, pelo servidor `graphow` de papel `humano`: `assumir_tarefa`, um `propor_patch` com o `Artifact` (sem `arquivos`, com `resumo`), a `Evidence` de prova (`fonte` e `resultado`, com `deriva_de` ao Artifact e à Task) e o status `pronto_para_revisao`, e `liberar_tarefa`. A rodada seguinte revisa e fecha. A pessoa também pode registrar pela interface |
+| `Integrar` | portão, quando o trabalho mora num repositório git: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Com `integracao` no humano, para e diz a ele o ramo e os arquivos: o merge e a renumeração são dele, ou da sessão principal se ele pedir. Com `integracao` no árbitro, a raiz commita e faz o merge local, e para só se ele conflitar ou pedir renumerar (editar arquivo do trabalho). Em ambos, no "segue" a rodada seguinte confere de novo com `graphow base-colisoes`; o push nunca é da raiz |
 | `Custo` | o que cada filho da rodada gastou, lido pelo condutor do bloco de uso do retorno: o executor é neto da raiz e não aparece no painel. A raiz soma minutos e tokens na linha da rodada e repete cada `ALERTA` com o id (executor acima de ~40 min ou ~100 ferramentas: a Task estourou o tamanho). Ao parar, lista os `ALERTA` da sequência e sugere `graphow orquestracao-medir --goal <id> --por-rodada` para o detalhe. Não para por isso |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
@@ -78,6 +80,7 @@ Pergunte onde, nunca o quê nem se está certo:
 - "onde a taxa de compra é convertida em fator de desconto?"
 - "onde o calendário de dias úteis é carregado e com que feriados?"
 - "quais chamadores usam `taxa_para_fator`?"
+- "em que ata a diretoria aprovou o índice de reajuste, e com que número?"
 
 A resposta vem assim, e só assim:
 
@@ -90,17 +93,28 @@ A resposta vem assim, e só assim:
                """Desconto."""
                return (1 + taxa) ** (-dias / 252)
 
-Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas (`Read` com `offset` e `limit`). O trecho da Evidence é o que ele leu, não o que o explorador colou.
+Fora de arquivo com linhas, o ponteiro vem na forma de fonte genérica, com `local` livre no lugar de `linhas`:
+
+    2. fonte: https://www.ibge.gov.br/indicadores/ipca
+       local: tabela de variação acumulada em 12 meses, linha set/2026
+       relevancia: é o índice que o contrato manda aplicar no reajuste
+       trecho:
+           set/2026 | 4,42
+
+Um documento salvo na base de trabalho, como `atas/2026-10-03-diretoria.md`, é arquivo e vem com `linhas`.
+
+Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo a fonte (as linhas do arquivo com `Read` e `offset` e `limit`, o trecho do documento). O trecho da Evidence é o que ele leu, não o que o explorador colou.
 
 ## O retorno do executor
 
-    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falta_contexto | falhou | fechadas
+    RESULTADO: pronto_para_revisao | posse_perdida | bloqueada | fora_do_alvo | falta_contexto | falta_ferramenta | acao_externa_do_humano | falhou | fechadas
     Task: <id>
     Artifact: <ids>
     Evidence: <ids>
     Decision: <ids>
     Questao: <id>
     Pergunta: <onde está X?>
+    Ferramenta: <o que falta>
     Saida longa: <caminho>
     Resumo: <no máximo três linhas>
 
@@ -110,7 +124,9 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
 | `posse_perdida` | o servidor do executor reiniciou e a posse ficou com o autor antigo; Artifact e Evidence estão gravados. Despacha o revisor com o Artifact, como em `pronto_para_revisao`; aprovada, o fechamento retoma a posse órfã; rejeitada, Question para o humano devolver a posse antes da correção |
 | `bloqueada` | há Question aberta, ou a posse é de outro; segue com o resto do lote |
 | `fora_do_alvo` | acerta `arquivos_alvo` na Task (por `propor_patch`); ela volta numa rodada seguinte |
-| `falta_contexto` | o executor precisou de código fora da vista e parou sem procurar, com a posse liberada. Despacha o explorador com a `Pergunta`, lê as linhas apontadas e registra a Evidence localizada com `deriva_de` para a Task; com ela registrada, despacha a Task de novo nesta rodada, se couber, senão na seguinte. Na segunda vez na mesma Task, redesenha (Decision ou divisão) ou abre Question |
+| `falta_contexto` | o executor precisou de material fora da vista (código, documento, planilha) e parou sem procurar, com a posse liberada. Despacha o explorador com a `Pergunta`, lê a fonte apontada e registra a Evidence localizada com `deriva_de` para a Task; com ela registrada, despacha a Task de novo nesta rodada, se couber, senão na seguinte. Na segunda vez na mesma Task, redesenha (Decision ou divisão) ou abre Question |
+| `falta_ferramenta` | o executor tinha o gesto `acao_externa`, mas não a ferramenta para fazê-la (a linha `Ferramenta:` diz qual), e liberou a posse. Não despacha de novo: diz no `Resumo` a Task e a ferramenta que falta, e a raiz leva ao humano |
+| `acao_externa_do_humano` | o kernel recusou ao executor a Task de ação externa, porque o gesto `acao_externa` está com o humano. Devolve a Task na linha `Acao externa:` e segue com o resto |
 | `falhou` | lê a Evidence da falha; desenho novo vira Decision, modelo mais forte vira `modelo: opus`; sem saída, Question |
 | `fechadas` | as tarefas estão `concluido`; a rodada devolve |
 
@@ -120,14 +136,14 @@ Antes de registrar um ponteiro como Evidence, o condutor lê ele mesmo as linhas
     Artifact: <id>
     Task: <id>
     Evidence: <id do veredito, ou da triagem>
-    Fora da trilha: <arquivo:linhas e o que o trecho muda>
+    Fora da trilha: <arquivo:linhas e o que a mudança faz>
     Criterios nao atendidos: <um por linha: gravidade, o critério e o id da Evidence que prova>
     Questao: <id>
     Resumo: <no máximo três linhas>
 
-A Evidence do veredito deriva do Artifact e da Task, e cada critério não atendido tem uma Evidence localizada com o trecho que o prova e a `gravidade`: `bloqueante` (segurança, permissão, dado em produção ou o critério central da tarefa) ou `acompanhamento` (borda, caso raro, teste que falta, texto). A Task de correção, criada com `id_tarefa_pai` na tarefa rejeitada, alcança essas Evidence em dois saltos: o executor da correção as lê na vista, sem que o condutor as repita no prompt.
+A Evidence do veredito deriva do Artifact e da Task, e cada critério não atendido tem uma Evidence localizada, com uma das duas formas de ponteiro (arquivo e linhas, ou fonte e local) e o trecho que o prova, e a `gravidade`: `bloqueante` (segurança, permissão, dado em produção ou o critério central da tarefa) ou `acompanhamento` (borda, caso raro, teste que falta, texto). A verificação que sustenta o veredito é o que prova o critério: rodar os testes quando a entrega é código; ler o documento e conferir números e fontes quando é texto, dado ou análise; na ação externa, julgar se a `fonte` e o `resultado` da prova batem com o critério. A Task de correção, criada com `id_tarefa_pai` na tarefa rejeitada, alcança essas Evidence em dois saltos: o executor da correção as lê na vista, sem que o condutor as repita no prompt.
 
-`fora_da_trilha` só vem do `graphow-revisor-sonnet`: o diff da Task leve muda comportamento. Ele não aprova nem rejeita. Registra uma Evidence com `triagem: fora_da_trilha` e o trecho que muda comportamento, sem a propriedade `veredito`, para ela não virar o veredito vigente da tarefa nem entrar na contagem da medição. O condutor marca `trilha: completa` na Task (por `propor_patch`) e despacha o `graphow-revisor` com o mesmo Artifact; o veredito que vale é o dele.
+`fora_da_trilha` só vem do `graphow-revisor-sonnet`: a mudança da Task leve não é só texto. Num repositório git, ele faz a triagem por `git status` e `git diff`. Quando a entrega não é código, confere só que os arquivos alterados são os do Artifact e que nenhum é código, configuração ou dado que um programa lê; sem git, lê os arquivos do Artifact inteiros. Ele não aprova nem rejeita. Registra uma Evidence com `triagem: fora_da_trilha` e o trecho que sai do texto, sem a propriedade `veredito`, para ela não virar o veredito vigente da tarefa nem entrar na contagem da medição. O condutor marca `trilha: completa` na Task (por `propor_patch`) e despacha o `graphow-revisor` com o mesmo Artifact; o veredito que vale é o dele.
 
 ## O retorno do árbitro
 
@@ -158,4 +174,4 @@ O árbitro devolve poucas linhas e o resto fica no grafo, como o do condutor. A 
 
 ## Mais de um despacho por vez
 
-O condutor despacha as tarefas paralelas numa única mensagem, uma chamada por tarefa, todas em primeiro plano, depois de conferir que os `arquivos_alvo` são disjuntos e que nenhuma depende de outra. O explorador pode rodar em paralelo com qualquer coisa: ele não edita nem escreve no grafo. Duas rodadas ao mesmo tempo, não: a raiz despacha uma de cada vez. O árbitro nunca roda junto de uma rodada do condutor, porque as Questions e as posses que ele decide são as que a rodada deixou: a raiz o despacha entre as rodadas, uma Question por vez.
+O condutor despacha as tarefas paralelas numa única mensagem, uma chamada por tarefa, todas em primeiro plano, depois de conferir que os `arquivos_alvo` são disjuntos e que nenhuma depende de outra. Task sem `arquivos_alvo`, a de ação externa inclusive, não entra em lote paralelo. O explorador pode rodar em paralelo com qualquer coisa: ele não edita nem escreve no grafo. Duas rodadas ao mesmo tempo, não: a raiz despacha uma de cada vez. O árbitro nunca roda junto de uma rodada do condutor, porque as Questions e as posses que ele decide são as que a rodada deixou: a raiz o despacha entre as rodadas, uma Question por vez.

@@ -30,6 +30,8 @@ mcpServers:
 
 Os de executor e revisor seguem o mesmo formato, com `--papel executor` e `--papel revisor`; o do árbitro, `graphow-arbitro`, usa `--papel arbitro --autor arbitro`. O papel `arbitro` não dá poder por si só: a sessão cria só `Evidence`, `Decision` e `Note`, e o resto vem da política de governança do projeto do alvo, que o humano grava (`configurar_governanca`, ou a aba Configurações do `graphow web`). Sem política gravada vale a `governanca_maxima`, e o servidor do árbitro recusa todo gesto. Os dois revisores usam o mesmo servidor, `graphow-revisor`, e diferem no autor: `revisor-opus` e `revisor-sonnet`. `--autor-por-conexao` dá a cada invocação uma posse e uma autoria próprias (`executor-sonnet#3f9a1c`, `condutor#a81c02`): sem isso, dois executores em paralelo dividiriam a posse de qualquer tarefa, e o log não diria qual condutor tomou qual decisão.
 
+O executor também depende da política num gesto, o `acao_externa`: quem executa a Task de `entrega: acao_externa` (enviar um e-mail, marcar uma reunião, publicar). O padrão é `humano`, inclusive em `governanca_maxima` e `arbitragem_maxima`: o kernel recusa ao executor assumir ou entregar essa Task, o condutor a devolve à raiz na linha `Acao externa:`, e a pessoa faz o gesto. Para entregá-lo ao executor, o humano grava a política personalizada com `configurar_governanca` (`preset: personalizada` e `personalizada: {"acao_externa": "executor"}`, no global ou no Projeto), ou pela aba Configurações do `graphow web`; não há preset que o faça. Nesse caso o executor faz o gesto com as ferramentas que a sessão dele tiver (conectores de e-mail, calendário e afins) e, sem elas, devolve `falta_ferramenta`. A seção `Governanca` da vista traz a linha `- acao_externa com o executor: ...` quando o gesto está com ele.
+
 Subagente aninhado sobe o próprio servidor. Isso foi testado em 2026-09-23: um `graphow-executor` despachado de dentro de outro subagente listou as ferramentas `mcp__graphow-executor` e leu a vista do projeto.
 
 ## 3. Hooks
@@ -51,6 +53,8 @@ Sem o `SubagentStop`, `graphow orquestracao-medir` só enxerga o custo da raiz.
 Para as rodadas não pararem em pedido de permissão, o setup libera no `settings.json` as ferramentas dos quatro servidores de subagente (`mcp__graphow-condutor`, `mcp__graphow-executor`, `mcp__graphow-revisor` e `mcp__graphow-arbitro`), as de leitura do servidor `graphow` da sessão principal e os comandos de medição, entre eles `Bash(graphow base-colisoes *)`, que o condutor roda ao situar a rodada quando há `ramo_base` (seção 5). O condutor chama `graphow` pelo nome no Bash: com o venv fora do PATH, ative-o antes de abrir o Claude Code ou ponha a pasta `Scripts` (`bin` no Linux e no macOS) do venv no PATH. Edição de arquivo pelos executores segue a política do projeto. Condutor, revisor, árbitro e explorador não editam. Com `integracao` no árbitro, a raiz commita e faz o merge local, e libere para ela `Bash(git status *)`, `Bash(git add *)`, `Bash(git commit *)`, `Bash(git merge *)` e `Bash(git diff *)`, sem `git push`.
 
 ## 5. Ramo base
+
+Esta seção vale quando o trabalho mora num repositório git. Fora dele não há ramo base, e nada aqui se aplica.
 
 Quando o trabalho de um Goal vai ser integrado num ramo que anda em paralelo, o condutor confere a cada rodada o que esse ramo ganhou. Num goal real, o ramo base `stage` ganhou migrations com os mesmos números que o Goal usava, e só se soube no merge, dias depois. Para ligar a conferência, o humano grava duas propriedades no Goal, no Setor ou no Projeto:
 
@@ -86,7 +90,7 @@ A raiz roda o laço inteiro numa chamada só e para no primeiro portão, então 
 claude -p --model opus --permission-mode acceptEdits --allowedTools "Agent,Skill,Read,Glob,Grep,mcp__graphow-condutor,mcp__graphow-executor,mcp__graphow-revisor,Bash(python *),Bash(git status *),Bash(git diff *),Bash(git log *),Bash(graphow base-colisoes *)" --max-budget-usd 20 "Use a skill graphow-orquestracao no Setor setor-x, com cadencia setor."
 ```
 
-A chamada termina num portão (`nada_a_fazer`, teto, Goal concluído na cadência `goal`) e deixa o próprio `Run`, e a medição soma todos. Ajuste o `--allowedTools` aos comandos com que os critérios do projeto se provam. Sem permissão, o modo não interativo recusa a ferramenta em vez de perguntar. `--max-budget-usd` é o teto duro de custo da chamada.
+A chamada termina num portão (`nada_a_fazer`, teto, Goal concluído na cadência `goal`) e deixa o próprio `Run`, e a medição soma todos. Ajuste o `--allowedTools` aos comandos com que os critérios do projeto se provam. Os `git` e o `graphow base-colisoes` do exemplo servem quando o trabalho mora num repositório git; fora dele, tire-os. Sem permissão, o modo não interativo recusa a ferramenta em vez de perguntar. `--max-budget-usd` é o teto duro de custo da chamada.
 
 O `claude -p` precisa de credencial própria do CLI, porque a do app desktop só vale para as sessões do app. Com a credencial do CLI vencida, a chamada fica repetindo o erro de API sem imprimir nada. Gere uma com `claude setup-token` e passe-a em `CLAUDE_CODE_OAUTH_TOKEN`.
 

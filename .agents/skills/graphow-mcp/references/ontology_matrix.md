@@ -8,18 +8,18 @@ Camada de navegação, os contêineres:
 
 - `Projeto`: raiz da iniciativa, e onde moram a política de governança do projeto (propriedade `governanca`, que herda a global) e o nível de autonomia legado.
 - `Governanca`: o singleton `governanca-global`, com o `preset` e a `personalizada` da política global. Raiz como o `Projeto`: nenhuma aresta o toca, e só o humano o cria, edita ou remove, em qualquer política.
-- `Setor`: domínio técnico ou subsistema (`core`, `kernel`, `mcp`, `web`).
+- `Setor`: área do trabalho: subsistema, frente ou equipe (`kernel`, `web`, `financeiro`, `comercial`).
 - `Sessao`: unidade de trabalho no tempo; é dela que saem os itens de trabalho, pela aresta `produz`. Tem status `ativa` ou `concluida`; encerrada, a vista dela abre pelo fechamento.
 
 Camada de trabalho:
 
 - `Goal`: intenção de alto nível.
-- `Task`: unidade atribuível a um executor.
-- `Decision`: decisão técnica ou de arquitetura registrada.
+- `Task`: unidade atribuível a um executor. A propriedade `entrega` diz o que ela produz: `artefato` (o padrão: arquivo, documento, dado) ou `acao_externa` (um gesto no mundo que não deixa arquivo, como enviar um e-mail, marcar uma reunião ou publicar). A de ação externa não leva `arquivos_alvo`, e quem a executa é o gesto `acao_externa` da política (ver "Status e ciclos de vida").
+- `Decision`: decisão registrada com o motivo: de desenho, de método, de critério.
 - `Question`: dúvida que bloqueia tarefa até a resposta do humano ou, conforme a política, do árbitro.
 - `Constraint`: restrição obrigatória de técnica, segurança ou escopo.
-- `Artifact`: entregável concreto, de código a especificação.
-- `Evidence`: dado empírico, benchmark, telemetria, prova ou trecho de código lido. Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. Quando cita `linhas` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro: `arquivo`, `linhas` e `trecho`.
+- `Artifact`: entregável concreto, com `arquivos` (o que a entrega alterou: código, documento, planilha) e `resumo`. Na Task de ação externa vai sem `arquivos`, só com o `resumo` do gesto feito.
+- `Evidence`: dado empírico, medição, telemetria, prova ou trecho lido (de código, documento, página, conversa). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. Quando cita `linhas`, `local` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro, numa de duas formas: arquivo (`arquivo`, `linhas` como `120` ou `120-135`, e o `trecho` literal) ou fonte genérica (`fonte`, que é URL, documento ou conversa com data e participantes, `local` opcional e livre, como página, seção ou minuto, e o `trecho` literal). Sem isso, `evidencia_sem_localizacao`. `arquivo` ou `fonte` sozinhos seguem livres: é o caso do log de verificação e da prova de ação externa, que leva `fonte` e `resultado`.
 - `Run`: registro de execução e telemetria de invocação de modelo.
 - `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
 - `Aprendizado`: memória de longo prazo, o que sobrevive ao projeto. O rótulo é a afirmação; `como_aplicar` diz o que fazer com ela. Nasce com `deriva_de` obrigatório e só alcança outros projetos quando o humano o promove.
@@ -48,7 +48,7 @@ Num projeto cuja política tem `estrutura: ilimitado` (o que o `nivel_autonomia:
 
 Num projeto de autonomia estrita:
 
-- `planejador`: `Task`, `Decision`, `Question`, `Note`, `Evidence`. A `Evidence` do planejador é o que ele leu no código e nasce com `arquivo`, `linhas` e `trecho` (`evidencia_sem_localizacao` na falta de um deles).
+- `planejador`: `Task`, `Decision`, `Question`, `Note`, `Evidence`. A `Evidence` do planejador é o que ele leu e nasce com uma das duas formas de ponteiro, `arquivo`, `linhas` e `trecho`, ou `fonte`, `local` opcional e `trecho` (`evidencia_sem_localizacao` na falta).
 - `executor`: `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado`.
 - `revisor`: `Evidence`, `Question`, `Note`, `Aprendizado`. Registra `Aprendizado` quem detém `deriva_de`, a aresta de origem que ele exige.
 - `sistema`, a identidade do harness: `Run`, `Sessao` e, quando o hook roda sem `--setor`, o ambiente padrão da memória (o `Projeto` com o nome do repositório e o `Setor` `Memoria`). Nada do grafo de trabalho.
@@ -61,11 +61,12 @@ Um `Aprendizado` nasce só com `deriva_de` no mesmo lote (`aprendizado_sem_orige
 
 ## Status e ciclos de vida
 
-`Task`: `pendente`, `em_andamento`, `pronto_para_revisao`, `concluido`, e `bloqueado` fora da linha principal. Três regras do kernel andam com esses valores:
+`Task`: `pendente`, `em_andamento`, `pronto_para_revisao`, `concluido`, e `bloqueado` fora da linha principal. Quatro regras do kernel andam com esses valores:
 
 1. Quem move o status precisa deter a posse da tarefa (`assumir_tarefa`), exceto o humano.
 2. Só executor e humano gravam `concluido`. Planejador e revisor são recusados, inclusive por `propor_patch`, e fechar Task não é gesto do árbitro. Além do papel, vale a regra do kernel, em todo preset: o agente só conclui com veredito vigente `aprovado` (uma `Evidence` com `veredito` de revisor, humano ou árbitro) ou com aceite legítimo pelo teto de correções. Sem isso, `fechamento_sem_veredito_aprovado`.
 3. Nenhum papel conclui uma `Task` que tenha `Question` aberta apontando para ela por `bloqueia`.
+4. A `Task` de `entrega: acao_externa` segue o gesto `acao_externa` da política, que é `humano` (o padrão, inclusive em `governanca_maxima` e `arbitragem_maxima`) ou `executor` (só pela política personalizada, gravada com `configurar_governanca`). Com o gesto no humano, o RoleGate recusa o executor que assume a Task ou grava nela `em_andamento` ou `pronto_para_revisao`; a posse para fechar a Task já aprovada segue livre. Em qualquer política, o executor não troca a `entrega` de Task nenhuma. A seção `Governanca` da vista traz a linha `- acao_externa com o executor: ...` quando o gesto está com ele; sem a linha, é do humano. Num nó contido por mais de um Projeto, o humano vence o executor.
 
 `Question`: `aberta`, `respondida`, `descartada`. Os dois status de encerramento são do humano, ou do árbitro quando a política lhe entrega `responder_questao`, que escreve só esses dois e não encerra a que abriu; devolver uma pergunta para `aberta` segue livre, porque reabrir não anula garantia nenhuma.
 
