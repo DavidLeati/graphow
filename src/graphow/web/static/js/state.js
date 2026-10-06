@@ -10,6 +10,15 @@ const RECORTE_VAZIO = { colapsar: "", escopo: "", raio: 1, vista: "" };
 // Arrastar um nó dispara muitos eventos; o envio é agrupado para não inundar o log.
 const LAYOUT_PERSIST_DELAY_MS = 1200;
 
+/** Os ids de `ordem` entre a âncora e o alvo, inclusive, terminando no alvo. */
+export function faixaDeIds(ordem, ancora, alvo) {
+  const fim = ordem.indexOf(alvo);
+  const inicio = ordem.indexOf(ancora);
+  if (fim < 0 || inicio < 0) return [alvo];
+  const faixa = ordem.slice(Math.min(inicio, fim), Math.max(inicio, fim) + 1);
+  return inicio <= fim ? faixa : faixa.reverse();
+}
+
 export class GraphowState {
   constructor() {
     this.currentBranch = "main";
@@ -244,6 +253,15 @@ export class GraphowState {
     const presentes = ids.filter((id) => this.nodes.has(id));
     const conjunto = new Set(somar ? [...this.nosSelecionados, ...presentes] : presentes);
     this.definirNosSelecionados(conjunto, presentes.at(-1) ?? null);
+  }
+
+  /**
+   * Shift + clique numa lista ordenada (o explorador): a faixa da âncora até o
+   * alvo, inclusive, substitui a seleção, ou soma a ela com Ctrl + Shift. O alvo
+   * vira o principal. Sem âncora na lista, a faixa é só o alvo.
+   */
+  selecionarFaixa(ordem, ancora, alvo, { somar = false } = {}) {
+    this.selecionarNos(faixaDeIds(ordem, ancora, alvo), { somar });
   }
 
   definirNosSelecionados(ids, principal) {

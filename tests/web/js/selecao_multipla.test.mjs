@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { GraphowState } from "../../../src/graphow/web/static/js/state.js";
+import { faixaDeIds, GraphowState } from "../../../src/graphow/web/static/js/state.js";
 
 function estadoCom(...ids) {
   const estado = new GraphowState();
@@ -68,4 +68,30 @@ test("cada troca de seleção avisa os ouvintes", () => {
   estado.alternarNoNaSelecao("b");
   estado.selecionarNos(["a"]);
   assert.deepEqual(avisos, ["SELECTION_CHANGED", "SELECTION_CHANGED", "SELECTION_CHANGED"]);
+});
+
+test("a faixa vai da âncora ao alvo, inclusive, nos dois sentidos, e sem âncora é só o alvo", () => {
+  const ordem = ["a", "b", "c", "d"];
+  assert.deepEqual(faixaDeIds(ordem, "a", "c"), ["a", "b", "c"]);
+  assert.deepEqual(faixaDeIds(ordem, "d", "b"), ["d", "c", "b"]);
+  assert.deepEqual(faixaDeIds(ordem, null, "b"), ["b"]);
+  assert.deepEqual(faixaDeIds(ordem, "fora", "b"), ["b"]);
+});
+
+test("Shift + clique no explorador seleciona o item do meio e faz do alvo o principal", () => {
+  const estado = estadoCom("a", "b", "c");
+  estado.selectElement("node", "a");
+  estado.selecionarFaixa(["a", "b", "c"], "a", "c");
+  assert.deepEqual(estado.idsDosNosSelecionados(), ["a", "b", "c"]);
+  assert.equal(estado.selectedElement.id, "c");
+});
+
+test("a faixa substitui a seleção, soma com Ctrl + Shift e pula o que não está no canvas", () => {
+  const estado = estadoCom("a", "b", "c", "d");
+  estado.selectElement("node", "d");
+  estado.selecionarFaixa(["a", "x", "b"], "a", "b");
+  assert.deepEqual(estado.idsDosNosSelecionados(), ["a", "b"]);
+  estado.selectElement("node", "d");
+  estado.selecionarFaixa(["a", "b"], "a", "b", { somar: true });
+  assert.deepEqual(estado.idsDosNosSelecionados(), ["d", "a", "b"]);
 });

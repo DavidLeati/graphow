@@ -50,6 +50,7 @@ export class ExploradorView {
     this.expandidos = new Set(salvos || []);
     this.primeiraCarga = salvos === null;
     this.idFocado = null;
+    this.ancora = null;
     this.ligarBotoes();
     this.ligarArvore();
     indice.aoMudar(() => this.render());
@@ -101,8 +102,16 @@ export class ExploradorView {
       this.acoes.abrirEscopo(this.indice.escopoDe(id), { novaAba });
       return;
     }
-    // Shift + clique num item que está no canvas soma-o à seleção, como no canvas.
+    // Como numa lista de arquivos: Ctrl + clique alterna o item na seleção e
+    // Shift + clique seleciona a faixa desde a âncora (o último item clicado sem
+    // Shift). Só entram os itens que estão no canvas.
     if (evento.shiftKey && this.state.nodes.has(id)) {
+      const ordem = [...this.arvore.querySelectorAll(".arvore-titulo.mod-item")].map((linha) => linha.dataset.id);
+      this.state.selecionarFaixa(ordem, this.ancora, id, { somar: evento.ctrlKey || evento.metaKey });
+      return;
+    }
+    this.ancora = id;
+    if ((evento.ctrlKey || evento.metaKey) && this.state.nodes.has(id)) {
       this.state.alternarNoNaSelecao(id);
       return;
     }
