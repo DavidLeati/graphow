@@ -7,7 +7,7 @@
  * trabalho segue aberto na subárvore, e abrir um contêiner abre o canvas nele.
  *
  * Os projetos de trabalho e as sessões que o hook abre ficam em raízes
- * separadas. O hook cria um ambiente por repositório, com uma sessão a cada vez
+ * separadas. O hook cria um ambiente por pasta de trabalho, com uma sessão a cada vez
  * que o agente roda, e no meio dos projetos ele enchia a lista de sessões e de
  * Runs de telemetria. Numa raiz própria, recolhida por padrão, ele continua a um
  * clique, com as perguntas e notas avulsas que o agente deixou nas sessões.
@@ -265,13 +265,13 @@ export class ExploradorView {
       </div>`;
   }
 
-  /** A raiz das sessões do hook: um ambiente por repositório, fora dos projetos, recolhida até alguém abrir. */
+  /** A raiz das sessões do hook: um ambiente por pasta de trabalho, fora dos projetos, recolhida até alguém abrir. */
   montarSessoesDoHook(ambientes) {
     const expandido = this.expandidos.has(ID_DO_HOOK);
     const ativo = ehEscopoDoHook(this.acoes.escopoAtivo());
     const total = this.indice.totalPorAmbito[AMBITO_DO_HOOK];
     const classes = ["arvore-titulo", "mod-raiz", "mod-conteiner", ativo ? "is-ativo" : "", this.idFocado === ID_DO_HOOK ? "is-focado" : ""];
-    const dica = "Sessões que o hook abre a cada vez que o agente roda, um ambiente por repositório. Ficam fora dos projetos, e as perguntas e notas avulsas do agente continuam nelas.";
+    const dica = "Sessões que o hook abre a cada vez que o agente roda, um ambiente por pasta de trabalho (o repositório, quando há um). Ficam fora dos projetos, e as perguntas e notas avulsas do agente continuam nelas.";
     return `
       <div class="arvore-no mod-grupo">
         <div class="${classes.join(" ")}" role="treeitem" aria-expanded="${expandido}" data-id="${ID_DO_HOOK}" data-raiz="${AMBITO_DO_HOOK}" title="${escapeHtml(dica)}">

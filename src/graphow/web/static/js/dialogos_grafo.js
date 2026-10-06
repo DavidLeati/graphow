@@ -154,7 +154,7 @@ export class DialogosDoGrafo {
         <div class="segmentado mod-largo" data-tipos>${["Projeto", "Setor", "Sessao"].map((opcao) => `
           <button type="button" class="${opcao === tipo ? "is-ativo" : ""}" data-tipo="${opcao}">${icone(apresentarTipo(opcao).icone, { tamanho: 14 })} ${apresentarTipo(opcao).nome}</button>`).join("")}
         </div>
-        <label class="campo"><span class="campo-rotulo">Título</span><input type="text" class="entrada" data-campo="rotulo" placeholder="Ex.: Sprint 1"></label>
+        <label class="campo"><span class="campo-rotulo">Título</span><input type="text" class="entrada" data-campo="rotulo" placeholder="Ex.: Sprint 1, Relatório de fornecedores"></label>
         <div data-bloco-pai></div>
         <div data-bloco-autonomia></div>`,
       botoes: [

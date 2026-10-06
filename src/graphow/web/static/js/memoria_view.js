@@ -72,7 +72,7 @@ export class MemoriaView {
       <div class="memoria">
         ${this.montarSecao("promovidos", "Aprendizados promovidos", promovidos, "Nenhum aprendizado promovido. Promover é o que faz um aprendizado chegar à vista das outras tarefas.")}
         ${this.montarSecao("locais", "Aprendizados sem promoção", locais, "Nenhum aprendizado registrado neste ramo. Registre um pelo botão direito numa Decision, Evidence, Note, Artifact ou Task.")}
-        ${this.montarSecao("sessoes", "Sessões", sessoes.map((sessao) => this.montarSessao(sessao)), "Nenhuma sessão neste ramo. O hook do harness abre uma a cada sessão do ambiente, no Setor Memoria do repositório.")}
+        ${this.montarSecao("sessoes", "Sessões", sessoes.map((sessao) => this.montarSessao(sessao)), "Nenhuma sessão neste ramo. O hook do harness abre uma a cada sessão do ambiente, no Setor Memoria da pasta de trabalho.")}
       </div>`;
   }
 

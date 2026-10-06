@@ -11,7 +11,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
    - **Camada de Trabalho**: Nós semânticos de intenção, execução e evidência pendurados exclusivamente em instâncias de `Sessao`. Tanto humanos quanto agentes interagem com a camada de trabalho.
    - **Nenhum nó nasce solto**: exceto `Projeto`, todo nó criado termina o lote com uma aresta de contenção chegando nele (`contem`, `produz` ou `decompoe`). O `InvariantGate` lê o estado depois do lote e recusa com `no_fora_da_hierarquia` para qualquer papel, humano incluído; um agente também não solta da hierarquia um nó que já existia.
    - **Memória diz de onde veio**: o `Aprendizado` é o único nó de trabalho que atravessa a hierarquia, e por isso é o único que nasce apontando obrigatoriamente para a origem. Sem uma aresta `deriva_de` ao fim do lote que o cria, o `InvariantGate` recusa com `aprendizado_sem_origem`, e um agente não tira a última origem de um que já existe. O alcance dele (`vale_para` um `Projeto` ou `Setor`, ou a propriedade `alcance: global`) é escrito pelo humano; o `vale_para` também pelo árbitro, se a política do projeto lhe entrega o gesto `promover_aprendizado`. O alcance global é sempre do humano.
-   - **Leitura de código diz onde leu**: a `Evidence` do planejador é o que ele leu no código para decidir, e nasce com o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Toda `Evidence` que cite `linhas` ou `trecho`, de qualquer papel, cita os três. O `InvariantGate` recusa na criação e na edição com `evidencia_sem_localizacao`; o portão não lê o disco, para o replay dar o mesmo veredito anos depois, e garante a forma que torna a conferência possível.
+   - **Fato diz onde foi visto**: a `Evidence` do planejador é o que ele leu para decidir, e nasce com o ponteiro inteiro, numa de duas formas. A de arquivo é `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa: o código, a ata em Markdown, o CSV. A de fonte genérica é `fonte` (uma URL, um documento, uma conversa com data e participantes), `local` livre opcional (página, seção, minuto) e o `trecho` literal: o fato que não mora num arquivo com linhas. Toda `Evidence` que cite `linhas`, `local` ou `trecho`, de qualquer papel, cita o ponteiro inteiro; `arquivo` ou `fonte` sozinhos seguem livres. O `InvariantGate` recusa na criação e na edição com `evidencia_sem_localizacao`; o portão não lê o disco, para o replay dar o mesmo veredito anos depois, e garante a forma que torna a conferência possível.
    - **A Sessão tem ciclo de vida** (`ativa`, `concluida`). Encerrada, a vista dela abre pelo fechamento determinístico (decisões vigentes, dúvidas abertas, restrições, último artefato), que é projeção do log e nunca é gravado, e o motor reativo abre nela a `Task` de condensação.
 
 2. **Temporalidade**: o grafo tem um eixo de tempo, o do log (tempo de transação). Não é bitemporal: ninguém declara quando um fato passou a valer no mundo.
@@ -22,7 +22,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 3. **Imutabilidade e Evolução**:
    - Nenhum nó ou aresta é destruído fisicamente; modificações geram novos eventos de patch.
    - Informações obsoletas são conectadas via arestas `substitui` ou `contradiz`.
-   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.3.0`: entram o tipo `Governanca` e o papel `arbitro`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
+   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.4.0`: a localização da `Evidence` ganha a forma de fonte genérica; a `1.3.0` trouxe o tipo `Governanca` e o papel `arbitro`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
 
 ---
 
@@ -32,7 +32,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 
 | Tipo de Nó | Descrição | Autor Permitido |
 |---|---|---|
-| `Projeto` | Agrupador raiz de alto nível de iniciativas e repositórios. | `humano`; `harness`, só o Projeto do repositório no ambiente padrão da memória |
+| `Projeto` | Agrupador raiz de alto nível de uma iniciativa: um produto, uma pesquisa, uma operação, um repositório. | `humano`; `harness`, só o Projeto do repositório no ambiente padrão da memória |
 | `Setor` | Domínio de negócio ou especialidade dentro de um projeto. | `humano`; `harness`, só o Setor `Memoria` do ambiente padrão |
 | `Sessao` | Contexto de interação onde execuções e diálogos ocorrem. Tem ciclo de vida: `ativa` e `concluida`. | `humano`, `harness` |
 | `Governanca` | Singleton `governanca-global`: a política de governança global, com as propriedades `preset` e `personalizada`. Raiz como o `Projeto`, isenta da regra de hierarquia, e nenhuma aresta a toca (a política do projeto mora na propriedade `governanca` do próprio `Projeto`). | `humano`, sempre, em qualquer política |
@@ -45,9 +45,9 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Task` | Unidade de trabalho executável com critério de pronto e status. | `humano`, `planejador` |
 | `Decision` | Escolha tomada com alternativas consideradas e justificativa. Com `acao: aceite_apos_reprovacao`, é o aceite de uma entrega no teto de reprovações em cadeia (`max_correcoes`). | `humano`, `planejador`, `executor`, `arbitro` |
 | `Question` | Ponto de dúvida ou ambiguidade que requer resposta do humano ou, conforme a política, do árbitro. Guarda `aberta_por`; respondida, guarda `respondida_por` e `respondida_por_papel`. | `planejador`, `executor`, `revisor` |
-| `Constraint` | Restrição ou regra mandatória de negócio/código. | `humano`; `arbitro`, se a política lhe entrega o gesto `constraint` |
-| `Artifact` | Entregável produzido (código, documento, patch, arquivo). | `executor` |
-| `Evidence` | Fato observado no mundo (saída de teste, log, retorno de busca, trecho de código lido). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. | `planejador` (só leitura de código, localizada), `executor`, `revisor`, `arbitro` |
+| `Constraint` | Restrição ou regra mandatória do trabalho: de negócio, legal, de prazo, de código. | `humano`; `arbitro`, se a política lhe entrega o gesto `constraint` |
+| `Artifact` | Entregável produzido: documento, dado, código, patch ou outro arquivo; na `Task` de ação externa, o registro do gesto feito, sem `arquivos`. | `executor` |
+| `Evidence` | Fato observado no mundo (trecho lido num arquivo ou numa fonte, retorno de busca, saída de verificação, prova de um envio). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. | `planejador` (só leitura localizada), `executor`, `revisor`, `arbitro` |
 | `Run` | Registro de uma execução de agente (modelo, tokens, latência). | `sistema` |
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor`, `arbitro` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista; promovido, guarda `promovido_por` e `promovido_por_papel`. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
@@ -60,16 +60,17 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 |---|---|---|
 | `Task` | `criterio_pronto` | O critério de aceite, contra o qual o revisor julga. Já existia; a orquestração não criou outro nome para ele. |
 | `Task` | `modelo`, `motivo_modelo` | O modelo que deve executar a tarefa e por quê. `criar_tarefa` recusa o modelo sem o motivo, para a escolha ficar auditável no log. |
-| `Task` | `trilha` | `leve` ou `completa`; ausente vale `completa`. A leve é a da tarefa trivial de texto, comentário ou documentação: pula o teste do executor frio, roda em Sonnet e vai ao revisor Sonnet. `criar_tarefa` recusa outro valor e a leve com `modelo: opus`. |
-| `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca. Só rodam em paralelo tarefas com arquivos-alvo disjuntos. |
+| `Task` | `trilha` | `leve` ou `completa`; ausente vale `completa`. A leve é a da tarefa trivial de texto (redação, comentário ou documentação), sem mudança com efeito em código, dado ou configuração: pula o teste do executor frio, roda em Sonnet e vai ao revisor Sonnet. `criar_tarefa` recusa outro valor e a leve com `modelo: opus`. |
+| `Task` | `entrega` | `artefato` (o padrão: arquivo, documento, dado) ou `acao_externa` (um gesto no mundo que não deixa arquivo, como enviar um e-mail ou marcar uma reunião). Quem executa a ação externa é o gesto `acao_externa` da política (seção 5.1). `criar_tarefa` recusa outro valor, e o executor não a troca. |
+| `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca, relativos à raiz do trabalho (código, documentos, planilhas). Só rodam em paralelo tarefas com arquivos-alvo disjuntos; a de ação externa não leva. |
 | `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
 | `Goal` | `configuracao` | O rótulo do arranjo de modelos com que o Goal foi orquestrado, para comparar configurações. |
-| `Goal`, `Setor`, `Projeto` | `ramo_base`, `caminhos_de_colisao` | Gravadas pelo humano: o ramo do git em que o trabalho do Goal vai ser integrado (`origin/stage` ou `stage`) e a lista de globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo (`**/migrations/*.py`). O Goal herda cada uma do Setor que contém a sessão que o produziu e depois do Projeto. `graphow base-colisoes` as lê. |
+| `Goal`, `Setor`, `Projeto` | `ramo_base`, `caminhos_de_colisao` | Só quando o trabalho mora num repositório git. Gravadas pelo humano: o ramo em que o trabalho do Goal vai ser integrado (`origin/stage` ou `stage`) e a lista de globs dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo (`**/migrations/*.py`). O Goal herda cada uma do Setor que contém a sessão que o produziu e depois do Projeto. `graphow base-colisoes` as lê. |
 | `Evidence` | `veredito` | O que o revisor concluiu contra os critérios da tarefa: `aprovado` ou `rejeitado`. Só conta o veredito de uma `Evidence` de papel que julga (`revisor`, `humano` ou `arbitro`, pela proveniência do nó); é ele que libera o fechamento da `Task` (seção 5.4). |
 | `Projeto` | `governanca` | A política do projeto: `{preset, personalizada}`, com `preset` em `herdar` (o padrão), `governanca_maxima`, `arbitragem_maxima` ou `personalizada`, e uma `personalizada` parcial. Só o humano a escreve (seção 5). |
 | `Projeto` | `nivel_autonomia` | Legado: `estrito` ou `ilimitado`, que a política lê como o gesto `estrutura`. Só o humano o escreve. |
 | `Goal`, `Setor`, `Projeto` | `cadencia`, `teto_rodadas` | Gravadas pelo humano (a aba Configurações as grava no `Projeto`): quando a orquestração para e devolve a palavra (`tarefa`, `goal` ou `setor`) e quantas rodadas roda. Lidas pela skill, não pelo kernel. |
-| `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, no diff de uma Task da trilha leve, mudança de comportamento. Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
+| `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, numa Task da trilha leve, mudança com efeito (no diff, quando a entrega é código). Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
 
 ---
 
@@ -153,7 +154,7 @@ exerce:
 
 1. **Promover a global**: escrever `alcance: global` num `Aprendizado` (o `global` de `promover_aprendizado`).
 2. **Alterar a governança** (o meta-portão): criar, editar ou remover o nó `Governanca`, e escrever a propriedade `governanca` ou `nivel_autonomia` de um `Projeto`. Quem escrevesse a política se daria todos os gestos que ela governa. Um agente que cria um `Projeto` só o declara `estrito` e sem `governanca`.
-3. O **push** do git: fora do grafo, é sempre do humano; o gesto `integracao` cobre só o commit e o merge local na base.
+3. O **push** do git, quando o trabalho mora num repositório: fora do grafo, é sempre do humano; o gesto `integracao` cobre só o commit e o merge local na base.
 
 Fora da política, e não do humano por exceção, vale também a regra do veredito: um
 agente só conclui uma `Task` com revisão aprovada (seção 5.4).
@@ -185,7 +186,7 @@ só do humano é decidido por uma política, em dois níveis (global e por proje
 e a política mora no grafo, para o replay do log dar o mesmo veredito: o kernel
 decide só pelo estado.
 
-### 5.1 Os Dez Gestos
+### 5.1 Os Onze Gestos
 
 Valores aceitos e o que cada preset fixo vale (`governanca_maxima` /
 `arbitragem_maxima`). `humano` significa que só o humano faz o gesto; `arbitro`,
@@ -203,10 +204,12 @@ que o humano e o árbitro o fazem. O catálogo vive em `core/governanca.py`.
 | `liberar_posse_alheia` | `humano`, `arbitro` | `liberar_tarefa` sobre o lock de outro autor | humano / arbitro |
 | `integracao` | `humano`, `arbitro` | Lido só pela skill: commit e merge local na base. O push é sempre humano | humano / arbitro |
 | `max_correcoes` | inteiro de 0 a 5 | Lido pela skill: reprovações em cadeia antes do teto (a de ordem N já escala; 2 = a original e a primeira correção) | 2 / 2 |
+| `acao_externa` | `humano`, `executor` | Assumir e entregar a `Task` de `entrega: acao_externa` (enviar e-mail, marcar reunião). Sob `humano`, o `RoleGate` recusa o executor que a assume ou a põe em revisão, e o que troca a `entrega`; a posse para fechar a Task já aprovada segue livre. Agir em nome da pessoa não é julgamento, e nem a arbitragem máxima o delega: só a `personalizada` o entrega ao executor | humano / humano |
 
-`estrutura` e `max_correcoes` não são permissões por papel: a política tem leitura
-própria deles (`estrutura_ilimitada` e `max_correcoes`), e perguntar a eles
-`permite(...)` é erro de quem chama.
+`estrutura`, `max_correcoes` e `acao_externa` não são permissões por papel do
+árbitro: a política tem leitura própria deles (`estrutura_ilimitada`,
+`max_correcoes` e `acao_externa_com_executor`), e perguntar a eles `permite(...)` é
+erro de quem chama. Na composição entre projetos o humano vence o executor.
 
 ### 5.2 Presets, Herança e Legado
 
@@ -255,7 +258,7 @@ por quem propõe.
 
 ### 5.6 Onde a Política Aparece
 
-- **Vistas e protocolo.** A seção `Governanca` da vista de `Sessao`, `Task` e `Goal` (e o protocolo que o hook imprime) diz o preset efetivo, os gestos `com o arbitro`, a estrutura ilimitada e o `max_correcoes` fora do padrão, e que a promoção global e a configuração da governança seguem sempre do humano. A vista do árbitro traz o que ele precisa para decidir.
+- **Vistas e protocolo.** A seção `Governanca` da vista de `Sessao`, `Task` e `Goal` (e o protocolo que o hook imprime) diz o preset efetivo, os gestos `com o arbitro`, a estrutura ilimitada, o `max_correcoes` fora do padrão e a `acao_externa` com o executor, e que a promoção global e a configuração da governança seguem sempre do humano. A vista do árbitro traz o que ele precisa para decidir.
 - **MCP.** `graphow mcp --papel arbitro` abre o servidor do papel `arbitro`. A ferramenta `configurar_governanca` grava a política (`escopo` `global` ou o id de um `Projeto`, `preset`, `personalizada`) e devolve a política efetiva com a origem de cada gesto; é sempre do humano, árbitro inclusive.
-- **Interface web.** A aba **Configurações** (engrenagem na faixa de ícones, ou a paleta `Ctrl+P`, comando "Configurações: governança e operação") escolhe o escopo (Global ou um projeto), mostra os presets em cartões, a tabela dos gestos com o valor e a origem (editável só na `personalizada`; no projeto cada gesto pode herdar), as duas linhas sempre humanas (promoção global e alterar a governança), a operação do projeto (cadência, teto de rodadas, ramo base, caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro". A tela escreve como o humano, pelas rotas `/api/governanca` e `/api/projetos/<id>/governanca`, e libera posse por `/api/tarefas/<id>/liberar-posse`.
+- **Interface web.** A aba **Configurações** (engrenagem na faixa de ícones, ou a paleta `Ctrl+P`, comando "Configurações: governança e operação") escolhe o escopo (Global ou um projeto), mostra os presets em cartões, a tabela dos gestos com o valor e a origem (editável só na `personalizada`; no projeto cada gesto pode herdar), as duas linhas sempre humanas (promoção global e alterar a governança), a operação do projeto (cadência, teto de rodadas e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro". A tela escreve como o humano, pelas rotas `/api/governanca` e `/api/projetos/<id>/governanca`, e libera posse por `/api/tarefas/<id>/liberar-posse`.
 - **Orquestração.** O subagente `graphow-arbitro` (`.agents/agents/graphow-arbitro.md`) é despachado pela raiz da skill `graphow-orquestracao` quando a política lhe concede o gesto: lê a política na vista, exerce só os gestos que ela entrega e devolve `Escaladas` para o resto. A matriz de nós, arestas e papéis que os agentes consultam está em `.agents/skills/graphow-mcp/references/ontology_matrix.md`.
