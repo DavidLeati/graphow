@@ -7,7 +7,9 @@
 
 ## 📌 Visão Geral
 
-O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre desenvolvedores humanos e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores e, onde a política de governança o autoriza, o Árbitro).
+O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre pessoas e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores e, onde a política de governança o autoriza, o Árbitro).
+
+O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a revisão confere a entrega contra o critério de pronto. A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, integração de ramos, colisões de migrations) entra como caso, quando a entrega é código.
 
 A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
 1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
@@ -106,9 +108,9 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Também confere a política de governança declarada (`preset` e `personalizada` do nó `Governanca` e da propriedade `governanca` do `Projeto`): preset ou gesto desconhecido, valor fora do domínio do gesto e um segundo nó `Governanca` com id diferente de `governanca-global` caem com `estrutura_incompleta`, e nenhuma aresta toca o `Governanca`. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
-   - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro.
-   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu no código, sempre localizada; decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
-   - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas ou alterar constraints.
+   - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro, e a `Task` de ação externa é dele a menos que a política a entregue ao executor.
+   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu, sempre localizada (no arquivo ou na fonte); decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
+   - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas, alterar constraints, trocar a `entrega` de uma `Task` e, salvo quando a política lhe entrega o gesto `acao_externa`, assumir ou entregar a `Task` de ação externa.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
    - **`arbitro`**: O agente a quem a política de governança do projeto entrega os gestos que tira do humano. Por si só cria só `Evidence`, `Decision` e `Note`; o resto vem da política do projeto do alvo e é recusado onde ela o deixa com o humano. Nunca promove a global, nunca altera a governança, não encerra a `Question` que abriu nem promove o `Aprendizado` que registrou, e não fecha `Task`. Servidor: `graphow mcp --papel arbitro`.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
@@ -135,7 +137,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 3. **Portão 3 — `InvariantGate`:**
    - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, termina o lote que o cria com uma aresta de contenção chegando nele (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada. A regra lê o estado depois do lote, com remoções e cascata aplicadas (`kernel/estrutura_apos_lote.py`): criar a contenção e removê-la no mesmo lote não pendura nada, e um agente não solta da hierarquia um nó que já existia.
    - **Memória com Origem:** Todo `Aprendizado` novo termina o lote com ao menos uma aresta `deriva_de` partindo dele; sem ela o lote cai com `aprendizado_sem_origem`. Um agente também não tira a última origem de um `Aprendizado` existente. Memória sem origem é opinião com autoridade de memória.
-   - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas` ou `trecho`, carrega o ponteiro inteiro: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
+   - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas`, `local` ou `trecho`, carrega o ponteiro inteiro, numa de duas formas: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa; ou, quando o fato não mora num arquivo com linhas, `fonte` (URL, documento, conversa com data e participantes), `local` livre opcional (página, seção, minuto) e o `trecho` literal. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
    - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
@@ -153,12 +155,15 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 Quem faz cada gesto que antes era sempre do humano deixou de ser fixo: é uma
 **política**, em dois níveis (global e por projeto), guardada no próprio grafo
-para o replay dar o mesmo veredito. São dez gestos: `responder_questao`,
+para o replay dar o mesmo veredito. São onze gestos: `responder_questao`,
 `promover_aprendizado`, `constraint`, `estrutura`, `excluir`, `fechar_goal`,
-`encerrar_sessao`, `liberar_posse_alheia`, `integracao` e `max_correcoes`.
-Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
-`arbitro` fazem); `estrutura` vale `estrito` ou `ilimitado`, e `max_correcoes` é
-um inteiro de 0 a 5, as reprovações em cadeia antes do teto (a de ordem N escala; 2 = a original e a primeira correção). A tabela completa está na
+`encerrar_sessao`, `liberar_posse_alheia`, `integracao`, `max_correcoes` e
+`acao_externa`. Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
+`arbitro` fazem); `estrutura` vale `estrito` ou `ilimitado`, `max_correcoes` é
+um inteiro de 0 a 5, as reprovações em cadeia antes do teto (a de ordem N escala; 2 = a original e a primeira correção), e
+`acao_externa` vale `humano` ou `executor`: quem assume e entrega a `Task` cuja
+entrega é um gesto no mundo, sem arquivo (enviar um e-mail, marcar uma reunião).
+Os dois presets fixos a deixam com o humano; só a `personalizada` a entrega ao executor. A tabela completa está na
 [Especificação Ontológica](docs/ONTOLOGY.md#5-governança-configurável).
 
 **Três presets.** `governanca_maxima` (todos os gestos com o humano, estrutura
@@ -208,7 +213,7 @@ A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argu
 | **`propor_patch`** | Submete propostas de alteração via operações JSON Patch com validação atômica. |
 | **`abrir_questao`** | Cria um nó `Question` e uma aresta `bloqueia` sobre uma `Task`, sinalizando dúvida ao humano. Aceita `titulo` curto — é o que o card mostra no canvas — e guarda o corpo da dúvida na propriedade `pergunta`; sem `titulo`, ele sai do começo da pergunta. |
 | **`buscar`** | Busca textual *case-insensitive* ranqueada por relevância, cortada em `limite` (padrão 5, teto 50) e sempre acompanhada de `total` e `truncado`. Filtra por `TipoNo` e por `escopo`. |
-| **`proximas_tarefas`** | Fila de trabalho da sessão ou do `Goal`: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. Cada tarefa traz `modelo`, `trilha` e `arquivos_alvo`, com que o orquestrador escolhe o executor, o revisor e o que roda em paralelo. |
+| **`proximas_tarefas`** | Fila de trabalho da sessão ou do `Goal`: tarefas com dependências concluídas, sem dúvida aberta e sem posse de outro agente, em ordem de atendimento. Cada tarefa traz `modelo`, `trilha`, `entrega` e `arquivos_alvo`, com que o orquestrador escolhe o executor (ou devolve a ação externa à pessoa), o revisor e o que roda em paralelo. |
 | **`assumir_tarefa`** | Adquire a posse exclusiva de uma `Task` e a move para `em_andamento`. Exigido antes de qualquer mudança de status. |
 | **`liberar_tarefa`** | Devolve a posse de uma `Task`, sem alterar o status registrado. O humano devolve a posse de qualquer autor (a de um subagente que terminou sem liberar), e o árbitro também quando o gesto `liberar_posse_alheia` está com ele na política. |
 | **`minhas_questoes`** | Lista as dúvidas abertas por esta sessão, com a resposta (do humano ou do árbitro) quando já houver. |
@@ -216,7 +221,7 @@ A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argu
 | **`criar_projeto`** | Cria o nó `Projeto` raiz e define o nível de autonomia dos agentes nele. |
 | **`criar_setor`** | Cria o `Setor` e a aresta `contem` que o liga ao `Projeto`. |
 | **`criar_sessao`** | Cria a `Sessao` e a aresta `contem` que a liga ao `Setor`. |
-| **`criar_tarefa`** | Cria uma `Task` com aresta `produz` e hierarquias opcionais. Para a orquestração, grava `modelo` (recusado sem `motivo_modelo`), `trilha` (`leve` ou `completa`, a leve recusada em Opus), `arquivos_alvo` e `corrige`, e liga à tarefa por `orienta` cada `Decision` listada em `decisoes`. |
+| **`criar_tarefa`** | Cria uma `Task` com aresta `produz` e hierarquias opcionais. Para a orquestração, grava `modelo` (recusado sem `motivo_modelo`), `trilha` (`leve` ou `completa`, a leve recusada em Opus), `entrega` (`artefato` ou `acao_externa`), `arquivos_alvo` e `corrige`, e liga à tarefa por `orienta` cada `Decision` listada em `decisoes`. |
 | **`concluir_tarefa`** | Transiciona a `Task` para `concluido`, se nenhuma `Question` aberta a bloquear. |
 | **`responder_questao`** | Registra a resposta e destrava a `Task`; grava `respondida_por` e `respondida_por_papel`. Gesto `responder_questao` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto. O árbitro não responde a `Question` que ele mesmo abriu. |
 | **`configurar_autonomia_projeto`** | Legado: ajusta o `nivel_autonomia` do projeto, que a política lê como o gesto `estrutura`. Prefira `configurar_governanca`. **Sempre sessão humana.** |
@@ -292,7 +297,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 13 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dez gestos, os presets, a herança e a regra do veredito.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 13 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os onze gestos, os presets, a herança e a regra do veredito.
 
 ---
 
@@ -430,7 +435,7 @@ graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 # O mesmo, com uma linha por rodada do condutor: minutos, o que fechou e foi revisado na janela, tokens e cota
 graphow orquestracao-medir --goal goal-padrao --por-rodada
 
-# Conferir o Goal contra o ramo_base dele: o que o ramo base ganhou desde o merge-base,
+# Quando o trabalho mora num repositório git: conferir o Goal contra o ramo_base dele, o que o ramo base ganhou desde o merge-base,
 # nos caminhos_de_colisao, e que colide com o que o Goal toca (sai com 1 se colidir, 2 se não der para conferir)
 graphow base-colisoes --goal goal-migrations --repo . --sem-fetch
 
@@ -505,7 +510,7 @@ identidade.
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
-| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dez gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas, ramo base, caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
+| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos onze gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em
@@ -803,10 +808,10 @@ O kernel sustenta cinco peças desse arranjo:
 
 | Peça | Onde |
 | :--- | :--- |
-| O planejador registra a `Evidence` do que leu no código, sempre com `arquivo`, `linhas` e `trecho`; sem o ponteiro inteiro, `evidencia_sem_localizacao` | `kernel/localizacao.py`, `InvariantGate` |
+| O planejador registra a `Evidence` do que leu, sempre com o ponteiro: `arquivo`, `linhas` e `trecho`, ou `fonte`, `local` e `trecho`; sem ele inteiro, `evidencia_sem_localizacao` | `kernel/localizacao.py`, `InvariantGate` |
 | A `Decision` diz onde vale por `orienta`, e chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão | ontologia 1.2.0 |
 | `ler_vista(..., perspectiva="executor")` é o teste do executor frio, feito antes de todo despacho | `mcp/ferramentas_leitura.py` |
-| `criar_tarefa` grava `modelo` (com motivo), `trilha`, `arquivos_alvo`, `corrige` e as decisões; `proximas_tarefas` os devolve para o despacho e o paralelismo | `core/orquestracao.py` |
+| `criar_tarefa` grava `modelo` (com motivo), `trilha`, `entrega`, `arquivos_alvo`, `corrige` e as decisões; `proximas_tarefas` os devolve para o despacho e o paralelismo | `core/orquestracao.py` |
 | Cada subagente tem posse própria (`--autor-por-conexao`), e o harness grava um `Run` por subagente, com tokens, modelo e as tarefas que ele assumiu | `harness/transcricao.py` |
 
 Para decidir a divisão de modelos por número, e não por palpite, o mesmo
@@ -833,8 +838,12 @@ despachados vêm do hook `SubagentStop`, que está na fiação de
 Quando a política de governança do projeto entrega gestos ao árbitro, a raiz
 despacha também o subagente `graphow-arbitro`, que decide em contexto novo o que
 a política lhe dá (e devolve `Escaladas` para o que segue humano). A orquestração
-lê a política na vista, e a `integracao` (commit e merge local) e o `max_correcoes`
-seguem o que ela diz; o push é sempre do humano.
+lê a política na vista, e a `integracao` (commit e merge local, quando a entrega é
+código), o `max_correcoes` e a `acao_externa` seguem o que ela diz; o push é
+sempre do humano. A `Task` de ação externa que segue com a pessoa volta à raiz
+como portão humano: a pessoa faz o gesto, a raiz registra a prova em nome dela
+(uma `Evidence` com `fonte` e `resultado`), e a revisão e o fechamento seguem o
+ciclo de sempre.
 
 A skill que conduz esse arranjo, `graphow-orquestracao`, está em
 [`.agents/skills/graphow-orquestracao`](.agents/skills/graphow-orquestracao/SKILL.md),
