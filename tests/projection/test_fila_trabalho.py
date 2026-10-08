@@ -1,6 +1,8 @@
 """Testes da fila de trabalho: o que está de fato executável em uma sessão."""
 
-from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo
+from typing import Any
+
+from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo, OrdemNoLog, ProvenienciaNo
 from graphow.core.types import StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.projection.fila_trabalho import FilaDeTrabalho, MotivoDeImpedimento
 from graphow.projection.graph_view import GrafoView
@@ -234,3 +236,80 @@ def test_fila_expoe_a_trilha_da_tarefa_nominal() -> None:
 
     trilhas = {tarefa.id: tarefa.em_dicionario()["trilha"] for tarefa in tarefas}
     assert trilhas == {"t-leve": "leve", "t-antiga": "completa"}
+
+
+SEQ_DO_PLANO = 10
+PLANO_HUMANO = [{"versao": 1, "seq": SEQ_DO_PLANO, "aprovado_por": "david", "papel": "humano"}]
+
+
+def _task_de_goal(id_task: str, seq: int, status: str = StatusTask.PENDENTE.value, **extras: Any) -> NoGrafo:
+    """Task com `seq` de criação real, para o plano separar o que veio antes do que veio depois."""
+    papel = extras.pop("papel", "")
+    return NoGrafo(
+        id=id_task, tipo=TipoNo.TASK, rotulo=id_task, propriedades={"status": status, **extras},
+        ordem=OrdemNoLog(seq_criacao=seq), proveniencia=ProvenienciaNo(papel=papel),
+    )
+
+
+def _fila_do_goal(tasks: list[NoGrafo], planos: Any = PLANO_HUMANO, dependencias: tuple[tuple[str, str], ...] = ()) -> tuple[Any, ...]:
+    """A fila de uma Sessão que produz um Goal com as Tasks dadas sob ele por `decompoe`."""
+    nos = {t.id: t for t in tasks}
+    nos["sess-1"] = _no("sess-1", TipoNo.SESSAO)
+    nos["goal-1"] = NoGrafo(id="goal-1", tipo=TipoNo.GOAL, rotulo="goal-1", propriedades={"planos": planos} if planos else {})
+    arestas = {"p0": _aresta("p0", "sess-1", "goal-1", TipoAresta.PRODUZ)}
+    arestas.update({f"dec-{t.id}": _aresta(f"dec-{t.id}", "goal-1", t.id, TipoAresta.DECOMPOE) for t in tasks})
+    arestas.update({f"dep-{a}": _aresta(f"dep-{a}", a, b, TipoAresta.DEPENDE_DE) for a, b in dependencias})
+    return FilaDeTrabalho(GrafoView(GrafoEstado(nos=nos, arestas=arestas))).proximas_tarefas("sess-1")
+
+
+def test_plano_vem_antes_do_emergente_pendente_nominal() -> None:
+    """O emergente de id menor não passa à frente da Task do plano."""
+    fila = _fila_do_goal([_task_de_goal("t-a-emergente", 20), _task_de_goal("t-z-plano", 5)])
+
+    assert [t.id for t in fila] == ["t-z-plano", "t-a-emergente"]
+    assert [t.faixa for t in fila] == [1, 3]
+    assert [t.escopo for t in fila] == ["plano", "sem_ligacao"]
+
+
+def test_emergente_de_que_o_plano_depende_sobe_para_a_faixa_dois_nominal() -> None:
+    """A emergente que uma Task do plano pede, mesmo transitivamente, passa a que ninguém pediu."""
+    tasks = [
+        _task_de_goal("t-a-solta", 20), _task_de_goal("t-b-pedida", 21), _task_de_goal("t-c-funda", 22),
+        _task_de_goal("t-z-plano", 5),
+    ]
+    fila = _fila_do_goal(tasks, dependencias=(("t-z-plano", "t-b-pedida"), ("t-b-pedida", "t-c-funda")))
+
+    assert [(t.id, t.faixa) for t in fila] == [("t-c-funda", 2), ("t-a-solta", 3)]
+
+
+def test_emergente_criada_por_humano_fica_na_faixa_dois_nominal() -> None:
+    """O que o humano criou depois do plano vem antes do emergente do agente."""
+    fila = _fila_do_goal([_task_de_goal("t-a-agente", 20), _task_de_goal("t-b-humana", 21, papel="humano")])
+
+    assert [(t.id, t.faixa) for t in fila] == [("t-b-humana", 2), ("t-a-agente", 3)]
+
+
+def test_o_que_esta_em_voo_continua_antes_do_plano_edge_case() -> None:
+    """Caso de borda: trabalho começado não se abandona, mesmo sendo emergente."""
+    em_voo = _task_de_goal("t-z-emergente", 20, StatusTask.EM_ANDAMENTO.value)
+    fila = _fila_do_goal([em_voo, _task_de_goal("t-a-plano", 5)])
+
+    assert [t.id for t in fila] == ["t-z-emergente", "t-a-plano"]
+
+
+def test_goal_sem_plano_mantem_a_ordem_antiga_edge_case() -> None:
+    """Caso de borda: sem plano aprovado tudo é faixa 1 e a ordem é só por status e id, sem classe a exibir."""
+    fila = _fila_do_goal([_task_de_goal("t-b", 20), _task_de_goal("t-a", 5)], planos=None)
+
+    assert [(t.id, t.faixa, t.escopo) for t in fila] == [("t-a", 1, ""), ("t-b", 1, "")]
+
+
+def test_task_sem_goal_fica_na_faixa_um_edge_case() -> None:
+    """Caso de borda: Task de Sessão sem Goal é `fora_de_goal` e não cede lugar a ninguém."""
+    nos = {"sess-1": _no("sess-1", TipoNo.SESSAO), "t-1": _task_de_goal("t-1", 3)}
+    arestas = {"p1": _aresta("p1", "sess-1", "t-1", TipoAresta.PRODUZ)}
+
+    tarefa = FilaDeTrabalho(GrafoView(GrafoEstado(nos=nos, arestas=arestas))).proximas_tarefas("sess-1")[0]
+
+    assert tarefa.em_dicionario()["faixa"] == 1
+    assert tarefa.em_dicionario()["escopo"] == "fora_de_goal"

@@ -24,6 +24,7 @@ from graphow.core.orquestracao import (
     ler_textos,
 )
 from graphow.core.types import StatusTask, TipoAresta, TipoNo
+from graphow.projection.faixas_da_fila import FaixasDaFila
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.revisao import profundidade_da_correcao
 
@@ -46,6 +47,8 @@ PRIORIDADE_POR_STATUS: Mapping[str, int] = {
     StatusTask.PENDENTE.value: 2,
 }
 PRIORIDADE_DE_STATUS_DESCONHECIDO: int = 9
+# O que já está em voo segue antes e fora das faixas de escopo: trabalho começado não se abandona.
+PRIORIDADE_DO_QUE_ESTA_EM_VOO: int = 1
 
 
 class MotivoDeImpedimento(str, Enum):
@@ -92,7 +95,10 @@ class TarefaExecutavel:
     mesmo motivo, vem como `artefato` quando falta, e `acao_externa` diz que a
     tarefa é um gesto no mundo, que a política reserva ao humano ou entrega ao
     executor. A profundidade da correção diz quantas
-    reprovações a tarefa já carrega, que é o que o teto de correções conta.
+    reprovações a tarefa já carrega, que é o que o teto de correções conta. O
+    escopo é a classe da Task diante do plano vigente do Goal (vazio quando o
+    Goal não tem plano) e a faixa, a ordem de atendimento das pendentes: 1 o
+    plano e as subdivisões, 2 o que o plano pede, 3 o resto.
     """
 
     id: str
@@ -106,6 +112,8 @@ class TarefaExecutavel:
     arquivos_alvo: tuple[str, ...] = field(default_factory=tuple)
     corrige: str = ""
     profundidade_correcao: int = 0
+    escopo: str = ""
+    faixa: int = 1
 
     def em_dicionario(self) -> dict[str, object]:
         """Forma serializável para a resposta da ferramenta MCP."""
@@ -121,6 +129,8 @@ class TarefaExecutavel:
             "arquivos_alvo": list(self.arquivos_alvo),
             "corrige": self.corrige,
             "profundidade_correcao": self.profundidade_correcao,
+            "escopo": self.escopo,
+            "faixa": self.faixa,
         }
 
 
@@ -133,11 +143,11 @@ class FilaDeTrabalho:
 
     def proximas_tarefas(self, id_sessao: str) -> tuple[TarefaExecutavel, ...]:
         """Tarefas da sessão com dependências cumpridas, sem dúvida aberta e sem posse."""
-        candidatas = [
-            no for no in self._coletar_tarefas_da_sessao(id_sessao) if self._esta_liberada(no)
-        ]
-        ordenadas = sorted(candidatas, key=self._chave_de_ordenacao)
-        return tuple(self._descrever(no) for no in ordenadas)
+        todas = self._coletar_tarefas_da_sessao(id_sessao)
+        faixas = FaixasDaFila(self._view, todas)
+        candidatas = [no for no in todas if self._esta_liberada(no)]
+        ordenadas = sorted(candidatas, key=lambda no: self._chave_de_ordenacao(no, faixas))
+        return tuple(self._descrever(no, faixas) for no in ordenadas)
 
     def tarefas_impedidas(self, id_sessao: str) -> tuple[TarefaImpedida, ...]:
         """Tarefas da sessão que não entraram na fila, cada uma com o seu motivo."""
@@ -165,12 +175,14 @@ class FilaDeTrabalho:
             return MotivoDeImpedimento.POSSE_DE_OUTRO
         return MotivoDeImpedimento.DEPENDENCIA_PENDENTE
 
-    def _chave_de_ordenacao(self, no: NoGrafo) -> tuple[int, str]:
-        """Ordem estável por prioridade de status e, em empate, por identificador."""
+    def _chave_de_ordenacao(self, no: NoGrafo, faixas: FaixasDaFila) -> tuple[int, int, str]:
+        """Ordem por status, depois pela faixa de escopo das que não começaram, e por identificador."""
         status = str(no.obter_propriedade("status", StatusTask.PENDENTE.value))
-        return (PRIORIDADE_POR_STATUS.get(status, PRIORIDADE_DE_STATUS_DESCONHECIDO), no.id)
+        prioridade = PRIORIDADE_POR_STATUS.get(status, PRIORIDADE_DE_STATUS_DESCONHECIDO)
+        faixa = 0 if prioridade <= PRIORIDADE_DO_QUE_ESTA_EM_VOO else faixas.faixa(no.id)
+        return (prioridade, faixa, no.id)
 
-    def _descrever(self, no: NoGrafo) -> TarefaExecutavel:
+    def _descrever(self, no: NoGrafo, faixas: FaixasDaFila) -> TarefaExecutavel:
         """Projeta o nó no DTO que a fila devolve."""
         return TarefaExecutavel(
             id=no.id,
@@ -184,6 +196,8 @@ class FilaDeTrabalho:
             arquivos_alvo=ler_textos(no.propriedades.get(CAMPO_ARQUIVOS_ALVO)),
             corrige=ler_texto(no.propriedades, CAMPO_CORRIGE),
             profundidade_correcao=profundidade_da_correcao(self._view, no.id),
+            escopo=faixas.escopo(no.id),
+            faixa=faixas.faixa(no.id),
         )
 
     def _coletar_tarefas_da_sessao(self, id_sessao: str) -> tuple[NoGrafo, ...]:
