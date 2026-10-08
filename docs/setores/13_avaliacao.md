@@ -10,18 +10,22 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 
 ## Inventário
 
-15 módulos · 2627 linhas · 28 classes
+19 módulos · 3197 linhas · 36 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobre um corpus gravado. |
+| [`avaliacao/anonimizacao_log.py`](#avaliacaoanonimizacaolog) | 260 | Anonimização do log real para o corpus de regressão do escopo governado. |
 | [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 190 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
+| [`avaliacao/corpus_escopo.py`](#avaliacaocorpusescopo) | 65 | Carrega o corpus anonimizado de escopo e o reconstrói por replay da projeção. |
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
 | [`avaliacao/forma_do_contexto.py`](#avaliacaoformadocontexto) | 235 | A forma do contexto dos Run, somada para o relatório: peso por turno, saídas grandes, pausas e leituras fora do alvo. |
+| [`avaliacao/gerar_corpus_escopo.py`](#avaliacaogerarcorpusescopo) | 58 | Gera o corpus anonimizado de escopo a partir de um banco real, só em leitura. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
 | [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 346 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
+| [`avaliacao/recorte_do_log.py`](#avaliacaorecortedolog) | 187 | Recorte do log real que o corpus de escopo preserva: Goals com trabalho, suas Tasks e a vizinhança. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
 | [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 158 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/relatorio_rodadas.py`](#avaliacaorelatoriorodadas) | 69 | As linhas de `orquestracao-medir --por-rodada`: onde, dentro de um Goal, o tempo e a cota foram gastos. |
@@ -37,6 +41,44 @@ Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobr
 ### Funções do módulo
 
 - `executar_avaliacao() -> RelatorioDeAvaliacao` — Monta os cenários gravados, mede os três braços e consolida o relatório.
+
+## `avaliacao/anonimizacao_log.py`
+
+Anonimização do log real para o corpus de regressão do escopo governado.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SAL` | `str` | `'graphow-corpus-escopo-v1'` |
+| `PREFIXO_POR_TIPO` | `dict[str, str]` | `{'Task': 'task', 'Goal': 'goal', 'Decision': 'dec', 'Evidence': 'evid',…` |
+| `CATEGORICAS` | `frozenset[str]` | `frozenset({'status', 'veredito', 'acao', 'tipo', 'modelo', 'trilha', 'e…` |
+| `AUTORES` | `frozenset[str]` | `frozenset({'assumida_por', 'posse_retomada_de', 'aberta_por', 'respondi…` |
+| `CONTAGENS` | `frozenset[str]` | `frozenset({'criterio_pronto', 'criterios', 'criterios_aceite', 'fora_do…` |
+| `TAMANHO_INICIAL_DO_HASH` | `int` | `6` |
+
+### `Anonimizador`
+
+*serviço* — Converte evento a evento, mantendo os mesmos pseudônimos de ponta a ponta.
+
+- `converter(linha: Mapping[str, Any], bruto: EventoBruto) -> dict[str, Any] | None` — Evento anonimizado, ou None quando ele fica fora do recorte ou nada guarda.
+- `propriedades(propriedades: Mapping[str, Any]) -> dict[str, Any]` — Aplica a lista branca às propriedades de um nó.
+- `nomes_removidos(chaves: Sequence[str]) -> list[str]` — Nomes de propriedade removida que o corpus conhece, já na forma em que foram gravados.
+
+### `Pseudonimos`
+
+*serviço* — Troca ids por prefixo e hash estável, alongando o hash se dois ids colidirem.
+
+- `atribuir(original: str, prefixo: str) -> str` — Pseudônimo do id, o mesmo em toda chamada com o mesmo original.
+
+### `RotulosDeAutor`
+
+*serviço* — `humano-N`, `agente-N` ou `sistema`, na ordem em que cada autor aparece.
+
+- `de(autor: str) -> str` — Rótulo anônimo do autor, sem nada do nome original.
+
+### Funções do módulo
+
+- `papeis_por_autor(linhas: Sequence[Mapping[str, Any]]) -> dict[str, set[str]]` — Papéis com que cada autor escreveu no log inteiro.
+- `anonimizar_eventos(linhas: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]` — Recorta e anonimiza as linhas da tabela `eventos`, na ordem de `seq`.
 
 ## `avaliacao/cenario_entre_projetos.py`
 
@@ -87,6 +129,28 @@ Extensão do cenário gravado com a camada de memória: a sessão encerrada e co
 - `montar_cenario_com_memoria() -> WriteKernel` — O cenário gravado, mais a sessão encerrada e a condensação escrita pelo revisor.
 - `estender_com_memoria(kernel: WriteKernel) -> WriteKernel` — Encerra a sessão do corpus e grava a condensação que um revisor escreveria.
 - `ids_de_conhecimento_do_corpus() -> tuple[str, ...]` — As decisões e evidências que o corpus gravou, na ordem das tarefas.
+
+## `avaliacao/corpus_escopo.py`
+
+Carrega o corpus anonimizado de escopo e o reconstrói por replay da projeção.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMINHO_DO_CORPUS` | `Path` | `Path(__file__).resolve().parents[3] / 'tests' / 'avaliacao' / 'dados' /…` |
+
+### `CorpusEscopo`
+
+*DTO imutável* — Eventos do corpus em ordem de `seq` e o estado final que o replay produz.
+
+**Campos:** `eventos: tuple[EventoLog, ...]`, `estado: GrafoEstado`
+
+- `estado_ate(seq: int) -> GrafoEstado` — Estado do grafo logo depois do evento `seq`, para as análises temporais.
+
+### Funções do módulo
+
+- `evento_do_corpus(registro: dict[str, Any]) -> EventoLog` — Reconstrói o evento a partir da linha do corpus; o id do evento é derivado do `seq`.
+- `ler_registros(caminho: Path) -> Iterable[dict[str, Any]]` — Linhas do corpus, uma por evento, na ordem gravada.
+- `carregar_corpus(caminho: Path | None) -> CorpusEscopo` — Lê o corpus e projeta o grafo pelo redutor de produção.
 
 ## `avaliacao/entre_projetos.py`
 
@@ -200,6 +264,20 @@ A forma do contexto dos Run, somada para o relatório: peso por turno, saídas g
 - `normalizar_caminho_lido(caminho: str) -> str` — Barra normal, sem `./` na frente nem barra no fim, em minúsculas: a forma em que dois caminhos se comparam.
 - `tokens_do_run(propriedades: Mapping[str, Any]) -> int` — A soma das quatro categorias de token; zero quando o Run não traz nenhuma.
 
+## `avaliacao/gerar_corpus_escopo.py`
+
+Gera o corpus anonimizado de escopo a partir de um banco real, só em leitura.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `COLUNAS` | `str` | `'id, seq, timestamp_utc, autor, papel, origem, tipo_evento, payload_jso…` |
+
+### Funções do módulo
+
+- `ler_linhas(caminho_banco: Path) -> list[dict[str, Any]]` — Todas as linhas do ramo principal, lidas com a conexão em modo somente leitura.
+- `gravar_corpus(eventos: Sequence[dict[str, Any]], destino: Path) -> int` — Grava um evento por linha, comprimido, de forma determinística; devolve os bytes.
+- `main(argv: Sequence[str] | None) -> int` — Lê o banco, anonimiza o recorte e grava o corpus.
+
 ## `avaliacao/medicao.py`
 
 Medição de tokens por tarefa, com e sem o recorte do grafo.
@@ -261,6 +339,55 @@ Medição da orquestração: o mesmo conjunto de tarefas sob configurações dif
 **Campos:** `tarefas: tuple[NoGrafo, ...]`, `artefatos: frozenset[str]`, `vereditos: tuple[NoGrafo, ...]`, `sessoes: frozenset[str]`
 
 - `ids_tarefas() -> frozenset[str]` `[property]` — Os ids das tarefas do Goal, correções incluídas.
+
+## `avaliacao/recorte_do_log.py`
+
+Recorte do log real que o corpus de escopo preserva: Goals com trabalho, suas Tasks e a vizinhança.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MINIMO_DE_TASKS_POR_GOAL` | `int` | `3` |
+| `CAMPOS_DE_REFERENCIA` | `frozenset[str]` | `frozenset({'corrige', 'id_alvo', 'substitui'})` |
+| `TIPO_GOAL` | `str` | `'Goal'` |
+| `TIPO_TASK` | `str` | `'Task'` |
+| `TIPO_SESSAO` | `str` | `'Sessao'` |
+| `TIPO_RUN` | `str` | `'Run'` |
+| `ARESTA_DECOMPOE` | `str` | `'decompoe'` |
+| `ARESTA_CONTEM` | `str` | `'contem'` |
+| `ARESTA_PRODUZ` | `str` | `'produz'` |
+
+### `EventoBruto`
+
+*DTO imutável* — Evento do banco com o payload já decodificado, a única forma que o recorte lê.
+
+**Campos:** `id: str`, `seq: int`, `tipo_evento: str`, `payload: dict[str, Any]`
+
+### `Historia`
+
+*DTO imutável* — Tudo que o log chegou a criar: tipo de cada nó, arestas e a sessão de cada Run.
+
+**Campos:** `tipos: dict[str, str]`, `arestas: dict[str, tuple[str, str, str]]`, `sessao_do_run: dict[str, str]`, `referencias: dict[str, set[str]]`
+
+### `Recorte`
+
+*DTO imutável* — Nós e arestas que entram no corpus, e os Goals que o motivaram.
+
+**Campos:** `goals: frozenset[str]`, `nos: dict[str, str]`, `arestas: frozenset[str]`
+
+### `_Levantamento`
+
+*serviço* — Acumula, evento a evento, o que o log criou.
+
+- `registrar(evento: EventoBruto) -> None` — Anota o nó, a aresta ou o Run que o evento cria.
+- `historia() -> Historia` — Fecha o levantamento; Run ligado só por `produz` ganha a sessão que o produziu.
+
+### Funções do módulo
+
+- `id_do_run(evento: EventoBruto) -> str` — Identificador do Run de um evento de execução, igual ao que a projeção usa.
+- `levantar_historia(eventos: Iterable[EventoBruto]) -> Historia` — Varre o log uma vez e junta o que o recorte precisa saber.
+- `tasks_por_goal(historia: Historia) -> dict[str, set[str]]` — Tasks alcançáveis de cada Goal por `decompoe`, em qualquer momento da história.
+- `calcular_recorte(historia: Historia) -> Recorte` — Goals relevantes, Tasks, vizinhos, referências citadas, ancestrais e Runs das sessões.
+- `eventos_brutos(linhas: Sequence[Any]) -> list[EventoBruto]` — Converte as linhas do banco em eventos com payload decodificado.
 
 ## `avaliacao/relatorio.py`
 

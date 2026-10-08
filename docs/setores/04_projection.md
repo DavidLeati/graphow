@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-16 módulos · 2207 linhas · 23 classes
+16 módulos · 2211 linhas · 23 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -28,7 +28,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/reducer.py`](#projectionreducer) | 34 | Redutor determinístico de eventos append-only para estado de grafo em memória. |
 | [`projection/revisao.py`](#projectionrevisao) | 146 | A revisão de uma tarefa lida do grafo: os vereditos que ela recebeu e o que vigora entre eles. |
 | [`projection/rollup.py`](#projectionrollup) | 221 | Resumo agregado de cada subárvore de contenção, calculado uma vez por commit. |
-| [`projection/working_set.py`](#projectionworkingset) | 170 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
+| [`projection/working_set.py`](#projectionworkingset) | 174 | Escopo ativo: o que está perto do trabalho que ainda não terminou. |
 
 ## `projection/acumulador.py`
 

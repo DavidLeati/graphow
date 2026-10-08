@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-23 módulos · 4065 linhas · 30 classes
+24 módulos · 4114 linhas · 30 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,17 +21,18 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 358 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 369 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 252 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 260 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
+| [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 26 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 280 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 282 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 387 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 382 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 384 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 120 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
 | [`kernel/veredito_reservado.py`](#kernelvereditoreservado) | 56 | A propriedade `veredito` de uma Evidence é de quem julga: revisor, humano ou árbitro. |
@@ -311,6 +312,14 @@ Notificação pós-commit dos eventos aceitos pelos quatro portões.
 - `nome() -> str` `[property]` `[abstract]` — Nome identificador do observador, usado em diagnóstico.
 - `notificar(eventos: Sequence[EventoLog]) -> None` `[abstract]` — Recebe o lote de eventos recém-persistido, já validado e ordenado.
 
+## `kernel/pares_de_escopo.py`
+
+Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PARES_DE_ARESTAS_DO_ESCOPO` | `Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]]` | `{TipoAresta.MOTIVADA_POR: frozenset({(TipoNo.TASK, TipoNo.DECISION), (T…` |
+
 ## `kernel/patch_models.py`
 
 Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902).
@@ -393,7 +402,7 @@ Planeja a escrita da política de governança, comum à ferramenta MCP e à inte
 | `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
 | `CAMPO_CADENCIA` | `str` | `'cadencia'` |
 | `CAMPO_TETO_RODADAS` | `str` | `'teto_rodadas'` |
-| `CADENCIAS_ACEITAS` | `tuple[str, ...]` | `('tarefa', 'goal', 'setor')` |
+| `CADENCIAS_ACEITAS` | `tuple[str, ...]` | `('tarefa', 'goal', 'setor', 'desvio')` |
 | `CAMPO_GRAVACAO_DO_GERENTE` | `str` | `'gravacao_do_gerente'` |
 | `GRAVACAO_APOS_APROVACAO` | `str` | `'apos_aprovacao'` |
 | `GRAVACOES_DO_GERENTE_ACEITAS` | `tuple[str, ...]` | `(GRAVACAO_APOS_APROVACAO, 'durante_alinhamento')` |

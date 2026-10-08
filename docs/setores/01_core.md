@@ -6,22 +6,49 @@
 
 **Pacote:** `graphow.core`
 
-Vocabulário da ontologia (versão 1.4.0: o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+Vocabulário da ontologia (versão 1.5.0: o escopo governado, com as arestas motivada_por, acompanha, integra e desfaz, sobre o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 ## Inventário
 
-9 módulos · 1154 linhas · 37 classes
+12 módulos · 1325 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`core/composicao_governanca.py`](#corecomposicaogovernanca) | 61 | Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva. |
+| [`core/escopo.py`](#coreescopo) | 33 | Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem. |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
-| [`core/falhas.py`](#corefalhas) | 76 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/governanca.py`](#coregovernanca) | 389 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
+| [`core/falhas.py`](#corefalhas) | 85 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
+| [`core/governanca.py`](#coregovernanca) | 380 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
+| [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
-| [`core/ontologia.py`](#coreontologia) | 71 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
+| [`core/ontologia.py`](#coreontologia) | 77 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 88 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
-| [`core/types.py`](#coretypes) | 120 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+| [`core/types.py`](#coretypes) | 128 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+
+## `core/composicao_governanca.py`
+
+Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
+
+### Funções do módulo
+
+- `compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca` — Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
+
+## `core/escopo.py`
+
+Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_TIPO_CONSTRAINT` | `str` | `'tipo'` |
+| `CONSTRAINT_CRITERIO_ACEITE` | `str` | `'criterio_aceite'` |
+| `CONSTRAINT_FRONTEIRA` | `str` | `'fronteira'` |
+| `ACAO_PROPOSTA_FORA_DO_GOAL` | `str` | `'proposta_fora_do_goal'` |
+| `ACAO_VEREDITO_DE_ESCOPO` | `str` | `'veredito_de_escopo'` |
+| `CAMPO_ATENDE_CRITERIO` | `str` | `'atende_criterio'` |
+| `CAMPO_FASE` | `str` | `'fase'` |
+| `CAMPO_PLANOS` | `str` | `'planos'` |
+| `CAMPO_RESPOSTAS_DE_DESVIO` | `str` | `'respostas_de_desvio'` |
 
 ## `core/events.py`
 
@@ -147,17 +174,17 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 | `VALOR_EXECUTOR` | `str` | `'executor'` |
 | `VALOR_ESTRITO` | `str` | `'estrito'` |
 | `VALOR_ILIMITADO` | `str` | `'ilimitado'` |
-| `MAX_CORRECOES_MINIMO` | `int` | `0` |
-| `MAX_CORRECOES_MAXIMO` | `int` | `5` |
 | `ORIGEM_GLOBAL` | `str` | `'global'` |
 | `ORIGEM_PROJETO` | `str` | `'projeto'` |
 | `ORIGEM_LEGADO` | `str` | `'legado:nivel_autonomia'` |
 | `PREFIXO_ORIGEM_PRESET` | `str` | `'preset:'` |
 | `PREFIXO_ORIGEM_PROJETO_RESTRITIVO` | `str` | `'projeto:'` |
-| `GESTOS_COM_LEITURA_PROPRIA` | `frozenset[Gesto]` | `frozenset({Gesto.ESTRUTURA, Gesto.MAX_CORRECOES, Gesto.ACAO_EXTERNA})` |
+| `GESTOS_INTEIROS` | `frozenset[Gesto]` | `frozenset((Gesto(chave) for chave in LEITURAS_INTEIRAS))` |
+| `GESTOS_COM_LEITURA_PROPRIA` | `frozenset[Gesto]` | `frozenset({Gesto.ESTRUTURA, Gesto.ACAO_EXTERNA}) | GESTOS_INTEIROS` |
 | `GESTOS_POR_PAPEL` | `frozenset[Gesto]` | `frozenset((gesto for gesto in Gesto if gesto not in GESTOS_COM_LEITURA_…` |
 | `_VALORES_DE_PAPEL` | `frozenset[str]` | `frozenset({VALOR_HUMANO, VALOR_ARBITRO})` |
 | `VALORES_ACEITOS` | `Mapping[Gesto, frozenset[str]]` | `MappingProxyType({**{gesto: _VALORES_DE_PAPEL for gesto in GESTOS_POR_P…` |
+| `_PADROES_INTEIROS` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({Gesto(chave): leitura.padrao for chave, leitura in LE…` |
 | `_GOVERNANCA_MAXIMA` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({**{gesto: VALOR_HUMANO for gesto in GESTOS_POR_PAPEL}…` |
 | `_ARBITRAGEM_MAXIMA` | `Mapping[Gesto, ValorDeGesto]` | `MappingProxyType({**{gesto: VALOR_ARBITRO for gesto in GESTOS_POR_PAPEL…` |
 | `PRESETS_FIXOS` | `Mapping[PresetGovernanca, Mapping[Gesto, ValorDeGesto]]` | `MappingProxyType({PresetGovernanca.GOVERNANCA_MAXIMA: _GOVERNANCA_MAXIM…` |
@@ -178,6 +205,9 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 - `estrutura_ilimitada() -> bool` `[property]` — Verdadeiro quando todos os agentes ganham os tipos de nó e a camada `contem`.
 - `acao_externa_com_executor() -> bool` `[property]` — Verdadeiro quando o executor assume e entrega a Task de ação externa; senão ela é do humano.
 - `max_correcoes() -> int` `[property]` — Reprovações em cadeia antes do teto: a de ordem `max_correcoes` já escala (profundidade_correcao + 1 >= max_correcoes).
+- `limiar_desvio_por_raiz() -> int` `[property]` — K: Tasks emergentes de uma mesma raiz de cadeia a partir das quais o desvio dispara.
+- `limiar_desvio_por_goal() -> int` `[property]` — M: Tasks emergentes do Goal, desde o último zero do contador, a partir das quais o desvio dispara.
+- `teto_expansao() -> int` `[property]` — Tasks emergentes admitidas até um `responder_desvio`; 0 desliga a recusa por contagem.
 
 ### `PresetDoProjeto` (str, Enum)
 
@@ -193,10 +223,35 @@ Política de governança: quem pode fazer cada gesto que antes era só do humano
 - `politica_padrao() -> PoliticaGovernanca` — O que vale sem nó global: governança máxima.
 - `compor_politica_global(propriedades: Mapping[str, Any] | None) -> PoliticaGovernanca` — Política efetiva global a partir das propriedades do nó `governanca-global`.
 - `compor_politica_do_projeto(governanca: Any, nivel_autonomia: Any, politica_global: PoliticaGovernanca) -> PoliticaGovernanca` — Política efetiva do Projeto a partir da propriedade `governanca` e da global.
-- `compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca` — Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
 - `validar_personalizada(personalizada: Any) -> list[str]` — Problemas de uma `personalizada`: gesto desconhecido ou valor fora do domínio.
 - `validar_configuracao_global(configuracao: Any) -> list[str]` — Problemas das propriedades do nó Governanca (`preset` e `personalizada`).
 - `validar_configuracao_do_projeto(configuracao: Any) -> list[str]` — Problemas da propriedade `governanca` de um Projeto.
+
+## `core/leituras_inteiras.py`
+
+As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MAX_CORRECOES_MINIMO` | `int` | `0` |
+| `MAX_CORRECOES_MAXIMO` | `int` | `5` |
+| `LIMIAR_DESVIO_POR_RAIZ_MINIMO` | `int` | `1` |
+| `LIMIAR_DESVIO_POR_RAIZ_MAXIMO` | `int` | `50` |
+| `LIMIAR_DESVIO_POR_GOAL_MINIMO` | `int` | `1` |
+| `LIMIAR_DESVIO_POR_GOAL_MAXIMO` | `int` | `200` |
+| `TETO_EXPANSAO_MINIMO` | `int` | `0` |
+| `TETO_EXPANSAO_MAXIMO` | `int` | `500` |
+| `LEITURAS_INTEIRAS` | `Mapping[str, LeituraInteira]` | `MappingProxyType({'max_correcoes': LeituraInteira(MAX_CORRECOES_MINIMO,…` |
+
+### `LeituraInteira`
+
+*DTO imutável* — Domínio fechado de um inteiro da política; `zero_desliga` marca o 0 como "sem limite".
+
+**Campos:** `minimo: int`, `maximo: int`, `padrao: int`, `zero_desliga: bool`
+
+- `aceita(valor: Any) -> bool` — Inteiro dentro do domínio, sem aceitar booleano como número.
+- `descrever() -> str` — O domínio em texto, para a mensagem de recusa.
+- `mais_restritivo(valores: Sequence[int]) -> int` — O menor valor; com `zero_desliga`, o menor positivo, porque 0 não limita nada.
 
 ## `core/models.py`
 
@@ -262,11 +317,11 @@ Versão declarada do vocabulário da ontologia e a impressão digital que a chec
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `VERSAO_ONTOLOGIA` | `str` | `'1.4.0'` |
+| `VERSAO_ONTOLOGIA` | `str` | `'1.5.0'` |
 | `ARESTAS_DE_CONTENCAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.CONTEM, TipoAresta.PRODUZ, TipoAresta.DECOMPOE})` |
 | `VERSAO_ONTOLOGIA_DESCONHECIDA` | `str` | `'0'` |
 | `TAMANHO_DA_ASSINATURA` | `int` | `12` |
-| `ASSINATURA_DECLARADA` | `str` | `'0d0a5e75ff80'` |
+| `ASSINATURA_DECLARADA` | `str` | `'bc9a37bf5d5d'` |
 
 ### Funções do módulo
 

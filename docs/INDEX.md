@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 199 módulos · 27005 linhas · 376 classes**
+**15 alas · 207 módulos · 27834 linhas · 385 classes**
 
 ---
 
@@ -58,25 +58,25 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
-| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 9 | 1154 | 37 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 23 | 4065 | 30 |
+| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 12 | 1325 | 38 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 24 | 4114 | 30 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
-| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2207 | 23 |
+| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2211 | 23 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 18 | 2529 | 31 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 18 | 2546 | 31 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 282 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 15 | 1804 | 20 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2593 | 26 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 11 | 1581 | 18 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3334 | 52 |
-| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 15 | 2627 | 28 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3352 | 52 |
+| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 19 | 3197 | 36 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1702 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 
 ### Missão de cada ala
 
-**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.4.0: o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.5.0: o escopo governado, com as arestas motivada_por, acompanha, integra e desfaz, sobre o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 **02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.
 

@@ -155,10 +155,12 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 Quem faz cada gesto que antes era sempre do humano deixou de ser fixo: é uma
 **política**, em dois níveis (global e por projeto), guardada no próprio grafo
-para o replay dar o mesmo veredito. São onze gestos: `responder_questao`,
+para o replay dar o mesmo veredito. São dezesseis gestos e leituras: `responder_questao`,
 `promover_aprendizado`, `constraint`, `estrutura`, `excluir`, `fechar_goal`,
-`encerrar_sessao`, `liberar_posse_alheia`, `integracao`, `max_correcoes` e
-`acao_externa`. Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
+`encerrar_sessao`, `liberar_posse_alheia`, `integracao`, `max_correcoes`,
+`acao_externa` e, do escopo governado, `aprovar_plano`, `responder_desvio`,
+`limiar_desvio_por_raiz`, `limiar_desvio_por_goal` e `teto_expansao` (o
+`responder_desvio` é do humano até na `arbitragem_maxima`). Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
 `arbitro` fazem); `estrutura` vale `estrito` ou `ilimitado`, `max_correcoes` é
 um inteiro de 0 a 5, as reprovações em cadeia antes do teto (a de ordem N escala; 2 = a original e a primeira correção), e
 `acao_externa` vale `humano` ou `executor`: quem assume e entrega a `Task` cuja
@@ -298,7 +300,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 13 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os onze gestos, os presets, a herança e a regra do veredito.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 17 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dezesseis gestos, os presets, a herança e a regra do veredito.
 
 ---
 
@@ -511,7 +513,7 @@ identidade.
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
-| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos onze gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
+| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dezesseis gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em
