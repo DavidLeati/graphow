@@ -13,6 +13,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.governanca import PROPRIEDADE_GOVERNANCA_DO_PROJETO, Gesto, PoliticaGovernanca
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import NivelAutonomiaProjeto, PapelAutor, StatusQuestion, StatusTask, TipoNo
+from graphow.kernel.gestos_de_escopo import validar_escrita_de_escopo
 from graphow.kernel.gestos_de_no import ContextoPermissaoEdicao, GestosDeNo
 from graphow.kernel.matriz_papeis import (
     PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
@@ -119,9 +120,12 @@ class RoleGate:
         resultado_veredito = validar_escrita_de_veredito(segmentos, item, contexto)
         if not resultado_veredito.aprovado:
             return resultado_veredito
+        ctx = ContextoPermissaoEdicao(segmentos=tuple(segmentos), item=item, contexto=contexto)
+        resultado_escopo = validar_escrita_de_escopo(ctx, self._gestos)
+        if not resultado_escopo.aprovado:
+            return resultado_escopo
         if len(segmentos) == SEGMENTOS_DE_ELEMENTO_INTEIRO and item.op == OperacaoPatch.ADD:
             return self._validar_permissao_criacao_no(item, contexto)
-        ctx = ContextoPermissaoEdicao(segmentos=tuple(segmentos), item=item, contexto=contexto)
         return self._validar_permissao_edicao_no(ctx)
 
     def _validar_permissao_criacao_no(
