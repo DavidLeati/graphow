@@ -94,6 +94,7 @@ class ExecutorLinhaDeComando:
             "reparar-sequencias": self._executar_reparar_sequencias,
             "docs-gerar": self._executar_docs_gerar,
             "avaliar": self._executar_avaliar,
+            "escopo-medir": self._executar_escopo_medir,
             "transcricao-medir": self._executar_transcricao_medir,
             "skill-instalar": self._executar_skill_instalar,
             "setup": lambda contexto: executar_setup(contexto.argumentos, contexto.console, RAIZ_PROJETO),
@@ -161,6 +162,22 @@ class ExecutorLinhaDeComando:
         from graphow.avaliacao import executar_avaliacao
 
         for linha in executar_avaliacao().formatar():
+            contexto.console.escrever_linha(linha)
+        return CODIGO_SUCESSO
+
+    def _executar_escopo_medir(self, contexto: ContextoExecucao) -> int:
+        """Roda a regressao do escopo governado sobre o corpus anonimizado e imprime as tabelas A a E.
+
+        Fica entre os comandos sem banco: o corpus vem do repositorio e o cenario
+        sintetico roda num kernel em memoria, entao nada do usuario e aberto.
+        """
+        from graphow.avaliacao.corpus_escopo import carregar_corpus
+        from graphow.avaliacao.escopo_historico import medir_escopo
+        from graphow.avaliacao.relatorio_escopo import formatar_relatorio
+
+        caminho = contexto.argumentos.corpus
+        corpus = carregar_corpus(Path(caminho).expanduser() if caminho else None)
+        for linha in formatar_relatorio(medir_escopo(corpus)):
             contexto.console.escrever_linha(linha)
         return CODIGO_SUCESSO
 

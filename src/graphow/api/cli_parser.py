@@ -134,6 +134,30 @@ def _registrar_comando_de_avaliacao(
     )
 
 
+def _registrar_comando_de_escopo(
+    subparsers: argparse._SubParsersAction,
+    parser_base: argparse.ArgumentParser,
+) -> None:
+    """Registra a regressao do escopo governado sobre o corpus de logs reais anonimizados.
+
+    Como `avaliar`, nao toca o banco do usuario: le o corpus gravado no repositorio
+    e monta o proprio cenario sintetico.
+    """
+    parser_escopo = subparsers.add_parser(
+        "escopo-medir",
+        parents=[parser_base],
+        help=(
+            "Mede o escopo governado sobre o corpus anonimizado: eventos de desvio (K e M), antecedencia do alerta, "
+            "fila, cobertura de origem e o cenario 14 para 121"
+        ),
+    )
+    parser_escopo.add_argument(
+        "--corpus",
+        default=None,
+        help="Caminho de um corpus .jsonl.gz no formato de tests/avaliacao/dados. Padrao: o corpus do repositorio",
+    )
+
+
 def _registrar_comando_de_orquestracao(
     subparsers: argparse._SubParsersAction,
     parser_base: argparse.ArgumentParser,
@@ -355,6 +379,7 @@ def construir_parser() -> argparse.ArgumentParser:
     _registrar_comandos_de_mutacao(subparsers, parser_base)
     _registrar_comandos_de_manutencao(subparsers, parser_base)
     _registrar_comando_de_avaliacao(subparsers, parser_base)
+    _registrar_comando_de_escopo(subparsers, parser_base)
     _registrar_comando_de_orquestracao(subparsers, parser_base)
     _registrar_comando_de_transcricoes(subparsers, parser_base)
     _registrar_comando_de_skill(subparsers, parser_base)
