@@ -23,7 +23,7 @@ from graphow.projection.classificacao_escopo import (
     raiz_da_cadeia,
 )
 from graphow.projection.decomposicao import tarefas_da_decomposicao
-from graphow.projection.escopo_plano import plano_de_referencia
+from graphow.projection.escopo_plano import plano_de_referencia, seq_do_ultimo_zero
 from graphow.projection.graph_view import GrafoView
 
 # Convenções que o Run e a Task já trazem: o harness grava os tokens nestes campos
@@ -106,6 +106,16 @@ def tasks_desde_a_referencia(view: GrafoView, id_goal: str) -> tuple[TaskDoEscop
         if no.ordem.seq_criacao > corte and classe != ClasseDeEscopo.PLANO:
             tasks.append(_task_do_escopo(no, classe, atribuidor))
     return tuple(sorted(tasks, key=lambda task: (task.seq, task.id)))
+
+
+def emergentes_do_agente_desde_o_zero(view: GrafoView, id_goal: str) -> tuple[TaskDoEscopo, ...]:
+    """As emergentes que não são de humano nascidas depois do último zero: o que o limiar M e o teto contam."""
+    zero = seq_do_ultimo_zero(view, id_goal)
+    corte = zero if zero > 0 else SEM_REFERENCIA
+    return tuple(
+        task for task in tasks_desde_a_referencia(view, id_goal)
+        if task.eh_emergente and not task.humana and task.seq > corte
+    )
 
 
 def custo_por_raiz(view: GrafoView, tasks: Iterable[TaskDoEscopo]) -> tuple[CustoDaRaiz, ...]:
