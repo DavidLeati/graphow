@@ -73,6 +73,8 @@ GESTO_POR_FERRAMENTA: Mapping[str, Gesto] = MappingProxyType(
         "encerrar_sessao": Gesto.ENCERRAR_SESSAO,
         "excluir_projeto": Gesto.EXCLUIR,
         "excluir_em_lote": Gesto.EXCLUIR,
+        "aprovar_plano": Gesto.APROVAR_PLANO,
+        "responder_desvio": Gesto.RESPONDER_DESVIO,
     }
 )
 
@@ -87,6 +89,8 @@ CAMPO_ID_DO_ALVO_POR_FERRAMENTA: Mapping[str, str] = MappingProxyType(
         "promover_aprendizado": "id_aprendizado",
         "encerrar_sessao": "id_sessao",
         "excluir_projeto": "id_projeto",
+        "aprovar_plano": "id_goal",
+        "responder_desvio": "id_goal",
     }
 )
 CAMPOS_DE_IDS_DA_EXCLUSAO_EM_LOTE: tuple[str, ...] = ("ids_nos", "ids_arestas")

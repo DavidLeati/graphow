@@ -314,4 +314,29 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
             "required": ["id_projeto"],
         },
     },
+    {
+        "name": "aprovar_plano",
+        "description": "Aprova o plano de um Goal: grava a próxima versão em Goal.planos, com o seq do log de agora. O plano da versão são as Tasks que estão sob o Goal neste ponto. É o gesto aprovar_plano da política de governança: do humano, ou do árbitro quando a política do projeto do Goal o entrega (arbitragem_maxima); planejador, executor e revisor são recusados. Sem plano aprovado o executor não assume Task do Goal (plano_nao_aprovado). Só a versão do humano vira a referência do desvio; a do árbitro destrava o executor, mas as Tasks dela contam como emergentes. Aprovar o plano pelo humano zera o contador de desvio do Goal.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id_goal": {"type": "string", "description": "ID do Goal cujo plano se aprova."},
+                "id_sessao": {"type": "string", "description": "Opcional: a Sessao em que a aprovação acontece; entra só na justificativa do lote."},
+            },
+            "required": ["id_goal"],
+        },
+    },
+    {
+        "name": "responder_desvio",
+        "description": "Responde ao alerta de desvio de um Goal: grava uma entrada em Goal.respostas_de_desvio, com o seq do log de agora, quem respondeu e o papel. Com raiz, a resposta é àquela decisão; sem raiz, ao Goal. É o gesto responder_desvio da política de governança: do humano em qualquer preset fixo, e do árbitro só na política personalizada que lho entrega; planejador, executor e revisor são recusados. Só a resposta do humano zera o contador de desvio; a do árbitro aparece no placar, marcada, e não zera nada.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id_goal": {"type": "string", "description": "ID do Goal que recebeu o alerta."},
+                "resposta": {"type": "string", "description": "A decisão sobre o desvio: seguir, replanejar ou conter, e por quê. Não vazia."},
+                "raiz": {"type": "string", "description": "Opcional: ID da decisão (raiz de cadeia) a que a resposta se refere."},
+            },
+            "required": ["id_goal", "resposta"],
+        },
+    },
 ]

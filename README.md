@@ -205,7 +205,7 @@ reprovações em cadeia, por uma `Decision`, é a outra porta.
 
 ## 🔌 Superfície de Ferramentas MCP (Model Context Protocol)
 
-O `GraphowMCPServer` expõe 23 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
+O `GraphowMCPServer` expõe 25 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
 
 A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argumento de tipo errado e banco travado por outro escritor: antes, um `TypeError` ou um `sqlite3.OperationalError` derrubavam o processo MCP. Linha que não é JSON recebe `-32700`, e lote ou requisição sem `method` recebem `-32600`.
 
@@ -234,12 +234,14 @@ A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argu
 | **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. Gesto `promover_aprendizado` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto; grava `promovido_por` e `promovido_por_papel`, e a promoção global é sempre do humano. O árbitro não promove o `Aprendizado` que ele mesmo registrou. Sem alvo, promove ao `Setor` da sessão de origem, o alcance padrão; o `Projeto` fica para o que vale em toda tarefa dele, e o global para o que vale em qualquer projeto. |
 | **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto em todos os alvos do lote. |
 | **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto. |
+| **`aprovar_plano`** | Aprova o plano de um `Goal`: acrescenta a próxima versão a `Goal.planos`, com o `seq` do log de agora. Gesto `aprovar_plano` da política: do humano, ou do árbitro quando a política do projeto lhe entrega o gesto (`arbitragem_maxima`). Sem plano aprovado o executor não assume `Task` do Goal (`plano_nao_aprovado`); só a versão do humano é a referência do desvio. |
+| **`responder_desvio`** | Responde ao alerta de desvio do `Goal`: acrescenta a resposta a `Goal.respostas_de_desvio`, com `raiz` opcional (a decisão respondida). Gesto `responder_desvio` da política: do humano em qualquer preset fixo, do árbitro só na `personalizada`. Só a resposta do humano zera o contador. |
 
 Duas ferramentas são sempre do humano: `configurar_governanca` e
 `configurar_autonomia_projeto` escrevem a política que decide o que cada papel
 pode fazer, e um agente que as executasse desligaria todos os portões. As demais
 restritas (`responder_questao`, `promover_aprendizado`, `encerrar_sessao`,
-`excluir_projeto`, `excluir_em_lote`) dependem da política efetiva do projeto do
+`excluir_projeto`, `excluir_em_lote`, `aprovar_plano`, `responder_desvio`) dependem da política efetiva do projeto do
 alvo: com a `governanca_maxima` são do humano, com a `arbitragem_maxima` também do
 papel `arbitro` (`graphow mcp --papel arbitro`), e planejador, executor e revisor
 são recusados em qualquer política. A recusa por nome de ferramenta é a primeira

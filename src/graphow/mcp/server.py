@@ -8,6 +8,7 @@ from graphow.context.materializer import MaterializadorContexto
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.mcp.ferramentas_escalacao import FerramentasEscalacao
+from graphow.mcp.ferramentas_escopo import FerramentasEscopo
 from graphow.mcp.ferramentas_exclusao import FerramentasExclusao
 from graphow.mcp.ferramentas_leitura import FerramentasLeitura
 from graphow.mcp.ferramentas_memoria import FerramentasMemoria
@@ -63,6 +64,7 @@ class GraphowMCPServer:
             FerramentasEscalacao(contexto).obter_manipuladores(),
             FerramentasExclusao(contexto).obter_manipuladores(),
             FerramentasMemoria(contexto).obter_manipuladores(),
+            FerramentasEscopo(contexto).obter_manipuladores(),
         )
         agregado: dict[str, ManipuladorFerramenta] = {}
         for grupo in grupos:
