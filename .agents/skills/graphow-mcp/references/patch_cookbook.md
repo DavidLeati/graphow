@@ -163,7 +163,28 @@ A `Decision` que essa leitura sustenta se liga como na receita anterior, por `ju
 
 ## planejador: Task emergente com a ligação de escopo
 
-Depois que o humano aprovou o plano do Goal, a Task nova diz de que nasceu. A emergente liga `motivada_por` ao que a motivou (aqui, a Evidence do achado) e leva `atende_criterio` com o id da Constraint `criterio_aceite` do Goal que ela atende; ela entra na hierarquia por `decompoe` e na sessão por `produz`. O `criar_tarefa` não recebe essas duas ligações, então a Task emergente vai por `propor_patch`. Sem um critério que ela atenda, não é Task: é proposta (receita seguinte).
+Depois que o humano aprovou o plano do Goal (`aprovar_plano`), a Task nova diz de que nasceu, e o pai Goal sozinho não basta: sem ligação o kernel recusa com `ligacao_de_escopo_ausente`, de qualquer autor. A ligação certa depende do que a Task é:
+
+| A Task é | Ligação no `criar_tarefa` |
+|---|---|
+| Subdivisão de Task do plano (ou de subdivisão dela) | `id_tarefa_pai` com o id dessa Task, não o do Goal |
+| Correção de entrega rejeitada | `corrige` com a Evidence `rejeitado`, e `id_tarefa_pai` na Task rejeitada |
+| Acompanhamento do que foi aceito depois da reprovação | `acompanha` com a Evidence rejeitada que a Decision `aceite_apos_reprovacao` justifica |
+| Integração do que outra Task entregou | `integra` com a Task do mesmo Goal que já tem Artifact |
+| Reversão de uma decisão trocada | `desfaz` com a Decision substituída ou revogada |
+| Trabalho novo que o plano não previu, mas um critério de aceite pede | `motivada_por` (Decision, Evidence, Task ou Question de que nasceu) e `atende_criterio` (a Constraint `criterio_aceite` do Goal) |
+
+O alvo conta pelo tipo: `corrige` para uma Evidence aprovada, ou `atende_criterio` para o critério de outro Goal, não é ligação. Uma Task de título "Correção" sem `corrige` é Task sem ligação.
+
+Os argumentos de uma chamada de `criar_tarefa` para a emergente:
+
+```json
+{"titulo": "Exportar o saldo negativo com sinal no CSV", "id_sessao": "sess-01", "id_tarefa_pai": "goal-relatorio",
+ "motivada_por": ["evi-saldo-sem-sinal"], "atende_criterio": ["crit-relatorio-1"],
+ "criterio_pronto": "Atende crit-relatorio-1: o CSV de teste com saldo de -150,00 traz -15000 na coluna de saldo; pytest tests/exportacao -q passa"}
+```
+
+O mesmo vale em `propor_patch`, quando o lote cria mais que a Task (a Decision que a motivou, a Task e as ligações juntas):
 
 ```json
 {
@@ -191,7 +212,14 @@ Depois que o humano aprovou o plano do Goal, a Task nova diz de que nasceu. A em
 }
 ```
 
-As outras ligações seguem o mesmo molde, só mudando a aresta e o alvo: a correção usa a propriedade `corrige` com a Evidence rejeitada, o acompanhamento uma aresta `acompanha` para essa Evidence, a integração `integra` para a Task do mesmo Goal que tem Artifact, e a reversão `desfaz` para a Decision substituída. A Decision que o planejador cria depois do plano aprovado também leva `motivada_por`, para a cadeia "esta Decision gerou a Task, que gerou a Evidence, que gerou a Decision B" ter raiz.
+Replanejar não é pendurar. Quando o trabalho novo não cabe nos critérios, ou o plano precisa mudar de forma, peça nova versão do plano ao humano (`abrir_questao`; o `aprovar_plano` é dele, ou do árbitro conforme a política). Não dê à emergente um `id_tarefa_pai` de Task do plano só para passar no portão: a subdivisão falsa esconde o desvio que o placar existe para mostrar.
+
+Duas recusas voltam com a causa dita na mensagem:
+
+- `ligacao_de_escopo_ausente`: a Task (ou a Decision que orienta o Goal) nasceu sem ligação. A mensagem lista as ligações aceitas. Refaça o lote com a certa; se nenhuma é verdadeira, é proposta (receita seguinte) ou pede nova versão do plano.
+- `orcamento_de_escopo_esgotado`: o humano ligou o `teto_expansao` e as emergentes do Goal já o alcançaram. Devolva à raiz: `abrir_questao` ao humano com o que a Task entregaria, e espere um `responder_desvio` ou um `aprovar_plano` dele. Não contorne com outra ligação nem com outro Goal.
+
+A Decision que o planejador cria depois do plano aprovado também leva `motivada_por`, para a cadeia "esta Decision gerou a Task, que gerou a Evidence, que gerou a Decision B" ter raiz.
 
 ## planejador: proposta fora do Goal
 
