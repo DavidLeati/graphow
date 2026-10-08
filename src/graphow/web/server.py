@@ -34,11 +34,13 @@ from graphow.web.rest_canvas_controller import CanvasWebController
 from graphow.web.rest_fork_controller import ForkWebController
 from graphow.web.rest_governanca_controller import GovernancaWebController
 from graphow.web.rest_lineage_controller import LineageWebController
+from graphow.web.rest_escopo_controller import EscopoWebController
 from graphow.web.rest_memoria_controller import MemoriaWebController
 from graphow.web.rest_propostas_controller import PropostasWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 from graphow.web.rest_timeline_controller import TimelineWebController
 from graphow.web.rotas_governanca import tratar_get_governanca, tratar_post_governanca, tratar_put_governanca
+from graphow.web.rotas_escopo import tratar_get_escopo
 from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizado, tratar_post_promocao
 from graphow.web.rotas_propostas import tratar_get_propostas, tratar_post_decisao_de_proposta
 from graphow.reactive.engine import MotorReativo
@@ -81,6 +83,7 @@ class GraphowHTTPHandler(ManipuladorProtegido):
             "/api/ontologia": lambda: self._responder_json(montar_ontologia_publica(), HTTPStatus.OK),
             "/api/memoria": lambda: tratar_get_memoria(self, params),
             "/api/propostas": lambda: tratar_get_propostas(self, params),
+            "/api/escopo": lambda: tratar_get_escopo(self, params),
         }
         handler = rotas.get(caminho)
         if handler:
@@ -334,6 +337,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.sim_ctrl: SimulationWebController = SimulationWebController(kernel)
         self.memoria_ctrl: MemoriaWebController = MemoriaWebController(kernel, self.identidade)
         self.propostas_ctrl: PropostasWebController = PropostasWebController(kernel, self.identidade)
+        self.escopo_ctrl: EscopoWebController = EscopoWebController(kernel)
         self.governanca_ctrl: GovernancaWebController = GovernancaWebController(kernel, self.identidade)
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()

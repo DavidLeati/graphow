@@ -82,6 +82,8 @@ export const api = {
   promoverAprendizado: (corpo) => pedir("/api/memoria/promocoes", comCorpo("POST", corpo)),
   propostas: (ramo) => pedir(`/api/propostas?${montarQuery({ ramo })}`),
   decidirProposta: (corpo) => pedir("/api/propostas/decisoes", comCorpo("POST", corpo)),
+  // O placar de escopo do Goal: plano aprovado, desvio, gatilhos K e M e os limiares com a origem.
+  escopo: (goal, ramo) => pedir(`/api/escopo?${montarQuery({ goal, ramo })}`),
   // Gesto humano: devolve a posse de qualquer dono, para a tarefa que o subagente deixou travada.
   liberarPosse: (id, ramo) => pedir(`/api/tarefas/${encodeURIComponent(id)}/liberar-posse`, comCorpo("POST", { ramo_id: ramo })),
   salvarLayout: (corpo) => pedir("/api/layout", comCorpo("PUT", corpo)),

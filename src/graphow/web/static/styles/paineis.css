@@ -132,6 +132,7 @@
 .seletor.mod-status.tom-alerta { color: var(--tom-alerta); }
 .bloco-nota { font-size: var(--fonte-menor); color: var(--texto-fraco); line-height: 1.5; }
 .bloco-nota code { font-size: var(--fonte-rotulo); }
+.escopo-linhas { margin: 0; padding-left: 18px; font-size: var(--fonte-menor); color: var(--texto-suave); line-height: 1.5; }
 .bloco-resposta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .inspetor .texto-leitura { font-size: var(--fonte-corpo); }
 .bloco-resposta-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
