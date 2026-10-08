@@ -4,6 +4,15 @@ from collections.abc import Mapping, Set
 
 from graphow.core.types import TipoAresta, TipoNo
 
+# O veredito de escopo é uma Evidence que deriva da raiz que julga, e a raiz de
+# uma cadeia de `motivada_por` é Decision, Evidence, Task ou Question. Evidence ->
+# Task já existia em `deriva_de`; os três pares abaixo completam as outras raízes.
+PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO: Set[tuple[TipoNo, TipoNo]] = frozenset({
+    (TipoNo.EVIDENCE, TipoNo.DECISION),
+    (TipoNo.EVIDENCE, TipoNo.EVIDENCE),
+    (TipoNo.EVIDENCE, TipoNo.QUESTION),
+})
+
 PARES_DE_ARESTAS_DO_ESCOPO: Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]] = {
     # De que decisão, achado, trabalho ou dúvida a Task nasceu; a Decision que
     # nasce de outra decisão ou de um achado liga a cadeia pelo mesmo vínculo.

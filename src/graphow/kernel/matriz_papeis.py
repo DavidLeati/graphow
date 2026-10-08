@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from graphow.core.governanca import PROPRIEDADE_GOVERNANCA_DO_PROJETO, Gesto
 from graphow.core.types import PapelAutor, StatusQuestion, StatusSessao, StatusTask, TipoAresta, TipoNo
+from graphow.kernel.pares_de_escopo import PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO
 
 # O Governanca guarda a política que decide o que os agentes podem fazer: um
 # agente que a escrevesse desligaria todos os portões. Só o humano a cria,
@@ -209,10 +210,20 @@ def gesto_da_aresta(
 # `substitui`. O substituído só sai da vista quando o humano promove o novo
 # (context/memoria.py): substituir é propor, promover é aceitar. Remover a
 # substituição segue com humano e planejador, como nas outras.
+#
+# O veredito de escopo deriva de uma raiz que pode ser Decision, Evidence ou
+# Question (Evidence -> Task já é de quem trabalha). Esses três pares são só do
+# humano e do revisor, que julga: o executor que se desse o veredito de escopo
+# tiraria a raiz da lista de pendências do placar.
+HUMANO_E_REVISOR: frozenset[PapelAutor] = SO_HUMANO | {PapelAutor.REVISOR}
 DONOS_POR_PAR_DE_ARESTA: Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta] = {
     (TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosDeAresta(
         adicao=HUMANO_E_AGENTES, remocao=HUMANO_E_PLANEJADOR
     ),
+    **{
+        (TipoAresta.DERIVA_DE, origem, destino): DonosDeAresta(adicao=HUMANO_E_REVISOR, remocao=HUMANO_E_REVISOR)
+        for origem, destino in PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO
+    },
 }
 
 

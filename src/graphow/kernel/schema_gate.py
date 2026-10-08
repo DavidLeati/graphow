@@ -21,7 +21,7 @@ from graphow.kernel.forma_e_identidade import (
     validar_caminho,
     validar_identidade,
 )
-from graphow.kernel.pares_de_escopo import PARES_DE_ARESTAS_DO_ESCOPO
+from graphow.kernel.pares_de_escopo import PARES_DE_ARESTAS_DO_ESCOPO, PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -111,6 +111,7 @@ class SchemaGate:
             (TipoNo.APRENDIZADO, TipoNo.NOTE),
             (TipoNo.APRENDIZADO, TipoNo.ARTIFACT),
             (TipoNo.APRENDIZADO, TipoNo.TASK),
+            *PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO,
         }),
         **PARES_DE_ARESTAS_DO_ESCOPO,
     }
