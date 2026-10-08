@@ -16,6 +16,7 @@ from graphow.context.politicas import (
     PoliticaPlanejador,
     PoliticaRevisor,
 )
+from graphow.context.propostas_fora_do_goal import PoliticaHumano
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
 from graphow.context.secoes import (
     PrioridadeRetencao,
@@ -111,7 +112,7 @@ class MaterializadorContexto:
         PapelAutor.PLANEJADOR: PoliticaPlanejador(),
         PapelAutor.EXECUTOR: PoliticaExecutor(),
         PapelAutor.REVISOR: PoliticaRevisor(),
-        PapelAutor.HUMANO: PoliticaPlanejador(),
+        PapelAutor.HUMANO: PoliticaHumano(),
         PapelAutor.ARBITRO: PoliticaArbitro(),
     }
 
