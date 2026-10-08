@@ -38,6 +38,7 @@ import { Minimap } from "./minimap.js";
 import { abrirModal, avisar } from "./modais.js";
 import { apresentarTipo, corDoTipo, definirVocabulario, ehConteiner, tiposDeTrabalho } from "./ontologia_ui.js";
 import { PatchConsoleView } from "./patch_console_view.js";
+import { PropostasView } from "./propostas_view.js";
 import { QuadroView } from "./quadro_view.js";
 import { QuickFinder } from "./quick_finder.js";
 import { RecorteView } from "./recorte_view.js";
@@ -145,6 +146,7 @@ class GraphowApp {
     this.busca = new BuscaView(document.getElementById("painel-busca"), dependencias);
     this.marcadores = new MarcadoresView(document.getElementById("painel-marcadores"), dependencias);
     this.memoria = new MemoriaView(document.getElementById("painel-memoria"), dependencias);
+    this.propostas = new PropostasView(document.getElementById("painel-propostas"), dependencias);
     this.inspector = new InspectorView(document.getElementById("painel-propriedades"), dependencias);
     this.conexoes = new ConexoesView(document.getElementById("painel-conexoes"), dependencias);
     this.impacto = new ImpactoView(document.getElementById("painel-impacto"), dependencias);
@@ -255,6 +257,7 @@ class GraphowApp {
     this.marcadores.render();
     // A aba lembrada pode ser a memória: restaurada na montagem, ela não passa por `aoMudar`.
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
+    if (this.painelEsquerdoVisivel("propostas")) this.propostas.atualizar();
     // Aba de ferramenta na partida não lê o canvas, e o inspetor só se
     // desenhava com a leitura dele: sem seleção, o panorama ficava em branco.
     this.inspector.render();
@@ -308,6 +311,8 @@ class GraphowApp {
     this.atualizarPaineisDaSelecao();
     this.memoria.invalidar();
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
+    this.propostas.invalidar();
+    if (this.painelEsquerdoVisivel("propostas")) this.propostas.atualizar();
     if (this.abas.ativa.tipo === "leitura") this.leituraView.atualizar();
     if (this.abas.ativa.tipo === "configuracoes") this.configuracoesView.atualizar();
   }
@@ -591,6 +596,7 @@ class GraphowApp {
   aoMostrarPainelEsquerdo(nome) {
     if (nome === "marcadores") this.marcadores.render();
     if (nome === "memoria") this.memoria.atualizar();
+    if (nome === "propostas") this.propostas.atualizar();
   }
 
   atualizarPaineisDaSelecao() {
@@ -780,6 +786,8 @@ class GraphowApp {
     this.marcadores.render();
     this.memoria.invalidar();
     if (this.painelEsquerdoVisivel("memoria")) this.memoria.atualizar();
+    this.propostas.invalidar();
+    if (this.painelEsquerdoVisivel("propostas")) this.propostas.atualizar();
     this.forkDiffView.updateBranchOptions();
     avisar(`Ramo “${ramo}”`, "info");
   }

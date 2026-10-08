@@ -16,6 +16,7 @@ from graphow.web.dto import (
     PosicaoNoCanvas,
     RequisicaoBusca,
     RequisicaoCriarFork,
+    RequisicaoDecisaoDeProposta,
     RequisicaoEdicaoNo,
     RequisicaoExclusaoLote,
     RequisicaoExclusaoProjeto,
@@ -26,6 +27,7 @@ from graphow.web.dto import (
     RequisicaoSalvarLayout,
     RequisicaoSimularVista,
     RespostaMemoriaWeb,
+    RespostaPropostasWeb,
 )
 
 RAMO_PADRAO: str = "main"
@@ -207,4 +209,18 @@ def converter_promocao_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoP
 
 def serializar_memoria(resposta: RespostaMemoriaWeb) -> dict[str, Any]:
     """Converte a resposta do painel de memória, com os nós citados, em dicionário."""
+    return asdict(resposta)
+
+
+def converter_decisao_de_proposta(payload: Mapping[str, Any]) -> RequisicaoDecisaoDeProposta:
+    """Monta a decisão do humano sobre uma proposta: o id e o status que ele escolheu."""
+    return RequisicaoDecisaoDeProposta(
+        id_proposta=str(payload.get("id_proposta", "") or "").strip(),
+        status=str(payload.get("status", "") or "").strip(),
+        ramo_id=extrair_ramo(payload),
+    )
+
+
+def serializar_propostas(resposta: RespostaPropostasWeb) -> dict[str, Any]:
+    """Converte a resposta da caixa de propostas, com as origens citadas, em dicionário."""
     return asdict(resposta)

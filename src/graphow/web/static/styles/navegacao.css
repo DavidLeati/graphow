@@ -328,3 +328,7 @@
 .memoria-marca.mod-ok { color: var(--tom-ok); background: rgba(52, 195, 143, 0.12); }
 .memoria-marca.mod-neutro { color: var(--tom-neutro); }
 .memoria-marca .link-no { font-size: inherit; }
+
+/* Propostas fora do Goal: o painel reaproveita a memória, e o resumo fica à esquerda dos botões. */
+.painel-propostas .nav-resumo { flex: 1; font-size: var(--fonte-menor); color: var(--texto-suave); }
+.painel-propostas .proposta-item .arvore-acao { opacity: 1; }

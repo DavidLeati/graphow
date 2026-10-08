@@ -295,6 +295,41 @@ class RequisicaoGovernanca:
 
 
 @dataclass(frozen=True)
+class PropostaWeb:
+    """Uma proposta fora do Goal à espera do humano: o que se propõe, de onde veio e em que Projeto."""
+
+    id: str
+    rotulo: str
+    status: str
+    projeto_id: str | None
+    projeto_rotulo: str
+    origens: Sequence[NoCitadoWeb]
+    sessao_id: str | None
+    seq_criacao: int
+    autor: str
+    papel: str
+
+
+@dataclass(frozen=True)
+class RespostaPropostasWeb:
+    """DTO imutável de saída da caixa de propostas: as abertas do ramo, do Projeto pedido ou de todos."""
+
+    ramo_id: str
+    versao_log: int
+    propostas: Sequence[PropostaWeb]
+    sucesso: bool = True
+
+
+@dataclass(frozen=True)
+class RequisicaoDecisaoDeProposta:
+    """DTO imutável de entrada da decisão do humano: aceitar ou descartar uma proposta."""
+
+    id_proposta: str
+    status: str
+    ramo_id: str = "main"
+
+
+@dataclass(frozen=True)
 class RespostaHttpWeb:
     """Corpo e status HTTP de uma resposta que o controlador decide por inteiro."""
 
