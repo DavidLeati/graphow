@@ -4,6 +4,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
+from graphow.context.escopo_do_goal import montar_secao_de_escopo
 from graphow.context.governanca_vigente import TIPOS_COM_SECAO_DE_GOVERNANCA, montar_secao_de_governanca
 from graphow.context.orientacao import montar_secoes_de_decisoes
 from graphow.context.politicas import (
@@ -141,11 +142,20 @@ class MaterializadorContexto:
         politica = self.POLITICAS_POR_PAPEL.get(requisicao.papel, PoliticaExecutor())
         escopo = self._resolver_escopo(requisicao, view)
         recorte = self._com_governanca(
-            politica.extrair_recorte(requisicao.id_alvo, view, escopo, indice_semantico=self._indice_semantico),
+            self._com_escopo(
+                politica.extrair_recorte(requisicao.id_alvo, view, escopo, indice_semantico=self._indice_semantico),
+                (view, requisicao.papel),
+            ),
             view,
         )
         texto = self._renderizador.renderizar(recorte, requisicao.orcamento_tokens)
         return self._montar_vista(requisicao, texto)
+
+    def _com_escopo(self, recorte: RecorteContexto, leitor: tuple[GrafoView, PapelAutor]) -> RecorteContexto:
+        """Acrescenta a seção de escopo que o papel lê: o placar do Goal, ou o porquê de o executor não assumir."""
+        view, papel = leitor
+        secao = montar_secao_de_escopo(recorte.alvo, view, papel)
+        return recorte if secao is None else replace(recorte, secoes=(*recorte.secoes, secao))
 
     def _com_governanca(self, recorte: RecorteContexto, view: GrafoView) -> RecorteContexto:
         """Acrescenta a seção Governanca ao recorte de Sessao, Task e Goal, qualquer que seja o papel.

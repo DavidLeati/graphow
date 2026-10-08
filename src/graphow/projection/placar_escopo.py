@@ -16,7 +16,12 @@ from typing import Any
 from graphow.core.escopo import ACAO_VEREDITO_DE_ESCOPO, CAMPO_FASE, CAMPO_RESPOSTAS_DE_DESVIO
 from graphow.core.orquestracao import CAMPO_ACAO, ler_texto
 from graphow.core.types import PapelAutor, StatusTask, TipoAresta
-from graphow.projection.apresentacao_do_placar import linhas_de_desvio, linhas_do_placar, placar_em_dicionario
+from graphow.projection.apresentacao_do_placar import (
+    linhas_curtas_do_placar,
+    linhas_de_desvio,
+    linhas_do_placar,
+    placar_em_dicionario,
+)
 from graphow.projection.classificacao_escopo import ClasseDeEscopo
 from graphow.projection.custo_de_escopo import (
     SEM_REFERENCIA,
@@ -147,6 +152,10 @@ class PlacarDeEscopo:
     def linhas(self) -> tuple[str, ...]:
         """As cinco linhas da seção 4.7 da proposta."""
         return linhas_do_placar(self)
+
+    def linhas_curtas(self) -> tuple[str, ...]:
+        """O placar em até três linhas, para a vista de Task e de Sessão."""
+        return linhas_curtas_do_placar(self)
 
     def linhas_de_desvio(self) -> tuple[str, ...]:
         """Os gatilhos disparados e as respostas de desvio, para a cadência `desvio`."""

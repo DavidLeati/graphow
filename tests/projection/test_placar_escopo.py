@@ -284,3 +284,19 @@ def test_em_dicionario_traz_o_que_a_web_precisa_nominal() -> None:
     assert dicionario["sem_veredito"] == ["d1"]
     assert dicionario["limiares"] == {"por_raiz": 3, "por_goal": 5}
     assert [g["tipo"] for g in dicionario["gatilhos_disparados"]] == ["raiz"]
+
+
+def test_linhas_curtas_cabem_em_tres_linhas_nominal() -> None:
+    """Referência com os emergentes, os gatilhos disparados (K e M) e as decisões sem veredito."""
+    grafo = _com_plano().seq("d1", 20, 6)
+
+    assert grafo.placar().linhas_curtas() == (
+        "Escopo: plano_v1 (humano, seq 10) · emergentes desde a referência: 6",
+        "Gatilhos disparados: K em d1 (6/3); M (6/5)",
+        "Decisões sem veredito de escopo: d1",
+    )
+
+
+def test_linhas_curtas_sem_desvio_sao_uma_linha_edge_case() -> None:
+    """Caso de borda: sem emergente a versão curta é a linha de referência e nada mais."""
+    assert _com_plano().placar().linhas_curtas() == ("Escopo: plano_v1 (humano, seq 10) · emergentes desde a referência: 0",)

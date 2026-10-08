@@ -62,7 +62,28 @@ _MAIS_NAVEGACAO: frozenset[PrioridadeRetencao] = _MAIS_BLOQUEIOS | {
     PrioridadeRetencao.NAVEGACAO,
     PrioridadeRetencao.MEMORIA,
 }
-_TUDO_MENOS_O_ALVO: frozenset[PrioridadeRetencao] = _MAIS_NAVEGACAO | {PrioridadeRetencao.RESTRICOES}
+# O placar de escopo cai depois de tudo menos as restrições: sem ele o agente não sabe se o plano foi aprovado.
+_MAIS_ESCOPO: frozenset[PrioridadeRetencao] = _MAIS_NAVEGACAO | {PrioridadeRetencao.ESCOPO}
+_TUDO_MENOS_O_ALVO: frozenset[PrioridadeRetencao] = _MAIS_ESCOPO | {PrioridadeRetencao.RESTRICOES}
+
+
+def _ultimos_recursos() -> tuple[PlanoDeCorte, ...]:
+    """Os degraus em que só as restrições resistem: antes encolhem, e o placar de escopo cai antes delas."""
+    # As restrições invioláveis são as últimas a cair, e antes encolhem.
+    restricoes_encolhidas = tuple(
+        PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True, limite_de_restricoes=limite)
+        for limite in LIMITES_DE_RESTRICOES
+    )
+    ultimos_recursos = (
+        PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True),
+        *restricoes_encolhidas,
+        # O placar sai com uma só restrição ainda de pé; o último degrau leva as restrições.
+        PlanoDeCorte(
+            prioridades_descartadas=_MAIS_ESCOPO, memoria_resumida=True, limite_de_restricoes=LIMITES_DE_RESTRICOES[-1]
+        ),
+        PlanoDeCorte(prioridades_descartadas=_TUDO_MENOS_O_ALVO, memoria_resumida=True),
+    )
+    return ultimos_recursos
 
 
 def montar_escada_de_corte() -> tuple[PlanoDeCorte, ...]:
@@ -81,14 +102,5 @@ def montar_escada_de_corte() -> tuple[PlanoDeCorte, ...]:
         PlanoDeCorte(prioridades_descartadas=_MAIS_BLOQUEIOS, limite_de_vizinhos=limite, memoria_resumida=True)
         for limite in LIMITES_DE_VIZINHOS_POR_TIPO
     )
-    # As restrições invioláveis são as últimas a cair, e antes encolhem.
-    restricoes_encolhidas = tuple(
-        PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True, limite_de_restricoes=limite)
-        for limite in LIMITES_DE_RESTRICOES
-    )
-    ultimos_recursos = (
-        PlanoDeCorte(prioridades_descartadas=_MAIS_NAVEGACAO, memoria_resumida=True),
-        *restricoes_encolhidas,
-        PlanoDeCorte(prioridades_descartadas=_TUDO_MENOS_O_ALVO, memoria_resumida=True),
-    )
-    return degraus_por_descarte + degraus_por_reducao + ultimos_recursos
+    return degraus_por_descarte + degraus_por_reducao + _ultimos_recursos()
+

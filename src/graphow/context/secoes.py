@@ -33,19 +33,22 @@ class PrioridadeRetencao(IntEnum):
 
     ALVO = 0
     RESTRICOES = 1
+    # O placar de escopo do Goal: o plano aprovado, o desvio e os gatilhos. Logo depois das
+    # restrições, porque o agente que não o lê planeja ou executa fora do combinado.
+    ESCOPO = 2
     # Memória: o fechamento de uma sessão encerrada e os aprendizados que
     # alcançam o alvo. Cai no mesmo degrau da navegação, nunca antes dela:
     # memória que some sob pressão de orçamento não é memória. Antes de cair
     # ela encolhe: os aprendizados vão só com a afirmação (ver context/corte.py).
-    MEMORIA = 2
-    NAVEGACAO = 3
-    BLOQUEIOS = 4
-    DECISOES = 5
-    APOIO = 6
+    MEMORIA = 3
+    NAVEGACAO = 4
+    BLOQUEIOS = 5
+    DECISOES = 6
+    APOIO = 7
     # O que está perto do alvo sem governá-lo: decisões e evidências da mesma
     # sessão que nada liga à tarefa. Cai antes de tudo, para nunca empurrar
     # para fora do orçamento as decisões que valem para ela.
-    CONTEXTO = 7
+    CONTEXTO = 8
 
 
 @dataclass(frozen=True)

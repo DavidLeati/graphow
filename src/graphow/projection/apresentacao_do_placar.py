@@ -33,6 +33,8 @@ CLASSES_DE_SEMPRE: frozenset[str] = frozenset(
     }
 )
 
+CLASSES_EMERGENTES: tuple[ClasseDeEscopo, ...] = (ClasseDeEscopo.B3, ClasseDeEscopo.SEM_LIGACAO)
+
 
 def linhas_do_placar(placar: "PlacarDeEscopo") -> tuple[str, ...]:
     """As cinco linhas: escopo, plano, contagem desde a referência, raiz que mais gerou e cadeia mais longa."""
@@ -51,6 +53,18 @@ def linhas_de_desvio(placar: "PlacarDeEscopo") -> tuple[str, ...]:
     if placar.sem_veredito:
         linhas.append("Decisões sem veredito de escopo: " + ", ".join(placar.sem_veredito))
     linhas.extend(_linha_da_resposta(resposta) for resposta in placar.respostas_de_desvio)
+    return tuple(linhas)
+
+
+def linhas_curtas_do_placar(placar: "PlacarDeEscopo") -> tuple[str, ...]:
+    """O placar em até três linhas: referência com os emergentes, gatilhos disparados e decisões sem veredito."""
+    emergentes = sum(placar.contagem_por_classe.get(classe.value, 0) for classe in CLASSES_EMERGENTES)
+    linhas = [f"{_linha_do_escopo(placar)} · emergentes desde a referência: {emergentes}"]
+    disparados = [_nome_curto_do_gatilho(gatilho) for gatilho in placar.gatilhos if gatilho.disparou]
+    if disparados:
+        linhas.append("Gatilhos disparados: " + "; ".join(disparados))
+    if placar.sem_veredito:
+        linhas.append("Decisões sem veredito de escopo: " + ", ".join(placar.sem_veredito))
     return tuple(linhas)
 
 
@@ -142,6 +156,16 @@ def _linha_do_gatilho(gatilho: "GatilhoDeDesvio") -> str:
     if gatilho.tipo == "goal":
         return f"Gatilho M: {gatilho.contagem} emergentes desde o último zero (limiar {gatilho.limiar})"
     return f"Inanição: o plano segue sem começar e {gatilho.contagem} emergentes já saíram de pendente (limiar {gatilho.limiar})"
+
+
+def _nome_curto_do_gatilho(gatilho: "GatilhoDeDesvio") -> str:
+    """O gatilho em poucas palavras, com a contagem contra o limiar."""
+    contagem = f"{gatilho.contagem}/{gatilho.limiar}"
+    if gatilho.tipo == "raiz":
+        return f"K em {gatilho.raiz} ({contagem})"
+    if gatilho.tipo == "goal":
+        return f"M ({contagem})"
+    return f"inanição ({contagem})"
 
 
 def _linha_da_resposta(resposta: "RespostaDeDesvio") -> str:
