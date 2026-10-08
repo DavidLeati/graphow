@@ -76,7 +76,8 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `Task` | `fase` | Rótulo opcional de agrupamento do plano (`F1`, `F2`…); serve só à apresentação. |
 | `Constraint` | `tipo` | `criterio_aceite` (o critério que abre a porta da `Task` emergente) ou `fronteira` (o que o Goal não toca). Ausente, a restrição é uma restrição comum. |
 | `Note` | `acao` | Com `proposta_fora_do_goal`, a descoberta fora dos critérios do Goal registrada como proposta para o humano decidir, e não como `Task`. |
-| `Evidence` | `acao` | Com `veredito_de_escopo`, o julgamento de uma raiz de decisão e das `Task`s que ela gerou contra os critérios e a fronteira do Goal; não bloqueia. |
+| `Evidence` | `acao` | Com `veredito_de_escopo`, o julgamento de uma raiz de decisão e das `Task`s que ela gerou contra os critérios e a fronteira do Goal; não bloqueia. O revisor a grava com `deriva_de` para a raiz (a Decision, a Evidence, a Question ou a Task de onde a cadeia de `motivada_por` parte), e é por essa aresta que a raiz sai da lista de decisões sem veredito de escopo. |
+| `Evidence` | `parecer_de_escopo`, `motivo` | Na Evidence de `acao: veredito_de_escopo`: `cabe`, `nao_cabe` ou `parcial`, e o motivo. Não é `veredito`: essa propriedade é a do fechamento da `Task`, e a de escopo não vigora sobre tarefa alguma. |
 | `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, numa Task da trilha leve, mudança com efeito (no diff, quando a entrega é código). Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
 
 ---
@@ -96,7 +97,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `contradiz` | `Evidence` → `Decision` / `Evidence` / `Aprendizado` | Aponta divergência ou refutação empírica; num `Aprendizado`, sinaliza que ele precisa de revisão. |
 | `substitui` | `Decision` → `Decision`, `Task` → `Task`, `Aprendizado` → `Aprendizado` | Substituição evolutiva de definição anterior. O substituído segue visível, marcado. |
 | `escopa` | `Constraint` → `Goal` / `Task` | Aplicação de restrição obrigatória. |
-| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Evidence` → `Artifact` / `Task`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Evidence` → `Artifact` / `Task` / `Decision` / `Evidence` / `Question`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | Proveniência de artefatos, da evidência que avalia um trabalho (e, nos pares `Evidence` → `Decision` / `Evidence` / `Question`, que só o humano e o revisor criam, o veredito de escopo sobre a raiz de uma cadeia), de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | `vale_para` | `Aprendizado` → `Projeto` / `Setor` | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. |
 | `motivada_por` | `Task` → `Decision` / `Evidence` / `Task` / `Question`; `Decision` → `Decision` / `Evidence` / `Task` / `Question` | De que decisão, achado, trabalho ou dúvida a `Task` nasceu; a `Decision` que nasce de outra decisão ou de um achado liga a cadeia pelo mesmo vínculo. Subir `motivada_por` até um nó sem `motivada_por` saindo dele dá a raiz da cadeia (seção 5.7). |
 | `acompanha` | `Task` → `Evidence` | A `Task` de acompanhamento de uma reprovação cujo aceite o árbitro registrou. |

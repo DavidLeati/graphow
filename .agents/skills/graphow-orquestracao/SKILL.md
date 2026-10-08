@@ -1,6 +1,6 @@
 ---
 name: graphow-orquestracao
-description: Orquestração de agentes sobre o grafo do Graphow, sem /clear entre tarefas. A sessão principal é a raiz. Ela recebe do humano um Goal, Setor ou Projeto e despacha rodadas em sequência para o subagente graphow-condutor (Opus, contexto novo a cada rodada). O condutor decompõe, testa o executor frio e despacha exploradores, executores e revisores. A raiz só para nos portões que a política de governança do projeto deixa ao humano, como a cadência combinada, a Question que o árbitro escalou, a ação externa que é da pessoa e o teto de rodadas. Quando a política entrega um gesto ao árbitro, a raiz despacha o graphow-arbitro em vez de parar. Use quando pedirem para orquestrar um Goal, Setor ou Projeto, dividir trabalho grande entre subagentes, retomar uma orquestração ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-condutor, graphow-explorador, graphow-executor, graphow-executor-opus, graphow-revisor, graphow-revisor-sonnet e graphow-arbitro, em ~/.claude/agents.
+description: Orquestração de agentes sobre o grafo do Graphow, sem /clear entre tarefas. A sessão principal é a raiz. Ela recebe do humano um Goal, Setor ou Projeto e despacha rodadas em sequência para o subagente graphow-condutor (Opus, contexto novo a cada rodada). O condutor decompõe, testa o executor frio e despacha exploradores, executores e revisores. A raiz só para nos portões que a política de governança do projeto deixa ao humano, como a cadência combinada, a Question que o árbitro escalou, a ação externa que é da pessoa, o plano por aprovar, o desvio de escopo que dispara o placar e o teto de rodadas. Quando a política entrega um gesto ao árbitro, a raiz despacha o graphow-arbitro em vez de parar. Use quando pedirem para orquestrar um Goal, Setor ou Projeto, dividir trabalho grande entre subagentes, retomar uma orquestração ou comparar configurações de modelo. Exige a skill graphow-mcp e os subagentes graphow-condutor, graphow-explorador, graphow-executor, graphow-executor-opus, graphow-revisor, graphow-revisor-sonnet e graphow-arbitro, em ~/.claude/agents.
 ---
 
 # Orquestração sobre o Graphow
@@ -37,9 +37,9 @@ Se o subagente `graphow-condutor` não estiver disponível, pare e diga ao human
 | `graphow-explorador` | Haiku | nada | devolve ponteiros: arquivo e linhas, ou fonte e local, com o trecho literal |
 | `graphow-executor` | Sonnet | `Artifact`, `Evidence`, `Decision`, `Aprendizado` | executa uma Task a partir da vista dela; a de ação externa, só com o gesto `acao_externa` no executor |
 | `graphow-executor-opus` | Opus | idem | a Task marcada `modelo: opus` |
-| `graphow-revisor` | Opus, sempre sessão nova | `Evidence` com `veredito`, `Question`, `Aprendizado` | revisa contra os critérios de aceite; não corrige |
+| `graphow-revisor` | Opus, sempre sessão nova | `Evidence` com `veredito`, `Evidence` de `veredito_de_escopo`, `Question`, `Aprendizado` | revisa contra os critérios de aceite; não corrige. Também faz a revisão de escopo que o condutor pede: julga uma decisão e as Tasks que ela gerou contra os critérios e a fronteira do Goal, sem bloquear nada |
 | `graphow-revisor-sonnet` | Sonnet, sempre sessão nova | `Evidence` com `veredito` ou `triagem`, `Question`, `Aprendizado` | revisa a Task da trilha leve; se a mudança não é só texto (muda comportamento, ou toca código, configuração ou dado que um programa lê), devolve `fora_da_trilha` e a entrega vai ao `graphow-revisor` |
-| `graphow-arbitro` | Opus, contexto novo por despacho | `Evidence`, `Decision`, `Note` e, sob a política, o que o gesto entrega (`Constraint`, resposta de `Question`, promoção, fechamento do `Goal`) | decide no lugar do humano só o que a política do projeto lhe concede; nunca promove global, nunca altera a governança, nunca responde Question que abriu |
+| `graphow-arbitro` | Opus, contexto novo por despacho | `Evidence`, `Decision`, `Note` e, sob a política, o que o gesto entrega (`Constraint`, resposta de `Question`, promoção, fechamento do `Goal`) | decide no lugar do humano só o que a política do projeto lhe concede (inclusive `aprovar_plano` e `responder_desvio`, quando ela os entrega); nunca promove global, nunca altera a governança, nunca responde Question que abriu |
 
 O procedimento da rodada (decompor, explorar sem interpretar, escolher o modelo e a trilha, paralelismo, revisar, fechar e corrigir) está na definição do subagente `graphow-condutor`, em `.agents/agents/graphow-condutor.md` no repositório do graphow.
 
@@ -68,7 +68,7 @@ Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitad
        Sessao: <id_sessao>
 
    O que ele devolve em `Escaladas` volta a ser do humano, e você não despacha o árbitro de novo para o mesmo item.
-4. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma e quem as decide (o árbitro, ou o humano, para ir respondendo enquanto o trabalho anda). Ferramenta que faltou a um executor numa ação externa, que o condutor diz no `Resumo`, vai na mesma linha: é o humano quem a provê. Da linha `Custo:` do condutor, repita a soma de minutos e tokens dos filhos e cada `ALERTA` com o id: o executor é neto da raiz, não aparece no painel, e o custo dele só ficaria visível na medição depois do fato. A soma vem do retorno; você continua sem ler transcrição nem Run.
+4. **Contar ao humano**, numa linha por rodada: o Goal, o que fechou, o que abriu e as Questions novas, com o id de cada uma e quem as decide (o árbitro, ou o humano, para ir respondendo enquanto o trabalho anda). A linha `Desvio:` só entra quando traz gatilho disparado ou raiz sem veredito de escopo; `nenhum` não se repete. Ferramenta que faltou a um executor numa ação externa, que o condutor diz no `Resumo`, vai na mesma linha: é o humano quem a provê. Da linha `Custo:` do condutor, repita a soma de minutos e tokens dos filhos e cada `ALERTA` com o id: o executor é neto da raiz, não aparece no painel, e o custo dele só ficaria visível na medição depois do fato. A soma vem do retorno; você continua sem ler transcrição nem Run.
 5. **Seguir ou parar.** Volte ao passo 2 enquanto nenhum portão de "Onde parar" fechar.
 6. **Parar** é terminar o turno com um resumo curto ao humano, dizendo:
    - por que parou;
@@ -76,6 +76,7 @@ Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitad
    - os Goals que ficaram sem tarefa aberta, quando fechá-los é dele;
    - as Questions abertas, as que o árbitro escalou inclusive, com id e uma linha, para responder na interface do graphow;
    - as ações externas que esperam a pessoa, com o id, o rótulo e o critério de cada uma;
+   - o plano que espera aprovação (a decomposição que o condutor devolveu em `Plano:`) e o desvio que disparou (a linha `Desvio:` e os vereditos de escopo da rodada), com o que cada resposta do humano faz (ver "Plano aprovado e desvio de escopo");
    - os `ALERTA` de `Custo:` da sequência, com o id da Task, e a sugestão de `graphow orquestracao-medir --goal <id> --por-rodada` para o detalhe;
    - o que roda quando ele disser "segue";
    - a cota, numa linha própria, no mesmo formato do despacho: `Cota: 5h <n>%, semana <n>%`, com a leitura de `get_usage` feita ao parar. O harness lê a última linha dessas que você escreveu e a grava no Run da sua sessão; é ela que fecha a conta da última rodada.
@@ -89,8 +90,11 @@ Goal é o humano quem cria, e o condutor não o cria nem sob estrutura `ilimitad
 | `tarefa` | toda rodada terminar, como antes, mas sem `/clear`: o humano só diz "segue" |
 | `goal` (padrão) | a rodada devolver `Goal concluido: sim` |
 | `setor` | o alvo não tiver mais trabalho pronto |
+| `desvio` | um gatilho de desvio do escopo disparar (linha `Desvio:` da rodada), e então devolve a palavra ao humano com o placar |
 
-O humano grava a cadência no Goal, no Setor ou no Projeto (propriedade `cadencia`), ou a diz ao pedir a orquestração. O que ele diz na conversa vale só para aquela chamada.
+Na cadência `desvio` a raiz segue rodada após rodada, sem parar por tarefa nem por Goal concluído, até um gatilho disparar; os portões de "Onde parar" valem como em qualquer cadência, e o Goal concluído aparece como `nada_a_fazer` na rodada seguinte. É a cadência de quem quer confiar no plano aprovado e ser chamado só quando o trabalho sai dele.
+
+O humano grava a cadência no Goal, no Setor ou no Projeto (propriedade `cadencia`), ou a diz ao pedir a orquestração. O que ele diz na conversa vale só para aquela chamada. O gatilho de desvio com `responder_desvio` no humano é portão em qualquer cadência, e não só na `desvio` (ver "Plano aprovado e desvio de escopo").
 
 ## Onde parar
 
@@ -99,12 +103,14 @@ Em qualquer cadência, pare quando:
 - a rodada devolver `RODADA: nada_a_fazer`: o que resta espera Question, posse órfã ou dependência travada. Com o gesto no árbitro, despache-o antes de parar (`Alvo` o Goal da rodada) e volte ao laço se ele decidir algo; pare só se ele devolver `nada_a_fazer` ou `escalada`, e então o que resta é do humano;
 - a rodada devolver `Acao externa:`, seja qual for a política: a Task entrega um gesto no mundo (enviar um e-mail, marcar uma reunião, publicar) e o gesto `acao_externa` está com o humano. Mostre à pessoa cada linha, com o id, o rótulo e o critério, e espere. Quando ela disser que fez, registre em nome dela, numa sessão que é humana: `assumir_tarefa` na Task; um `propor_patch` com o `Artifact` (sem `arquivos`, com o `resumo` do que ela fez), a `Evidence` de prova (`fonte` e `resultado`, como fonte "caixa de saída" e resultado "enviado 06/10 14:02 para diretoria@"), os dois produzidos pela sua sessão, os `deriva_de` da Evidence ao Artifact e à Task e do Artifact à Task, e o status `pronto_para_revisao`; depois `liberar_tarefa`. O lote pronto está no cookbook da `graphow-mcp`, em "executor: registrar a ação externa". A rodada seguinte revisa e fecha. A pessoa também pode registrar tudo isso pela interface do graphow, e então você só segue. Sem o servidor `graphow` de papel `humano` na sessão, peça a ela que registre pela interface. O que ela disser que não fez fica pendente, e a orquestração segue com o resto;
 - a rodada devolver `Integrar:`, quando o trabalho mora num repositório git: o ramo base do Goal (`ramo_base`, gravado no Goal, no Setor ou no Projeto) ganhou arquivos que colidem com o que o Goal toca, como migrations com o mesmo número. Com `integracao` no humano, diga a ele o ramo e os arquivos que colidiram: o merge do ramo base e a renumeração são dele, ou seus se ele pedir, na sessão principal e fora do laço, e o condutor não os faz. Com `integracao` no árbitro, o portão é seu (ver "A política decide quem para"). Quando ele disser "segue", a rodada seguinte confere de novo;
+- a rodada devolver `Plano: nao_aprovado` ou `Plano: nova_versao`: o Goal não tem plano aprovado, ou a decomposição ganhou uma onda nova que pede outra versão. A raiz não despacha execução para ele. Com `aprovar_plano` no humano (o padrão), mostre a decomposição e peça a aprovação; com o gesto no árbitro, despache-o (ver "Plano aprovado e desvio de escopo");
+- a rodada devolver `Desvio:` com gatilho disparado e `responder_desvio` no humano, que é o default de todos os presets: a raiz para e mostra o placar. Se a política personalizada entrega `responder_desvio` ao árbitro, a raiz o despacha em vez de parar;
 - o teto de rodadas chegar, seja qual for a política: a política não o substitui;
 - o limite do plano ficar perto do fim, seja qual for a política: no app desktop, leia `mcp__ccd_session_mgmt__get_usage` (carregue pelo ToolSearch) antes da primeira rodada e depois de cada uma, e pare com a janela de 5 horas em 85% ou mais, ou com a semanal em 90% ou mais. Estourar no meio de uma rodada deixa posse presa e tarefa pela metade. A leitura de depois de uma rodada é a `Cota:` do despacho da seguinte; ao parar, por este ou outro portão, ela vai na linha `Cota:` do resumo;
 - duas rodadas seguidas voltarem sem criar, fechar nem corrigir nada, nem render uma decisão do árbitro, ou fora do formato de saída do condutor;
 - o humano pedir. A mensagem dele chega entre rodadas.
 
-O teto de rodadas, a cota, o pedido do humano e a `Acao externa:` param sempre. Os demais portões dependem da política, e a seção "A política decide quem para" diz quais.
+O teto de rodadas, a cota, o pedido do humano e a `Acao externa:` param sempre. Os demais portões, o `Plano:` e o `Desvio:` inclusive, dependem da política, e a seção "A política decide quem para" diz quais.
 
 Question aberta não para o laço sozinha. A Task dela sai da fila, o resto segue, e o humano fica sabendo pela linha da rodada, ou o árbitro a decide, quando a política o permite.
 
@@ -139,11 +145,31 @@ A política de governança do projeto diz, gesto a gesto, quem decide: `humano` 
 | `max_correcoes` | 2 | O condutor lê o número da política: o teto de correções deixa de ser fixo. |
 | `excluir` | O humano. | O árbitro só exclui o que o humano mandar, nunca por iniciativa da orquestração. |
 | `estrutura` | `estrito`: só o humano cria Projeto, Setor e a contenção. | `ilimitado`: todo agente cria todos os tipos de nó, menos Constraint, Governanca e Projeto. |
+| `aprovar_plano` | `Plano: nao_aprovado` (ou `nova_versao`) para a raiz, que mostra a decomposição, pede a aprovação ao humano e não despacha execução do Goal. | A raiz despacha o `graphow-arbitro` com `Alvo: <Goal>`; a versão dele destrava o executor, mas só a do humano vira a referência do desvio. |
+| `responder_desvio` | O padrão de todos os presets, `arbitragem_maxima` inclusive: gatilho disparado para a raiz, que mostra o placar. | Só a política personalizada o entrega: a raiz despacha o `graphow-arbitro` com `Alvo: <Goal>` em vez de parar. A resposta dele aparece marcada no placar e não zera o contador. |
 | `acao_externa` | `Acao externa:` para a raiz, que leva à pessoa e registra a prova quando ela disser que fez. | Não vai ao árbitro: vai ao executor, e o condutor o despacha como em qualquer Task. É o que vale em `arbitragem_maxima`; a política personalizada também pode escolhê-lo (`acao_externa: executor`, com `configurar_governanca`). |
 
 Duas regras valem em qualquer linha. A raiz não despacha o árbitro para o que ele não tem na política: a recusa do kernel custaria uma rodada, e a seção `Governanca` já diz o que está com ele. E o árbitro não decide o que ele mesmo abriu: Question dele fica aberta, e o humano a resolve.
 
 Em `governanca_maxima` nada muda em relação ao que a orquestração sempre fez: a raiz só despacha o condutor, e o humano responde as Questions, promove, fecha o Goal e integra. Em `arbitragem_maxima` o laço roda sem esperar o humano em nenhum gesto delegável: ele só é chamado pelo que o árbitro escala, pela ação externa, pelo teto de rodadas, pela cota, pelo push e pelo que sempre é dele.
+
+## Plano aprovado e desvio de escopo
+
+O escopo governado (`docs/propostas/escopo-governado.md`) pede dois portões da raiz. Ela continua sem ler o grafo: o que mostra ao humano vem das linhas `Plano:` e `Desvio:` do retorno do condutor, que as lê do placar da vista do Goal. A aprovação e a resposta ao desvio são do humano, pelo inspetor do Goal no `graphow web` ou pelo servidor `graphow` da sessão dele; a raiz não as faz, salvo despachando o árbitro quando a política lhe entrega o gesto.
+
+**Plano.** Sem `aprovar_plano` o executor não assume Task do Goal (`plano_nao_aprovado`), então a rodada que decompõe termina em `Plano: nao_aprovado` com a decomposição (id, rótulo e `depende_de` de cada Task, e a fase quando há). Enquanto o Goal estiver assim, a raiz não despacha execução para ele.
+
+- Com `aprovar_plano` no humano (o padrão em `governanca_maxima`): mostre a decomposição, peça a aprovação e pare. No "segue", despache a rodada seguinte, que confere o plano de novo.
+- Com `aprovar_plano` no árbitro (`arbitragem_maxima`, ou a personalizada que o entrega): despache o `graphow-arbitro` com `Alvo: <Goal>`. Aprovado, siga. Escalado, o plano volta a ser do humano, como acima.
+- Replanejar, isto é, uma onda nova de decomposição (o condutor a devolve como `Plano: nova_versao` com os ids), exige nova versão de plano: o mesmo portão, com a decomposição nova à vista.
+- Só a versão do humano é a referência do desvio e zera o contador. A do árbitro destrava o executor, e as Tasks dela contam como emergentes no placar.
+
+**Desvio.** O placar mede o trabalho que o plano não previu: K por decisão-raiz, M pelo Goal inteiro, e a inanição do plano. A linha `Desvio:` lista os gatilhos disparados e as raízes sem veredito de escopo, ou diz `nenhum`. Em qualquer cadência:
+
+- Gatilho disparado com `responder_desvio` no humano (o default de todos os presets): é portão. A raiz para e mostra a linha `Desvio:` com o placar da rodada e os vereditos de escopo (`Revisao de escopo:`). O humano responde com `responder_desvio` (seguir, conter ou replanejar, com o motivo), ou diz "segue" e aceita o desvio como está. Só o `responder_desvio` e o `aprovar_plano` do humano zeram o contador; responder Question ou criar Constraint não zeram.
+- Gatilho disparado com `responder_desvio` no árbitro (só a política personalizada o entrega): a raiz despacha o `graphow-arbitro` com `Alvo: <Goal>` em vez de parar. Ele lê o placar e os vereditos e responde ou escala (`Escaladas` volta a ser do humano). A resposta dele aparece marcada no placar e não zera nada, então o gatilho segue disparado depois dela: a raiz não o despacha de novo para o mesmo gatilho.
+- Um gatilho é a dupla tipo e raiz (`K em <raiz>`, `M`, `inanição`). A raiz para, ou despacha o árbitro, uma vez por gatilho. O que o humano deixou passar com "segue" não a faz parar de novo a cada rodada; só gatilho novo, ou um que saiu da linha `Desvio:` e voltou. Guarde só a lista deles, nada além.
+- A revisão de escopo é do condutor e não bloqueia: ele a despacha na própria rodada, antes de devolver, e a raiz a vê pronta na linha `Revisao de escopo:`. A raiz não despacha o revisor.
 
 ## Higiene de contexto da raiz
 
@@ -174,5 +200,5 @@ A linha de base vem assim: o próximo Goal parecido com um já medido roda duas 
 
 - `graphow-condutor` (`.agents/agents/graphow-condutor.md` no repositório do graphow): o procedimento da rodada.
 - `graphow-arbitro` (`.agents/agents/graphow-arbitro.md`): o procedimento de cada gesto que a política lhe entrega.
-- [Despacho](./references/despacho.md): o prompt de cada subagente, o do árbitro inclusive, e o formato do que ele devolve.
+- [Despacho](./references/despacho.md): o prompt de cada subagente, o do árbitro e o da revisão de escopo inclusive, e o formato do que ele devolve.
 - [Configuração](./references/configuracao.md): servidores MCP por papel, hooks, permissões e o laço sem interface.

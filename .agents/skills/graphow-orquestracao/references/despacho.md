@@ -4,7 +4,7 @@ O prompt de despacho é ponteiro, não especificação. Tudo o que o subagente p
 
 ## Quem despacha quem
 
-A raiz despacha o condutor e, quando a política de governança do projeto entrega um gesto ao árbitro, o `graphow-arbitro`. O condutor despacha o explorador, os executores e os revisores: o `graphow-revisor` para a Task da trilha completa e o `graphow-revisor-sonnet` para a da trilha leve. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
+A raiz despacha o condutor e, quando a política de governança do projeto entrega um gesto ao árbitro, o `graphow-arbitro`. O condutor despacha o explorador, os executores e os revisores: o `graphow-revisor` para a Task da trilha completa e o `graphow-revisor-sonnet` para a da trilha leve. A revisão de escopo de uma decisão-raiz também é do condutor e vai sempre ao `graphow-revisor` (Opus), nunca ao Sonnet. Toda chamada do condutor vai em primeiro plano (`run_in_background: false`): em segundo plano ele terminaria antes do filho, e a rodada voltaria pela metade. Isso foi testado em 2026-09-23: o subagente do meio devolveu "Waiting for the nested agent to complete..." e saiu antes do filho acabar.
 
 ## O que vai em cada prompt
 
@@ -15,8 +15,9 @@ A raiz despacha o condutor e, quando a política de governança do projeto entre
 | `graphow-executor` ou `graphow-executor-opus` | o condutor | `Task: <id>` e `Sessao: <id>` | `RESULTADO: ...` |
 | `graphow-revisor` | o condutor | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...` |
 | `graphow-revisor-sonnet` | o condutor, para a Task `trilha: leve` | `Artifact: <id>` e `Sessao: <id>` | `VEREDITO: ...`, inclusive `fora_da_trilha` |
+| `graphow-revisor` (revisão de escopo) | o condutor, para a raiz de decisão que passou de K sem veredito de escopo | `Alvo: <id da raiz>`, `Goal: <id>` e `Sessao: <id>` | `ESCOPO: ...` |
 | `graphow-executor` (fechamento) | o condutor | `Fechar: <id>, <id>` e `Sessao: <id>` | `RESULTADO: fechadas`, ou `bloqueada` com os ids que o kernel recusou por `fechamento_sem_veredito_aprovado`; retoma a posse de outro executor quando o veredito vigente da tarefa é `aprovado`; fecha também a tarefa aceita pelo teto de correções, quando a Decision de aceite é legítima e a posse está livre |
-| `graphow-arbitro` | a raiz | `Alvo: <id de Question, Goal, Setor ou Projeto>` e `Sessao: <id>` | `ARBITRAGEM: ...` |
+| `graphow-arbitro` | a raiz | `Alvo: <id de Question, Goal, Setor ou Projeto>` e `Sessao: <id>`; o Goal como alvo serve também a `aprovar_plano` e a `responder_desvio` | `ARBITRAGEM: ...` |
 
 `Sessao` é sempre a sessão da raiz, e o condutor a repassa sem mudar. Os nós que os subagentes criam nascem produzidos por ela, e é por ela que a medição atribui o custo ao Goal.
 
@@ -50,9 +51,13 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
     Fechadas: <ids>
     Correcoes: <id rejeitada> -> <id correção>
     Aceites: <id original> -> <id Task de acompanhamento>
-    Questoes: <id> na <id Task>: <uma linha>
+    Questoes: <id> na <id Task>: <uma linha> | cruza a fronteira: sim | nao | talvez
+    Propostas: <id da Note> | <rótulo> | origens: <ids>
     Integrar: <ramo_base> ganhou <arquivos do ramo base que colidiram>
     Acao externa: <id Task> | <rótulo> | criterio: <criterio_pronto>
+    Plano: nao_aprovado | nova_versao | <n> Tasks: <id> <rótulo> [fase] depende_de <ids>; ...
+    Desvio: <gatilhos disparados e raízes sem veredito de escopo, lidos do placar> | nenhum
+    Revisao de escopo: <id da raiz> -> cabe | nao_cabe | parcial (<id da Evidence>)
     Governanca: <a linha da seção Governanca da vista do Goal, como está>
     Fila: <n> prontas, <m> impedidas (<motivos>)
     Goal concluido: sim | nao
@@ -70,6 +75,9 @@ Nunca vai no prompt: trecho da conversa (a instrução literal na linha `Humano`
 | `Questoes` | com `responder_questao` no humano, diz o id ao humano na linha da rodada; com o gesto no árbitro, despacha-o com `Alvo: <id da Question>` e diz na linha quem a decidiu. Não para por isso |
 | `Acao externa` | portão humano, em qualquer política: uma linha por Task de `entrega: acao_externa` pronta com o gesto `acao_externa` no humano. O condutor não despachou executor para ela e seguiu com as outras tarefas. A raiz mostra à pessoa a tarefa e o critério e espera. Quando ela disser que fez, a raiz registra em nome dela, pelo servidor `graphow` de papel `humano`: `assumir_tarefa`, um `propor_patch` com o `Artifact` (sem `arquivos`, com `resumo`), a `Evidence` de prova (`fonte` e `resultado`, com `deriva_de` ao Artifact e à Task) e o status `pronto_para_revisao`, e `liberar_tarefa`. A rodada seguinte revisa e fecha. A pessoa também pode registrar pela interface |
 | `Integrar` | portão, quando o trabalho mora num repositório git: o ramo base ganhou arquivos que colidem com o que o Goal toca, e o condutor segurou as tarefas nesses caminhos. Com `integracao` no humano, para e diz a ele o ramo e os arquivos: o merge e a renumeração são dele, ou da sessão principal se ele pedir. Com `integracao` no árbitro, a raiz commita e faz o merge local, e para só se ele conflitar ou pedir renumerar (editar arquivo do trabalho). Em ambos, no "segue" a rodada seguinte confere de novo com `graphow base-colisoes`; o push nunca é da raiz |
+| `Plano` | `nao_aprovado`: o Goal não tem `aprovar_plano`, e o condutor não despachou executor (o kernel o recusaria). A linha traz a decomposição. `nova_versao`: a decomposição ganhou uma onda nova, listada pelos ids, que pede outra versão. Com o gesto no humano, a raiz mostra a decomposição, pede `aprovar_plano` e para; com o gesto no árbitro, despacha-o com `Alvo: <Goal>`. Não despacha execução para o Goal até a aprovação |
+| `Desvio` | `nenhum`, ou os gatilhos disparados (`K em <raiz> (n/K)`, `M (n/M)`, `inanição`) e as raízes sem veredito de escopo, como o placar da vista do Goal os diz. Com gatilho disparado e `responder_desvio` no humano (o default de todos os presets), é portão em qualquer cadência: a raiz para e mostra o placar. Com o gesto no árbitro (só a política personalizada), despacha-o com `Alvo: <Goal>` em vez de parar. Uma vez por gatilho (tipo e raiz) |
+| `Revisao de escopo` | o condutor despachou o revisor para a raiz e o veredito já está no grafo. A raiz o repete na linha em que mostra o placar ao humano, ou ao árbitro. Não bloqueia nada |
 | `Custo` | o que cada filho da rodada gastou, lido pelo condutor do bloco de uso do retorno: o executor é neto da raiz e não aparece no painel. A raiz soma minutos e tokens na linha da rodada e repete cada `ALERTA` com o id (executor acima de ~40 min ou ~100 ferramentas: a Task estourou o tamanho). Ao parar, lista os `ALERTA` da sequência e sugere `graphow orquestracao-medir --goal <id> --por-rodada` para o detalhe. Não para por isso |
 | fora do formato, ou o condutor falhou | tenta mais uma rodada; na segunda seguida, para |
 
@@ -145,6 +153,24 @@ A Evidence do veredito deriva do Artifact e da Task, e cada critério não atend
 
 `fora_da_trilha` só vem do `graphow-revisor-sonnet`: a mudança da Task leve não é só texto. Num repositório git, ele faz a triagem por `git status` e `git diff`. Quando a entrega não é código, confere só que os arquivos alterados são os do Artifact e que nenhum é código, configuração ou dado que um programa lê; sem git, lê os arquivos do Artifact inteiros. Ele não aprova nem rejeita. Registra uma Evidence com `triagem: fora_da_trilha` e o trecho que sai do texto, sem a propriedade `veredito`, para ela não virar o veredito vigente da tarefa nem entrar na contagem da medição. O condutor marca `trilha: completa` na Task (por `propor_patch`) e despacha o `graphow-revisor` com o mesmo Artifact; o veredito que vale é o dele.
 
+## A revisão de escopo
+
+Quando o placar da vista do Goal lista "Decisões sem veredito de escopo", o condutor despacha o `graphow-revisor` uma vez por raiz, no máximo três por rodada, todas numa mensagem só e em primeiro plano:
+
+    Alvo: <id da raiz: a Decision, Task, Evidence ou Question de onde a cadeia de motivada_por parte>
+    Goal: <id do Goal>
+    Sessao: <id>
+
+A linha `Alvo:` no lugar de `Artifact:` é o que diz ao revisor que a revisão é de escopo. Ele julga a decisão junto das Tasks que ela gerou contra as Constraints `criterio_aceite` e `fronteira` do Goal, e devolve:
+
+    ESCOPO: cabe | nao_cabe | parcial
+    Alvo: <id da raiz>
+    Evidence: <id do veredito de escopo>
+    Tasks: <ids que cabem> | <ids que não cabem>
+    Resumo: <no máximo três linhas: o critério que a raiz atende ou a fronteira que cruza>
+
+A Evidence do veredito de escopo tem `acao: veredito_de_escopo`, `deriva_de` para a raiz, e o parecer em `parecer_de_escopo` (não em `veredito`, que é o do fechamento da Task) com o `motivo`. O kernel a lê para tirar a raiz de "decisões sem veredito". O parecer não bloqueia Task alguma. O condutor relê o placar depois da revisão e devolve `Desvio:` já sem a raiz julgada, mais a linha `Revisao de escopo:`.
+
 ## O retorno do árbitro
 
     ARBITRAGEM: executada | escalada | nada_a_fazer
@@ -155,6 +181,8 @@ A Evidence do veredito deriva do Artifact e da Task, e cada critério não atend
     Constraints: <id> escopa <id do Goal ou da Task>
     Promovidos: <id do Aprendizado> -> <id do Setor ou do Projeto>
     Goal fechado: <id>
+    Plano aprovado: <id do Goal> v<n> (sem referencia humana)
+    Desvio respondido: <raiz ou Goal> -> <a resposta em uma linha>
     Posses liberadas: <id da Task> (era de <autor>)
     Sessoes encerradas: <ids>
     Decision: <ids>
@@ -169,6 +197,8 @@ A Evidence do veredito deriva do Artifact e da Task, e cada critério não atend
 | `nada_a_fazer` | a política não lhe entrega o gesto, ou não há o que decidir; a raiz volta à regra do humano para aquele gesto |
 | `Decision` | a Decision que sustenta a resposta nasceu sem `orienta`, que é do planejador: o condutor a lê na rodada seguinte e liga à Task se ela governa |
 | `Constraints`, `Goal fechado` | a raiz as conta ao humano na linha da rodada: são decisões que ele reverá |
+| `Plano aprovado` | o executor está destravado. A versão do árbitro não é referência do desvio; o `(sem referencia humana)` avisa que o Goal ainda não tem plano aprovado por humano, e a raiz o conta ao humano na linha da rodada |
+| `Desvio respondido` | a resposta aparece marcada no placar e não zera o contador do humano. A raiz o conta ao humano e não despacha o árbitro de novo para o mesmo gatilho |
 
 O árbitro devolve poucas linhas e o resto fica no grafo, como o do condutor. A raiz não lê a vista da Question para conferi-lo.
 
