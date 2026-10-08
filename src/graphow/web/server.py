@@ -40,7 +40,7 @@ from graphow.web.rest_propostas_controller import PropostasWebController
 from graphow.web.rest_simulation_controller import SimulationWebController
 from graphow.web.rest_timeline_controller import TimelineWebController
 from graphow.web.rotas_governanca import tratar_get_governanca, tratar_post_governanca, tratar_put_governanca
-from graphow.web.rotas_escopo import tratar_get_escopo
+from graphow.web.rotas_escopo import tratar_get_escopo, tratar_post_escopo
 from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizado, tratar_post_promocao
 from graphow.web.rotas_propostas import tratar_get_propostas, tratar_post_decisao_de_proposta
 from graphow.reactive.engine import MotorReativo
@@ -94,7 +94,7 @@ class GraphowHTTPHandler(ManipuladorProtegido):
     def do_POST(self) -> None:
         """Despacha requisições POST para controladores de mutação, simulação e memória."""
         caminho = urllib.parse.urlparse(self.path).path
-        if tratar_post_governanca(self, caminho):
+        if tratar_post_governanca(self, caminho) or tratar_post_escopo(self, caminho):
             return
         rotas: Mapping[str, Callable[[Mapping[str, Any]], None]] = {
             "/api/nodes": self._tratar_post_node,
@@ -337,7 +337,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.sim_ctrl: SimulationWebController = SimulationWebController(kernel)
         self.memoria_ctrl: MemoriaWebController = MemoriaWebController(kernel, self.identidade)
         self.propostas_ctrl: PropostasWebController = PropostasWebController(kernel, self.identidade)
-        self.escopo_ctrl: EscopoWebController = EscopoWebController(kernel)
+        self.escopo_ctrl: EscopoWebController = EscopoWebController(kernel, self.identidade)
         self.governanca_ctrl: GovernancaWebController = GovernancaWebController(kernel, self.identidade)
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()

@@ -23,6 +23,7 @@ import {
   montarLinhaDePropriedade, ordenarChaves, valoresIguais,
 } from "./propriedades_editor.js";
 import { montarSeloDoArbitro, rotuloDaResposta } from "./selo_do_arbitro.js";
+import { aprovarPlano, responderDesvio } from "./escopo_gestos.js";
 import { htmlDoEscopo, htmlDoEscopoIndisponivel } from "./escopo_modelo.js";
 import { formatarTextoDeLeitura } from "./texto_formatado.js";
 
@@ -324,6 +325,16 @@ export class InspectorView {
     const alvo = this.raiz.querySelector("[data-bloco=escopo]");
     if (!alvo || this.noRenderizado?.id !== no.id) return;
     alvo.innerHTML = resposta.sucesso ? htmlDoEscopo(resposta) : htmlDoEscopoIndisponivel(resposta.mensagem);
+  }
+
+  /** Um gesto de escopo (aprovar, responder) e, se o servidor o aceitou, o placar de depois no lugar do de antes. */
+  async gestoDeEscopo(gesto, formulario) {
+    const no = this.noRenderizado;
+    if (!no || no.tipo !== "Goal") return;
+    const placar = await gesto(no.id, this.state.currentBranch, formulario);
+    if (!placar || this.noRenderizado?.id !== no.id) return;
+    const alvo = this.raiz.querySelector("[data-bloco=escopo]");
+    if (alvo) alvo.innerHTML = htmlDoEscopo(placar);
   }
 
   /** Todo nó que pode ser origem de um aprendizado convida a registrá-lo dali. */
@@ -771,6 +782,8 @@ export class InspectorView {
       "remover-aresta": () => this.acoes.excluirAresta(selecao?.data),
       promover: () => this.acoes.promoverAprendizado(this.noRenderizado),
       "liberar-posse": () => this.acoes.liberarPosse(this.noRenderizado),
+      "aprovar-plano": () => this.gestoDeEscopo(aprovarPlano),
+      "responder-desvio": () => this.gestoDeEscopo(responderDesvio, alvo.closest("[data-escopo=responder]")),
       "registrar-aprendizado": () => this.acoes.registrarAprendizado({ origens: [this.noRenderizado.id], sessaoId: this.noRenderizado.sessao_id }),
     };
     tratadores[acao]?.();

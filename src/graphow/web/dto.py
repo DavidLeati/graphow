@@ -321,6 +321,16 @@ class RespostaPropostasWeb:
 
 
 @dataclass(frozen=True)
+class RequisicaoRespostaDeDesvio:
+    """DTO imutável de entrada da resposta do humano ao alerta de desvio de um Goal."""
+
+    id_goal: str
+    resposta: str
+    raiz: str | None = None
+    ramo_id: str = "main"
+
+
+@dataclass(frozen=True)
 class RequisicaoDecisaoDeProposta:
     """DTO imutável de entrada da decisão do humano: aceitar ou descartar uma proposta."""
 

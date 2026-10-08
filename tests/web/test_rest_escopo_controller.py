@@ -2,6 +2,9 @@
 
 from http import HTTPStatus
 
+from graphow.core.types import PapelAutor
+from graphow.web.dto import RequisicaoRespostaDeDesvio
+from graphow.web.identidade_web import IdentidadeSessaoWeb
 from graphow.web.rest_escopo_controller import EscopoWebController
 from tests.web.cenario_escopo import EMERGENTES, montar_kernel
 
@@ -46,3 +49,76 @@ def test_pedido_sem_goal_ou_para_no_que_nao_e_goal_e_recusado_edge_case() -> Non
     assert escopo.ler("nao-existe").status == HTTPStatus.NOT_FOUND
     recusa = escopo.ler("t-plano")
     assert recusa.status == HTTPStatus.NOT_FOUND and recusa.corpo["sucesso"] is False
+
+
+def test_aprovar_plano_congela_as_tasks_como_versao_do_humano_nominal() -> None:
+    """O gesto grava a versão 1 com o papel humano da identidade web e devolve o placar de depois."""
+    kernel = montar_kernel(com_plano=False, emergentes=0)
+    escopo = EscopoWebController(kernel, IdentidadeSessaoWeb(autor="ana", papel=PapelAutor.HUMANO))
+
+    resposta = escopo.aprovar_plano("goal-e")
+
+    assert resposta.status == HTTPStatus.OK and resposta.corpo["sucesso"] is True
+    assert resposta.corpo["plano_aprovado"] is True
+    assert resposta.corpo["referencia"]["papel"] == "humano"
+    planos = kernel.obter_view().obter_no("goal-e").obter_propriedade("planos")
+    assert [(p["versao"], p["aprovado_por"], p["papel"]) for p in planos] == [(1, "ana", "humano")]
+    assert resposta.corpo["recibo"]["versao"] == 1
+
+
+def test_aprovar_de_novo_acrescenta_a_versao_seguinte_edge_case() -> None:
+    """Caso de borda: cada aprovação é uma versão a mais, e a lista só cresce."""
+    kernel = montar_kernel(com_plano=False, emergentes=0)
+    escopo = EscopoWebController(kernel)
+
+    escopo.aprovar_plano("goal-e")
+    escopo.aprovar_plano("goal-e")
+
+    planos = kernel.obter_view().obter_no("goal-e").obter_propriedade("planos")
+    assert [p["versao"] for p in planos] == [1, 2]
+
+
+def test_responder_desvio_zera_o_contador_da_raiz_nominal() -> None:
+    """A resposta do humano à raiz que passou de K tira o gatilho e o veredito pendente dela."""
+    escopo = EscopoWebController(montar_kernel())
+
+    resposta = escopo.responder_desvio(RequisicaoRespostaDeDesvio("goal-e", "  Segue: o hub fica.  ", "d1"))
+
+    corpo = resposta.corpo
+    assert resposta.status == HTTPStatus.OK and corpo["sucesso"] is True
+    assert corpo["gatilhos_disparados"] == []
+    assert next(raiz for raiz in corpo["raizes"] if raiz["raiz"] == "d1")["contador_k"] == 0
+    assert corpo["recibo"]["versao_log"] > 0
+
+
+def test_responder_desvio_sem_texto_ou_com_raiz_inexistente_e_recusado_edge_case() -> None:
+    """Caso de borda: resposta vazia é 400 sem tocar o kernel; raiz que não é nó vem recusada pelo kernel (422)."""
+    escopo = EscopoWebController(montar_kernel())
+
+    vazia = escopo.responder_desvio(RequisicaoRespostaDeDesvio("goal-e", "   ", "d1"))
+    sem_raiz = escopo.responder_desvio(RequisicaoRespostaDeDesvio("goal-e", "ok", "fantasma"))
+
+    assert vazia.status == HTTPStatus.BAD_REQUEST
+    assert sem_raiz.status == HTTPStatus.UNPROCESSABLE_ENTITY and sem_raiz.corpo["sucesso"] is False
+    assert "fantasma" in sem_raiz.corpo["mensagem"]
+
+
+def test_gestos_em_alvo_que_nao_e_goal_voltam_400_e_404_edge_case() -> None:
+    """Caso de borda: sem Goal é 400, Goal inexistente ou de outro tipo é 404, para os dois gestos."""
+    escopo = EscopoWebController(montar_kernel())
+
+    assert escopo.aprovar_plano("").status == HTTPStatus.BAD_REQUEST
+    assert escopo.aprovar_plano("t-plano").status == HTTPStatus.NOT_FOUND
+    assert escopo.responder_desvio(RequisicaoRespostaDeDesvio("nao-existe", "ok")).status == HTTPStatus.NOT_FOUND
+
+
+def test_a_leitura_diz_o_que_o_proximo_aprovar_congela_nominal() -> None:
+    """Antes e depois de aprovar, a leitura traz a versão seguinte e a conta das Tasks de agora."""
+    escopo = EscopoWebController(montar_kernel())
+
+    antes = escopo.ler("goal-e").corpo["para_aprovar"]
+    escopo.aprovar_plano("goal-e")
+    depois = escopo.ler("goal-e").corpo["para_aprovar"]
+
+    assert antes == {"versao": 2, "tasks": 1 + EMERGENTES}
+    assert depois == {"versao": 3, "tasks": 1 + EMERGENTES}

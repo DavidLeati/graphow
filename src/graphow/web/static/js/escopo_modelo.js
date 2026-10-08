@@ -4,7 +4,10 @@
  * `linhas_de_desvio`), as mesmas linhas que o planejador lê na vista; aqui só
  * se decide o que destacar: o aviso de que o executor não assume Task de Goal
  * sem plano aprovado, os gatilhos disparados, as raízes que passaram de K e de
- * onde vem cada limiar. Testado por `node --test` em tests/web/js/escopo.test.mjs.
+ * onde vem cada limiar. Também escreve os dois gestos do humano: o botão "Aprovar
+ * plano" (sempre à mão) e o formulário "Responder ao desvio" (só quando há o que
+ * responder), e monta o corpo de cada POST. Testado por `node --test` em
+ * tests/web/js/escopo.test.mjs.
  */
 import { escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
@@ -40,6 +43,70 @@ export function totalDeGatilhos(dados) {
   return (dados.gatilhos_disparados || []).length;
 }
 
+/** Há alerta de desvio a responder: algum gatilho disparado ou alguma decisão que passou de K sem veredito de escopo. */
+export function precisaResponderDesvio(dados) {
+  const pendente = (dados.raizes || []).some((raiz) => raiz.veredito_pendente);
+  return totalDeGatilhos(dados) > 0 || (dados.sem_veredito || []).length > 0 || pendente;
+}
+
+/** A raiz que o formulário traz escolhida: a que mais gerou Tasks, ou nenhuma. */
+export function raizSugerida(dados) {
+  return raizesComDesvio(dados)[0]?.raiz || dados.raiz_que_mais_gerou || "";
+}
+
+/** A frase do botão de aprovar: o que ele congela e o que muda depois. */
+export function textoDoAprovar(dados) {
+  const alvo = dados.para_aprovar || {};
+  const tasks = alvo.tasks ?? 0;
+  const versao = alvo.versao ?? 1;
+  const quantas = tasks === 1 ? "a 1 Task atual" : `as ${tasks} Tasks atuais`;
+  return `Congela ${quantas} como a versão ${versao} do plano; ela vira a referência do desvio, e o que nascer depois conta como emergente.`;
+}
+
+/** O corpo do POST de aprovar o plano. */
+export function corpoDoAprovar(idGoal, ramo) {
+  return { goal: idGoal, ramo };
+}
+
+/** O corpo do POST de responder o desvio; a raiz vazia vai como ausente, e a resposta sem espaços nas pontas. */
+export function corpoDaResposta(idGoal, ramo, resposta, raiz) {
+  const corpo = { goal: idGoal, ramo, resposta: (resposta || "").trim() };
+  if (raiz) corpo.raiz = raiz;
+  return corpo;
+}
+
+/** A resposta do desvio é obrigatória: texto não vazio. */
+export function respostaValida(resposta) {
+  return (resposta || "").trim().length > 0;
+}
+
+function htmlDoGestoDeAprovar(dados) {
+  return `<div class="bloco-campo mod-coluna" data-escopo="aprovar">
+      <button class="botao mod-pequeno" data-acao="aprovar-plano">${icone("check", { tamanho: 14 })} Aprovar plano</button>
+      <div class="bloco-nota">${escapeHtml(textoDoAprovar(dados))}</div>
+    </div>`;
+}
+
+function htmlDasOpcoesDeRaiz(dados) {
+  const escolhida = raizSugerida(dados);
+  const raizes = raizesComDesvio(dados).map((raiz) => {
+    const marcada = raiz.raiz === escolhida ? " selected" : "";
+    return `<option value="${escapeHtml(raiz.raiz)}"${marcada}>${escapeHtml(raiz.raiz)} (${raiz.emergentes} emergentes)</option>`;
+  });
+  return [`<option value=""${escolhida ? "" : " selected"}>Nenhuma decisão: o Goal todo</option>`, ...raizes].join("");
+}
+
+function htmlDoFormularioDeDesvio(dados) {
+  if (!precisaResponderDesvio(dados)) return "";
+  return `<div class="bloco-campo mod-coluna" data-escopo="responder">
+      <span class="bloco-campo-rotulo">${icone("corner-down-right", { tamanho: 14 })} Responder ao desvio</span>
+      <textarea class="entrada mod-area" data-escopo-resposta rows="3" placeholder="O que se decide diante das Tasks novas (obrigatório)."></textarea>
+      <select class="seletor mod-pequeno" data-escopo-raiz aria-label="Decisão a que a resposta se refere">${htmlDasOpcoesDeRaiz(dados)}</select>
+      <button class="botao mod-pequeno" data-acao="responder-desvio">Responder ao desvio</button>
+      <div class="bloco-nota">A resposta zera o contador da decisão escolhida e o do Goal; sem decisão, só o do Goal.</div>
+    </div>`;
+}
+
 function htmlDoAviso(dados) {
   if (dados.plano_aprovado) return "";
   return `<div class="chamada mod-alerta" data-escopo="sem-plano">${icone("lock", { tamanho: 14 })}<span>${escapeHtml(AVISO_SEM_PLANO)}</span></div>`;
@@ -67,7 +134,7 @@ function htmlDasRaizes(dados) {
   return `<div class="bloco-campo mod-coluna"><span class="bloco-campo-rotulo">${icone("route", { tamanho: 14 })} Decisões que mais geraram Tasks</span>${raizes.map(htmlDaRaiz).join("")}</div>`;
 }
 
-/** O bloco inteiro: aviso de travamento, as linhas do placar, os gatilhos, as raízes e os limiares. */
+/** O bloco inteiro: aviso de travamento, as linhas do placar, os gatilhos, as raízes, os limiares e os dois gestos. */
 export function htmlDoEscopo(dados) {
   const linhas = (dados.linhas || []).map((linha) => `<li>${escapeHtml(linha)}</li>`).join("");
   return `
@@ -78,6 +145,8 @@ export function htmlDoEscopo(dados) {
       ${htmlDosGatilhos(dados)}
       ${htmlDasRaizes(dados)}
       <div class="bloco-nota">Limiares: ${escapeHtml(textoDosLimiares(dados.limiares))}</div>
+      ${htmlDoGestoDeAprovar(dados)}
+      ${htmlDoFormularioDeDesvio(dados)}
     </div>`;
 }
 
