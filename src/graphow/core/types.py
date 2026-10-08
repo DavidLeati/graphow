@@ -50,6 +50,14 @@ class TipoAresta(str, Enum):
     # numa sessão posterior à da Task não chegava à vista de quem a executa,
     # e o revisor não subia da Task às decisões que a escopam.
     ORIENTA = "orienta"
+    # O escopo governado (ontologia 1.5.0): cada Task diz de que decisão ou
+    # achado nasceu, e o que é acompanhamento, integração ou reversão aponta o
+    # que acompanha, integra ou desfaz. Sem elas, o trabalho fora do plano
+    # aprovado não tinha de quem ser debitado.
+    MOTIVADA_POR = "motivada_por"
+    ACOMPANHA = "acompanha"
+    INTEGRA = "integra"
+    DESFAZ = "desfaz"
 
 
 class PapelAutor(str, Enum):

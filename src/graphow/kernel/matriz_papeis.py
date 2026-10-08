@@ -166,6 +166,14 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     # tarefa a decisão que a governa, ou pendurar a sua no Goal inteiro. O
     # executor devolve a decisão que tomou; o planejador julga se ela governa.
     TipoAresta.ORIENTA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=HUMANO_E_PLANEJADOR),
+    # As arestas do escopo governado dizem de onde o trabalho veio. O planejador
+    # as cria ao decompor, e o executor, que só devolve o que fez, não as cria:
+    # senão ligaria a própria Task a um critério para fugir do plano. Retirar o
+    # vínculo desfaz a prova de origem, então é só do humano.
+    TipoAresta.MOTIVADA_POR: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
+    TipoAresta.ACOMPANHA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
+    TipoAresta.INTEGRA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
+    TipoAresta.DESFAZ: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
 }
 
 # Arestas cujo dono, além da tabela por papel, é decidido por um gesto da

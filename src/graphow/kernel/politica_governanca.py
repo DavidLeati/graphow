@@ -8,12 +8,12 @@ O RoleGate (`gestos_de_no.py`, `permissao_de_aresta.py`), a autorização do MCP
 vistas e o motor reativo leem a política por aqui.
 """
 
+from graphow.core.composicao_governanca import compor_mais_restritiva
 from graphow.core.governanca import (
     ID_GOVERNANCA_GLOBAL,
     PROPRIEDADE_GOVERNANCA_DO_PROJETO,
     PROPRIEDADE_NIVEL_AUTONOMIA,
     PoliticaGovernanca,
-    compor_mais_restritiva,
     compor_politica_do_projeto,
     compor_politica_global,
 )

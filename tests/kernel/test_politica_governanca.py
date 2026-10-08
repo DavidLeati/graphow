@@ -44,7 +44,7 @@ def _global(**propriedades: Any) -> NoGrafo:
 def test_sem_no_global_vale_governanca_maxima_nominal() -> None:
     """Grafo sem `governanca-global` resolve para governança máxima."""
     politica = resolver_politica_global(GrafoEstado())
-    assert all(politica.valor(gesto) in ("humano", "estrito", 2) for gesto in Gesto)
+    assert all(politica.valor(gesto) in ("humano", "estrito", 2, 3, 5, 0) for gesto in Gesto)
     assert not politica.estrutura_ilimitada
 
 

@@ -18,12 +18,17 @@ Cada gesto da política efetiva carrega a origem do valor, para a UI mostrar de
 onde ele veio: `global`, `projeto`, `preset:<nome>` ou `legado:nivel_autonomia`.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
 from typing import Any
 
+from graphow.core.leituras_inteiras import (
+    LEITURAS_INTEIRAS,
+    MAX_CORRECOES_MAXIMO,
+    MAX_CORRECOES_MINIMO,
+)
 from graphow.core.types import PapelAutor
 
 ID_GOVERNANCA_GLOBAL: str = "governanca-global"
@@ -40,9 +45,6 @@ VALOR_ARBITRO: str = "arbitro"
 VALOR_EXECUTOR: str = "executor"
 VALOR_ESTRITO: str = "estrito"
 VALOR_ILIMITADO: str = "ilimitado"
-
-MAX_CORRECOES_MINIMO: int = 0
-MAX_CORRECOES_MAXIMO: int = 5
 
 ORIGEM_GLOBAL: str = "global"
 ORIGEM_PROJETO: str = "projeto"
@@ -67,6 +69,13 @@ class Gesto(str, Enum):
     INTEGRACAO = "integracao"
     MAX_CORRECOES = "max_correcoes"
     ACAO_EXTERNA = "acao_externa"
+    # Escopo governado: aprovar o plano que vira a referência do Goal, e
+    # responder ao placar quando o trabalho emergente passa dos limiares.
+    APROVAR_PLANO = "aprovar_plano"
+    RESPONDER_DESVIO = "responder_desvio"
+    LIMIAR_DESVIO_POR_RAIZ = "limiar_desvio_por_raiz"
+    LIMIAR_DESVIO_POR_GOAL = "limiar_desvio_por_goal"
+    TETO_EXPANSAO = "teto_expansao"
 
 
 class PresetGovernanca(str, Enum):
@@ -86,11 +95,14 @@ class PresetDoProjeto(str, Enum):
     PERSONALIZADA = "personalizada"
 
 
-# Gestos que se decidem por papel (humano ou árbitro). `estrutura`,
-# `max_correcoes` e `acao_externa` não são permissões ao árbitro: têm leitura
-# própria na política. A ação externa (a Task que entrega um gesto no mundo,
-# não um arquivo) é do humano ou do executor que tem as ferramentas para ela.
-GESTOS_COM_LEITURA_PROPRIA: frozenset[Gesto] = frozenset({Gesto.ESTRUTURA, Gesto.MAX_CORRECOES, Gesto.ACAO_EXTERNA})
+# Leituras inteiras (veja `core/leituras_inteiras.py`): o valor é um número.
+GESTOS_INTEIROS: frozenset[Gesto] = frozenset(Gesto(chave) for chave in LEITURAS_INTEIRAS)
+
+# Gestos que se decidem por papel (humano ou árbitro). `estrutura`, `acao_externa`
+# e as leituras inteiras não são permissões ao árbitro: têm leitura própria na
+# política. A ação externa (a Task que entrega um gesto no mundo, não um
+# arquivo) é do humano ou do executor que tem as ferramentas para ela.
+GESTOS_COM_LEITURA_PROPRIA: frozenset[Gesto] = frozenset({Gesto.ESTRUTURA, Gesto.ACAO_EXTERNA}) | GESTOS_INTEIROS
 GESTOS_POR_PAPEL: frozenset[Gesto] = frozenset(gesto for gesto in Gesto if gesto not in GESTOS_COM_LEITURA_PROPRIA)
 
 _VALORES_DE_PAPEL: frozenset[str] = frozenset({VALOR_HUMANO, VALOR_ARBITRO})
@@ -101,17 +113,24 @@ VALORES_ACEITOS: Mapping[Gesto, frozenset[str]] = MappingProxyType({
     Gesto.ACAO_EXTERNA: frozenset({VALOR_HUMANO, VALOR_EXECUTOR}),
 })
 
+_PADROES_INTEIROS: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
+    Gesto(chave): leitura.padrao for chave, leitura in LEITURAS_INTEIRAS.items()
+})
+
 _GOVERNANCA_MAXIMA: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
     **{gesto: VALOR_HUMANO for gesto in GESTOS_POR_PAPEL},
+    **_PADROES_INTEIROS,
     Gesto.ESTRUTURA: VALOR_ESTRITO,
-    Gesto.MAX_CORRECOES: 2,
     Gesto.ACAO_EXTERNA: VALOR_HUMANO,
 })
 
 _ARBITRAGEM_MAXIMA: Mapping[Gesto, ValorDeGesto] = MappingProxyType({
     **{gesto: VALOR_ARBITRO for gesto in GESTOS_POR_PAPEL},
+    **_PADROES_INTEIROS,
     Gesto.ESTRUTURA: VALOR_ILIMITADO,
-    Gesto.MAX_CORRECOES: 2,
+    # Responder o placar de desvio é o que mostra ao humano o quanto o trabalho
+    # se afastou do plano; nem a arbitragem máxima o tira dele.
+    Gesto.RESPONDER_DESVIO: VALOR_HUMANO,
     # A arbitragem entrega aos agentes tudo o que a política pode delegar, e a
     # ação externa vai ao executor, que a faz quando tem as ferramentas para ela.
     Gesto.ACAO_EXTERNA: VALOR_EXECUTOR,
@@ -171,6 +190,21 @@ class PoliticaGovernanca:
         """Reprovações em cadeia antes do teto: a de ordem `max_correcoes` já escala (profundidade_correcao + 1 >= max_correcoes)."""
         return int(self.valores[Gesto.MAX_CORRECOES])
 
+    @property
+    def limiar_desvio_por_raiz(self) -> int:
+        """K: Tasks emergentes de uma mesma raiz de cadeia a partir das quais o desvio dispara."""
+        return int(self.valores[Gesto.LIMIAR_DESVIO_POR_RAIZ])
+
+    @property
+    def limiar_desvio_por_goal(self) -> int:
+        """M: Tasks emergentes do Goal, desde o último zero do contador, a partir das quais o desvio dispara."""
+        return int(self.valores[Gesto.LIMIAR_DESVIO_POR_GOAL])
+
+    @property
+    def teto_expansao(self) -> int:
+        """Tasks emergentes admitidas até um `responder_desvio`; 0 desliga a recusa por contagem."""
+        return int(self.valores[Gesto.TETO_EXPANSAO])
+
 
 def _origem_de_preset(preset: PresetGovernanca) -> str:
     """Rótulo de origem dos valores que vêm de um preset fixo."""
@@ -198,17 +232,15 @@ def _como_gesto(chave: Any) -> Gesto | None:
 
 def _valor_eh_valido(gesto: Gesto, valor: Any) -> bool:
     """Confere o valor contra o domínio do gesto, sem aceitar booleano como inteiro."""
-    if gesto == Gesto.MAX_CORRECOES:
-        return isinstance(valor, int) and not isinstance(valor, bool) and (
-            MAX_CORRECOES_MINIMO <= valor <= MAX_CORRECOES_MAXIMO
-        )
+    if gesto in GESTOS_INTEIROS:
+        return LEITURAS_INTEIRAS[gesto.value].aceita(valor)
     return isinstance(valor, str) and valor in VALORES_ACEITOS[gesto]
 
 
 def _descrever_dominio(gesto: Gesto) -> str:
     """O domínio do gesto em texto, para a mensagem de recusa."""
-    if gesto == Gesto.MAX_CORRECOES:
-        return f"um inteiro de {MAX_CORRECOES_MINIMO} a {MAX_CORRECOES_MAXIMO}"
+    if gesto in GESTOS_INTEIROS:
+        return LEITURAS_INTEIRAS[gesto.value].descrever()
     return " ou ".join(f"'{valor}'" for valor in sorted(VALORES_ACEITOS[gesto]))
 
 
@@ -289,47 +321,6 @@ def _aplicar_legado(politica: PoliticaGovernanca, nivel_autonomia: Any) -> Polit
     if not _nivel_legado_eh_ilimitado(nivel_autonomia):
         return politica
     return _com_gestos(politica, {Gesto.ESTRUTURA: VALOR_ILIMITADO}, ORIGEM_LEGADO)
-
-
-def _mais_restritivo(gesto: Gesto, valores: Sequence[ValorDeGesto]) -> ValorDeGesto:
-    """O valor que menos entrega do gesto: humano, estrito ou o menor número de reprovações em cadeia.
-
-    Na `acao_externa`, o humano vence o executor, como vence o árbitro nos gestos por papel.
-    """
-    if gesto == Gesto.MAX_CORRECOES:
-        return min(int(valor) for valor in valores)
-    restritivo = VALOR_ESTRITO if gesto == Gesto.ESTRUTURA else VALOR_HUMANO
-    return restritivo if restritivo in valores else valores[0]
-
-
-def _projeto_que_restringiu(
-    gesto: Gesto,
-    valor: ValorDeGesto,
-    politicas: Sequence[tuple[str, PoliticaGovernanca]],
-) -> str:
-    """Origem `projeto:<id>` do primeiro Projeto, em ordem de id, cujo valor é o vencedor."""
-    id_projeto = next(id_projeto for id_projeto, politica in politicas if politica.valor(gesto) == valor)
-    return f"{PREFIXO_ORIGEM_PROJETO_RESTRITIVO}{id_projeto}"
-
-
-def compor_mais_restritiva(politicas_por_projeto: Mapping[str, PoliticaGovernanca]) -> PoliticaGovernanca:
-    """Política que vale para um nó contido por mais de um Projeto: em cada gesto, a mais restritiva.
-
-    O humano vence o árbitro e o executor, `estrito` vence `ilimitado` e vale o menor
-    `max_correcoes`. A origem do gesto aponta o Projeto que o restringiu, e no
-    empate o de menor id: a resposta não depende da ordem do mapa. Com um Projeto
-    só, é a política dele, sem mudar nem as origens.
-    """
-    if not politicas_por_projeto:
-        raise ValueError("Compor a política mais restritiva exige ao menos um Projeto")
-    ordenadas = sorted(politicas_por_projeto.items())
-    if len(ordenadas) == 1:
-        return ordenadas[0][1]
-    valores = {
-        gesto: _mais_restritivo(gesto, [politica.valor(gesto) for _, politica in ordenadas]) for gesto in Gesto
-    }
-    origens = {gesto: _projeto_que_restringiu(gesto, valor, ordenadas) for gesto, valor in valores.items()}
-    return PoliticaGovernanca(valores, origens)
 
 
 def _problemas_de_preset(valor: Any, aceitos: type[Enum]) -> list[str]:

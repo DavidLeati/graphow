@@ -38,7 +38,9 @@ ROTULO_DA_GOVERNANCA_GLOBAL: str = "Governanca global"
 
 CAMPO_CADENCIA: str = "cadencia"
 CAMPO_TETO_RODADAS: str = "teto_rodadas"
-CADENCIAS_ACEITAS: tuple[str, ...] = ("tarefa", "goal", "setor")
+# `desvio`: a orquestração devolve a palavra quando um gatilho de desvio do
+# escopo governado dispara, com o placar.
+CADENCIAS_ACEITAS: tuple[str, ...] = ("tarefa", "goal", "setor", "desvio")
 # Quando a skill graphow-gerente grava a definição da demanda: só depois da
 # aprovação do rascunho (o padrão, também quando a propriedade falta) ou a cada
 # confirmação do humano durante o alinhamento.

@@ -3,6 +3,7 @@
 import pytest
 
 from graphow.core.governanca import (
+    GESTOS_COM_LEITURA_PROPRIA,
     GESTOS_POR_PAPEL,
     ORIGEM_GLOBAL,
     ORIGEM_LEGADO,
@@ -22,6 +23,8 @@ from graphow.core.governanca import (
 from graphow.core.types import PapelAutor
 
 GESTOS_DE_PAPEL = sorted(GESTOS_POR_PAPEL, key=lambda gesto: gesto.value)
+# O `responder_desvio` é do humano nos dois presets fixos: não acompanha a arbitragem máxima.
+GESTOS_DELEGAVEIS = [gesto for gesto in GESTOS_DE_PAPEL if gesto != Gesto.RESPONDER_DESVIO]
 
 
 def _global_arbitragem() -> PoliticaGovernanca:
@@ -49,7 +52,8 @@ def test_preset_governanca_maxima_fixo_nominal() -> None:
 def test_preset_arbitragem_maxima_fixo_nominal() -> None:
     """O preset arbitragem máxima entrega todos os gestos ao árbitro e libera a estrutura."""
     politica = _global_arbitragem()
-    assert all(politica.valor(gesto) == "arbitro" for gesto in GESTOS_POR_PAPEL)
+    assert all(politica.valor(gesto) == "arbitro" for gesto in GESTOS_DELEGAVEIS)
+    assert politica.valor(Gesto.RESPONDER_DESVIO) == "humano"
     assert politica.estrutura_ilimitada
     assert politica.max_correcoes == 2
     assert {politica.origem(gesto) for gesto in Gesto} == {"preset:arbitragem_maxima"}
@@ -175,7 +179,7 @@ def test_permite_humano_sempre_nominal(gesto: Gesto) -> None:
             assert compor_politica_global({"preset": preset.value}).permite(gesto, PapelAutor.HUMANO)
 
 
-@pytest.mark.parametrize("gesto", GESTOS_DE_PAPEL)
+@pytest.mark.parametrize("gesto", GESTOS_DELEGAVEIS)
 def test_permite_arbitro_so_quando_a_politica_entrega_nominal(gesto: Gesto) -> None:
     """O árbitro pode o gesto sob arbitragem máxima e não pode sob governança máxima."""
     assert _global_arbitragem().permite(gesto, PapelAutor.ARBITRO)
@@ -189,8 +193,8 @@ def test_permite_demais_papeis_nunca_edge_case() -> None:
         assert not any(politica.permite(gesto, papel) for gesto in GESTOS_POR_PAPEL)
 
 
-@pytest.mark.parametrize("gesto", [Gesto.ESTRUTURA, Gesto.MAX_CORRECOES])
-def test_permite_nao_se_aplica_a_estrutura_e_max_correcoes_edge_case(gesto: Gesto) -> None:
+@pytest.mark.parametrize("gesto", sorted(GESTOS_COM_LEITURA_PROPRIA, key=lambda gesto: gesto.value))
+def test_permite_nao_se_aplica_aos_gestos_de_leitura_propria_edge_case(gesto: Gesto) -> None:
     """Caso de borda: perguntar permissão de papel por estes gestos é erro de quem chama."""
     with pytest.raises(ValueError, match="não se decide por papel"):
         politica_padrao().permite(gesto, PapelAutor.HUMANO)

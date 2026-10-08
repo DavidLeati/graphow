@@ -41,6 +41,10 @@ ARESTAS_DE_TRABALHO: frozenset[TipoAresta] = frozenset(
         TipoAresta.ESCOPA,
         TipoAresta.DERIVA_DE,
         TipoAresta.ORIENTA,
+        TipoAresta.MOTIVADA_POR,
+        TipoAresta.ACOMPANHA,
+        TipoAresta.INTEGRA,
+        TipoAresta.DESFAZ,
     }
 )
 

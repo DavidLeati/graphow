@@ -2,11 +2,11 @@
 
 import pytest
 
+from graphow.core.composicao_governanca import compor_mais_restritiva
 from graphow.core.governanca import (
     GESTOS_POR_PAPEL,
     Gesto,
     PoliticaGovernanca,
-    compor_mais_restritiva,
     compor_politica_do_projeto,
     compor_politica_global,
     politica_do_preset,
@@ -14,7 +14,8 @@ from graphow.core.governanca import (
 )
 from graphow.core.types import PapelAutor
 
-GESTOS_DE_PAPEL = sorted(GESTOS_POR_PAPEL, key=lambda gesto: gesto.value)
+# O `responder_desvio` já é do humano na arbitragem máxima, então não há o que restringir; veja test_governanca_escopo.
+GESTOS_DE_PAPEL = sorted((gesto for gesto in GESTOS_POR_PAPEL if gesto != Gesto.RESPONDER_DESVIO), key=lambda gesto: gesto.value)
 MAXIMA = politica_do_preset(PresetGovernanca.GOVERNANCA_MAXIMA)
 ARBITRAGEM = politica_do_preset(PresetGovernanca.ARBITRAGEM_MAXIMA)
 

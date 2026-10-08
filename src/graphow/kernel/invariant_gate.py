@@ -19,10 +19,21 @@ from graphow.kernel.patch_models import (
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 
 # Arestas que mudam o que uma Task é: do que depende, de onde vem, o que a
-# governa, o que a restringe e o que ela substitui. Numa Task travada, só o
-# dono do lock as cria ou remove.
+# governa, o que a restringe, o que ela substitui e, no escopo governado, o que
+# a motivou, acompanha, integra ou desfaz. Numa Task travada, só o dono do lock
+# as cria ou remove.
 ARESTAS_QUE_REDEFINEM_A_TAREFA: frozenset[TipoAresta] = frozenset(
-    {TipoAresta.DEPENDE_DE, TipoAresta.DECOMPOE, TipoAresta.ORIENTA, TipoAresta.ESCOPA, TipoAresta.SUBSTITUI}
+    {
+        TipoAresta.DEPENDE_DE,
+        TipoAresta.DECOMPOE,
+        TipoAresta.ORIENTA,
+        TipoAresta.ESCOPA,
+        TipoAresta.SUBSTITUI,
+        TipoAresta.MOTIVADA_POR,
+        TipoAresta.ACOMPANHA,
+        TipoAresta.INTEGRA,
+        TipoAresta.DESFAZ,
+    }
 )
 
 # A aresta que pendura cada tipo, dita na recusa. Os pares valem o que o

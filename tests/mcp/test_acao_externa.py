@@ -9,7 +9,8 @@ from typing import Any
 
 import pytest
 
-from graphow.core.governanca import Gesto, PresetGovernanca, VALOR_EXECUTOR, VALOR_HUMANO, compor_mais_restritiva, politica_do_preset
+from graphow.core.composicao_governanca import compor_mais_restritiva
+from graphow.core.governanca import Gesto, PresetGovernanca, VALOR_EXECUTOR, VALOR_HUMANO, politica_do_preset
 from graphow.core.types import PapelAutor, StatusTask
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP

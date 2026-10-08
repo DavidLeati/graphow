@@ -21,6 +21,7 @@ from graphow.kernel.forma_e_identidade import (
     validar_caminho,
     validar_identidade,
 )
+from graphow.kernel.pares_de_escopo import PARES_DE_ARESTAS_DO_ESCOPO
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -111,6 +112,7 @@ class SchemaGate:
             (TipoNo.APRENDIZADO, TipoNo.ARTIFACT),
             (TipoNo.APRENDIZADO, TipoNo.TASK),
         }),
+        **PARES_DE_ARESTAS_DO_ESCOPO,
     }
 
     def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:

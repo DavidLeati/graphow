@@ -31,7 +31,13 @@ from graphow.core.types import (
 # governança entrega os gestos que tira do humano.
 # 1.4.0: a localização de uma Evidence ganha a forma de fonte genérica
 # (`fonte`, `local`, `trecho`), para o fato que não mora num arquivo com linhas.
-VERSAO_ONTOLOGIA: str = "1.4.0"
+# 1.5.0: entra o escopo governado. As arestas `motivada_por`, `acompanha`,
+# `integra` e `desfaz` dizem de onde cada Task nasceu, o plano aprovado vira
+# propriedade do Goal (`planos`), e a política ganha os gestos `aprovar_plano` e
+# `responder_desvio` e as leituras `limiar_desvio_por_raiz`,
+# `limiar_desvio_por_goal` e `teto_expansao`. Os portões de escopo valem só
+# para eventos desta versão em diante.
+VERSAO_ONTOLOGIA: str = "1.5.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -68,4 +74,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "0d0a5e75ff80"
+ASSINATURA_DECLARADA: str = "bc9a37bf5d5d"
