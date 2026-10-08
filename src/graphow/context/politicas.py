@@ -25,10 +25,9 @@ from graphow.context.secoes import (
     PrioridadeRetencao,
     RecorteContexto,
     SecaoContexto,
-    formatar_no_com_propriedades,
-    formatar_no_em_linha,
     montar_secao_de_nos,
 )
+from graphow.context.restricoes_de_escopo import formatar_restricao, formatar_restricao_curta, ordenar_restricoes
 from graphow.context.vizinhanca import montar_secao_de_vizinhos
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.working_set import EscopoAtivo
@@ -155,8 +154,8 @@ class PoliticaBase(PoliticaContexto):
         Nunca filtrada pelo escopo ativo: uma restrição inviolável ignorada vira
         trabalho invalidado, e o recorte existe para poupar tokens, não garantias.
         """
-        restricoes = self._coletar_restricoes(alvo, ambiente.explorador)
-        linhas = tuple(formatar_no_com_propriedades(no) for no in restricoes)
+        restricoes = ordenar_restricoes(self._coletar_restricoes(alvo, ambiente.explorador))
+        linhas = tuple(formatar_restricao(no) for no in restricoes)
         ids = tuple(no.id for no in restricoes)
         return SecaoContexto(
             titulo="Restricoes Inviolaveis",
@@ -171,7 +170,7 @@ class PoliticaBase(PoliticaContexto):
                     rotulo="Constraint",
                     linhas=linhas,
                     ids=ids,
-                    linhas_curtas=tuple(formatar_no_em_linha(no) for no in restricoes),
+                    linhas_curtas=tuple(formatar_restricao_curta(no) for no in restricoes),
                 ),
             ),
             titulo_resumido="Restricoes Inviolaveis (resumidas: use expandir_no em cada uma antes de agir)",
