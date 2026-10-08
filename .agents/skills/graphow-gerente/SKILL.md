@@ -50,7 +50,7 @@ Quando o humano disser que a demanda está entendida, monte o rascunho e mostre-
 
     Demanda: <melhoria | projeto> — <os pontos afetados que justificam o tamanho>
     Goal: <rótulo curto> — <o que se quer, em uma ou duas frases; o quê, nunca o como>
-    Critérios de aceite:
+    Critérios de aceite (cada um vira uma Constraint `criterio_aceite`):
       - <verificável por quem não participou da conversa>
     Constraints:
       - <restrição inviolável e de onde ela vem>
@@ -60,8 +60,10 @@ Quando o humano disser que a demanda está entendida, monte o rascunho e mostre-
       - <o que sustenta uma decisão: trecho do chamado, regra informada pelo cliente>
     Em aberto:
       - <o que ainda falta e de quem depende, ou "nada">
-    Fora do escopo:
+    Fora do escopo (vira uma única Constraint `fronteira`):
       - <o que foi pedido ou cogitado e ficou de fora, e por quê>
+
+Os critérios de aceite e a fronteira são o que fecha o escopo do Goal: o trabalho que surgir depois só entra se atender a um deles, e o que não atender a nenhum vira proposta para o humano decidir. Por isso cada critério precisa ser verificável e independente dos outros (a Task que o atender o cita pelo id), e a fronteira precisa ser específica o bastante para o condutor reconhecer o que cruza dela. "Prova ao vivo" e o registro dela são critério do Goal quando o humano os quer, e entram no critério da Task que entrega, nunca numa Task própria.
 
 Separe o que é decisão do que é sugestão sua. Uma pendência que impede começar o trabalho segura a entrega à orquestração: diga qual é e de quem depende.
 
@@ -76,13 +78,50 @@ O humano muda o valor na aba Configurações do `graphow web`, no Projeto, junto
 
 **O que gravar**, com os nós produzidos pela Sessao em que você está (aresta `produz`, o id está na vista que o hook imprimiu):
 
-- o `Goal`, com `descricao` e `criterios_aceite` nas propriedades. Ele entra na hierarquia pela Sessao que o produz, e a Sessao pelo Setor que a contém: para um projeto grande, com Setor próprio, crie o Setor e uma Sessao dentro dele antes dos Goals;
-- cada `Constraint` com `escopa` para o Goal;
+- o `Goal`, com `descricao` nas propriedades. Ele entra na hierarquia pela Sessao que o produz, e a Sessao pelo Setor que a contém: para um projeto grande, com Setor próprio, crie o Setor e uma Sessao dentro dele antes dos Goals. O Goal não leva `criterios_aceite` nem `fora_do_escopo` em prosa: duas fontes divergem, e a vista do executor só mostra do Goal o rótulo;
+- cada critério de aceite numa `Constraint` própria com `tipo: criterio_aceite` e `escopa` para o Goal. O rótulo é o critério por extenso, verificável, e o id do nó é o que a Task emergente cita em `atende_criterio` (de preferência um id legível, como `crit-<goal>-1`);
+- o fora do escopo em UMA `Constraint` com `tipo: fronteira` e `escopa` para o Goal: o rótulo resume a fronteira e a propriedade `itens` lista, item a item, o que ficou de fora e por quê;
+- cada outra `Constraint` (restrição técnica, de segurança ou de negócio, sem `tipo`) com `escopa` para o Goal;
 - cada `Decision` com `orienta` para o Goal, para descer a toda a decomposição, e o motivo na propriedade `motivo`. A vista do executor mostra do Goal só o rótulo: o que ele precisa saber chega pela Decision que orienta o Goal, não pela conversa;
 - cada `Evidence` que sustenta uma decisão, com `justifica` para a Decision. Ela diz de onde veio o fato: `fonte` (o chamado, a URL, a reunião com data e participantes), `local` opcional (a interação, a página, o minuto) e o `trecho` literal; num arquivo com linhas, `arquivo`, `linhas` e `trecho`. Grave sempre o trecho: é ele que dá à Evidence autoridade de fato registrado, e a que cita `local` ou `linhas` sem ele o kernel recusa com `evidencia_sem_localizacao`;
-- o que ficou em aberto, na propriedade `em_aberto` do Goal, e o que ficou de fora, em `fora_do_escopo`.
+- o que ficou em aberto, na propriedade `em_aberto` do Goal.
 
-Antes de afirmar que gravou, confira com `ler_vista` no Goal. Se o kernel recusar o lote, mostre a recusa como veio e corrija; não contorne um portão.
+O lote do Goal com dois critérios e a fronteira, no `propor_patch`:
+
+```json
+{
+  "justificativa": "Goal de exportar o relatorio mensal, com criterios e fronteira como Constraint",
+  "operacoes": [
+    {"op": "add", "path": "/nos/goal-relatorio", "value": {"id": "goal-relatorio", "tipo": "Goal",
+      "rotulo": "Exportar o relatorio mensal", "propriedades": {"descricao": "O financeiro baixa o fechamento do mes em CSV."}}},
+    {"op": "add", "path": "/arestas/prod-goal-relatorio", "value": {"id": "prod-goal-relatorio",
+      "origem_id": "sess-01", "destino_id": "goal-relatorio", "tipo": "produz"}},
+    {"op": "add", "path": "/nos/crit-relatorio-1", "value": {"id": "crit-relatorio-1", "tipo": "Constraint",
+      "rotulo": "O CSV traz uma linha por conta contabil, com saldo em centavos",
+      "propriedades": {"tipo": "criterio_aceite"}}},
+    {"op": "add", "path": "/arestas/prod-crit-relatorio-1", "value": {"id": "prod-crit-relatorio-1",
+      "origem_id": "sess-01", "destino_id": "crit-relatorio-1", "tipo": "produz"}},
+    {"op": "add", "path": "/arestas/esc-crit-relatorio-1", "value": {"id": "esc-crit-relatorio-1",
+      "origem_id": "crit-relatorio-1", "destino_id": "goal-relatorio", "tipo": "escopa"}},
+    {"op": "add", "path": "/nos/crit-relatorio-2", "value": {"id": "crit-relatorio-2", "tipo": "Constraint",
+      "rotulo": "O botao de exportar some para quem nao tem o perfil financeiro",
+      "propriedades": {"tipo": "criterio_aceite"}}},
+    {"op": "add", "path": "/arestas/prod-crit-relatorio-2", "value": {"id": "prod-crit-relatorio-2",
+      "origem_id": "sess-01", "destino_id": "crit-relatorio-2", "tipo": "produz"}},
+    {"op": "add", "path": "/arestas/esc-crit-relatorio-2", "value": {"id": "esc-crit-relatorio-2",
+      "origem_id": "crit-relatorio-2", "destino_id": "goal-relatorio", "tipo": "escopa"}},
+    {"op": "add", "path": "/nos/front-relatorio", "value": {"id": "front-relatorio", "tipo": "Constraint",
+      "rotulo": "Fora do escopo do relatorio mensal",
+      "propriedades": {"tipo": "fronteira", "itens": ["Exportar em PDF: ninguem pediu", "Relatorio diario: outra demanda"]}}},
+    {"op": "add", "path": "/arestas/prod-front-relatorio", "value": {"id": "prod-front-relatorio",
+      "origem_id": "sess-01", "destino_id": "front-relatorio", "tipo": "produz"}},
+    {"op": "add", "path": "/arestas/esc-front-relatorio", "value": {"id": "esc-front-relatorio",
+      "origem_id": "front-relatorio", "destino_id": "goal-relatorio", "tipo": "escopa"}}
+  ]
+}
+```
+
+Cada Constraint também nasce produzida pela Sessao (o `produz` do lote): sem ele o nó ficaria fora da hierarquia e o lote cairia. Antes de afirmar que gravou, confira com `ler_vista` no Goal. Se o kernel recusar o lote, mostre a recusa como veio e corrija; não contorne um portão.
 
 ## 5. Entregar à orquestração
 
@@ -90,7 +129,11 @@ Com o Goal gravado e sem pendência que impeça começar, pergunte se segue para
 
 Instrução do humano que chegar durante a orquestração e mudar o combinado volta para você: registre a Decision nova com `substitui` sobre a antiga, para o histórico mostrar o que mudou e por quê, antes da próxima rodada.
 
-## 6. Revisar a entrega
+## 6. Propostas fora do Goal
+
+A descoberta que não atende a nenhum critério de aceite não vira Task: o condutor a deixa como `Note` com `acao: proposta_fora_do_goal` e `status: aberta`. Como você lê com papel humano, a vista do Projeto e a do Goal trazem a seção `Propostas Fora Do Goal`, que o planejador não vê. Leve-as ao humano na entrega de cada rodada e na revisão, cada uma com a origem e a sessão que a linha cita. Quem decide é ele, pela caixa de propostas do `graphow web` ou pedindo a você que grave `status: aceita` ou `descartada` na Note (`replace` em `/nos/<id>/propriedades/status`). Aceitar não cria Task: se o humano quer o trabalho dentro deste Goal, o caminho é um critério de aceite novo (Constraint `criterio_aceite`); se é outra demanda, é outro Goal, pelos passos 1 a 4.
+
+## 7. Revisar a entrega
 
 Quando o Goal fechar, ou quando o humano pedir, compare o que foi entregue com as Decisions, as Constraints e os critérios de aceite do Goal. Aponte cada divergência e o impacto dela. Não reabra uma decisão fechada sem motivo novo. Se a demanda veio de um solicitante, prepare a resposta de encerramento. Enviá-la é um gesto no mundo: quando ele fizer parte do Goal, é uma `Task` de `entrega: acao_externa`, que a política (`acao_externa`) deixa com o humano ou entrega ao executor.
 

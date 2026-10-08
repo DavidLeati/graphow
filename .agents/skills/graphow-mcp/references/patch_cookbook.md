@@ -161,6 +161,72 @@ Página web, PDF, conversa: o ponteiro é `fonte` (a URL, o documento, ou a conv
 
 A `Decision` que essa leitura sustenta se liga como na receita anterior, por `justifica` e `orienta`.
 
+## planejador: Task emergente com a ligação de escopo
+
+Depois que o humano aprovou o plano do Goal, a Task nova diz de que nasceu. A emergente liga `motivada_por` ao que a motivou (aqui, a Evidence do achado) e leva `atende_criterio` com o id da Constraint `criterio_aceite` do Goal que ela atende; ela entra na hierarquia por `decompoe` e na sessão por `produz`. O `criar_tarefa` não recebe essas duas ligações, então a Task emergente vai por `propor_patch`. Sem um critério que ela atenda, não é Task: é proposta (receita seguinte).
+
+```json
+{
+  "justificativa": "Task emergente: o achado mostra que o CSV perde o saldo negativo, criterio crit-relatorio-1",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/task-saldo-negativo",
+      "value": {
+        "id": "task-saldo-negativo",
+        "tipo": "Task",
+        "rotulo": "Exportar o saldo negativo com sinal no CSV",
+        "propriedades": {
+          "status": "pendente",
+          "descricao": "A exportacao descarta o sinal dos saldos negativos (ver a Evidence).",
+          "criterio_pronto": "Atende crit-relatorio-1: o CSV de teste com saldo de -150,00 traz -15000 na coluna de saldo; pytest tests/exportacao -q passa",
+          "atende_criterio": "crit-relatorio-1"
+        }
+      }
+    },
+    {"op": "add", "path": "/arestas/prod-task-saldo-negativo", "value": {"id": "prod-task-saldo-negativo", "origem_id": "sess-01", "destino_id": "task-saldo-negativo", "tipo": "produz"}},
+    {"op": "add", "path": "/arestas/dec-task-saldo-negativo", "value": {"id": "dec-task-saldo-negativo", "origem_id": "goal-relatorio", "destino_id": "task-saldo-negativo", "tipo": "decompoe"}},
+    {"op": "add", "path": "/arestas/mot-task-saldo-negativo", "value": {"id": "mot-task-saldo-negativo", "origem_id": "task-saldo-negativo", "destino_id": "evi-saldo-sem-sinal", "tipo": "motivada_por"}}
+  ]
+}
+```
+
+As outras ligações seguem o mesmo molde, só mudando a aresta e o alvo: a correção usa a propriedade `corrige` com a Evidence rejeitada, o acompanhamento uma aresta `acompanha` para essa Evidence, a integração `integra` para a Task do mesmo Goal que tem Artifact, e a reversão `desfaz` para a Decision substituída. A Decision que o planejador cria depois do plano aprovado também leva `motivada_por`, para a cadeia "esta Decision gerou a Task, que gerou a Evidence, que gerou a Decision B" ter raiz.
+
+## planejador: proposta fora do Goal
+
+A descoberta que não atende a critério de aceite nenhum, ou que cruza a Constraint `fronteira`, vira uma Note, não uma Task nem uma Question. Ela nasce aberta (`status: aberta`, que também é o que vale na ausência), produzida pela sessão, e o humano a fecha com `aceita` ou `descartada`. O planejador não é dono de `deriva_de` (é de executor, revisor e humano), então o achado vai em `origens`; o executor e o revisor, que são donos, podem acrescentar a aresta `deriva_de` para a Evidence ou a Task.
+
+```json
+{
+  "justificativa": "Achado fora dos criterios do goal: vira proposta para o humano",
+  "operacoes": [
+    {
+      "op": "add",
+      "path": "/nos/prop-cache-leitura",
+      "value": {
+        "id": "prop-cache-leitura",
+        "tipo": "Note",
+        "rotulo": "Cachear a leitura do relatorio mensal",
+        "propriedades": {
+          "acao": "proposta_fora_do_goal",
+          "status": "aberta",
+          "corpo": "A leitura repete a consulta a cada exportacao; um cache reduziria o tempo, mas nenhum criterio pede isso e a fronteira deixa a performance de fora.",
+          "origens": ["evi-consulta-repetida"]
+        }
+      }
+    },
+    {"op": "add", "path": "/arestas/prod-prop-cache-leitura", "value": {"id": "prod-prop-cache-leitura", "origem_id": "sess-01", "destino_id": "prop-cache-leitura", "tipo": "produz"}}
+  ]
+}
+```
+
+O humano decide pela caixa de propostas do `graphow web` ou por um patch seu: `replace` em `/nos/prop-cache-leitura/propriedades/status` com `aceita` ou `descartada`. Aceitar não cria Task: o trabalho entra por um critério novo no Goal ou por outro Goal.
+
+## humano: critérios de aceite e fronteira do Goal
+
+Cada critério é uma Constraint com `tipo: criterio_aceite`, e o fora do escopo é uma só, com `tipo: fronteira`, todas com `escopa` para o Goal e `produz` da sessão. O lote completo, com o Goal, está na skill `graphow-gerente` (passo 4). A Task emergente cita o id do nó do critério, por isso vale um id legível.
+
 ## executor: começar o trabalho
 
 Não escreva `em_andamento` por patch. `assumir_tarefa(id_task)` toma a posse e move o status na mesma operação, e sem essa posse o InvariantGate recusa qualquer mudança de status sua com `posse_de_tarefa_ausente`.

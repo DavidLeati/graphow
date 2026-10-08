@@ -13,18 +13,18 @@ Camada de navegação, os contêineres:
 
 Camada de trabalho:
 
-- `Goal`: intenção de alto nível.
+- `Goal`: intenção de alto nível. Os critérios de aceite e o fora do escopo não são propriedades dele: são `Constraint` ligadas por `escopa` (ver `Constraint`). O plano aprovado fica na propriedade `planos`, que só cresce, e as respostas ao placar de desvio em `respostas_de_desvio`.
 - `Task`: unidade atribuível a um executor. A propriedade `entrega` diz o que ela produz: `artefato` (o padrão: arquivo, documento, dado) ou `acao_externa` (um gesto no mundo que não deixa arquivo, como enviar um e-mail, marcar uma reunião ou publicar). A de ação externa não leva `arquivos_alvo`, e quem a executa é o gesto `acao_externa` da política (ver "Status e ciclos de vida").
 - `Decision`: decisão registrada com o motivo: de desenho, de método, de critério.
 - `Question`: dúvida que bloqueia tarefa até a resposta do humano ou, conforme a política, do árbitro.
-- `Constraint`: restrição obrigatória de técnica, segurança ou escopo.
+- `Constraint`: restrição obrigatória de técnica, segurança ou escopo. Com `tipo: criterio_aceite` é um critério de aceite do `Goal` que a escopa (uma `Constraint` por critério, e o id do nó é o que a `Task` emergente cita em `atende_criterio`); com `tipo: fronteira` é o fora do escopo do `Goal`, uma só por Goal, com a lista em `itens`. Sem `tipo`, é restrição comum.
 - `Artifact`: entregável concreto, com `arquivos` (o que a entrega alterou: código, documento, planilha) e `resumo`. Na Task de ação externa vai sem `arquivos`, só com o `resumo` do gesto feito.
 - `Evidence`: dado empírico, medição, telemetria, prova ou trecho lido (de código, documento, página, conversa). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. Quando cita `linhas`, `local` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro, numa de duas formas: arquivo (`arquivo`, `linhas` como `120` ou `120-135`, e o `trecho` literal) ou fonte genérica (`fonte`, que é URL, documento ou conversa com data e participantes, `local` opcional e livre, como página, seção ou minuto, e o `trecho` literal). Sem isso, `evidencia_sem_localizacao`. `arquivo` ou `fonte` sozinhos seguem livres: é o caso do log de verificação e da prova de ação externa, que leva `fonte` e `resultado`.
 - `Run`: registro de execução e telemetria de invocação de modelo.
-- `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
+- `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada; com `acao: proposta_fora_do_goal`, a descoberta que não atende a critério de aceite algum, com `status` `aberta` (ausente conta como aberta), `aceita` ou `descartada`. Só o humano muda o `status` da proposta, e só ele a vê (vista de Projeto e de Goal, caixa de propostas da web). O planejador, que não é dono de `deriva_de`, põe os ids do achado na propriedade `origens`; executor e revisor usam a aresta `deriva_de`.
 - `Aprendizado`: memória de longo prazo, o que sobrevive ao projeto. O rótulo é a afirmação; `como_aplicar` diz o que fazer com ela. Nasce com `deriva_de` obrigatório e só alcança outros projetos quando o humano o promove.
 
-## As 13 arestas: pares válidos e donos
+## As 17 arestas: pares válidos e donos
 
 | Aresta | Origem para destino | Cria | Remove |
 | :--- | :--- | :--- | :--- |
@@ -41,6 +41,12 @@ Camada de trabalho:
 | `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | humano; árbitro, se a política lhe entrega `constraint` | humano; árbitro, idem |
 | `vale_para` | `Aprendizado`→`Projeto`, `Aprendizado`→`Setor` | humano; árbitro, se a política lhe entrega `promover_aprendizado` (e não o Aprendizado que ele registrou) | humano; árbitro, idem |
 | `orienta` | `Decision`→`Task`, `Decision`→`Goal` | humano, planejador | humano, planejador |
+| `motivada_por` | `Task`→`Decision`, `Task`→`Evidence`, `Task`→`Task`, `Task`→`Question`; `Decision`→`Decision`, `Decision`→`Evidence`, `Decision`→`Task`, `Decision`→`Question` | humano, planejador | humano |
+| `acompanha` | `Task`→`Evidence` (veredito `rejeitado`, com a `Decision` `aceite_apos_reprovacao`) | humano, planejador | humano |
+| `integra` | `Task`→`Task` (do mesmo `Goal`, com `Artifact`) | humano, planejador | humano |
+| `desfaz` | `Task`→`Decision` (já substituída por `substitui` ou revogada) | humano, planejador | humano |
+
+As quatro últimas linhas são o vocabulário do escopo governado (ontologia `1.5.0`): `motivada_por` é a origem de toda `Task` criada depois do plano aprovado, e `acompanha`, `integra` e `desfaz` a dão a correção, o acompanhamento, a integração e a reversão. Só o humano as remove. Entram entre as arestas que redefinem uma `Task` travada. A `Task` emergente leva `motivada_por` e a propriedade `atende_criterio` com o id da `Constraint` `criterio_aceite` do `Goal`; sem uma ligação aceita, `ligacao_de_escopo_ausente`.
 
 Num projeto cuja política tem `estrutura: ilimitado` (o que o `nivel_autonomia: ilimitado` legado vira, e o que a `arbitragem_maxima` fixa), a criação se amplia para todas as arestas menos `escopa` e `vale_para`, e para todos os tipos de nó menos `Constraint`, `Governanca` e `Projeto`. A remoção nunca se amplia: retirar um `bloqueia` exige o humano, ou o árbitro com `responder_questao`, em qualquer projeto. As colunas acima dizem o dono da tabela; o gesto da política só acrescenta quem pode, nunca tira.
 
@@ -74,7 +80,7 @@ Um `Aprendizado` nasce só com `deriva_de` no mesmo lote (`aprendizado_sem_orige
 
 `Sessao`: `ativa` ou `concluida`. Encerrar é do humano (`encerrar_sessao`, interface), do árbitro quando a política lhe entrega `encerrar_sessao`, ou do harness (hook de fim, sempre); ao encerrar, o grafo abre a Task de condensação.
 
-`Goal`: escrever `concluido` é o gesto `fechar_goal`, do humano ou do árbitro conforme a política.
+`Goal`: escrever `concluido` é o gesto `fechar_goal`, do humano ou do árbitro conforme a política. Aprovar uma versão do plano (propriedade `planos`) é o gesto `aprovar_plano`, e responder ao placar de desvio (`respostas_de_desvio`) é o `responder_desvio`; só a aprovação e a resposta de `humano` zeram o contador de desvio, e a referência do escopo é a última versão aprovada por `humano`.
 
 `Aprendizado` não tem status gravado: vigente ou substituído é derivado da aresta `substitui`, e contradito da aresta `contradiz`, como já se faz com `Decision`. `valido_ate`, quando presente, tira o aprendizado vencido da vista.
 
