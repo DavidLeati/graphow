@@ -53,11 +53,18 @@ def test_ler_global_sem_nada_gravado_traz_catalogo_e_governanca_maxima_nominal()
     assert resposta.status == HTTPStatus.OK
     assert corpo["declarada"] is False
     assert corpo["configuracao"] == {"preset": "governanca_maxima", "personalizada": {}}
-    assert set(corpo["politica_efetiva"].values()) == {"humano", "estrito", 2}
+    assert set(corpo["politica_efetiva"].values()) == {"humano", "estrito", 2, 3, 5, 0}
+    assert corpo["politica_efetiva"]["limiar_desvio_por_raiz"] == 3
     gestos = {item["gesto"]: item for item in corpo["catalogo"]["gestos"]}
     assert gestos["estrutura"]["valores"] == ["estrito", "ilimitado"]
     assert gestos["max_correcoes"]["valores"] == [0, 1, 2, 3, 4, 5]
     assert all(item["descricao"] for item in gestos.values())
+    assert "minimo" not in gestos["estrutura"]
+    assert (gestos["max_correcoes"]["minimo"], gestos["max_correcoes"]["maximo"]) == (0, 5)
+    assert gestos["limiar_desvio_por_raiz"]["valores"] == []
+    assert (gestos["teto_expansao"]["minimo"], gestos["teto_expansao"]["maximo"], gestos["teto_expansao"]["padrao"]) == (0, 500, 0)
+    assert gestos["aprovar_plano"]["decide_por_papel"] and gestos["responder_desvio"]["decide_por_papel"]
+    assert not gestos["limiar_desvio_por_goal"]["decide_por_papel"]
     presets = {item["preset"]: item for item in corpo["catalogo"]["presets"]}
     assert presets["arbitragem_maxima"]["valores"]["excluir"] == "arbitro"
     assert presets["personalizada"]["fixo"] is False
@@ -215,6 +222,17 @@ def test_so_operacao_nao_regrava_a_configuracao_nominal() -> None:
     assert propriedades["governanca"] == props_antes["governanca"]
     assert propriedades["cadencia"] == "tarefa"
     assert resposta.corpo["configuracao"]["preset"] == "arbitragem_maxima"
+
+
+def test_cadencia_desvio_e_aceita_nominal() -> None:
+    """A cadência `desvio` é gravada e devolvida, e o catálogo a oferece."""
+    kernel, governanca = _montar()
+
+    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"cadencia": "desvio"}))
+
+    assert resposta.status == HTTPStatus.OK, resposta.corpo
+    assert kernel.obter_estado().nos["proj-01"].propriedades["cadencia"] == "desvio"
+    assert "desvio" in governanca.obter_global().corpo["catalogo"]["operacao"]["cadencia"]["valores"]
 
 
 def test_operacao_invalida_recusa_o_lote_inteiro_edge_case() -> None:

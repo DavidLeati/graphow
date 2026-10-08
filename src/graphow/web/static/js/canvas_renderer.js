@@ -10,6 +10,7 @@ const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 // por aresta, se o marcador existe custava uma busca na camada inteira a cada uma.
 const TIPOS_COM_MARCADOR = new Set([
   "contem", "bloqueia", "produz", "decompoe", "depende_de", "escopa", "justifica", "deriva_de", "orienta",
+  "motivada_por", "acompanha", "integra", "desfaz",
 ]);
 
 // Sem vista informada nao ha janela a respeitar: tudo cruza este retangulo.
@@ -101,6 +102,18 @@ export class CanvasRenderer {
         </marker>
         <marker id="arrow-orienta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
           <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#65a30d" />
+        </marker>
+        <marker id="arrow-motivada_por" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#d946ef" />
+        </marker>
+        <marker id="arrow-acompanha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#14b8a6" />
+        </marker>
+        <marker id="arrow-integra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#6366f1" />
+        </marker>
+        <marker id="arrow-desfaz" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f59e0b" />
         </marker>
       </defs>
     `;

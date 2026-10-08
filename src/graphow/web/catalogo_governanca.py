@@ -12,15 +12,15 @@ from types import MappingProxyType
 from typing import Any
 
 from graphow.core.governanca import (
+    GESTOS_INTEIROS,
     GESTOS_POR_PAPEL,
-    MAX_CORRECOES_MAXIMO,
-    MAX_CORRECOES_MINIMO,
     PRESETS_FIXOS,
     VALORES_ACEITOS,
     Gesto,
     PresetDoProjeto,
     PresetGovernanca,
 )
+from graphow.core.leituras_inteiras import LEITURAS_INTEIRAS
 from graphow.core.orquestracao import CAMPO_CAMINHOS_DE_COLISAO, CAMPO_RAMO_BASE
 from graphow.kernel.planejamento_governanca import (
     CADENCIAS_ACEITAS,
@@ -32,6 +32,9 @@ from graphow.kernel.planejamento_governanca import (
     TETO_DE_RODADAS_MINIMO,
     VALOR_HERDAR,
 )
+
+# Domínio inteiro até este tamanho vai como lista de opções; acima, a tela pede um número entre minimo e maximo.
+MAIOR_DOMINIO_EM_LISTA: int = 10
 
 DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.RESPONDER_QUESTAO: "Responder ou descartar uma dúvida aberta (Question)",
@@ -45,6 +48,11 @@ DESCRICOES_DOS_GESTOS: Mapping[Gesto, str] = MappingProxyType({
     Gesto.INTEGRACAO: "Quando a entrega é código num repositório: commitar e integrar no ramo base (merge local); o push segue humano",
     Gesto.MAX_CORRECOES: "Reprovações em cadeia antes do teto: a de ordem N já escala (2 = a original e a primeira correção)",
     Gesto.ACAO_EXTERNA: "Executar a tarefa que é um gesto no mundo, sem arquivo (enviar e-mail, marcar reunião): só o humano, ou também o executor, quando ele tem as ferramentas",
+    Gesto.APROVAR_PLANO: "Aprovar o plano de um Goal, que vira a referência do escopo: o trabalho que nasce depois precisa se ligar a ele",
+    Gesto.RESPONDER_DESVIO: "Responder ao alerta de desvio do plano; só a resposta do humano zera o contador do Goal",
+    Gesto.LIMIAR_DESVIO_POR_RAIZ: "Quantas Tasks emergentes uma mesma decisão gera antes de o desvio disparar (menor vale mais restrito)",
+    Gesto.LIMIAR_DESVIO_POR_GOAL: "Quantas Tasks emergentes o Goal acumula, desde a última resposta do humano, antes de o desvio disparar",
+    Gesto.TETO_EXPANSAO: "Tasks emergentes admitidas num Goal até um responder_desvio; acima disso o kernel recusa a Task nova. 0 desliga",
 })
 
 DESCRICOES_DOS_PRESETS: Mapping[str, str] = MappingProxyType({
@@ -81,13 +89,23 @@ def _descrever_gesto(gesto: Gesto) -> dict[str, Any]:
         "descricao": DESCRICOES_DOS_GESTOS[gesto],
         "decide_por_papel": gesto in GESTOS_POR_PAPEL,
         "valores": _valores_do_gesto(gesto),
+        **_dominio_inteiro(gesto),
     }
+
+
+def _dominio_inteiro(gesto: Gesto) -> dict[str, int]:
+    """Mínimo, máximo e padrão do gesto que é um número; vazio nos demais."""
+    if gesto not in GESTOS_INTEIROS:
+        return {}
+    leitura = LEITURAS_INTEIRAS[gesto.value]
+    return {"minimo": leitura.minimo, "maximo": leitura.maximo, "padrao": leitura.padrao}
 
 
 def _valores_do_gesto(gesto: Gesto) -> list[Any]:
     """Os valores aceitos do gesto, em ordem estável."""
-    if gesto == Gesto.MAX_CORRECOES:
-        return list(range(MAX_CORRECOES_MINIMO, MAX_CORRECOES_MAXIMO + 1))
+    if gesto in GESTOS_INTEIROS:
+        leitura = LEITURAS_INTEIRAS[gesto.value]
+        return list(range(leitura.minimo, leitura.maximo + 1)) if leitura.maximo <= MAIOR_DOMINIO_EM_LISTA else []
     return sorted(VALORES_ACEITOS[gesto])
 
 

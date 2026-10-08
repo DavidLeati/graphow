@@ -52,7 +52,15 @@ export function htmlDosCartoes({ catalogo, dados, global, ehProjeto, gravando })
   return `<div class="cfg-cartoes" role="radiogroup" aria-label="Preset de governança">${cartoes.join("")}</div>`;
 }
 
+function htmlDoCampoNumerico(linha, gravando) {
+  const herdaria = linha.herdaria === undefined ? "herdar" : `herdar (global: ${nomeDoValor(linha.gesto, linha.herdaria)})`;
+  const preenchido = linha.ehProjeto && !linha.sobrescrito ? "" : linha.valor;
+  const dica = linha.ehProjeto ? ` placeholder="${escapeHtml(herdaria)}" title="Vazio herda a política global"` : "";
+  return `<input class="entrada mod-numero mod-pequeno" type="number" step="1" min="${linha.minimo}" max="${linha.maximo}" data-gesto="${escapeHtml(linha.gesto)}" aria-label="${escapeHtml(linha.nome)}" value="${escapeHtml(preenchido ?? "")}"${dica} ${gravando ? "disabled" : ""}>`;
+}
+
 function htmlDoValorEditavel(linha, gravando) {
+  if (linha.numerico) return htmlDoCampoNumerico(linha, gravando);
   const herdaria = linha.herdaria === undefined ? "" : ` (global: ${nomeDoValor(linha.gesto, linha.herdaria)})`;
   const escolhido = (valor) => (linha.ehProjeto ? linha.sobrescrito : true) && linha.valor === valor;
   const opcoes = linha.valores.map((valor) => `<option value="${escapeHtml(valor)}" ${escolhido(valor) ? "selected" : ""}>${escapeHtml(nomeDoValor(linha.gesto, valor))}</option>`);

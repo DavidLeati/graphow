@@ -19,7 +19,7 @@ export const ARESTAS_ESTRUTURAIS = new Set(["produz", "contem", "ocorreu_em"]);
 // Nestes tipos quem está na origem depende de quem está no destino: o destino
 // vem antes, a montante. Nos demais é o contrário — quem bloqueia, orienta,
 // escopa, justifica ou decompõe age sobre o destino.
-const MONTANTE_QUANDO_ORIGEM = new Set(["depende_de", "deriva_de", "ocorreu_em", "substitui"]);
+const MONTANTE_QUANDO_ORIGEM = new Set(["depende_de", "deriva_de", "ocorreu_em", "substitui", "motivada_por", "acompanha", "integra", "desfaz"]);
 
 /**
  * Onde cada tipo se pendura no trabalho, em ordem de preferência: a aresta e o

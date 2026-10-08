@@ -57,6 +57,10 @@ const LEITURA_DAS_ARESTAS = {
   deriva_de: { saida: "deriva de", entrada: "origem de", descricao: "Proveniência de artefatos, notas e aprendizados" },
   vale_para: { saida: "vale para", entrada: "recebe o aprendizado", descricao: "Alcance de um aprendizado promovido pelo humano" },
   orienta: { saida: "orienta", entrada: "orientado por", descricao: "Decisão que vale para a tarefa ou o objetivo" },
+  motivada_por: { saida: "motivada por", entrada: "motivou", descricao: "De que decisão, achado, trabalho ou dúvida a tarefa nasceu" },
+  acompanha: { saida: "acompanha", entrada: "acompanhada por", descricao: "Tarefa que acompanha a reprovação aceita pelo árbitro" },
+  integra: { saida: "integra", entrada: "integrada por", descricao: "Tarefa que integra a entrega de outra" },
+  desfaz: { saida: "desfaz", entrada: "desfeita por", descricao: "Tarefa que desfaz uma decisão substituída ou revogada" },
 };
 
 export function lerAresta(tipo) {

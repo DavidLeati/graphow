@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 
 import {
   cartoesDoEscopo, corpoDoGesto, corpoDoPreset, listaDeCaminhos, linhasDaTabela, mensagemDeRecusa, nomeDoValor, operacaoDoFormulario,
-  rotuloDaOrigem, valorDoCatalogo,
+  ehGestoInteiro, pedeNumero, rotuloDaOrigem, valorDoCampoNumerico, valorDoCatalogo,
 } from "../../../src/graphow/web/static/js/configuracoes_modelo.js";
 import {
   htmlDaAuditoria, htmlDaNotaDaTabela, htmlDaOperacao, htmlDaTabela, htmlDosCartoes,
@@ -16,7 +16,8 @@ import {
 const CATALOGO = {
   gestos: [
     { gesto: "responder_questao", descricao: "Responder", valores: ["arbitro", "humano"] },
-    { gesto: "max_correcoes", descricao: "Correções", valores: [0, 1, 2, 3, 4, 5] },
+    { gesto: "max_correcoes", descricao: "Correções", valores: [0, 1, 2, 3, 4, 5], minimo: 0, maximo: 5, padrao: 2 },
+    { gesto: "teto_expansao", descricao: "Teto", valores: [], minimo: 0, maximo: 500, padrao: 0 },
   ],
   presets: [
     { preset: "governanca_maxima", descricao: "Tudo humano" },
@@ -157,4 +158,42 @@ test("a auditoria lista seq, autor e ids tocados, sem campo de justificativa", (
   assert.match(html, /data-ir="q1"/);
   assert.doesNotMatch(html, /justificativa/i);
   assert.match(htmlDaAuditoria({ sucesso: true, total: 0, eventos: [] }), /ainda não fez nenhum gesto/);
+});
+
+test("o catálogo distingue o gesto inteiro de lista curta do que pede um campo numérico", () => {
+  const [, correcoes, teto] = CATALOGO.gestos;
+  assert.equal(ehGestoInteiro(teto), true);
+  assert.equal(ehGestoInteiro(CATALOGO.gestos[0]), false);
+  assert.equal(pedeNumero(correcoes), false);
+  assert.equal(pedeNumero(teto), true);
+  assert.equal(pedeNumero(undefined), false);
+});
+
+test("o campo numérico respeita o domínio, e vazio só herda no projeto", () => {
+  const [, , teto] = CATALOGO.gestos;
+  assert.equal(valorDoCampoNumerico(teto, "40", false), 40);
+  assert.equal(valorDoCampoNumerico(teto, "0", true), 0);
+  assert.equal(valorDoCampoNumerico(teto, "501", false), undefined);
+  assert.equal(valorDoCampoNumerico(teto, "-1", false), undefined);
+  assert.equal(valorDoCampoNumerico(teto, "2,5", false), undefined);
+  assert.equal(valorDoCampoNumerico(teto, "  ", true), "herdar");
+  assert.equal(valorDoCampoNumerico(teto, "", false), undefined);
+});
+
+test("os gestos do escopo têm nome legível e o teto zero diz que está desligado", () => {
+  assert.equal(nomeDoValor("teto_expansao", 0), "Desligado");
+  assert.equal(nomeDoValor("teto_expansao", 12), "12 Tasks");
+  assert.equal(nomeDoValor("limiar_desvio_por_raiz", 1), "1 Task");
+  assert.equal(nomeDoValor("limiar_desvio_por_goal", 5), "5 Tasks");
+  const [, , teto] = linhasDaTabela(CATALOGO, PROJETO_PERSONALIZADO, true);
+  assert.equal(teto.numerico, true);
+  assert.equal(teto.minimo, 0);
+  assert.equal(teto.maximo, 500);
+});
+
+test("na tabela editável o gesto numérico vira campo com limites e o de lista segue select", () => {
+  const html = htmlDaTabela(linhasDaTabela(CATALOGO, PROJETO_PERSONALIZADO, true), false);
+  assert.match(html, /<input[^>]*type="number"[^>]*min="0"[^>]*max="500"[^>]*data-gesto="teto_expansao"/);
+  assert.match(html, /<select[^>]*data-gesto="max_correcoes"/);
+  assert.match(html, /placeholder="herdar/);
 });

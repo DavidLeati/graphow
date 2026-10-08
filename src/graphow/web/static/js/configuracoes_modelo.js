@@ -30,6 +30,11 @@ const NOMES_DOS_GESTOS = {
   integracao: "Integração",
   max_correcoes: "Reprovações em cadeia antes do teto",
   acao_externa: "Ações externas (sem arquivo)",
+  aprovar_plano: "Aprovar o plano do Goal",
+  responder_desvio: "Responder ao desvio do plano",
+  limiar_desvio_por_raiz: "Limiar de desvio por decisão",
+  limiar_desvio_por_goal: "Limiar de desvio por Goal",
+  teto_expansao: "Teto de expansão do Goal",
 };
 
 const NOMES_DOS_VALORES = {
@@ -54,8 +59,20 @@ export function nomeDoGesto(gesto) {
   return NOMES_DOS_GESTOS[gesto] || String(gesto).replace(/_/g, " ");
 }
 
+/** Um gesto cujo valor é um número: o catálogo o publica com `minimo` e `maximo`. */
+export function ehGestoInteiro(gesto) {
+  return Number.isInteger(gesto?.minimo) && Number.isInteger(gesto?.maximo);
+}
+
+/** O domínio grande vai como campo numérico; o pequeno (as reprovações) segue como lista de opções. */
+export function pedeNumero(gesto) {
+  return ehGestoInteiro(gesto) && !(gesto.valores || []).length;
+}
+
 export function nomeDoValor(gesto, valor) {
   if (gesto === "max_correcoes") return valor === 1 ? "1 reprovação" : `${valor} reprovações`;
+  if (gesto === "teto_expansao") return Number(valor) === 0 ? "Desligado" : `${valor} Tasks`;
+  if (gesto === "limiar_desvio_por_raiz" || gesto === "limiar_desvio_por_goal") return valor === 1 ? "1 Task" : `${valor} Tasks`;
   return NOMES_DOS_VALORES[valor] || String(valor);
 }
 
@@ -115,6 +132,9 @@ export function linhasDaTabela(catalogo, dados, ehProjeto) {
       nome: nomeDoGesto(chave),
       descricao: gesto.descricao,
       valores: gesto.valores,
+      numerico: pedeNumero(gesto),
+      minimo: gesto.minimo,
+      maximo: gesto.maximo,
       valor: dados?.politica_efetiva?.[chave],
       origem: dados?.origens?.[chave],
       editavel,
@@ -128,6 +148,17 @@ export function linhasDaTabela(catalogo, dados, ehProjeto) {
 /** O valor que o catálogo aceita a partir do texto de um `<option>`: o inteiro de `max_correcoes` volta como número. */
 export function valorDoCatalogo(valores, texto) {
   return (valores || []).find((valor) => String(valor) === String(texto));
+}
+
+/**
+ * O valor que o campo numérico digitou, dentro do domínio do catálogo; vazio é
+ * `herdar` no projeto, e o que não é inteiro do domínio volta `undefined`.
+ */
+export function valorDoCampoNumerico(gesto, texto, ehProjeto) {
+  const limpo = String(texto ?? "").trim();
+  if (limpo === "") return ehProjeto ? PRESET_HERDAR : undefined;
+  const numero = Number(limpo);
+  return Number.isInteger(numero) && numero >= gesto.minimo && numero <= gesto.maximo ? numero : undefined;
 }
 
 /** O corpo do PUT que troca de preset sem tocar a personalizada guardada. */

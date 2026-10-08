@@ -12,7 +12,7 @@ import { escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
 import { avisar } from "./modais.js";
 import {
-  camposDaOperacao, corpoDoGesto, corpoDoPreset, ESCOPO_GLOBAL, linhasDaTabela, mensagemDeRecusa, operacaoDoFormulario, valorDoCatalogo,
+  camposDaOperacao, corpoDoGesto, corpoDoPreset, ESCOPO_GLOBAL, linhasDaTabela, mensagemDeRecusa, operacaoDoFormulario, pedeNumero, valorDoCampoNumerico, valorDoCatalogo,
   PRESET_HERDAR,
 } from "./configuracoes_modelo.js";
 import {
@@ -104,7 +104,8 @@ export class ConfiguracoesView {
     const gesto = evento.target.closest("[data-gesto]");
     if (!gesto) return;
     const catalogado = this.catalogo?.gestos?.find((item) => item.gesto === gesto.dataset.gesto);
-    const valor = gesto.value === PRESET_HERDAR ? PRESET_HERDAR : valorDoCatalogo(catalogado?.valores, gesto.value);
+    const valor = pedeNumero(catalogado) ? valorDoCampoNumerico(catalogado, gesto.value, this.ehProjeto) : gesto.value === PRESET_HERDAR ? PRESET_HERDAR : valorDoCatalogo(catalogado?.valores, gesto.value);
+    if (valor === undefined) return this.render();
     this.gravar(corpoDoGesto(gesto.dataset.gesto, valor), "Gesto");
   }
 

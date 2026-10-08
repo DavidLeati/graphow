@@ -80,6 +80,10 @@
   --edge-deriva_de: #06b6d4;
   --edge-vale_para: #d97706;
   --edge-orienta: #65a30d;
+  --edge-motivada_por: #d946ef;
+  --edge-acompanha: #14b8a6;
+  --edge-integra: #6366f1;
+  --edge-desfaz: #f59e0b;
 
   /* Typography Stacks */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;

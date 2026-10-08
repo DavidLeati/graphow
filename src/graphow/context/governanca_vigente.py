@@ -21,6 +21,7 @@ from graphow.core.governanca import (
     PresetGovernanca,
     politica_padrao,
 )
+from graphow.core.leituras_inteiras import LEITURAS_INTEIRAS
 from graphow.core.types import TipoNo
 from graphow.kernel.politica_governanca import resolver_politica_do_no
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral
@@ -97,6 +98,21 @@ def _linha_de_correcoes(politica: PoliticaGovernanca) -> list[str]:
     return [f"- max_correcoes: {politica.max_correcoes} reprovacoes em cadeia antes do teto (a de ordem {politica.max_correcoes} escala)"]
 
 
+def _linha_de_escopo(politica: PoliticaGovernanca) -> list[str]:
+    """Diz os limiares de desvio e o teto de expansão que diferem do padrão, quando algum difere."""
+    escopo = (
+        Gesto.LIMIAR_DESVIO_POR_RAIZ,
+        Gesto.LIMIAR_DESVIO_POR_GOAL,
+        Gesto.TETO_EXPANSAO,
+    )
+    alterados = [
+        f"{gesto.value} {politica.valor(gesto)}"
+        for gesto in escopo
+        if politica.valor(gesto) != LEITURAS_INTEIRAS[gesto.value].padrao
+    ]
+    return [f"- escopo: {', '.join(alterados)}"] if alterados else []
+
+
 def _linha_de_acao_externa(politica: PoliticaGovernanca) -> list[str]:
     """Diz que o executor executa a Task de ação externa, quando a política a entrega a ele."""
     if not politica.acao_externa_com_executor:
@@ -115,6 +131,7 @@ def descrever_governanca(politica: PoliticaGovernanca) -> tuple[str, ...]:
         linhas.append(f"- com o arbitro: {_nomes(com_arbitro)}")
     linhas.extend(_linha_de_estrutura(politica))
     linhas.extend(_linha_de_correcoes(politica))
+    linhas.extend(_linha_de_escopo(politica))
     linhas.extend(_linha_de_acao_externa(politica))
     linhas.append(f"- sempre do humano: {SEMPRE_HUMANOS}")
     return tuple(linhas)
