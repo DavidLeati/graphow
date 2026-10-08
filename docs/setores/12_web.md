@@ -10,16 +10,16 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-27 módulos · 3352 linhas · 52 classes
+31 módulos · 3750 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`web/catalogo_governanca.py`](#webcatalogogovernanca) | 146 | O catálogo de governança publicado para a interface: gestos, valores aceitos e presets. |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
-| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 210 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
+| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 226 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 302 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 347 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
@@ -28,15 +28,19 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/ontologia_publica.py`](#webontologiapublica) | 44 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 119 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
 | [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 385 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_escopo_controller.py`](#webrestescopocontroller) | 128 | Controlador REST do escopo de um Goal: o placar e os dois gestos do humano, aprovar o plano e responder o desvio. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |
 | [`web/rest_lineage_controller.py`](#webrestlineagecontroller) | 37 | Controlador REST especializado no rastreamento de linhagem causal e proveniência. |
 | [`web/rest_memoria_controller.py`](#webrestmemoriacontroller) | 219 | Controlador REST da memória: o que o canvas mostra dela e o que o humano faz com ela. |
+| [`web/rest_propostas_controller.py`](#webrestpropostascontroller) | 110 | Controlador REST das propostas fora do Goal: a caixa do humano. |
 | [`web/rest_simulation_controller.py`](#webrestsimulationcontroller) | 57 | Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto. |
 | [`web/rest_timeline_controller.py`](#webresttimelinecontroller) | 76 | Controlador REST especializado na Timeline de eventos bitemporais e Replay Temporal. |
+| [`web/rotas_escopo.py`](#webrotasescopo) | 53 | As rotas HTTP do escopo (o placar e os dois gestos do humano), fora do roteador pelo mesmo motivo das de memória e propostas. |
 | [`web/rotas_governanca.py`](#webrotasgovernanca) | 138 | As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
-| [`web/server.py`](#webserver) | 382 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/rotas_propostas.py`](#webrotaspropostas) | 37 | As rotas HTTP da caixa de propostas fora do Goal, fora do roteador pelo mesmo motivo das da memória. |
+| [`web/server.py`](#webserver) | 391 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
@@ -127,6 +131,8 @@ Conversão pura de payloads JSON da interface nos DTOs de requisição.
 - `converter_registro_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoRegistroDeAprendizado` — Monta o registro de um aprendizado: origens sem vazios nem repetição, na ordem declarada.
 - `converter_promocao_de_aprendizado(payload: Mapping[str, Any]) -> RequisicaoPromocaoDeAprendizado` — Monta a promoção: um contêiner alvo, a marca global, ou os dois.
 - `serializar_memoria(resposta: RespostaMemoriaWeb) -> dict[str, Any]` — Converte a resposta do painel de memória, com os nós citados, em dicionário.
+- `converter_decisao_de_proposta(payload: Mapping[str, Any]) -> RequisicaoDecisaoDeProposta` — Monta a decisão do humano sobre uma proposta: o id e o status que ele escolheu.
+- `serializar_propostas(resposta: RespostaPropostasWeb) -> dict[str, Any]` — Converte a resposta da caixa de propostas, com as origens citadas, em dicionário.
 
 ## `web/desconexao_cliente.py`
 
@@ -176,6 +182,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `id_no: str`, `x: int`, `y: int`
 
+### `PropostaWeb`
+
+*DTO imutável* — Uma proposta fora do Goal à espera do humano: o que se propõe, de onde veio e em que Projeto.
+
+**Campos:** `id: str`, `rotulo: str`, `status: str`, `projeto_id: str | None`, `projeto_rotulo: str`, `origens: Sequence[NoCitadoWeb]`, `sessao_id: str | None`, `seq_criacao: int`, `autor: str`, `papel: str`
+
 ### `RequisicaoBusca`
 
 *DTO imutável* — DTO imutável de entrada da busca textual feita pela interface.
@@ -187,6 +199,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 *DTO imutável* — DTO imutável de entrada para criação de novo ramo a partir do log.
 
 **Campos:** `novo_ramo: str`, `ramo_origem: str`, `evento_id_ponto_corte: str | None`
+
+### `RequisicaoDecisaoDeProposta`
+
+*DTO imutável* — DTO imutável de entrada da decisão do humano: aceitar ou descartar uma proposta.
+
+**Campos:** `id_proposta: str`, `status: str`, `ramo_id: str`
 
 ### `RequisicaoEdicaoNo`
 
@@ -236,6 +254,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 **Campos:** `afirmacao: str`, `id_sessao: str`, `origens: Sequence[str]`, `como_aplicar: str`, `id_aprendizado: str | None`, `ramo_id: str`
 
+### `RequisicaoRespostaDeDesvio`
+
+*DTO imutável* — DTO imutável de entrada da resposta do humano ao alerta de desvio de um Goal.
+
+**Campos:** `id_goal: str`, `resposta: str`, `raiz: str | None`, `ramo_id: str`
+
 ### `RequisicaoSalvarLayout`
 
 *DTO imutável* — DTO imutável de entrada para persistir o arranjo visual do grafo.
@@ -259,6 +283,12 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 *DTO imutável* — DTO imutável de saída do painel de memória: os aprendizados e as sessões do ramo.
 
 **Campos:** `ramo_id: str`, `versao_log: int`, `aprendizados: Sequence[AprendizadoWeb]`, `sessoes: Sequence[SessaoDeMemoriaWeb]`, `sucesso: bool`
+
+### `RespostaPropostasWeb`
+
+*DTO imutável* — DTO imutável de saída da caixa de propostas: as abertas do ramo, do Projeto pedido ou de todos.
+
+**Campos:** `ramo_id: str`, `versao_log: int`, `propostas: Sequence[PropostaWeb]`, `sucesso: bool`
 
 ### `RespostaReciboWeb`
 
@@ -442,6 +472,18 @@ Controlador REST especializado para operações de leitura e mutação visual do
 
 **Campos:** `autor: str`, `papel: str`, `ramo_id: str`, `justificativa: str`
 
+## `web/rest_escopo_controller.py`
+
+Controlador REST do escopo de um Goal: o placar e os dois gestos do humano, aprovar o plano e responder o desvio.
+
+### `EscopoWebController`
+
+*serviço* — Lê o placar de escopo de um Goal do ramo e recebe do humano os gestos que o movem.
+
+- `ler(id_goal: str, ramo_id: str) -> RespostaHttpWeb` — O placar do Goal, se há plano aprovado e os limiares com a origem; 400 sem id, 404 sem Goal.
+- `aprovar_plano(id_goal: str, ramo_id: str) -> RespostaHttpWeb` — Congela as Tasks atuais do Goal como a próxima versão do plano; devolve o placar de depois.
+- `responder_desvio(req: RequisicaoRespostaDeDesvio) -> RespostaHttpWeb` — Grava a resposta do humano ao desvio, com a raiz quando ela é de uma decisão; devolve o placar de depois.
+
 ## `web/rest_fork_controller.py`
 
 Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural.
@@ -517,6 +559,17 @@ Controlador REST da memória: o que o canvas mostra dela e o que o humano faz co
 - `montar_operacoes_de_registro(id_aprendizado: str, req: RequisicaoRegistroDeAprendizado) -> tuple[ItemPatch, ...]` — O nó, o `produz` da sessão e uma aresta `deriva_de` por origem, como o MCP faz.
 - `montar_operacoes_de_promocao(req: RequisicaoPromocaoDeAprendizado, ja_promovido: bool) -> tuple[ItemPatch, ...]` — A marca global como propriedade e o alcance por contêiner como aresta.
 
+## `web/rest_propostas_controller.py`
+
+Controlador REST das propostas fora do Goal: a caixa do humano.
+
+### `PropostasWebController`
+
+*serviço* — Lê as propostas abertas para a caixa e recebe do humano a decisão sobre cada uma.
+
+- `listar(ramo_id: str, id_projeto: str | None) -> RespostaPropostasWeb` — As propostas abertas do ramo, as do Projeto quando ele é dado, na ordem do log.
+- `decidir(req: RequisicaoDecisaoDeProposta) -> RespostaReciboWeb` — Fecha a proposta aberta como aceita ou descartada, pelo kernel.
+
 ## `web/rest_simulation_controller.py`
 
 Controlador REST especializado na simulação de orçamentos de tokens e visualização de contexto.
@@ -538,6 +591,27 @@ Controlador REST especializado na Timeline de eventos bitemporais e Replay Tempo
 
 - `obter_eventos(ramo_id: str, autor: str | None, papel: str | None) -> list[dict[str, Any]]` — Recupera lista cronológica de eventos com filtros opcionais por autor e papel.
 - `obter_estado_na_versao(versao_alvo: int, ramo_id: str) -> DadosCanvasVisual` — Reconstrói o estado do grafo exatamente como existia na versão de log informada.
+
+## `web/rotas_escopo.py`
+
+As rotas HTTP do escopo (o placar e os dois gestos do humano), fora do roteador pelo mesmo motivo das de memória e propostas.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+| `CAMINHO_APROVAR_PLANO` | `str` | `'/api/escopo/aprovar_plano'` |
+| `CAMINHO_RESPONDER_DESVIO` | `str` | `'/api/escopo/responder_desvio'` |
+
+### `ManipuladorComEscopo` (Protocol)
+
+*serviço* — O que esta rota usa do manipulador HTTP: o servidor e a resposta JSON.
+
+**Campos:** `server: Any`
+
+### Funções do módulo
+
+- `tratar_get_escopo(manipulador: ManipuladorComEscopo, params: Mapping[str, list[str]]) -> None` — Publica o placar de escopo do Goal pedido em `goal`, no ramo de `ramo`.
+- `tratar_post_escopo(manipulador: ManipuladorComEscopo, caminho: str) -> bool` — Atende aprovar o plano e responder o desvio, sob a identidade do servidor; False se o caminho não é deles.
 
 ## `web/rotas_governanca.py`
 
@@ -587,6 +661,25 @@ As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um 
 - `tratar_get_memoria(manipulador: ManipuladorComMemoria, params: Mapping[str, list[str]]) -> None` — Publica os aprendizados e as sessões do ramo para o painel de memória.
 - `tratar_post_aprendizado(manipulador: ManipuladorComMemoria, payload: Mapping[str, Any]) -> None` — Registra um aprendizado sob a identidade fixada no servidor.
 - `tratar_post_promocao(manipulador: ManipuladorComMemoria, payload: Mapping[str, Any]) -> None` — Promove um aprendizado: o gesto humano que lhe dá alcance.
+
+## `web/rotas_propostas.py`
+
+As rotas HTTP da caixa de propostas fora do Goal, fora do roteador pelo mesmo motivo das da memória.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+
+### `ManipuladorComPropostas` (Protocol)
+
+*serviço* — O que estas rotas usam do manipulador HTTP: o servidor e as duas respostas padrão.
+
+**Campos:** `server: Any`
+
+### Funções do módulo
+
+- `tratar_get_propostas(manipulador: ManipuladorComPropostas, params: Mapping[str, list[str]]) -> None` — Publica as propostas abertas do ramo, as de um Projeto quando `projeto` vem na query.
+- `tratar_post_decisao_de_proposta(manipulador: ManipuladorComPropostas, payload: Mapping[str, Any]) -> None` — Aceita ou descarta uma proposta sob a identidade fixada no servidor.
 
 ## `web/server.py`
 

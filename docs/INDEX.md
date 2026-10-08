@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 207 módulos · 27834 linhas · 385 classes**
+**15 alas · 236 módulos · 32213 linhas · 436 classes**
 
 ---
 
@@ -59,18 +59,18 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 12 | 1325 | 38 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 24 | 4114 | 30 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 29 | 4654 | 33 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
-| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 16 | 2211 | 23 |
+| 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 23 | 3742 | 40 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
-| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 18 | 2546 | 31 |
+| 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 21 | 2820 | 32 |
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 282 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 15 | 1804 | 20 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
-| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 17 | 2593 | 26 |
-| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 11 | 1581 | 18 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 27 | 3352 | 52 |
-| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 19 | 3197 | 36 |
+| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 18 | 2801 | 28 |
+| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 11 | 1623 | 18 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3750 | 60 |
+| 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1702 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 

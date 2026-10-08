@@ -10,26 +10,27 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 
 ## Inventário
 
-17 módulos · 2593 linhas · 26 classes
+18 módulos · 2801 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`mcp/construcao_operacoes.py`](#mcpconstrucaooperacoes) | 71 | Construtores de operações JSON Patch reutilizados pelas ferramentas MCP. |
 | [`mcp/espera.py`](#mcpespera) | 85 | Relógio e política de espera do long-poll MCP, isolados para permitir teste. |
 | [`mcp/ferramentas_escalacao.py`](#mcpferramentasescalacao) | 153 | Ferramentas MCP do caminho de volta: da resposta humana até o agente. |
+| [`mcp/ferramentas_escopo.py`](#mcpferramentasescopo) | 116 | Ferramentas MCP do escopo governado: aprovar o plano de um Goal e responder ao alerta de desvio. |
 | [`mcp/ferramentas_exclusao.py`](#mcpferramentasexclusao) | 97 | Ferramentas MCP de exclusão, restritas a sessões humanas pela política de identidade. |
 | [`mcp/ferramentas_leitura.py`](#mcpferramentasleitura) | 145 | Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais. |
 | [`mcp/ferramentas_memoria.py`](#mcpferramentasmemoria) | 244 | Ferramentas MCP da memória em camadas: encerrar a sessão, registrar e promover aprendizados. |
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 162 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
-| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 235 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 249 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
-| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 128 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões. |
-| [`mcp/server.py`](#mcpserver) | 143 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
+| [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 240 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 253 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 179 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção, decisões e ligação de escopo. |
+| [`mcp/server.py`](#mcpserver) | 145 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 195 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
 | [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
-| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 317 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
+| [`mcp/tool_definitions.py`](#mcptooldefinitions) | 347 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
 ## `mcp/construcao_operacoes.py`
 
@@ -121,6 +122,28 @@ Ferramentas MCP do caminho de volta: da resposta humana até o agente.
 - `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de escalação aos seus executores.
 - `minhas_questoes(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Lista as dúvidas abertas por este autor, com resposta quando houver.
 - `aguardar_resposta(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Bloqueia até a dúvida ser encerrada pelo humano ou o prazo expirar.
+
+## `mcp/ferramentas_escopo.py`
+
+Ferramentas MCP do escopo governado: aprovar o plano de um Goal e responder ao alerta de desvio.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TENTATIVAS_COM_SEQ_FRESCO` | `int` | `3` |
+
+### `AcrescimoNoGoal`
+
+*DTO imutável* — Qual lista de qual Goal recebe a entrada nova, em que ramo e com que justificativa.
+
+**Campos:** `id_goal: str`, `campo: str`, `ramo_id: str`, `justificativa: str`
+
+### `FerramentasEscopo`
+
+*serviço* — Gestos `aprovar_plano` e `responder_desvio`, que o kernel reserva à política.
+
+- `obter_manipuladores() -> Mapping[str, Callable[[Mapping[str, Any]], dict[str, Any]]]` — Mapeia os nomes das ferramentas de escopo aos seus executores.
+- `aprovar_plano(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Grava a próxima versão do plano do Goal, com o `seq` do log de agora.
+- `responder_desvio(argumentos: Mapping[str, Any]) -> dict[str, Any]` — Grava a resposta ao alerta de desvio do Goal; com `raiz`, a dada àquela decisão.
 
 ## `mcp/ferramentas_exclusao.py`
 
@@ -288,12 +311,13 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 ## `mcp/orquestracao_tarefa.py`
 
-O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões.
+O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção, decisões e ligação de escopo.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CAMPO_DECISOES` | `str` | `'decisoes'` |
 | `CAMPO_TAREFA_PAI` | `str` | `'id_tarefa_pai'` |
+| `CAMPOS_DE_LIGACAO` | `tuple[tuple[str, TipoAresta, bool], ...]` | `(('motivada_por', TipoAresta.MOTIVADA_POR, True), ('acompanha', TipoAre…` |
 | `MODELO_FORA_DA_TRILHA_LEVE` | `str` | `'opus'` |
 
 ### Funções do módulo
@@ -302,6 +326,7 @@ O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arqui
 - `propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]` — As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma.
 - `arestas_de_orientacao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — Uma aresta `orienta` de cada Decision declarada para a Task nova.
 - `aresta_de_espera_da_correcao(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — A tarefa corrigida passa a depender da correção.
+- `arestas_de_ligacao_de_escopo(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]` — As arestas de `motivada_por`, `acompanha`, `integra` e `desfaz` que a Task nova declara.
 
 ## `mcp/server.py`
 

@@ -10,30 +10,35 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-24 módulos · 4114 linhas · 30 classes
+29 módulos · 4654 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 40 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
 | [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
-| [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 118 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
+| [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
+| [`kernel/execucao_sem_plano.py`](#kernelexecucaosemplano) | 54 | O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado). |
+| [`kernel/forma_do_escopo.py`](#kernelformadoescopo) | 191 | A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
+| [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 369 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 373 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 260 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
-| [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 26 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
+| [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 282 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 387 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 384 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 391 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 385 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
+| [`kernel/teto_de_expansao.py`](#kerneltetodeexpansao) | 61 | O teto de expansão (D6 do escopo governado): recusa por contagem, só quando a política liga. |
 | [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 120 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
 | [`kernel/veredito_reservado.py`](#kernelvereditoreservado) | 56 | A propriedade `veredito` de uma Evidence é de quem julga: revisor, humano ou árbitro. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
@@ -108,6 +113,7 @@ Hierarquia e origem conferidas no estado depois do lote, e não na lista de cria
 
 - `antever(proposta: PropostaPatch, estado: GrafoEstado) -> 'EstruturaAposLote'` — Aplica o lote inteiro sobre o estado, só para consulta.
 - `nos_fora_da_hierarquia() -> tuple[str, ...]` — Nós que o lote cria, ou de que o agente tira a contenção, e ficam sem pai.
+- `depois_no_log(proposta: PropostaPatch) -> GrafoEstado` — O estado depois do lote com os nós criados no fim do log e com a proveniência de quem propõe.
 - `aprendizados_sem_origem() -> tuple[str, ...]` — Aprendizados que o lote cria, ou de que o agente tira a origem, e ficam sem `deriva_de`.
 
 ## `kernel/execucao.py`
@@ -127,6 +133,56 @@ Registro do ciclo de vida de execução de um agente no log compartilhado.
 - `eh_de_ciclo_de_execucao() -> bool` `[property]` — Recusa qualquer tipo de evento que não pertença a este canal.
 - `montar_payload() -> dict[str, Any]` — Payload do evento, com o vínculo à sessão sempre presente.
 - `montar_evento(seq: int) -> EventoLog` — Constrói o evento numerado na posição informada do log.
+
+## `kernel/execucao_sem_plano.py`
+
+O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado).
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DO_STATUS` | `int` | `4` |
+| `CHAVE_DO_STATUS` | `str` | `'status'` |
+
+### Funções do módulo
+
+- `validar_plano_para_assumir(segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Recusa o executor que põe em andamento a Task de um Goal sem plano aprovado.
+
+## `kernel/forma_do_escopo.py`
+
+A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `AUSENTE` | `object` | `object()` |
+| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
+| `CHAVES_DO_PLANO` | `frozenset[str]` | `frozenset({'versao', 'seq', 'aprovado_por', 'papel'})` |
+| `CHAVES_OBRIGATORIAS_DA_RESPOSTA` | `frozenset[str]` | `frozenset({'seq', 'respondido_por', 'papel', 'resposta'})` |
+| `CHAVES_DA_RESPOSTA` | `frozenset[str]` | `CHAVES_OBRIGATORIAS_DA_RESPOSTA | {'raiz'}` |
+| `_CONFERENCIAS` | `Mapping[str, Callable[[LoteSobreLista, Any], ProblemaDeForma | None]]` | `{CAMPO_PLANOS: _conferir_plano, CAMPO_RESPOSTAS_DE_DESVIO: _conferir_re…` |
+
+### `DobraDoCampo`
+
+*serviço* — O valor de um campo de Goal antes e depois do lote, dobrando as operações na ordem em que vêm.
+
+- `alterados() -> dict[str, tuple[Any, Any]]` — Por Goal que o lote toca, o valor antes e o depois; só os que mudaram.
+- `aplicar(item: ItemPatch) -> None` — Dobra a operação: criação do Goal, escrita ou remoção do campo, remoção do nó.
+
+### `LoteSobreLista`
+
+*DTO imutável* — A lista de um Goal antes e depois do lote, e o que a entrada nova precisa dizer.
+
+**Campos:** `id_goal: str`, `campo: str`, `antes: list[Any]`, `depois: Any`, `proposta: PropostaPatch`, `estado: GrafoEstado`
+
+### `ProblemaDeForma`
+
+*DTO imutável* — O que está errado na lista, com o modo de falha que o diagnostica.
+
+**Campos:** `mensagem: str`, `modo: ModoFalhaMAST`
+
+### Funções do módulo
+
+- `validar_forma_do_escopo(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Recusa o lote que reescreve, encurta ou falsifica uma entrada de plano ou de resposta de desvio.
 
 ## `kernel/forma_e_identidade.py`
 
@@ -158,6 +214,19 @@ Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes 
 
 - `validar_caminho(item: ItemPatch, segmentos: tuple[str, ...]) -> ResultadoValidacao` — O caminho nomeia um nó ou uma aresta, numa forma que o log grava como ela é.
 - `validar_identidade(ctx: ContextoValidacaoNo, criados: CriadosNoLote) -> ResultadoValidacao` — O valor cria o elemento que o caminho nomeia, e esse id ainda não existe.
+
+## `kernel/gestos_de_escopo.py`
+
+Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEGMENTOS_DE_UMA_PROPRIEDADE` | `int` | `4` |
+| `GESTO_POR_CAMPO` | `Mapping[str, Gesto]` | `MappingProxyType({CAMPO_PLANOS: Gesto.APROVAR_PLANO, CAMPO_RESPOSTAS_DE…` |
+
+### Funções do módulo
+
+- `validar_escrita_de_escopo(ctx: ContextoPermissaoEdicao, gestos: GestosDeNo) -> ResultadoValidacao` — Exige o gesto do papel quando a operação escreve uma lista de escopo; depois aplica a regra D3.
 
 ## `kernel/gestos_de_no.py`
 
@@ -206,6 +275,19 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 *serviço* — Portão de validação de invariantes relacionais do grafo.
 
 - `validar(proposta: PropostaPatch, estado: GrafoEstado, locks_ativos: Mapping[str, str] | None) -> ResultadoValidacao` — Executa validação de invariantes de ciclo, questões bloqueantes e locks.
+
+## `kernel/ligacao_de_escopo.py`
+
+A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado).
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `EXEMPLO_DE_CRIAR_TAREFA` | `str` | `"criar_tarefa(titulo=..., id_sessao=..., motivada_por=['<id da Decision…` |
+| `TIPOS_CONFERIDOS` | `frozenset[TipoNo]` | `frozenset({TipoNo.TASK, TipoNo.DECISION})` |
+
+### Funções do módulo
+
+- `validar_escopo_das_tarefas(proposta: PropostaPatch, estrutura: EstruturaAposLote) -> ResultadoValidacao` — Confere as ligações de escopo das Tasks e Decisions que o lote cria e, ligado, o teto de expansão.
 
 ## `kernel/localizacao.py`
 
@@ -271,6 +353,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `HUMANO_E_AGENTES` | `frozenset[PapelAutor]` | `SO_HUMANO | TODOS_OS_PAPEIS_DE_AGENTE` |
 | `DONOS_POR_TIPO_DE_ARESTA` | `Mapping[TipoAresta, DonosDeAresta]` | `{TipoAresta.CONTEM: DonosDeAresta(adicao=SO_HUMANO | {PapelAutor.SISTEM…` |
 | `PARES_DO_GESTO_PROMOVER_APRENDIZADO` | `frozenset[tuple[TipoNo, TipoNo]]` | `frozenset({(TipoNo.APRENDIZADO, TipoNo.SETOR), (TipoNo.APRENDIZADO, Tip…` |
+| `HUMANO_E_REVISOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.REVISOR}` |
 | `DONOS_POR_PAR_DE_ARESTA` | `Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta]` | `{(TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosD…` |
 | `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA})` |
 
@@ -318,6 +401,7 @@ Pares de tipos das arestas do escopo governado, apartados para o SchemaGate cabe
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
+| `PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO` | `Set[tuple[TipoNo, TipoNo]]` | `frozenset({(TipoNo.EVIDENCE, TipoNo.DECISION), (TipoNo.EVIDENCE, TipoNo…` |
 | `PARES_DE_ARESTAS_DO_ESCOPO` | `Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]]` | `{TipoAresta.MOTIVADA_POR: frozenset({(TipoNo.TASK, TipoNo.DECISION), (T…` |
 
 ## `kernel/patch_models.py`
@@ -521,6 +605,14 @@ Descrição dos spans que o kernel emite a cada escrita aceita ou recusada.
 
 - `montar_span_de_patch(proposta: PropostaPatch, fato: FatoDeEscrita) -> DadosSpanDTO` — Descreve o span de uma submissão ao PatchBoard, aceita ou recusada.
 - `montar_span_de_execucao(pedido: PedidoDeExecucao, sucesso: bool) -> DadosSpanDTO` — Descreve o span de um fato de ciclo de vida vindo do harness.
+
+## `kernel/teto_de_expansao.py`
+
+O teto de expansão (D6 do escopo governado): recusa por contagem, só quando a política liga.
+
+### Funções do módulo
+
+- `validar_teto_de_expansao(proposta: PropostaPatch, estrutura: EstruturaAposLote, classificador: ClassificadorDeEscopo) -> ResultadoValidacao` — Recusa a Task B3 de agente que passaria do teto da política; sucesso quando ele está desligado.
 
 ## `kernel/veredito_de_fechamento.py`
 

@@ -10,23 +10,26 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-18 módulos · 2546 linhas · 31 classes
+21 módulos · 2820 linhas · 32 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 247 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
-| [`context/corte.py`](#contextcorte) | 94 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/corte.py`](#contextcorte) | 106 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
+| [`context/escopo_do_goal.py`](#contextescopodogoal) | 128 | A seção de escopo da vista: o placar do Goal, em versão curta na Task e na Sessão. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/governanca_vigente.py`](#contextgovernancavigente) | 148 | A governança vigente dita ao agente: o protocolo e as vistas leem a mesma política. |
-| [`context/materializer.py`](#contextmaterializer) | 210 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/materializer.py`](#contextmaterializer) | 221 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 83 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 348 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/politicas.py`](#contextpoliticas) | 347 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/propostas_fora_do_goal.py`](#contextpropostasforadogoal) | 65 | A seção de propostas fora do Goal, só na vista do humano. |
 | [`context/protocolo.py`](#contextprotocolo) | 127 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
-| [`context/secoes.py`](#contextsecoes) | 277 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
+| [`context/restricoes_de_escopo.py`](#contextrestricoesdeescopo) | 56 | A restrição como a vista a mostra: com o id, o `tipo` e os critérios de aceite à frente. |
+| [`context/secoes.py`](#contextsecoes) | 280 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
 | [`context/substituicao.py`](#contextsubstituicao) | 51 | Marcação de proveniência e de decisões substituídas nas linhas da vista. |
 | [`context/token_counter.py`](#contexttokencounter) | 40 | Fachada de contagem de tokens sobre o estimador calibrado corrente. |
 | [`context/tokenizacao.py`](#contexttokenizacao) | 113 | Estimadores de tokens atrás de uma interface, calibrados por classe de caractere. |
@@ -96,7 +99,8 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 | `_MAIS_DECISOES` | `frozenset[PrioridadeRetencao]` | `_APOIO | {PrioridadeRetencao.DECISOES}` |
 | `_MAIS_BLOQUEIOS` | `frozenset[PrioridadeRetencao]` | `_MAIS_DECISOES | {PrioridadeRetencao.BLOQUEIOS}` |
 | `_MAIS_NAVEGACAO` | `frozenset[PrioridadeRetencao]` | `_MAIS_BLOQUEIOS | {PrioridadeRetencao.NAVEGACAO, PrioridadeRetencao.MEM…` |
-| `_TUDO_MENOS_O_ALVO` | `frozenset[PrioridadeRetencao]` | `_MAIS_NAVEGACAO | {PrioridadeRetencao.RESTRICOES}` |
+| `_MAIS_ESCOPO` | `frozenset[PrioridadeRetencao]` | `_MAIS_NAVEGACAO | {PrioridadeRetencao.ESCOPO}` |
+| `_TUDO_MENOS_O_ALVO` | `frozenset[PrioridadeRetencao]` | `_MAIS_ESCOPO | {PrioridadeRetencao.RESTRICOES}` |
 
 ### `PlanoDeCorte`
 
@@ -109,6 +113,27 @@ Escada de degradação da vista sob pressão de orçamento, em uma tabela só.
 ### Funções do módulo
 
 - `montar_escada_de_corte() -> tuple[PlanoDeCorte, ...]` — Consulta pura: os degraus, do texto mais completo ao mais enxuto.
+
+## `context/escopo_do_goal.py`
+
+A seção de escopo da vista: o placar do Goal, em versão curta na Task e na Sessão.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_DA_SECAO_DE_ESCOPO` | `str` | `'Escopo Do Goal'` |
+| `TITULO_DA_SECAO_DE_PLANO` | `str` | `'Plano Do Goal'` |
+| `ORDEM_DE_EXIBICAO_DO_ESCOPO` | `int` | `1` |
+| `MAXIMO_DE_GOALS_NA_SESSAO` | `int` | `3` |
+| `PAPEIS_COM_PLACAR` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.HUMANO})` |
+| `AVISO_SEM_PLANO` | `str` | `'Plano: não aprovado — o executor não assume Tasks deste Goal até um ap…` |
+
+### Funções do módulo
+
+- `tem_plano_aprovado(view: GrafoView, id_goal: str) -> bool` — O Goal tem alguma versão de plano aprovada, de humano ou de árbitro: o que destrava o executor.
+- `limiares_da_politica(politica: PoliticaGovernanca) -> LimiaresDeDesvio` — K e M como a política os entrega.
+- `limiares_do_goal(view: GrafoView, id_goal: str) -> LimiaresDeDesvio` — K e M do Goal, como a política do Projeto que o contém os resolve.
+- `placar_do_goal(view: GrafoView, id_goal: str) -> PlacarDeEscopo` — O placar do Goal com os limiares da política.
+- `montar_secao_de_escopo(alvo: NoGrafo, view: GrafoView, papel: PapelAutor) -> SecaoContexto | None` — A seção de escopo que o papel lê no alvo; None quando o papel ou o alvo não a comportam.
 
 ## `context/exploracao.py`
 
@@ -323,6 +348,24 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 
 *serviço* — Revisor: os artefatos derivados do alvo, as evidências e as decisões que os escopam.
 
+## `context/propostas_fora_do_goal.py`
+
+A seção de propostas fora do Goal, só na vista do humano.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TITULO_DA_SECAO_DE_PROPOSTAS` | `str` | `'Propostas Fora Do Goal'` |
+| `ORDEM_DE_EXIBICAO_DAS_PROPOSTAS` | `int` | `8` |
+| `TIPOS_COM_SECAO_DE_PROPOSTAS` | `frozenset[TipoNo]` | `frozenset({TipoNo.PROJETO, TipoNo.GOAL})` |
+
+### `PoliticaHumano` (PoliticaPlanejador)
+
+*serviço* — Humano: lê como o planejador e, no Projeto e no Goal, vê também as propostas à espera dele.
+
+### Funções do módulo
+
+- `montar_secao_de_propostas(alvo: NoGrafo, ambiente: AmbienteDoRecorte) -> SecaoContexto` — As propostas abertas do Projeto, ou as que nasceram de uma Task do Goal; vazia para outro alvo.
+
 ## `context/protocolo.py`
 
 O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP.
@@ -367,6 +410,22 @@ Renderização em Markdown de um recorte de contexto sob orçamento de tokens.
 *DTO imutável* — Resultado imutável da renderização, já enquadrado no orçamento.
 
 **Campos:** `conteudo: str`, `tokens_estimados: int`, `secoes_incluidas: tuple[str, ...]`, `ids_incluidos: tuple[str, ...]`, `ids_por_secao: Mapping[str, tuple[str, ...]]`
+
+## `context/restricoes_de_escopo.py`
+
+A restrição como a vista a mostra: com o id, o `tipo` e os critérios de aceite à frente.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `_POSICAO_POR_TIPO` | `dict[str, int]` | `{CONSTRAINT_CRITERIO_ACEITE: 0, CONSTRAINT_FRONTEIRA: 1}` |
+| `_POSICAO_DAS_DEMAIS` | `int` | `2` |
+
+### Funções do módulo
+
+- `tipo_da_restricao(no: NoGrafo) -> str` — O `tipo` declarado na Constraint, sem espaços; vazio quando ela não declara.
+- `ordenar_restricoes(restricoes: Sequence[NoGrafo]) -> tuple[NoGrafo, ...]` — Critérios de aceite, depois a fronteira, depois as demais; a ordem de descoberta se mantém dentro de cada faixa.
+- `formatar_restricao(no: NoGrafo) -> str` — A restrição com id, `tipo` e as propriedades que sobram, em uma linha.
+- `formatar_restricao_curta(no: NoGrafo) -> str` — A forma resumida, que ainda carrega o id e o `tipo` para a citação.
 
 ## `context/secoes.py`
 

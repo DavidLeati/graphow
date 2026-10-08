@@ -10,14 +10,14 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-11 módulos · 1581 linhas · 18 classes
+11 módulos · 1623 linhas · 18 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_execucao.py`](#apicliexecucao) | 303 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
+| [`api/cli_execucao.py`](#apicliexecucao) | 320 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 242 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
-| [`api/cli_parser.py`](#apicliparser) | 364 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 389 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 115 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |

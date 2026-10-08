@@ -10,23 +10,32 @@ Corpus de tarefas gravadas e medição do tamanho da vista contra o despejo da s
 
 ## Inventário
 
-19 módulos · 3197 linhas · 36 classes
+28 módulos · 4583 linhas · 56 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`avaliacao/__init__.py`](#avaliacaoinit) | 47 | Harness de avaliação: mede o tamanho da vista contra o despejo da sessão sobre um corpus gravado. |
 | [`avaliacao/anonimizacao_log.py`](#avaliacaoanonimizacaolog) | 260 | Anonimização do log real para o corpus de regressão do escopo governado. |
 | [`avaliacao/cenario_entre_projetos.py`](#avaliacaocenarioentreprojetos) | 190 | Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa do segundo. |
+| [`avaliacao/cenario_expansao_lateral.py`](#avaliacaocenarioexpansaolateral) | 349 | O caso 14 para 121 da seção 2, montado pelos portões reais: a expansão lateral que o K pega antes da execução. |
 | [`avaliacao/cenario_memoria.py`](#avaliacaocenariomemoria) | 126 | Extensão do cenário gravado com a camada de memória: a sessão encerrada e condensada. |
 | [`avaliacao/corpus_escopo.py`](#avaliacaocorpusescopo) | 65 | Carrega o corpus anonimizado de escopo e o reconstrói por replay da projeção. |
 | [`avaliacao/entre_projetos.py`](#avaliacaoentreprojetos) | 160 | Braço entre projetos: um aprendizado do primeiro projeto chega à tarefa do segundo, e a que custo. |
 | [`avaliacao/escala.py`](#avaliacaoescala) | 256 | Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gravado. |
+| [`avaliacao/escopo_cobertura.py`](#avaliacaoescopocobertura) | 61 | A cobertura de origem (D): quantas Tasks do histórico o kernel 1.5.0 aceitaria ou recusaria. |
+| [`avaliacao/escopo_desvio.py`](#avaliacaoescopodesvio) | 191 | Os eventos de desvio do histórico (A) e a antecedência do alerta (B), pelo placar real de escopo. |
+| [`avaliacao/escopo_fila_historica.py`](#avaliacaoescopofilahistorica) | 157 | A fila do histórico (C): o que a ordem antiga serviu e o que a ordem nova serviria, momento a momento. |
+| [`avaliacao/escopo_historia.py`](#avaliacaoescopohistoria) | 160 | A história de um Goal no log: quando cada Task nasceu e começou, onde o plano estava e como as criações se agrupam em lotes. |
+| [`avaliacao/escopo_historico.py`](#avaliacaoescopohistorico) | 98 | A regressão do escopo governado sobre o histórico real anonimizado: A a E numa medição só. |
+| [`avaliacao/escopo_sintetico.py`](#avaliacaoescoposintetico) | 113 | O que o histórico pré-1.5.0 não tem e a medição precisa: plano aprovado, `motivada_por` e respostas de desvio. |
+| [`avaliacao/escopo_vista.py`](#avaliacaoescopovista) | 70 | Ferramentas de leitura do corpus de escopo: a vista indexada e o cursor que avança o estado pelo log. |
 | [`avaliacao/forma_do_contexto.py`](#avaliacaoformadocontexto) | 235 | A forma do contexto dos Run, somada para o relatório: peso por turno, saídas grandes, pausas e leituras fora do alvo. |
 | [`avaliacao/gerar_corpus_escopo.py`](#avaliacaogerarcorpusescopo) | 58 | Gera o corpus anonimizado de escopo a partir de um banco real, só em leitura. |
 | [`avaliacao/medicao.py`](#avaliacaomedicao) | 135 | Medição de tokens por tarefa, com e sem o recorte do grafo. |
 | [`avaliacao/orquestracao.py`](#avaliacaoorquestracao) | 346 | Medição da orquestração: o mesmo conjunto de tarefas sob configurações diferentes de modelo. |
 | [`avaliacao/recorte_do_log.py`](#avaliacaorecortedolog) | 187 | Recorte do log real que o corpus de escopo preserva: Goals com trabalho, suas Tasks e a vizinhança. |
 | [`avaliacao/relatorio.py`](#avaliacaorelatorio) | 150 | Agregação e formatação do relatório de avaliação de tokens por tarefa. |
+| [`avaliacao/relatorio_escopo.py`](#avaliacaorelatorioescopo) | 187 | O relatório de `graphow escopo-medir`: as tabelas A a E da regressão do escopo governado, em Markdown. |
 | [`avaliacao/relatorio_orquestracao.py`](#avaliacaorelatorioorquestracao) | 158 | O relatório de `graphow orquestracao-medir`: um bloco por Goal e a comparação por configuração. |
 | [`avaliacao/relatorio_rodadas.py`](#avaliacaorelatoriorodadas) | 69 | As linhas de `orquestracao-medir --por-rodada`: onde, dentro de um Goal, o tempo e a cota foram gastos. |
 | [`avaliacao/retomada.py`](#avaliacaoretomada) | 113 | Braço de retomada: quanto custa recuperar decisões e achados de uma sessão encerrada. |
@@ -111,6 +120,61 @@ Segundo projeto do corpus: mede se um aprendizado do primeiro chega a uma tarefa
 ### Funções do módulo
 
 - `montar_cenario_entre_projetos() -> WriteKernel` — O cenário com memória, mais os aprendizados promovidos e o segundo projeto.
+
+## `avaliacao/cenario_expansao_lateral.py`
+
+O caso 14 para 121 da seção 2, montado pelos portões reais: a expansão lateral que o K pega antes da execução.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ID_PROJETO` | `str` | `'proj'` |
+| `ID_SETOR` | `str` | `'setor'` |
+| `ID_SESSAO` | `str` | `'sess'` |
+| `ID_GOAL` | `str` | `'goal'` |
+| `ID_CRITERIO` | `str` | `'c-criterio'` |
+| `ID_FRONTEIRA` | `str` | `'c-fronteira'` |
+| `ID_QUESTAO` | `str` | `'q-regra'` |
+| `ID_DECISAO` | `str` | `'dec-regra'` |
+| `AUTOR_HUMANO` | `str` | `'david'` |
+| `AUTOR_PLANEJADOR` | `str` | `'planejador-1'` |
+| `TASKS_DO_PLANO` | `int` | `14` |
+| `FASES_DO_PLANO` | `int` | `5` |
+| `EMERGENTES` | `int` | `9` |
+| `SUBDIVISOES` | `int` | `5` |
+| `ALVOS_FORA_DA_FRONTEIRA` | `tuple[str, ...]` | `('servico_cobranca/regra.py', 'servico_relatorios/regra.py', 'servico_n…` |
+| `TETO_DO_CENARIO` | `int` | `5` |
+
+### `ResultadoDaExpansaoLateral`
+
+*DTO imutável* — As medidas do cenário: o K, a antecedência, a fila antiga contra a nova, a recusa sem ligação e o teto.
+
+**Campos:** `tasks_do_plano: int`, `subdivisoes: int`, `emergentes: int`, `alvos_da_raiz: tuple[str, ...]`, `contador_k_por_emergente: tuple[int, ...]`, `k_dispara_na_emergente: int | None`, `contador_m_por_emergente: tuple[int, ...]`, `m_dispara_na_emergente: int | None`, `raizes_sem_veredito: tuple[str, ...]`, `tasks_iniciadas_no_alerta: int`, `fila_antiga: tuple[str, ...]`, `fila_nova: tuple[str, ...]`, `sem_ligacao_recusada: str | None`, `teto: ResultadoDoTeto`
+
+- `posicao_do_plano() -> tuple[int, int]` — A posição (de 1) da primeira Task do plano na fila antiga e na nova.
+- `posicao_da_primeira_emergente() -> tuple[int, int]` — A posição (de 1) da primeira Task emergente na fila antiga e na nova.
+- `emergentes_a_frente_do_plano() -> tuple[int, int]` — Quantas emergentes a fila antiga e a nova servem antes da primeira Task do plano.
+
+### `ResultadoDoTeto`
+
+*DTO imutável* — O que o teto de expansão fez com as emergentes: quantas passaram, o que recusou e se um desvio respondido reabre.
+
+**Campos:** `teto: int`, `aceitas_antes_da_recusa: int`, `recusada: str`, `modo_de_falha: str | None`, `aceita_depois_da_resposta: bool`, `lote_inteiro_recusado: bool`
+
+### `_Cenario`
+
+*serviço* — O Goal com plano humano aprovado e a Decision do planejador pronta, sobre um kernel em memória.
+
+- `limiares() -> LimiaresDeDesvio` `[property]` — K e M da política vigente.
+- `submeter(papel: PapelAutor) -> ResultadoSubmissao` — Submete o lote sob o papel, com o autor do cenário para ele.
+- `placar() -> PlacarDeEscopo` — O placar do Goal com os limiares da política.
+- `tentar_emergente(numero: int) -> ResultadoSubmissao` — O planejador tenta criar a emergente `numero`.
+- `criar_emergente(numero: int) -> tuple[int, int]` — Cria a emergente e devolve os contadores de K (da raiz) e de M (do Goal), lidos do placar logo depois.
+- `criar_subdivisoes(quantas: int, a_partir_de: int) -> None` — O planejador subdivide Tasks do plano, o que o kernel aceita sem critério.
+- `responder_desvio() -> None` — O humano responde ao placar do Goal inteiro: zera K e M e reabre o teto.
+
+### Funções do módulo
+
+- `medir_expansao_lateral() -> ResultadoDaExpansaoLateral` — Monta o cenário sem teto, mede o K e a fila, e repete com o teto ligado.
 
 ## `avaliacao/cenario_memoria.py`
 
@@ -224,6 +288,213 @@ Medição de escala sobre o grafo que estiver aberto, não sobre um cenário gra
 ### Funções do módulo
 
 - `medir_escala(kernel: WriteKernel, ramo_id: str) -> RelatorioDeEscala` — Ponto de entrada da medição de escala sobre um kernel já montado.
+
+## `avaliacao/escopo_cobertura.py`
+
+A cobertura de origem (D): quantas Tasks do histórico o kernel 1.5.0 aceitaria ou recusaria.
+
+### `CoberturaDoGoal`
+
+*DTO imutável* — As Tasks criadas depois do plano, por classe que o classificador real lhes dá.
+
+**Campos:** `id_goal: str`, `por_classe: Mapping[str, int]`, `de_agente: int`, `recusadas_de_agente: int`
+
+- `depois_do_plano() -> int` `[property]` — Quantas Tasks nasceram depois do plano.
+- `recusadas() -> int` `[property]` — As que o kernel 1.5.0 recusaria com `ligacao_de_escopo_ausente`.
+- `aceitas() -> int` `[property]` — As que têm ligação estrutural válida.
+
+### Funções do módulo
+
+- `medir_cobertura(corpus: CorpusEscopo, historia: HistoriaDoGoal) -> CoberturaDoGoal` — Classifica pelo kernel real, no estado final, cada Task criada depois do plano.
+
+## `avaliacao/escopo_desvio.py`
+
+Os eventos de desvio do histórico (A) e a antecedência do alerta (B), pelo placar real de escopo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMIARES_DA_PROPOSTA` | `LimiaresDeDesvio` | `LimiaresDeDesvio(por_raiz=3, por_goal=5)` |
+| `TODOS_OS_GATILHOS` | `frozenset[str]` | `frozenset({'raiz', 'goal', 'inanicao'})` |
+| `SO_O_GATILHO_POR_RAIZ` | `frozenset[str]` | `frozenset({GATILHO_POR_RAIZ})` |
+
+### `ConfiguracaoDoDesvio`
+
+*DTO imutável* — Como medir: os limiares, que gatilhos contam e qual Decision vira a `motivada_por` da Task.
+
+**Campos:** `limiares: LimiaresDeDesvio`, `motivo: EscolhaDoMotivo`, `gatilhos: frozenset[str]`, `com_resposta: bool`
+
+### `DesvioDoGoal`
+
+*DTO imutável* — Os eventos de desvio de um Goal sob os limiares K e M, e quantos lotes foram avaliados.
+
+**Campos:** `id_goal: str`, `configuracao: ConfiguracaoDoDesvio`, `lotes_avaliados: int`, `eventos: tuple[EventoDeDesvio, ...]`
+
+- `total() -> int` `[property]` — Quantos eventos de desvio houve.
+- `antes_do_trabalho() -> int` `[property]` — Em quantos eventos o alerta chegou antes de toda a execução das Tasks que cobria.
+- `cobertas() -> int` `[property]` — Quantas Tasks emergentes os alertas cobriam, somadas por evento.
+- `nao_comecadas() -> int` `[property]` — Dessas, quantas ainda não tinham começado quando o alerta soou.
+- `horas_ate_a_primeira_execucao() -> tuple[float, ...]` `[property]` — Por evento com Task ainda não iniciada que depois começou, as horas até a primeira delas.
+- `por_gatilho() -> Mapping[str, int]` — Em quantos eventos cada tipo de gatilho esteve entre os disparados.
+
+### `EventoDeDesvio`
+
+*DTO imutável* — Um lote em que algum gatilho disparou: onde, quais gatilhos e o que o alerta cobria.
+
+**Campos:** `lote: int`, `seq: int`, `momento: str`, `tasks_no_lote: int`, `gatilhos: tuple[str, ...]`, `cobertas: int`, `nao_comecadas: int`, `horas_ate_a_primeira_execucao: float | None`
+
+- `chegou_antes_do_trabalho() -> bool` `[property]` — Ao menos uma Task coberta pelo alerta ainda não tinha começado.
+
+### `_Alerta` (NamedTuple)
+
+*serviço* — Os gatilhos que dispararam num lote e as Tasks emergentes que eles cobriam.
+
+**Campos:** `disparados: tuple[GatilhoDeDesvio, ...]`, `cobertas: tuple[TaskDoEscopo, ...]`
+
+### `_Simulacao`
+
+*serviço* — Avança o histórico lote a lote e guarda as respostas que o humano teria dado.
+
+- `avaliar(indice: int, lote: LoteDeCriacao) -> EventoDeDesvio | None` — O evento do lote, ou None quando nenhum gatilho dispara; o evento zera a contagem.
+
+### Funções do módulo
+
+- `medir_desvio(corpus: CorpusEscopo, historia: HistoriaDoGoal, configuracao: ConfiguracaoDoDesvio) -> DesvioDoGoal` — Os eventos de desvio do Goal, com a resposta humana simulada depois de cada um.
+
+## `avaliacao/escopo_fila_historica.py`
+
+A fila do histórico (C): o que a ordem antiga serviu e o que a ordem nova serviria, momento a momento.
+
+### `FilaDoGoal`
+
+*DTO imutável* — Os momentos do Goal e as médias de posição do plano na ordem antiga e na nova.
+
+**Campos:** `id_goal: str`, `momentos: tuple[MomentoDaFila, ...]`
+
+- `emergentes_escolhidas() -> int` `[property]` — Quantas saídas de `pendente` foram de Task emergente.
+- `com_plano_pendente() -> int` `[property]` — Emergente escolhida com Task do plano ainda `pendente`, liberada ou não.
+- `com_plano_liberado() -> int` `[property]` — Emergente escolhida com Task do plano `pendente` e pronta para a fila.
+- `pedidas_pelo_plano() -> int` `[property]` — Das emergentes escolhidas com plano pendente, as que uma Task do plano pedia (faixa 2 da fila).
+- `momentos_com_plano_liberado() -> int` `[property]` — Em quantos momentos a fila tinha Task do plano `pendente` e liberada (a escolhida inclusive).
+- `pendentes_por_momento() -> float` `[property]` — A média de Tasks `pendente` e liberadas que a fila tinha a cada saída de `pendente`.
+- `posicao_media() -> tuple[float, float] | None` — (antiga, nova) da melhor Task do plano, nos momentos em que o plano tinha pendente liberada.
+
+### `MomentoDaFila`
+
+*DTO imutável* — Uma Task que saiu de `pendente`: a classe dela, o plano que esperava e onde o plano ficava na fila.
+
+**Campos:** `seq: int`, `escolhida: str`, `classe: str`, `emergente: bool`, `faixa: int | None`, `pendentes_liberadas: int`, `plano_pendente: int`, `plano_liberado: int`, `posicao_antiga: int | None`, `posicao_nova: int | None`
+
+- `emergente_com_plano_pendente() -> bool` `[property]` — Escolheu emergente enquanto o plano esperava.
+- `emergente_com_plano_liberado() -> bool` `[property]` — Escolheu emergente enquanto havia Task do plano pronta para ser servida.
+
+### Funções do módulo
+
+- `medir_fila(corpus: CorpusEscopo, historia: HistoriaDoGoal) -> FilaDoGoal` — Cada saída de `pendente` do Goal a partir do plano, vista no estado logo antes dela.
+
+## `avaliacao/escopo_historia.py`
+
+A história de um Goal no log: quando cada Task nasceu e começou, onde o plano estava e como as criações se agrupam em lotes.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `JANELA_DO_LOTE_SEGUNDOS` | `float` | `120.0` |
+| `SEGUNDOS_POR_HORA` | `float` | `3600.0` |
+
+### `HistoriaDoGoal`
+
+*DTO imutável* — O Goal no log: o plano aproximado, as Tasks e os lotes de criação depois do plano.
+
+**Campos:** `id_goal: str`, `seq_do_plano: int`, `tasks: tuple[TaskHistorica, ...]`, `lotes: tuple[LoteDeCriacao, ...]`
+
+- `plano() -> tuple[TaskHistorica, ...]` `[property]` — As Tasks que existiam quando o trabalho começou.
+- `depois_do_plano() -> tuple[TaskHistorica, ...]` `[property]` — As Tasks criadas depois do plano.
+- `task(id_task: str) -> TaskHistorica` — A Task pelo identificador.
+
+### `LoteDeCriacao`
+
+*DTO imutável* — As Tasks que um mesmo autor abriu em sequência e o fim da escrita da última delas.
+
+**Campos:** `tasks: tuple[str, ...]`, `autor: str`, `seq_fim: int`, `momento_fim: str`
+
+### `TaskHistorica`
+
+*DTO imutável* — Uma Task do Goal: quem a criou, quando, e quando saiu de `pendente` pela primeira vez.
+
+**Campos:** `id: str`, `seq: int`, `autor: str`, `papel: str`, `momento: str`, `inicio_seq: int | None`, `inicio_momento: str | None`
+
+- `comecou_depois_de(seq: int) -> bool` — A Task ainda não tinha saído de `pendente` no `seq` dado.
+
+### Funções do módulo
+
+- `historia_do_goal(corpus: CorpusEscopo, id_goal: str) -> HistoriaDoGoal` — Extrai do corpus as Tasks, o plano aproximado e os lotes de criação do Goal.
+- `horas_entre(inicio: str, fim: str) -> float` — As horas de `inicio` a `fim`, dois carimbos ISO do log.
+
+## `avaliacao/escopo_historico.py`
+
+A regressão do escopo governado sobre o histórico real anonimizado: A a E numa medição só.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `HIPOTESES_DE_MOTIVO` | `tuple[EscolhaDoMotivo, ...]` | `(EscolhaDoMotivo.MAIS_RECENTE, EscolhaDoMotivo.MAIS_ANTIGA, EscolhaDoMo…` |
+
+### `MedicaoDeEscopo`
+
+*DTO imutável* — A regressão inteira: um bloco por Goal do corpus e o cenário do caso 14 para 121.
+
+**Campos:** `eventos_do_corpus: int`, `goals: tuple[MedicaoDoGoal, ...]`, `expansao: ResultadoDaExpansaoLateral`
+
+### `MedicaoDoGoal`
+
+*DTO imutável* — Tudo que a regressão mede de um Goal do corpus.
+
+**Campos:** `id_goal: str`, `plano: int`, `total: int`, `lotes: int`, `desvio: DesvioDoGoal`, `desvio_sem_resposta: DesvioDoGoal`, `so_k: Mapping[str, DesvioDoGoal]`, `fila: FilaDoGoal`, `cobertura: CoberturaDoGoal`
+
+### Funções do módulo
+
+- `medir_escopo(corpus: CorpusEscopo | None) -> MedicaoDeEscopo` — Mede cada Goal do corpus, do menor para o maior, e monta o cenário sintético.
+- `medir_goal(corpus: CorpusEscopo, historia: HistoriaDoGoal) -> MedicaoDoGoal` — As medições A a D do Goal: o desvio pelo desenho final e só pelo K, a fila e a cobertura.
+
+## `avaliacao/escopo_sintetico.py`
+
+O que o histórico pré-1.5.0 não tem e a medição precisa: plano aprovado, `motivada_por` e respostas de desvio.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `AUTOR_SINTETICO` | `str` | `'avaliacao'` |
+| `RESPOSTA_SINTETICA` | `str` | `'seguir'` |
+
+### `EscolhaDoMotivo` (str, Enum)
+
+*serviço* — Qual das Decisions que orientam a Task vira a `motivada_por` dela.
+
+### `Sobreposicao`
+
+*DTO imutável* — O que se injeta no Goal: o `seq` do plano humano, as respostas já dadas e como nasce a `motivada_por`.
+
+**Campos:** `seq_do_plano: int`, `respostas: tuple[Mapping[str, Any], ...]`, `motivo: EscolhaDoMotivo`
+
+### Funções do módulo
+
+- `resposta_humana_sem_raiz(seq: int) -> dict[str, Any]` — A resposta de desvio do humano ao Goal inteiro (sem raiz), que zera K e M.
+- `sobrepor(estado: GrafoEstado, id_goal: str, sobreposicao: Sobreposicao) -> GrafoEstado` — Cópia do estado com o plano sintético no Goal e, quando pedido, a `motivada_por` pelo `orienta`.
+
+## `avaliacao/escopo_vista.py`
+
+Ferramentas de leitura do corpus de escopo: a vista indexada e o cursor que avança o estado pelo log.
+
+### `CursorDoCorpus`
+
+*serviço* — Estado do grafo em pontos crescentes do log, sem recomeçar do zero a cada pergunta.
+
+- `estado_ate(seq: int) -> GrafoEstado` — O estado logo depois do evento `seq`; pedir um ponto anterior ao atual recomeça o cursor.
+- `vista_ate(seq: int) -> GrafoView` — A vista indexada do estado em `seq`.
+
+### `VistaIndexada` (GrafoView)
+
+*serviço* — `GrafoView` que acha as arestas de um nó por índice, na mesma ordem que a varredura daria.
+
+- `obter_arestas_saida(origem_id: str, tipo_aresta: TipoAresta | None) -> list[ArestaGrafo]` — As arestas que partem do nó, filtradas pelo tipo quando ele vem.
+- `obter_arestas_entrada(destino_id: str, tipo_aresta: TipoAresta | None) -> list[ArestaGrafo]` — As arestas que chegam ao nó, filtradas pelo tipo quando ele vem.
 
 ## `avaliacao/forma_do_contexto.py`
 
@@ -410,6 +681,21 @@ Agregação e formatação do relatório de avaliação de tokens por tarefa.
 - `intervencoes_por_tarefa() -> float` `[property]` — Média de respostas humanas exigidas por tarefa concluída.
 - `reducao_media() -> float` `[property]` — Fração média de contexto poupada nas tarefas concluídas.
 - `formatar() -> tuple[str, ...]` — Linhas legíveis do relatório, prontas para o console.
+
+## `avaliacao/relatorio_escopo.py`
+
+O relatório de `graphow escopo-medir`: as tabelas A a E da regressão do escopo governado, em Markdown.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SECAO_7` | `Mapping[tuple[int, int], tuple[str, int]]` | `{(12, 14): ('conduzido de perto pelo humano', 0), (5, 35): ('decomposto…` |
+| `NOTAS_DE_METODO` | `tuple[str, ...]` | `('- Corpus: logs reais anonimizados, anteriores a ontologia 1.5.0. Limi…` |
+| `GATILHOS` | `Mapping[str, str]` | `{'raiz': 'K', 'goal': 'M', 'inanicao': 'I'}` |
+| `_HIPOTESES` | `tuple[str, ...]` | `('mais_recente', 'mais_antiga', 'mais_abrangente', 'todas')` |
+
+### Funções do módulo
+
+- `formatar_relatorio(medicao: MedicaoDeEscopo, rotulos: Mapping[str, str] | None) -> tuple[str, ...]` — O relatório inteiro: método, tabelas A a D por Goal e o cenário E.
 
 ## `avaliacao/relatorio_orquestracao.py`
 
