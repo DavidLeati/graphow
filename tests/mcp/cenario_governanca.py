@@ -89,6 +89,12 @@ def definir_preset_do_projeto(kernel: WriteKernel, id_projeto: str, preset: str)
     assert resposta["sucesso"] is True, resposta
 
 
+def aprovar_plano(kernel: WriteKernel, id_goal: str, papel: str = "humano", autor: str = "") -> None:
+    """Aprova o plano do Goal: o executor só assume Task de Goal que tem um plano vigente."""
+    resposta = servidor(kernel, papel, autor).executar_ferramenta("aprovar_plano", {"id_goal": id_goal})
+    assert resposta["sucesso"] is True, resposta
+
+
 def abrir_questao_como_agente(kernel: WriteKernel, sufixo: str = "a") -> str:
     """Um executor abre uma dúvida que bloqueia a Task do projeto; devolve o id."""
     resposta = servidor(kernel, "executor").executar_ferramenta(

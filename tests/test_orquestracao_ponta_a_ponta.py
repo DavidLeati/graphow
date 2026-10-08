@@ -17,6 +17,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoP
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
 from graphow.mcp.server import GraphowMCPServer
+from tests.mcp.cenario_governanca import aprovar_plano
 
 SESSAO: str = "sess-orq"
 TRECHO: str = "def taxa_para_fator(taxa, dias):\n    return (1 + taxa) ** (-dias / 252)"
@@ -151,6 +152,7 @@ def test_ciclo_completo_da_orquestracao_passa_pelos_portoes_nominal() -> None:
     kernel = _montar_goal()
     orquestrador = _agente(kernel, "orquestrador", "planejador")
     _decompor(orquestrador)
+    aprovar_plano(kernel, "goal")
 
     fria = _chamar(orquestrador, "ler_vista", id_alvo="t1", perspectiva="executor")["conteudo"]
     assert "## Decisoes Que Governam Esta Tarefa\n- [dec-fator]" in fria
@@ -186,6 +188,7 @@ def test_executor_que_reinicia_no_meio_da_tarefa_fecha_sem_o_humano_edge_case() 
     """Caso de borda: o servidor do executor volta com outro sufixo e perde a posse; a revisão aprova e o fechamento a retoma."""
     kernel = _montar_goal()
     _decompor(_agente(kernel, "orquestrador", "planejador"))
+    aprovar_plano(kernel, "goal")
     _chamar(_agente(kernel, "executor-opus#a1", "executor"), "assumir_tarefa", id_task="t1")
     reiniciado = _agente(kernel, "executor-opus#a2", "executor")
 
@@ -219,6 +222,7 @@ def test_segunda_reprovacao_sem_bloqueante_fecha_pelo_teto_edge_case() -> None:
     kernel = _montar_goal()
     orquestrador = _agente(kernel, "orquestrador", "planejador")
     _decompor(orquestrador)
+    aprovar_plano(kernel, "goal")
     _executar(_agente(kernel, "executor-opus#a1", "executor"), "t1", "art-1")
     primeira = _revisar(_agente(kernel, "revisor-opus#b2", "revisor"), "art-1", "t1", aprovar=False)
     _corrigir(orquestrador, primeira)
@@ -252,6 +256,7 @@ def test_executor_sem_posse_nao_entrega_a_tarefa_de_outro_edge_case() -> None:
     """Caso de borda: dois executores da mesma definição, cada um com posse própria, não se confundem."""
     kernel = _montar_goal()
     _decompor(_agente(kernel, "orquestrador", "planejador"))
+    aprovar_plano(kernel, "goal")
     _chamar(_agente(kernel, "executor-sonnet#a1", "executor"), "assumir_tarefa", id_task="t1")
 
     recusa = _agente(kernel, "executor-sonnet#b2", "executor").executar_ferramenta("assumir_tarefa", {"id_task": "t1"})
