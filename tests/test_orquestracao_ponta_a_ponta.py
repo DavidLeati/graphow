@@ -233,13 +233,14 @@ def test_segunda_reprovacao_sem_bloqueante_fecha_pelo_teto_edge_case() -> None:
         *_produzido("dec-aceite", "Decision", acao="aceite_apos_reprovacao", motivo="so ficou criterio de acompanhamento"),
         _aresta(primeira, "dec-aceite", "justifica"),
         _aresta(segunda, "dec-aceite", "justifica"),
+        _aresta("dec-aceite", segunda, "motivada_por"),
         _aresta("dec-aceite", "t1", "orienta"),
         _aresta("dec-aceite", "t1c", "orienta"),
     ]
     _chamar(orquestrador, "propor_patch", operacoes=aceite, justificativa="aceite apos segunda reprovacao")
     _chamar(
         orquestrador, "criar_tarefa", titulo="Acompanhar o fator da linha 12", id_task="t1-acomp", id_sessao=SESSAO,
-        id_tarefa_pai="goal", decisoes=["dec-aceite"], arquivos_alvo=["src/precos/preco.py"],
+        id_tarefa_pai="goal", acompanha=segunda, decisoes=["dec-aceite"], arquivos_alvo=["src/precos/preco.py"],
         criterio_pronto="sem o fator 1/(1+taxa) da linha 12 (evi-falha-art-2)",
     )
     _fechar(kernel, "t1c", "t1")

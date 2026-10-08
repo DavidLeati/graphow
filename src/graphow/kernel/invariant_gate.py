@@ -8,6 +8,7 @@ from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
 from graphow.kernel.forma_do_escopo import validar_forma_do_escopo
+from graphow.kernel.ligacao_de_escopo import validar_escopo_das_tarefas
 from graphow.kernel.localizacao import EvidenciaNoLote, diagnosticar_localizacao, projetar_evidencias_do_lote
 from graphow.kernel.veredito_de_fechamento import tarefas_sem_veredito_aprovado
 from graphow.kernel.patch_models import (
@@ -70,6 +71,7 @@ class InvariantGate:
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
             lambda: validar_forma_do_escopo(proposta, estado),
+            lambda: validar_escopo_das_tarefas(proposta, estrutura),
         )
         for verificar in verificacoes:
             resultado = verificar()

@@ -97,6 +97,11 @@ class ClassificadorDeEscopo:
             ClasseDeEscopo.B3: self._e_emergente_por_criterio,
         }
 
+    @property
+    def view(self) -> GrafoView:
+        """A vista que o classificador indexa."""
+        return self._view
+
     def goal_da(self, id_task: str) -> str | None:
         """O Goal da Task por `decompoe`, ou None."""
         return goal_da_task(self._view, id_task, indice=self._indice)

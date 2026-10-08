@@ -14,9 +14,9 @@ podendo desligar à mão o que quiser, pelo canvas, como antes.
 """
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from graphow.core.models import ArestaGrafo, GrafoEstado
+from graphow.core.models import ArestaGrafo, GrafoEstado, OrdemNoLog, ProvenienciaNo
 from graphow.core.ontologia import ARESTAS_DE_CONTENCAO
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import OperacaoPatch, PropostaPatch
@@ -59,6 +59,23 @@ class EstruturaAposLote:
         desligados = self._pontas_de_arestas_perdidas(ARESTAS_DE_CONTENCAO, destino=True)
         com_pai = {aresta.destino_id for aresta in self._arestas_depois(ARESTAS_DE_CONTENCAO)}
         return self._sobreviventes_sem(self.criados | desligados, com_pai, excluir=TIPOS_RAIZ)
+
+    def depois_no_log(self, proposta: PropostaPatch) -> GrafoEstado:
+        """O estado depois do lote com os nós criados no fim do log e com a proveniência de quem propõe.
+
+        A antevisão nasce sem posição nem autor. As regras de escopo leem as duas
+        coisas: o plano aprovado divide as Tasks pelo `seq` de criação, e o placar
+        separa a Task humana da do agente. Os criados ocupam posições além do
+        `versao_log`, em ordem de id, como o evento que o lote vai gravar.
+        """
+        origem = ProvenienciaNo(autor=proposta.autor, papel=proposta.papel.value)
+        posicoes = {id_no: posicao for posicao, id_no in enumerate(sorted(self.criados), start=1)}
+        nos = dict(self.depois.nos)
+        for id_no, posicao in posicoes.items():
+            if id_no in nos:
+                seq = self.depois.versao_log + posicao
+                nos[id_no] = replace(nos[id_no], proveniencia=origem, ordem=OrdemNoLog(seq_criacao=seq, seq_atualizacao=seq))
+        return GrafoEstado(nos=nos, arestas=self.depois.arestas, versao_log=self.depois.versao_log)
 
     def aprendizados_sem_origem(self) -> tuple[str, ...]:
         """Aprendizados que o lote cria, ou de que o agente tira a origem, e ficam sem `deriva_de`."""
