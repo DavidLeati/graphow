@@ -180,7 +180,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "criar_tarefa",
-        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), a trilha, a entrega, os arquivos que ela toca e as decisões que a orientam.",
+        "description": "Cria uma nova Task executável vinculada a uma Sessão com suporte a decomposição e dependência. Para a orquestração, grava também o modelo que a executa (com o motivo), a trilha, a entrega, os arquivos que ela toca e as decisões que a orientam. Com plano aprovado no Goal (aprovar_plano), a Task precisa de uma ligação de escopo, e o pai Goal sozinho não basta: subdivisão de Task do plano (id_tarefa_pai), correção (corrige, Evidence rejeitada), acompanhamento (acompanha), integração (integra), reversão (desfaz) ou emergente (motivada_por mais atende_criterio). Sem ligação o kernel recusa com ligacao_de_escopo_ausente; trabalho novo que o plano não previu pede nova versão do plano por aprovar_plano, não uma subdivisão falsa.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -197,6 +197,11 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do trabalho (código, documentos, planilhas). Só rodam em paralelo tarefas com arquivos_alvo disjuntos; a de ação externa não leva."},
                 "decisoes": {"type": "array", "items": {"type": "string"}, "description": "IDs das Decision que valem para esta tarefa. Cada uma ganha a aresta orienta, que é por onde o executor as encontra."},
                 "corrige": {"type": "string", "description": "Na tarefa de correção, o id da Evidence de revisão rejeitada que a motivou. Com id_tarefa_pai, a tarefa rejeitada passa a depender da correção e sai da fila até ela fechar."},
+                "motivada_por": {"type": "array", "items": {"type": "string"}, "description": "Tarefa emergente: IDs da Decision, Evidence, Task ou Question de onde ela nasceu (aresta motivada_por). Junto de atende_criterio, é a ligação da Task que o plano aprovado não previu."},
+                "atende_criterio": {"type": "array", "items": {"type": "string"}, "description": "Tarefa emergente: IDs da Constraint de tipo criterio_aceite do Goal que a Task atende. Só vale com motivada_por."},
+                "acompanha": {"type": "string", "description": "Tarefa de acompanhamento: o id da Evidence rejeitada que foi aceita depois da reprovação (Decision aceite_apos_reprovacao); aresta acompanha."},
+                "integra": {"type": "string", "description": "Tarefa de integração: o id da Task do mesmo Goal, com Artifact, que ela integra (aresta integra)."},
+                "desfaz": {"type": "string", "description": "Tarefa de reversão: o id da Decision substituída ou revogada que ela desfaz (aresta desfaz)."},
             },
             "required": ["titulo", "id_sessao"],
         },

@@ -1,4 +1,4 @@
-"""O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção e decisões.
+"""O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção, decisões e ligação de escopo.
 
 Quem orquestra decide na própria Task qual modelo a executa, e o motivo vai
 junto para a escolha ficar auditável no log: um modelo sem motivo é recusado
@@ -9,11 +9,17 @@ custo que ela existe para evitar. A entrega também: `artefato` ou
 política faz da ação externa. Os arquivos-alvo são o que decide o
 paralelismo. E as decisões que valem para a tarefa viram arestas `orienta` no
 mesmo lote, que é por onde o executor que nunca viu a conversa as encontra.
+
+A ligação de escopo (`motivada_por`, `atende_criterio`, `acompanha`, `integra`,
+`desfaz`) vira aresta ou propriedade no mesmo lote: com plano aprovado no Goal a
+Task precisa de uma delas. Aqui só se confere o TIPO do argumento; se a ligação
+basta é regra do kernel (kernel/ligacao_de_escopo.py).
 """
 
 from collections.abc import Mapping
 from typing import Any
 
+from graphow.core.escopo import CAMPO_ATENDE_CRITERIO
 from graphow.core.orquestracao import (
     CAMPO_ARQUIVOS_ALVO,
     CAMPO_CORRIGE,
@@ -33,6 +39,14 @@ from graphow.mcp.construcao_operacoes import EspecificacaoAresta
 CAMPO_DECISOES: str = "decisoes"
 CAMPO_TAREFA_PAI: str = "id_tarefa_pai"
 
+# A ligação de escopo que vira aresta: o campo do argumento, o tipo da aresta e se aceita uma lista.
+CAMPOS_DE_LIGACAO: tuple[tuple[str, TipoAresta, bool], ...] = (
+    ("motivada_por", TipoAresta.MOTIVADA_POR, True),
+    ("acompanha", TipoAresta.ACOMPANHA, False),
+    ("integra", TipoAresta.INTEGRA, False),
+    ("desfaz", TipoAresta.DESFAZ, False),
+)
+
 
 # O modelo que a trilha leve recusa: ela existe para a tarefa trivial não pagar Opus.
 MODELO_FORA_DA_TRILHA_LEVE: str = "opus"
@@ -40,7 +54,12 @@ MODELO_FORA_DA_TRILHA_LEVE: str = "opus"
 
 def recusar_orquestracao_invalida(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
     """A primeira recusa entre modelo e trilha; None quando a chamada pode seguir."""
-    return _recusar_modelo_sem_motivo(argumentos) or _recusar_trilha(argumentos) or _recusar_entrega(argumentos)
+    return (
+        _recusar_modelo_sem_motivo(argumentos)
+        or _recusar_trilha(argumentos)
+        or _recusar_entrega(argumentos)
+        or _recusar_ligacao_mal_tipada(argumentos)
+    )
 
 
 def _recusar_modelo_sem_motivo(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -80,6 +99,26 @@ def _recusar_entrega(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _recusar_ligacao_mal_tipada(argumentos: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A recusa do argumento de ligação com tipo errado; a suficiência da ligação é do kernel."""
+    for campo, _, aceita_lista in CAMPOS_DE_LIGACAO:
+        if not _tem_o_tipo(argumentos.get(campo), aceita_lista):
+            esperado = "uma lista de ids" if aceita_lista else "um id"
+            return {"sucesso": False, "erro": f"'{campo}' aceita {esperado}; recebido {argumentos[campo]!r}"}
+    if not _tem_o_tipo(argumentos.get(CAMPO_ATENDE_CRITERIO), True):
+        return {"sucesso": False, "erro": f"'{CAMPO_ATENDE_CRITERIO}' aceita uma lista de ids de Constraint; recebido {argumentos[CAMPO_ATENDE_CRITERIO]!r}"}
+    return None
+
+
+def _tem_o_tipo(valor: Any, aceita_lista: bool) -> bool:
+    """Ausente serve; presente é um id (texto) ou, quando a lista é aceita, uma lista de ids."""
+    if valor is None:
+        return True
+    if isinstance(valor, str):
+        return True
+    return aceita_lista and isinstance(valor, (list, tuple)) and all(isinstance(item, str) for item in valor)
+
+
 def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any]:
     """As propriedades que vieram na chamada; as ausentes não entram, para a Task antiga não mudar de forma."""
     propriedades: dict[str, Any] = {}
@@ -99,6 +138,9 @@ def propriedades_de_orquestracao(argumentos: Mapping[str, Any]) -> dict[str, Any
     corrige = ler_texto(argumentos, CAMPO_CORRIGE)
     if corrige:
         propriedades[CAMPO_CORRIGE] = corrige
+    criterios = ler_textos(argumentos.get(CAMPO_ATENDE_CRITERIO))
+    if criterios:
+        propriedades[CAMPO_ATENDE_CRITERIO] = list(criterios)
     return propriedades
 
 
@@ -126,3 +168,12 @@ def aresta_de_espera_da_correcao(id_task: str, argumentos: Mapping[str, Any]) ->
     if not ler_texto(argumentos, CAMPO_CORRIGE) or not id_pai:
         return ()
     return (EspecificacaoAresta(id=f"espera-{id_pai}-{id_task}", origem_id=id_pai, destino_id=id_task, tipo=TipoAresta.DEPENDE_DE),)
+
+
+def arestas_de_ligacao_de_escopo(id_task: str, argumentos: Mapping[str, Any]) -> tuple[EspecificacaoAresta, ...]:
+    """As arestas de `motivada_por`, `acompanha`, `integra` e `desfaz` que a Task nova declara."""
+    return tuple(
+        EspecificacaoAresta(id=f"{tipo.value}-{id_task}-{alvo}", origem_id=id_task, destino_id=alvo, tipo=tipo)
+        for campo, tipo, _ in CAMPOS_DE_LIGACAO
+        for alvo in ler_textos(argumentos.get(campo))
+    )

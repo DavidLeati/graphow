@@ -20,6 +20,7 @@ from graphow.mcp.construcao_operacoes import (
 )
 from graphow.mcp.orquestracao_tarefa import (
     aresta_de_espera_da_correcao,
+    arestas_de_ligacao_de_escopo,
     arestas_de_orientacao,
     propriedades_de_orquestracao,
     recusar_orquestracao_invalida,
@@ -117,7 +118,11 @@ class FerramentasTrabalho:
         argumentos: Mapping[str, Any],
     ) -> tuple[ItemPatch, ...]:
         """Monta as arestas de decomposição, dependência e orientação quando solicitadas."""
-        declaradas = arestas_de_orientacao(id_task, argumentos) + aresta_de_espera_da_correcao(id_task, argumentos)
+        declaradas = (
+            arestas_de_orientacao(id_task, argumentos)
+            + aresta_de_espera_da_correcao(id_task, argumentos)
+            + arestas_de_ligacao_de_escopo(id_task, argumentos)
+        )
         operacoes: list[ItemPatch] = [montar_operacao_criar_aresta(aresta) for aresta in declaradas]
         id_pai = argumentos.get("id_tarefa_pai")
         if id_pai:
