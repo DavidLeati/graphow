@@ -69,9 +69,11 @@ graphow bancada placar --saida ~/bancada
 recriado da semente, a spec ao lado dele (o prompt a cita como
 `../spec-<projeto>.md`), o banco `graphow.db`, a pasta `sessoes/` com o
 stream-json de cada sessão e o `execucao.json` com as sessões, a linha de
-comando de cada uma, as métricas e o estado git da entrega. `auditar` grava em
-`auditoria/` o prompt, o stream e o relatório, e em `auditoria.json` o PLACAR
-em números, os bloqueantes listados e o custo do auditor.
+comando de cada uma, as métricas e o estado git da entrega. `auditar` roda o
+auditor em `auditoria/`, uma pasta só dele, longe do relato do implementador
+em `sessoes/`, e grava ali o prompt, o stream e o relatório; em
+`auditoria.json` ficam o PLACAR em números, os bloqueantes listados e o custo
+do auditor.
 
 As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje só
 existe `enxuta`; a fase 1 registra `orquestrar`.

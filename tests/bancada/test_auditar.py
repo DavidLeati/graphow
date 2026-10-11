@@ -32,8 +32,10 @@ def _execucao_do_estoque(tmp_path: Path, **extras: str) -> Path:
     return next((tmp_path / "saida").iterdir())
 
 
-def test_auditar_preenche_o_prompt_roda_na_execucao_e_grava_o_placar_nominal(tmp_path: Path) -> None:
-    """Prompt do laboratório com os caminhos da execução, sessão Opus na pasta dela, banco próprio e o PLACAR lido."""
+def test_auditar_preenche_o_prompt_roda_na_pasta_propria_e_grava_o_placar_nominal(tmp_path: Path) -> None:
+    """Prompt do laboratório com os caminhos da execução, sessão Opus em `auditoria/`, banco próprio e o PLACAR lido.
+
+    A pasta de trabalho do auditor não é a da execução, onde está o relato do implementador em `sessoes/`."""
     execucao = _execucao_do_estoque(tmp_path, GRAPHOW_TESTE_COMMIT="chamado-142")
     registro = tmp_path / "registro-auditar"
     sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(registro, GRAPHOW_TESTE_STREAM=str(STREAM_DO_AUDITOR)))
@@ -52,7 +54,8 @@ def test_auditar_preenche_o_prompt_roda_na_execucao_e_grava_o_placar_nominal(tmp
     chamada = chamadas_registradas(registro)[0]
     assert chamada["stdin"] == esperado
     assert chamada["argv"][:5] == ["-p", "--model", "opus", "--permission-mode", "bypassPermissions"]
-    assert Path(str(chamada["cwd"])) == execucao
+    assert Path(str(chamada["cwd"])) == execucao / "auditoria"
+    assert not list(Path(str(chamada["cwd"])).glob("**/enxuta.jsonl"))
     assert chamada["env"]["GRAPHOW_DB"] == str(execucao / "auditoria" / "graphow.db")
     auditoria = json.loads((execucao / "auditoria.json").read_text(encoding="utf-8"))
     assert auditoria["erro"] == ""

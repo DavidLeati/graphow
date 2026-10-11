@@ -1,11 +1,14 @@
 """`graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório.
 
 O auditor recebe o prompt de `bancada/auditor.md` preenchido com o repositório
-e a spec da execução, o ramo descrito como os auditores do laboratório o
-receberam e as sondas do projeto. Ele roda na pasta da execução, fora do
-repositório que audita (um CLAUDE.md que o agente tenha deixado ali não o
-orienta), com um banco graphow só dele: o da execução fica com o que a
-arquitetura gravou.
+e a spec da execução, por caminho absoluto, o ramo descrito como os auditores
+do laboratório o receberam e as sondas do projeto. Ele roda em `auditoria/`,
+uma pasta só dele dentro da execução: fora do repositório que audita (um
+CLAUDE.md que o agente tenha deixado ali não o orienta) e fora da pasta da
+execução, onde ficam o stream e o relato final do implementador em
+`sessoes/`. O auditor julga a entrega pelo que roda, e o relato de quem
+implementou não pode estar à mão, no diretório de trabalho dele. O banco
+graphow também é só dele: o da execução fica com o que a arquitetura gravou.
 
 Do relatório sai a linha `PLACAR:`, no formato que o prompt pede. A leitura
 aceita o que um modelo costuma mudar na linha (negrito, acento, `não atende`
@@ -80,7 +83,7 @@ def bloqueantes_listados(texto: str) -> tuple[str, ...]:
 
 
 def pedido_do_auditor(execucao: Path, bancada: Bancada, tempo_limite_s: float = TEMPO_LIMITE_DO_AUDITOR_S) -> PedidoDeSessao:
-    """A sessão do auditor sobre a execução: prompt preenchido, pasta da execução e banco próprio."""
+    """A sessão do auditor sobre a execução: prompt preenchido, pasta própria em `auditoria/` e banco próprio."""
     registro = ler_json(execucao / ARQUIVO_DA_EXECUCAO)
     projeto = bancada.projeto(registro["projeto"])
     repositorio = execucao / registro["repositorio"]
@@ -93,7 +96,7 @@ def pedido_do_auditor(execucao: Path, bancada: Bancada, tempo_limite_s: float = 
     pasta = execucao / PASTA_DA_AUDITORIA
     return PedidoDeSessao(
         prompt=preencher_modelo(bancada.modelo_do_auditor(), valores),
-        pasta=execucao,
+        pasta=pasta,
         arquivo_stream=pasta / "auditor.jsonl",
         modelo=MODELO_DO_AUDITOR,
         modo_de_permissao=PERMISSAO_DO_AUDITOR,
