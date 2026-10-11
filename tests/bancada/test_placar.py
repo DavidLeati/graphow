@@ -47,9 +47,19 @@ def test_execucao_auditada_sai_com_os_numeros_e_a_variacao_contra_cada_base_nomi
 
     assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,11 | 6,3 M | 21,0 min | 11 | 13/1/0 | 7/8 | 1 |" in linhas
     assert "| base graphow-0.4.4 | estoque-loja | 7,30 | 11,4 M | 24,9 min | 7 | 9/3/0 | 0/8 | 3 |" in linhas
-    assert "| enxuta-estoque-loja-20261011-153000 | graphow-0.4.4 | -30% | -45% | -16% | +57% | +44% | +7 (base 0) | -67% |" in linhas
+    assert "| enxuta-estoque-loja-20261011-153000 | graphow-0.4.4 | -30% | -45% | -16% | +57% | +24% | +7 (base 0) | -67% |" in linhas
     assert "| enxuta-estoque-loja-20261011-153000 | enxuta | +2% | +2% | +5% | +0% | -7% | +17% | +1 (base 0) |" in linhas
     assert not [linha for linha in linhas if "agenda-salas" in linha]
+
+
+def test_criterios_comparam_a_fracao_atendida_e_nao_a_contagem_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o auditor real contou 11 itens onde o do laboratório contou 14, tudo atendido; não é queda."""
+    placar = {"criterios": {"atende": 11, "parcial": 0, "nao_atende": 0}, "sondas_ok": 5, "sondas_defeito": 3, "bloqueantes": 0}
+    _execucao(tmp_path, "enxuta-estoque-loja-20261011-162535", {"custo_usd": 5.03, "tokens": 6_160_643, "minutos": 20.0, "commits": 11}, placar)
+
+    linhas = _placar(tmp_path)
+
+    assert "| enxuta-estoque-loja-20261011-162535 | enxuta | +0% | +0% | +0% | +0% | +0% | -17% | +0 (base 0) |" in linhas
 
 
 def test_agenda_do_graphow_compara_sem_o_acabamento_e_sem_auditoria_fica_em_aberto_edge_case(tmp_path: Path) -> None:

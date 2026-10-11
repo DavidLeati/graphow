@@ -6,7 +6,9 @@ commits) e, se foi auditada, com o que `auditoria.json` extraiu do PLACAR
 mesmo projeto. Na agenda do graphow 0.4.4 valem o custo, os tokens e os
 minutos sem o Goal de acabamento, que é o comparável; a nota diz isso no fim
 da tabela. A variação é percentual; contra uma base zero (bloqueantes da
-enxuta, sondas do estoque no graphow), é a diferença absoluta.
+enxuta, sondas do estoque no graphow), é a diferença absoluta. Dos critérios
+compara-se a fração atendida, porque cada auditor conta os itens da spec do
+seu jeito.
 """
 
 from collections.abc import Mapping, Sequence
@@ -23,9 +25,9 @@ CHAVE_DO_COMPARAVEL: str = "comparavel"
 CAMPOS_DO_COMPARAVEL: tuple[str, ...] = ("custo_usd", "tokens", "minutos")
 CABECALHO_DOS_NUMEROS: str = "| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sondas ok | Bloqueantes |"
 ALINHAMENTO_DOS_NUMEROS: str = "| :--- | :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: |"
-CABECALHO_DAS_VARIACOES: str = "| Execucao | Contra | US$ | Tokens | Min | Commits | Atende | Sondas ok | Bloqueantes |"
+CABECALHO_DAS_VARIACOES: str = "| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |"
 ALINHAMENTO_DAS_VARIACOES: str = "| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
-CAMPOS_DA_VARIACAO: tuple[str, ...] = ("custo_usd", "tokens", "minutos", "commits", "atende", "sondas_ok", "bloqueantes")
+CAMPOS_DA_VARIACAO: tuple[str, ...] = ("custo_usd", "tokens", "minutos", "commits", "fracao_atende", "sondas_ok", "bloqueantes")
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,19 @@ class Numeros:
     sondas_ok: int | None = None
     sondas: int | None = None
     bloqueantes: int | None = None
+
+    @property
+    def fracao_atende(self) -> float | None:
+        """Os critérios atendidos sobre os julgados: o que se compara entre auditorias.
+
+        Dois auditores não contam os critérios do mesmo jeito (a mesma entrega
+        do estoque saiu 14/0/0 numa auditoria e 11/0/0 na outra, tudo atendido);
+        o número absoluto de `atende` cairia 21% sem a entrega mudar.
+        """
+        julgados = [valor for valor in (self.atende, self.parcial, self.nao_atende) if valor is not None]
+        if len(julgados) < 3 or sum(julgados) == 0:
+            return None
+        return (self.atende or 0) / sum(julgados)
 
 
 @dataclass(frozen=True)
