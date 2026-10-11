@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**15 alas · 236 módulos · 32213 linhas · 436 classes**
+**16 alas · 241 módulos · 32689 linhas · 444 classes**
 
 ---
 
@@ -35,6 +35,7 @@ e o inventário das alas. O catálogo detalhado de cada ala vive em
 | Trabalhar no canvas ou no tempo real | Setor 12 — `graphow.web` |
 | Regenerar esta documentação | Setor 14 — `graphow docs-gerar` |
 | Gerar o acervo de notas dos aprendizados | Setor 15 — `graphow notas-gerar` |
+| Rodar uma sessão `claude -p` e ler o que ela custou | Setor 16 — `graphow.sessoes` |
 
 ---
 
@@ -71,8 +72,9 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 11 | 1623 | 18 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3750 | 60 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
-| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1702 | 38 |
+| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1709 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
+| 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 5 | 469 | 8 |
 
 ### Missão de cada ala
 
@@ -105,4 +107,6 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 **14. Geração deste Catálogo** — Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Existe para que a documentação não seja mantida à mão.
 
 **15. Acervo de Notas como Projeção** — Renderiza um diretório de notas em Markdown a partir dos aprendizados promovidos, uma nota por aprendizado, com a origem derivada das arestas. O grafo é a fonte; o acervo é leitura, regenerável do zero, e a conferência acusa qualquer deriva.
+
+**16. Sessões claude -p** — Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CLAUDE, depois o PATH), monta o comando com saída stream-json, tira do ambiente as variáveis da sessão mãe, aplica o GRAPHOW_DB pedido, espera até o tempo limite, grava o stream num arquivo e devolve o resultado tipado (sessão, texto final, erro, custo, tokens, duração e turnos). Não depende do grafo: é a peça sobre a qual a bancada e o orquestrador rodam agentes.
 

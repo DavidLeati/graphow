@@ -113,6 +113,12 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         "Acervo de Notas como Projeção",
         "Renderiza um diretório de notas em Markdown a partir dos aprendizados promovidos, uma nota por aprendizado, com a origem derivada das arestas. O grafo é a fonte; o acervo é leitura, regenerável do zero, e a conferência acusa qualquer deriva.",
     ),
+    DefinicaoSetor(
+        16,
+        "sessoes",
+        "Sessões claude -p",
+        "Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CLAUDE, depois o PATH), monta o comando com saída stream-json, tira do ambiente as variáveis da sessão mãe, aplica o GRAPHOW_DB pedido, espera até o tempo limite, grava o stream num arquivo e devolve o resultado tipado (sessão, texto final, erro, custo, tokens, duração e turnos). Não depende do grafo: é a peça sobre a qual a bancada e o orquestrador rodam agentes.",
+    ),
 )
 
 
