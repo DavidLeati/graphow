@@ -451,6 +451,11 @@ graphow avaliar
 # custo de navegar, custo de buscar e o custo do rollup com o fechamento
 graphow medir-escala
 
+# Rodar uma arquitetura nas três demandas do laboratório, auditar a entrega e comparar com a linha de base
+graphow bancada rodar --arquitetura enxuta --projeto todos --saida ../bancada-saida
+graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
+graphow bancada placar --saida ../bancada-saida
+
 # Projetar os aprendizados promovidos num diretório de notas em Markdown
 graphow notas-gerar --destino notas
 
@@ -928,6 +933,33 @@ graphow medir-escala
 Ela publica três eixos: o peso do payload do canvas sob cada recorte, o custo de
 descobrir onde há trabalho aberto (varrer todos os contêineres contra descer
 guiado pelo rollup) e o custo de uma busca com e sem limite.
+
+---
+
+## 🧪 Bancada: o portão medido de cada fase
+
+`graphow avaliar` mede o tamanho da vista; não mede defeito entregue. A
+bancada mede: as três demandas do laboratório de 10/10/2026 (uma CLI de
+reservas, uma CLI de estoque e uma API em Node), rodadas do zero por uma
+arquitetura, cada entrega auditada pelo mesmo prompt e as mesmas sondas, e
+comparadas com a linha de base do graphow 0.4.4 e da arquitetura enxuta de
+controle. Custo, tokens e minutos saem do stream-json e das transcrições com
+as definições do laboratório; critérios, sondas e defeitos bloqueantes saem da
+linha `PLACAR:` do auditor.
+
+```bash
+graphow bancada rodar --arquitetura enxuta --projeto estoque-loja --saida ../bancada-saida
+graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
+graphow bancada placar --saida ../bancada-saida
+```
+
+Os dados (sementes, specs, sondas, prompts e a linha de base com a fonte de
+cada número) vivem em `bancada/`, e o `bancada/README.md` diz o que cada
+número significa, quanto uma rodada custa e como ler o placar. As sessões
+`claude -p` passam por `graphow.sessoes`, o caminho único que acha o
+executável (`GRAPHOW_CLAUDE`, depois o PATH), limpa o ambiente da sessão mãe e
+dá a cada execução um banco próprio: os hooks nunca escrevem no banco do
+usuário.
 
 ---
 

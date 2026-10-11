@@ -54,8 +54,10 @@ def test_bancada_tem_os_tres_projetos_completos_nominal() -> None:
 
 
 def test_bancada_tem_os_dois_prompts_com_os_marcadores_nominal() -> None:
-    """O prompt da enxuta pede spec e ramo; o do auditor, repositório, spec, ramo e sondas."""
+    """O prompt da enxuta pede spec e ramo; o do auditor, repositório, spec, ramo e sondas; a linha de base e o README estão lá."""
     bancada = Bancada()
+    assert bancada.linha_de_base.is_file()
+    assert "## Como ler o placar" in (bancada.raiz / "README.md").read_text(encoding="utf-8")
 
     assert "{SPEC}" in bancada.modelo_da_arquitetura("enxuta") and "{RAMO}" in bancada.modelo_da_arquitetura("enxuta")
     for marcador in ("{REPO}", "{SPEC}", "{RAMO}", "{SONDAS}"):
