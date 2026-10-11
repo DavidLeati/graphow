@@ -10,12 +10,12 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-11 módulos · 1406 linhas · 20 classes
+11 módulos · 1483 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
-| [`bancada/auditoria.py`](#bancadaauditoria) | 151 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
+| [`bancada/auditoria.py`](#bancadaauditoria) | 228 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
 | [`bancada/execucao.py`](#bancadaexecucao) | 225 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
@@ -89,6 +89,8 @@ As arquiteturas que a bancada sabe rodar, registradas por nome.
 | `PADRAO_DAS_SONDAS` | `re.Pattern[str]` | `re.compile('ok\\D{0,3}(\\d+)\\s*/\\s*defeitos?\\D{0,3}(\\d+)', re.IGNOR…` |
 | `PADRAO_DOS_BLOQUEANTES` | `re.Pattern[str]` | `re.compile('bloqueantes?\\D{0,3}(\\d+)', re.IGNORECASE)` |
 | `PADRAO_DE_ITEM` | `re.Pattern[str]` | `re.compile('^\\s*(?:[-*]|\\d+[.)])\\s+(?P<texto>.+)$')` |
+| `SUFIXO_DA_ANTERIOR` | `str` | `'-anterior-{numero}'` |
+| `ERRO_SESSAO_NAO_TERMINOU` | `str` | `'a sessao do auditor nao terminou (interrompida, ou ainda rodando)'` |
 
 ### `Placar`
 
@@ -103,7 +105,8 @@ As arquiteturas que a bancada sabe rodar, registradas por nome.
 - `extrair_placar(texto: str) -> Placar | None` — O último `PLACAR:` legível do relatório; None quando nenhum traz os números.
 - `bloqueantes_listados(texto: str) -> tuple[str, ...]` — Os itens de lista depois da última linha `PLACAR:`, onde o prompt pede os defeitos bloqueantes.
 - `pedido_do_auditor(execucao: Path, bancada: Bancada, tempo_limite_s: float) -> PedidoDeSessao` — A sessão do auditor sobre a execução: prompt preenchido, pasta própria em `auditoria/` e banco próprio.
-- `auditar(execucao: Path, pedido: PedidoDeSessao, sessoes: ExecutorDeSessao) -> dict[str, Any]` — Roda o auditor, guarda prompt e relatório e grava `auditoria.json` com o placar.
+- `auditar(execucao: Path, pedido: PedidoDeSessao, sessoes: ExecutorDeSessao) -> dict[str, Any]` — Roda o auditor, guarda prompt e relatório e grava `auditoria.json` com o placar ou com o erro.
+- `reservar_auditoria(execucao: Path) -> str | None` — Deixa a execução sem auditoria para a nova: recusa se já há uma, ou, com `refazer`, guarda a anterior.
 
 ## `bancada/entrega.py`
 

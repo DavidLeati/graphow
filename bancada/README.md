@@ -61,6 +61,9 @@ graphow bancada rodar --arquitetura enxuta --projeto todos --saida ~/bancada
 # O auditor sobre uma execução (sessão Opus, só lê e roda verificações)
 graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000
 
+# Auditar de novo: a anterior fica guardada como auditoria-anterior-1/ e auditoria-anterior-1.json
+graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000 --refazer
+
 # A tabela das execuções contra a linha de base
 graphow bancada placar --saida ~/bancada
 ```
@@ -73,7 +76,11 @@ comando de cada uma, as métricas e o estado git da entrega. `auditar` roda o
 auditor em `auditoria/`, uma pasta só dele, longe do relato do implementador
 em `sessoes/`, e grava ali o prompt, o stream e o relatório; em
 `auditoria.json` ficam o PLACAR em números, os bloqueantes listados e o custo
-do auditor.
+do auditor. Uma auditoria não sobrescreve outra: a execução que já tem
+`auditoria.json` ou `auditoria/` (a de um auditor que morreu no meio também
+conta) recusa sem `--refazer`. E o `auditoria.json` existe desde antes da
+sessão, dizendo que ela não terminou, para que um auditor morto deixe o erro
+registrado, e não um buraco.
 
 As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje só
 existe `enxuta`; a fase 1 registra `orquestrar`.

@@ -14,6 +14,14 @@ Do relatório sai a linha `PLACAR:`, no formato que o prompt pede. A leitura
 aceita o que um modelo costuma mudar na linha (negrito, acento, `não atende`
 com espaço) e exige os números na ordem do formato; sem linha legível, o
 placar fica nulo e a auditoria sai com erro, em vez de um número inventado.
+
+Uma auditoria nunca apaga outra. A execução que já tem `auditoria.json` ou a
+pasta `auditoria/` (a de um auditor que morreu no meio também conta) recusa;
+com `refazer`, a anterior é guardada com o sufixo `-anterior-N` antes de a
+nova começar. E o `auditoria.json` existe desde antes da sessão, dizendo que
+ela não terminou: se o auditor morrer, e com ele o processo da bancada, o
+registro fica com o erro, e não ausente. A sessão que não abre, ou que morre
+no tempo limite, também grava o erro.
 """
 
 from dataclasses import dataclass
@@ -23,8 +31,9 @@ from typing import Any
 
 from graphow.bancada.entrega import descrever_ramo, ler_estado_da_entrega
 from graphow.bancada.execucao import ARQUIVO_DA_EXECUCAO, VERSAO_DO_REGISTRO, gravar_json, ler_json
-from graphow.bancada.medicao import Invocacao, medir
-from graphow.bancada.projetos import Bancada, preencher_modelo
+from graphow.bancada.medicao import Invocacao, Medicao, medir
+from graphow.bancada.projetos import Bancada, ErroDaBancada, preencher_modelo
+from graphow.core.exceptions import GraphowError
 from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao
 
@@ -40,6 +49,8 @@ PADRAO_DOS_CRITERIOS: re.Pattern[str] = re.compile(
 PADRAO_DAS_SONDAS: re.Pattern[str] = re.compile(r"ok\D{0,3}(\d+)\s*/\s*defeitos?\D{0,3}(\d+)", re.IGNORECASE)
 PADRAO_DOS_BLOQUEANTES: re.Pattern[str] = re.compile(r"bloqueantes?\D{0,3}(\d+)", re.IGNORECASE)
 PADRAO_DE_ITEM: re.Pattern[str] = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+(?P<texto>.+)$")
+SUFIXO_DA_ANTERIOR: str = "-anterior-{numero}"
+ERRO_SESSAO_NAO_TERMINOU: str = "a sessao do auditor nao terminou (interrompida, ou ainda rodando)"
 
 
 @dataclass(frozen=True)
@@ -105,26 +116,92 @@ def pedido_do_auditor(execucao: Path, bancada: Bancada, tempo_limite_s: float = 
     )
 
 
-def auditar(execucao: Path, pedido: PedidoDeSessao, sessoes: ExecutorDeSessao, *, transcricoes: Path | None) -> dict[str, Any]:
-    """Roda o auditor, guarda prompt e relatório e grava `auditoria.json` com o placar."""
-    pedido.arquivo_stream.parent.mkdir(parents=True, exist_ok=True)
-    (pedido.arquivo_stream.parent / "prompt.md").write_text(pedido.prompt, encoding="utf-8", newline="\n")
-    resultado = sessoes.rodar(pedido)
-    (pedido.arquivo_stream.parent / "relatorio.md").write_text(resultado.texto_final, encoding="utf-8", newline="\n")
+def auditar(
+    execucao: Path, pedido: PedidoDeSessao, sessoes: ExecutorDeSessao, *, transcricoes: Path | None, refazer: bool = False
+) -> dict[str, Any]:
+    """Roda o auditor, guarda prompt e relatório e grava `auditoria.json` com o placar ou com o erro.
+
+    A auditoria que já existe recusa; com `refazer`, ela é guardada antes.
+    """
+    anterior = reservar_auditoria(execucao, refazer=refazer)
+    pasta = pedido.arquivo_stream.parent
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / "prompt.md").write_text(pedido.prompt, encoding="utf-8", newline="\n")
+    base = {"versao": VERSAO_DO_REGISTRO, "execucao": execucao.name, "prompt": f"{PASTA_DA_AUDITORIA}/prompt.md"}
+    base["auditoria_anterior"] = anterior
+    gravar_json(execucao / ARQUIVO_DA_AUDITORIA, {**base, **_sem_sessao(ERRO_SESSAO_NAO_TERMINOU)})
+    try:
+        resultado = sessoes.rodar(pedido)
+    except (GraphowError, OSError) as erro:
+        motivo = erro.formatar_para_llm() if isinstance(erro, GraphowError) else str(erro)
+        registro = {**base, **_sem_sessao(f"a sessao do auditor nao abriu: {motivo}")}
+    else:
+        registro = {**base, **_com_sessao(resultado, pasta, transcricoes)}
+    gravar_json(execucao / ARQUIVO_DA_AUDITORIA, registro)
+    return registro
+
+
+def reservar_auditoria(execucao: Path, *, refazer: bool) -> str | None:
+    """Deixa a execução sem auditoria para a nova: recusa se já há uma, ou, com `refazer`, guarda a anterior.
+
+    Devolve o nome com que a anterior foi guardada (`auditoria-anterior-N`, a
+    pasta, e o mesmo nome com `.json`), ou None quando não havia nenhuma.
+    """
+    existentes = [caminho for caminho in (execucao / ARQUIVO_DA_AUDITORIA, execucao / PASTA_DA_AUDITORIA) if caminho.exists()]
+    if not existentes:
+        return None
+    if not refazer:
+        raise ErroDaBancada(
+            "a execucao ja tem auditoria",
+            {"execucao": str(execucao), "existente": ", ".join(c.name for c in existentes), "dica": "use --refazer"},
+        )
+    sufixo = _sufixo_livre(execucao)
+    try:
+        for caminho in existentes:
+            caminho.rename(caminho.with_name(f"{caminho.stem}{sufixo}{caminho.suffix}"))
+    except OSError as erro:
+        raise ErroDaBancada("a auditoria anterior nao pode ser guardada", {"execucao": str(execucao), "erro": str(erro)}) from erro
+    return f"{PASTA_DA_AUDITORIA}{sufixo}"
+
+
+def _sufixo_livre(execucao: Path) -> str:
+    """O primeiro `-anterior-N` que nenhuma auditoria guardada usa."""
+    numero = 1
+    while _guardada(execucao, SUFIXO_DA_ANTERIOR.format(numero=numero)):
+        numero += 1
+    return SUFIXO_DA_ANTERIOR.format(numero=numero)
+
+
+def _guardada(execucao: Path, sufixo: str) -> bool:
+    """Já há uma auditoria guardada com o sufixo, como pasta ou como registro."""
+    return (execucao / f"{PASTA_DA_AUDITORIA}{sufixo}").exists() or (execucao / f"{PASTA_DA_AUDITORIA}{sufixo}.json").exists()
+
+
+def _sem_sessao(erro: str) -> dict[str, Any]:
+    """O registro de uma auditoria cuja sessão não chegou ao fim: nada medido, nada lido, só o erro."""
+    return {
+        "placar": None,
+        "bloqueantes_listados": [],
+        "erro": erro,
+        "relatorio": None,
+        "metricas": Medicao(None, None, "", None, ()).em_dicionario(),
+        "sessao": None,
+    }
+
+
+def _com_sessao(resultado: ResultadoDeSessao, pasta: Path, transcricoes: Path | None) -> dict[str, Any]:
+    """O relatório guardado, o placar lido dele e o custo; sem texto final, não há relatório a guardar."""
+    if resultado.texto_final:
+        (pasta / "relatorio.md").write_text(resultado.texto_final, encoding="utf-8", newline="\n")
     placar = extrair_placar(resultado.texto_final)
-    registro = {
-        "versao": VERSAO_DO_REGISTRO,
-        "execucao": execucao.name,
+    return {
         "placar": placar.em_dicionario() if placar else None,
         "bloqueantes_listados": list(bloqueantes_listados(resultado.texto_final)),
         "erro": _erro_da_auditoria(resultado, placar),
-        "relatorio": f"{PASTA_DA_AUDITORIA}/relatorio.md",
-        "prompt": f"{PASTA_DA_AUDITORIA}/prompt.md",
+        "relatorio": f"{PASTA_DA_AUDITORIA}/relatorio.md" if resultado.texto_final else None,
         "metricas": _metricas_do_auditor(resultado, transcricoes),
         "sessao": resultado.em_dicionario(),
     }
-    gravar_json(execucao / ARQUIVO_DA_AUDITORIA, registro)
-    return registro
 
 
 def _ler_linha_do_placar(linha: str) -> Placar | None:

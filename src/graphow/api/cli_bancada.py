@@ -40,6 +40,15 @@ def registrar_comando_de_bancada(
         help="Roda uma arquitetura nas demandas do laboratorio, audita a entrega e compara com a linha de base",
     )
     acoes = parser_bancada.add_subparsers(dest="acao", required=True)
+    _registrar_rodar(acoes)
+    _registrar_auditar(acoes)
+    parser_placar = acoes.add_parser("placar", help="Compara as execucoes de uma saida com a linha de base")
+    parser_placar.add_argument("--saida", required=True, help="Pasta com as execucoes (ou uma execucao)")
+    parser_placar.add_argument("--bancada", default=str(RAIZ_DA_BANCADA_PADRAO), help="Pasta bancada/ (padrao: a do repositorio)")
+
+
+def _registrar_rodar(acoes: argparse._SubParsersAction) -> None:
+    """`graphow bancada rodar`."""
     parser_rodar = acoes.add_parser("rodar", help="Monta a execucao da semente, roda a arquitetura e grava execucao.json")
     parser_rodar.add_argument("--arquitetura", required=True, help="Arquitetura registrada (hoje: enxuta)")
     parser_rodar.add_argument("--projeto", required=True, help="Projeto da bancada, ou 'todos' para os tres em paralelo")
@@ -48,15 +57,21 @@ def registrar_comando_de_bancada(
         "--tempo-limite", type=float, default=TEMPO_LIMITE_DA_RODADA_MIN, help="Minutos por sessao (padrao: 120)"
     )
     _registrar_opcoes_comuns(parser_rodar)
+
+
+def _registrar_auditar(acoes: argparse._SubParsersAction) -> None:
+    """`graphow bancada auditar`."""
     parser_auditar = acoes.add_parser("auditar", help="Roda o auditor sobre uma execucao e grava auditoria.json com o PLACAR")
     parser_auditar.add_argument("--execucao", required=True, help="Pasta de uma execucao, com execucao.json")
     parser_auditar.add_argument(
         "--tempo-limite", type=float, default=TEMPO_LIMITE_DO_AUDITOR_MIN, help="Minutos para o auditor (padrao: 60)"
     )
+    parser_auditar.add_argument(
+        "--refazer",
+        action="store_true",
+        help="Audita de novo uma execucao ja auditada; a auditoria anterior fica guardada como auditoria-anterior-N",
+    )
     _registrar_opcoes_comuns(parser_auditar)
-    parser_placar = acoes.add_parser("placar", help="Compara as execucoes de uma saida com a linha de base")
-    parser_placar.add_argument("--saida", required=True, help="Pasta com as execucoes (ou uma execucao)")
-    parser_placar.add_argument("--bancada", default=str(RAIZ_DA_BANCADA_PADRAO), help="Pasta bancada/ (padrao: a do repositorio)")
 
 
 @dataclass(frozen=True)
@@ -122,7 +137,11 @@ def _auditar(argumentos: argparse.Namespace, console: EscritorConsole, dependenc
     pedido = pedido_do_auditor(execucao, _bancada(argumentos), argumentos.tempo_limite * SEGUNDOS_POR_MINUTO)
     sessoes = dependencias.executor()
     console.escrever_linha(f"Auditor em {execucao}: {shlex.join(sessoes.comando_de(pedido))}")
-    registro = auditar(execucao, pedido, sessoes, transcricoes=Path(argumentos.transcricoes).expanduser())
+    registro = auditar(
+        execucao, pedido, sessoes, transcricoes=Path(argumentos.transcricoes).expanduser(), refazer=argumentos.refazer
+    )
+    if registro["auditoria_anterior"]:
+        console.escrever_linha(f"  auditoria anterior guardada como {registro['auditoria_anterior']}")
     placar = registro["placar"]
     linha = placar["linha"] if placar else "sem PLACAR"
     console.escrever_linha(f"  {linha}")
