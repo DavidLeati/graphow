@@ -14,6 +14,7 @@ from tests.sessoes.apoio import (
     chamadas_registradas,
     comando_do_falso,
     criar_executavel_falso,
+    esperar_fim,
 )
 
 PROMPT: str = "Implemente a demanda descrita em ../spec.md. Não faça perguntas."
@@ -103,6 +104,22 @@ def test_tempo_esgotado_mata_o_processo_e_marca_erro_edge_case(tmp_path: Path) -
     assert resultado.leitura.resultado is None
     assert resultado.session_id == "4cb36a24-6f3f-4ad6-8179-f4aadfd02d53"
     assert resultado.custo_usd == 0.0
+
+
+def test_tempo_esgotado_mata_a_arvore_aberta_por_um_cmd_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o executável é um `.cmd` (no POSIX, um script de shell) que abre o falso, e o falso abre um
+    filho, como o claude real abre os servidores que o agente sobe. No tempo esgotado, os dois morrem."""
+    falso = criar_executavel_falso(tmp_path / "bin")
+    registro = tmp_path / "registro"
+    ambiente = ambiente_de_teste(registro, GRAPHOW_TESTE_DORMIR="60", GRAPHOW_TESTE_FILHO="1")
+    executor = ExecutorDeSessao((str(falso),), ambiente)
+
+    resultado = executor.rodar(_pedido(tmp_path, tempo_limite_s=3.0))
+
+    chamada = chamadas_registradas(registro)[0]
+    assert resultado.tempo_esgotado is True
+    assert esperar_fim(int(str(chamada["pid"]))), "o claude aberto pelo .cmd sobreviveu ao tempo esgotado"
+    assert esperar_fim(int(str(chamada["pid_do_filho"]))), "o filho que a sessao abriu sobreviveu ao tempo esgotado"
 
 
 def test_codigo_de_saida_diferente_de_zero_e_erro_edge_case(tmp_path: Path) -> None:

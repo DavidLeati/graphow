@@ -11,7 +11,9 @@ variáveis `GRAPHOW_TESTE_*` (as `CLAUDE*` a sessão apaga antes de lançar):
 - `GRAPHOW_TESTE_SAIDA`: o código de saída;
 - `GRAPHOW_TESTE_COMMIT`: um ramo a criar na pasta de trabalho, com um commit;
 - `GRAPHOW_TESTE_TRANSCRICOES`: pasta de projetos onde gravar a transcrição da
-  sessão e a de um subagente, como o Claude Code grava em `~/.claude/projects`.
+  sessão e a de um subagente, como o Claude Code grava em `~/.claude/projects`;
+- `GRAPHOW_TESTE_FILHO`: abre um processo filho que dorme um minuto, como um
+  servidor que o agente subiu; o PID dele vai para o registro.
 """
 
 import json
@@ -25,11 +27,12 @@ import uuid
 STREAM_PADRAO = Path(__file__).parent / "dados" / "stream_enxuta.jsonl"
 
 
-def _registrar(entrada: str) -> None:
+def _registrar(entrada: str, filho: int | None) -> None:
     pasta = os.environ.get("GRAPHOW_TESTE_REGISTRO")
     if not pasta:
         return
-    registro = {"argv": sys.argv[1:], "cwd": os.getcwd(), "stdin": entrada, "env": dict(os.environ)}
+    registro = {"argv": sys.argv[1:], "cwd": os.getcwd(), "stdin": entrada, "env": dict(os.environ),
+                "pid": os.getpid(), "pid_do_filho": filho}
     destino = Path(pasta) / f"{uuid.uuid4().hex}.json"
     destino.write_text(json.dumps(registro, ensure_ascii=False), encoding="utf-8")
 
@@ -54,9 +57,15 @@ def _transcrever(pasta: str, linhas: list[str]) -> None:
     (projeto / sessao / "subagents" / "agent-a1.jsonl").write_text(json.dumps(subagente) + "\n", encoding="utf-8")
 
 
+def _abrir_filho() -> int | None:
+    if not os.environ.get("GRAPHOW_TESTE_FILHO"):
+        return None
+    return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"]).pid
+
+
 def main() -> int:
     entrada = sys.stdin.buffer.read().decode("utf-8")
-    _registrar(entrada)
+    _registrar(entrada, _abrir_filho())
     linhas = Path(os.environ.get("GRAPHOW_TESTE_STREAM") or STREAM_PADRAO).read_text(encoding="utf-8").splitlines(True)
     sys.stdout.buffer.write("".join(linhas[:-1]).encode("utf-8"))
     sys.stdout.flush()

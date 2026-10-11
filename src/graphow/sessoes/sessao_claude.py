@@ -5,9 +5,13 @@ minutos escreve megabytes, e o arquivo é o registro que a medição relê depoi
 inclusive quando o processo morre no meio. A saída de erro vai para outro
 arquivo ao lado.
 
-No tempo esgotado, o processo é morto pelo próprio PID, e só ele. Os filhos que
-ele tiver aberto (um servidor que o agente subiu, por exemplo) não são caçados
-por nome: isso mataria processos de outros trabalhos da máquina.
+No tempo esgotado, a sessão morre com a árvore dela, a partir do PID: no
+Windows, `taskkill /PID <pid> /T /F`, porque o executável costuma ser um `.cmd`
+que abre o claude de verdade como filho, e matar só o PID do `.cmd` deixava o
+claude rodando; no POSIX, o grupo de processos, porque a sessão nasce num
+grupo só dela. Os filhos que o agente subiu (um servidor, por exemplo) morrem
+junto. Nunca por nome (`taskkill /IM`, `pkill`): isso mataria os processos de
+outros trabalhos da máquina.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -15,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+import signal
 import subprocess
 from typing import Any
 
@@ -22,6 +27,9 @@ from graphow.core.exceptions import GraphowError
 from graphow.sessoes.executavel import descobrir_executavel
 from graphow.sessoes.leitura_stream import LeituraDoStream, UsoDeTokens, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao, limpar_ambiente, montar_comando
+
+NO_WINDOWS: bool = os.name == "nt"
+TEMPO_DO_TASKKILL_S: float = 30.0
 
 
 class FalhaAoAbrirSessao(GraphowError):
@@ -140,13 +148,13 @@ class ExecutorDeSessao:
             try:
                 processo.communicate(pedido.prompt.encode("utf-8"), timeout=pedido.tempo_limite_s)
             except subprocess.TimeoutExpired:
-                processo.kill()
+                matar_arvore(processo)
                 processo.communicate()
                 return processo.returncode, True
         return processo.returncode, False
 
     def _abrir(self, comando: tuple[str, ...], pedido: PedidoDeSessao, destinos: tuple[Any, Any]) -> subprocess.Popen[bytes]:
-        """O processo da sessão, na pasta do pedido e com o ambiente limpo."""
+        """O processo da sessão, na pasta do pedido, com o ambiente limpo e, no POSIX, num grupo próprio."""
         try:
             return subprocess.Popen(
                 comando,
@@ -155,9 +163,37 @@ class ExecutorDeSessao:
                 stderr=destinos[1],
                 cwd=pedido.pasta,
                 env=limpar_ambiente(self._ambiente, pedido),
+                start_new_session=not NO_WINDOWS,
             )
         except OSError as erro:
             raise FalhaAoAbrirSessao("a sessao claude -p nao abriu", {"comando": comando[0], "erro": str(erro)}) from erro
+
+
+def matar_arvore(processo: subprocess.Popen[bytes]) -> None:
+    """O processo e os descendentes dele, a partir do PID; o próprio processo morre de qualquer jeito."""
+    if NO_WINDOWS:
+        _matar_arvore_no_windows(processo.pid)
+    else:
+        _matar_grupo(processo.pid)
+    processo.kill()
+
+
+def _matar_arvore_no_windows(pid: int) -> None:
+    """`taskkill /PID <pid> /T /F`: a árvore que nasceu do PID, e só ela."""
+    try:
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False, timeout=TEMPO_DO_TASKKILL_S
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+
+
+def _matar_grupo(pid: int) -> None:
+    """O grupo de processos que a sessão abriu ao nascer, cujo id é o PID dela."""
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
 
 
 def em_iso(instante: datetime) -> str:

@@ -1,12 +1,16 @@
 """Apoio dos testes que rodam sessões: o `claude -p` falso e o que ele registrou."""
 
+import ctypes
 import json
 import os
 from pathlib import Path
 import stat
 import sys
+import time
 
 CLAUDE_FALSO: Path = Path(__file__).parent / "claude_falso.py"
+SINCRONIZAR_E_CONSULTAR: int = 0x00100000 | 0x1000
+ESPERA_ESGOTADA: int = 0x102
 STREAM_DA_ENXUTA: Path = Path(__file__).parent / "dados" / "stream_enxuta.jsonl"
 
 
@@ -41,3 +45,29 @@ def chamadas_registradas(registro: Path) -> list[dict[str, object]]:
     """O que o falso recebeu em cada chamada, na ordem em que os arquivos foram gravados."""
     arquivos = sorted(registro.glob("*.json"), key=lambda caminho: caminho.stat().st_mtime_ns)
     return [json.loads(arquivo.read_text(encoding="utf-8")) for arquivo in arquivos]
+
+
+def processo_vivo(pid: int) -> bool:
+    """O processo existe e não terminou; no Windows, pelo handle do processo, sem sinal nenhum."""
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(SINCRONIZAR_E_CONSULTAR, False, pid)
+    if not handle:
+        return False
+    try:
+        return kernel32.WaitForSingleObject(handle, 0) == ESPERA_ESGOTADA
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def esperar_fim(pid: int, segundos: float = 5.0) -> bool:
+    """Se o processo terminou dentro do prazo: a morte da árvore não é instantânea."""
+    limite = time.monotonic() + segundos
+    while processo_vivo(pid) and time.monotonic() < limite:
+        time.sleep(0.1)
+    return not processo_vivo(pid)

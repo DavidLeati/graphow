@@ -10,14 +10,14 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-5 módulos · 469 linhas · 8 classes
+5 módulos · 505 linhas · 8 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
 | [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 168 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 76 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 170 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 206 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
 ## `sessoes/executavel.py`
 
@@ -107,6 +107,11 @@ O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em qu
 
 Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NO_WINDOWS` | `bool` | `os.name == 'nt'` |
+| `TEMPO_DO_TASKKILL_S` | `float` | `30.0` |
+
 ### `ExecutorDeSessao`
 
 *serviço* — Lança o `claude -p` de cada pedido e espera por ele até o tempo limite.
@@ -135,5 +140,6 @@ Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 
 ### Funções do módulo
 
+- `matar_arvore(processo: subprocess.Popen[bytes]) -> None` — O processo e os descendentes dele, a partir do PID; o próprio processo morre de qualquer jeito.
 - `em_iso(instante: datetime) -> str` — O instante em ISO 8601 com fuso, em segundos.
 
