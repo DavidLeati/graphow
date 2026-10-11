@@ -10,7 +10,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-10 módulos · 1107 linhas · 17 classes
+11 módulos · 1267 linhas · 19 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,6 +20,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/execucao.py`](#bancadaexecucao) | 147 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
 | [`bancada/medicao.py`](#bancadamedicao) | 218 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
+| [`bancada/placar.py`](#bancadaplacar) | 160 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
 | [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
@@ -210,6 +211,38 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 - `medir(invocacoes: Sequence[Invocacao], raiz_das_transcricoes: Path | None) -> Medicao` — Custo, tokens e minutos das invocações, com as transcrições achadas sob a raiz.
 - `minutos_das_invocacoes(invocacoes: Sequence[Invocacao]) -> float | None` — Do primeiro início ao último fim; None quando falta algum instante.
 - `contar_sessoes_retomadas(invocacoes: Sequence[Invocacao]) -> int` — Quantas sessões tiveram mais de um resultado: as que o laboratório contou em dobro.
+
+## `bancada/placar.py`
+
+`graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CHAVE_DO_COMPARAVEL` | `str` | `'comparavel'` |
+| `CAMPOS_DO_COMPARAVEL` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos')` |
+| `CABECALHO_DOS_NUMEROS` | `str` | `'| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sond…` |
+| `ALINHAMENTO_DOS_NUMEROS` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: |'` |
+| `CABECALHO_DAS_VARIACOES` | `str` | `'| Execucao | Contra | US$ | Tokens | Min | Commits | Atende | Sondas o…` |
+| `ALINHAMENTO_DAS_VARIACOES` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'` |
+| `CAMPOS_DA_VARIACAO` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos', 'commits', 'atende', 'sondas_ok', 'b…` |
+
+### `LinhaDoPlacar`
+
+*DTO imutável* — Uma execução, ou uma referência da linha de base, num projeto.
+
+**Campos:** `rotulo: str`, `arquitetura: str`, `projeto: str`, `numeros: Numeros`, `observacao: str`
+
+### `Numeros`
+
+*DTO imutável* — O que o placar compara de uma execução; o que não foi medido fica None.
+
+**Campos:** `custo_usd: float | None`, `tokens: int | None`, `minutos: float | None`, `commits: int | None`, `atende: int | None`, `parcial: int | None`, `nao_atende: int | None`, `sondas_ok: int | None`, `sondas: int | None`, `bloqueantes: int | None`
+
+### Funções do módulo
+
+- `ler_execucoes(saida: Path) -> tuple[LinhaDoPlacar, ...]` — Toda execução da saída (ou a própria saída, se for uma execução), em ordem de nome.
+- `ler_linha_de_base(caminho: Path) -> dict[tuple[str, str], LinhaDoPlacar]` — As referências da linha de base por arquitetura e projeto, com o comparável onde houver.
+- `formatar_placar(execucoes: Sequence[LinhaDoPlacar], base: Mapping[tuple[str, str], LinhaDoPlacar]) -> tuple[str, ...]` — A tabela dos números, a das variações contra cada arquitetura de base e as observações.
 
 ## `bancada/projetos.py`
 

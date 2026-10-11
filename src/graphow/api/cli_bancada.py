@@ -1,4 +1,4 @@
-"""O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório e auditar a entrega.
+"""O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar.
 
 Não toca o banco do usuário: cada execução ganha um banco próprio, que vira o
 `GRAPHOW_DB` das sessões, porque os hooks do graphow instalados no Claude Code
@@ -16,6 +16,7 @@ from graphow.bancada.arquiteturas import RegistroDeArquiteturas, registro_padrao
 from graphow.bancada.auditoria import auditar, pedido_do_auditor
 from graphow.bancada.execucao import ConfiguracaoDaRodada, ExecucaoGravada, rodar_projetos
 from graphow.bancada.formatacao import formatar_dinheiro, formatar_inteiro, formatar_minutos
+from graphow.bancada.placar import formatar_placar, ler_execucoes, ler_linha_de_base
 from graphow.bancada.projetos import RAIZ_DA_BANCADA_PADRAO, Bancada
 from graphow.bancada.transcricoes import PASTA_DE_PROJETOS_PADRAO
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
@@ -53,6 +54,9 @@ def registrar_comando_de_bancada(
         "--tempo-limite", type=float, default=TEMPO_LIMITE_DO_AUDITOR_MIN, help="Minutos para o auditor (padrao: 60)"
     )
     _registrar_opcoes_comuns(parser_auditar)
+    parser_placar = acoes.add_parser("placar", help="Compara as execucoes de uma saida com a linha de base")
+    parser_placar.add_argument("--saida", required=True, help="Pasta com as execucoes (ou uma execucao)")
+    parser_placar.add_argument("--bancada", default=str(RAIZ_DA_BANCADA_PADRAO), help="Pasta bancada/ (padrao: a do repositorio)")
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,7 @@ def executar_bancada(
     acoes: Mapping[str, Callable[[argparse.Namespace, EscritorConsole, _Dependencias], int]] = {
         "rodar": _rodar,
         "auditar": _auditar,
+        "placar": _placar,
     }
     return acoes[argumentos.acao](argumentos, console, _Dependencias(registro or registro_padrao(), sessoes))
 
@@ -128,6 +133,19 @@ def _auditar(argumentos: argparse.Namespace, console: EscritorConsole, dependenc
     if registro["erro"]:
         console.escrever_linha(f"  {registro['erro']}")
     return CODIGO_COM_ERRO if registro["erro"] else CODIGO_SUCESSO
+
+
+def _placar(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
+    """A tabela das execuções da saída contra a linha de base; não roda sessão nenhuma."""
+    saida = Path(argumentos.saida).expanduser().resolve()
+    bancada = _bancada(argumentos)
+    execucoes = ler_execucoes(saida)
+    auditadas = sum(1 for execucao in execucoes if execucao.numeros.atende is not None)
+    console.escrever_linha(f"Placar de {saida}: {len(execucoes)} execucoes, {auditadas} auditadas; base {bancada.linha_de_base}")
+    console.escrever_linha("")
+    for linha in formatar_placar(execucoes, ler_linha_de_base(bancada.linha_de_base)):
+        console.escrever_linha(linha)
+    return CODIGO_SUCESSO
 
 
 def _bancada(argumentos: argparse.Namespace) -> Bancada:
