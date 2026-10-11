@@ -84,6 +84,11 @@ class ResultadoDeSessao:
         return ", ".join(motivo for motivo, aconteceu in motivos if aconteceu)
 
     @property
+    def saida_estruturada(self) -> Any:
+        """O `structured_output` do resultado, quando a sessão rodou com `--json-schema`; None sem ele."""
+        return self.leitura.resultado.saida_estruturada if self.leitura.resultado else None
+
+    @property
     def custo_usd(self) -> float | None:
         """O custo que o resultado declarou (acumulado da sessão, se ela foi retomada); None sem resultado."""
         return self.leitura.resultado.custo_usd if self.leitura.resultado else None

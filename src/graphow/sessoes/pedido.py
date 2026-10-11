@@ -12,7 +12,7 @@ subprocesso dela. Sem elas, a sessão é nova e independente.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 VARIAVEL_DO_BANCO: str = "GRAPHOW_DB"
@@ -30,7 +30,9 @@ class PedidoDeSessao:
     `banco_graphow`, quando dado, vira o `GRAPHOW_DB` da sessão: os hooks do
     graphow instalados no Claude Code rodam em toda sessão, e sem isto
     escreveriam no banco do usuário. `argumentos_extras` vão ao fim do
-    comando, para o que este pedido ainda não nomeia.
+    comando, para o que este pedido ainda não nomeia, e `ambiente_extra`
+    entra no ambiente já limpo (o orquestrador põe ali a trava de git do
+    executor).
     """
 
     prompt: str
@@ -43,6 +45,7 @@ class PedidoDeSessao:
     banco_graphow: Path | None = None
     tempo_limite_s: float = TEMPO_LIMITE_PADRAO_S
     argumentos_extras: tuple[str, ...] = ()
+    ambiente_extra: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def arquivo_erro(self) -> Path:
@@ -63,11 +66,11 @@ def montar_comando(executavel: Sequence[str], pedido: PedidoDeSessao) -> tuple[s
 
 
 def limpar_ambiente(ambiente: Mapping[str, str], pedido: PedidoDeSessao) -> dict[str, str]:
-    """O ambiente da sessão: o recebido sem as variáveis da sessão mãe, com o banco pedido."""
+    """O ambiente da sessão: o recebido sem as variáveis da sessão mãe, com o banco pedido e os extras."""
     limpo = {nome: valor for nome, valor in ambiente.items() if not _eh_da_sessao_mae(nome)}
     if pedido.banco_graphow is not None:
         limpo[VARIAVEL_DO_BANCO] = str(pedido.banco_graphow)
-    return limpo
+    return {**limpo, **pedido.ambiente_extra}
 
 
 def _eh_da_sessao_mae(nome: str) -> bool:

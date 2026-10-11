@@ -91,3 +91,21 @@ def test_leitura_aceita_arquivo_aberto_nominal(tmp_path: Path) -> None:
 
     with caminho.open(encoding="utf-8") as arquivo:
         assert ler_stream(arquivo).session_id == "s-3"
+
+
+def test_saida_estruturada_do_json_schema_vem_do_resultado_nominal() -> None:
+    """Com `--json-schema`, o `structured_output` do resultado é o objeto que a sessão devolveu."""
+    saida = {"status": "pronto", "resumo": "feito", "mcp": []}
+
+    resultado = ler_stream([_resultado("s", 0.1, structured_output=saida)]).resultado
+
+    assert resultado is not None
+    assert resultado.saida_estruturada == saida
+
+
+def test_sem_json_schema_nao_ha_saida_estruturada_edge_case() -> None:
+    """Caso de borda: o resultado comum não inventa saída estruturada."""
+    resultado = ler_stream([_resultado("s", 0.1)]).resultado
+
+    assert resultado is not None
+    assert resultado.saida_estruturada is None

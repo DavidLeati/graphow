@@ -3,6 +3,8 @@
 O stream é uma linha JSON por evento. O `system/init` traz a sessão e o modelo;
 o `result`, no fim, traz o texto final, o erro, o custo, os turnos, a duração e
 o `modelUsage`, que soma os tokens da sessão e dos subagentes dela por modelo.
+Com `--json-schema`, o `result` traz ainda `structured_output`: o objeto que
+a sessão devolveu, já conferido pelo Claude Code contra o schema.
 O `usage` do mesmo evento conta só a sessão principal, e por isso não serve de
 total.
 
@@ -76,6 +78,7 @@ class ResultadoDoStream:
     turnos: int
     duracao_ms: int | None
     tokens_por_modelo: Mapping[str, UsoDeTokens] = field(default_factory=dict)
+    saida_estruturada: Any = None
 
     @property
     def tokens(self) -> UsoDeTokens:
@@ -126,6 +129,7 @@ def ler_resultado(evento: Mapping[str, Any]) -> ResultadoDoStream:
         turnos=int(_numero(evento.get("num_turns"))),
         duracao_ms=_inteiro_ou_nada(evento.get("duration_ms")),
         tokens_por_modelo=_tokens_por_modelo(evento.get("modelUsage")),
+        saida_estruturada=evento.get("structured_output"),
     )
 
 

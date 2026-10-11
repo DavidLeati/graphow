@@ -10,14 +10,14 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-5 módulos · 521 linhas · 8 classes
+5 módulos · 533 linhas · 8 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
-| [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 168 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
-| [`sessoes/pedido.py`](#sessoespedido) | 76 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 222 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 172 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
+| [`sessoes/pedido.py`](#sessoespedido) | 79 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 227 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
 ## `sessoes/executavel.py`
 
@@ -57,7 +57,7 @@ O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que responde
 
 *DTO imutável* — Um evento `result`: o fim de uma invocação do `claude -p`.
 
-**Campos:** `session_id: str`, `texto: str`, `is_error: bool`, `subtipo: str`, `custo_usd: float`, `turnos: int`, `duracao_ms: int | None`, `tokens_por_modelo: Mapping[str, UsoDeTokens]`
+**Campos:** `session_id: str`, `texto: str`, `is_error: bool`, `subtipo: str`, `custo_usd: float`, `turnos: int`, `duracao_ms: int | None`, `tokens_por_modelo: Mapping[str, UsoDeTokens]`, `saida_estruturada: Any`
 
 - `tokens() -> UsoDeTokens` `[property]` — O `modelUsage` somado entre os modelos.
 
@@ -94,14 +94,14 @@ O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em qu
 
 *DTO imutável* — O que uma sessão precisa para rodar e onde ela grava o que fez.
 
-**Campos:** `prompt: str`, `pasta: Path`, `arquivo_stream: Path`, `modelo: str`, `modo_de_permissao: str`, `ferramentas_permitidas: tuple[str, ...]`, `retomar: str`, `banco_graphow: Path | None`, `tempo_limite_s: float`, `argumentos_extras: tuple[str, ...]`
+**Campos:** `prompt: str`, `pasta: Path`, `arquivo_stream: Path`, `modelo: str`, `modo_de_permissao: str`, `ferramentas_permitidas: tuple[str, ...]`, `retomar: str`, `banco_graphow: Path | None`, `tempo_limite_s: float`, `argumentos_extras: tuple[str, ...]`, `ambiente_extra: Mapping[str, str]`
 
 - `arquivo_erro() -> Path` `[property]` — A saída de erro do processo, ao lado do stream.
 
 ### Funções do módulo
 
 - `montar_comando(executavel: Sequence[str], pedido: PedidoDeSessao) -> tuple[str, ...]` — A linha de comando da sessão; o prompt fica de fora, porque vai pela entrada padrão.
-- `limpar_ambiente(ambiente: Mapping[str, str], pedido: PedidoDeSessao) -> dict[str, str]` — O ambiente da sessão: o recebido sem as variáveis da sessão mãe, com o banco pedido.
+- `limpar_ambiente(ambiente: Mapping[str, str], pedido: PedidoDeSessao) -> dict[str, str]` — O ambiente da sessão: o recebido sem as variáveis da sessão mãe, com o banco pedido e os extras.
 
 ## `sessoes/sessao_claude.py`
 
@@ -133,6 +133,7 @@ Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 - `texto_final() -> str` `[property]` — A resposta final da sessão.
 - `is_error() -> bool` `[property]` — Erro no resultado, no processo ou no tempo.
 - `motivo_do_erro() -> str` `[property]` — Por que a sessão deu errado, com cada forma que aconteceu; vazio quando deu certo.
+- `saida_estruturada() -> Any` `[property]` — O `structured_output` do resultado, quando a sessão rodou com `--json-schema`; None sem ele.
 - `custo_usd() -> float | None` `[property]` — O custo que o resultado declarou (acumulado da sessão, se ela foi retomada); None sem resultado.
 - `tokens() -> UsoDeTokens | None` `[property]` — O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo; None sem resultado.
 - `turnos() -> int | None` `[property]` — Os turnos que o resultado declarou; None sem resultado.

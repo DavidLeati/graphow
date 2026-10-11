@@ -106,3 +106,12 @@ def test_sem_banco_pedido_o_ambiente_fica_com_o_dele_edge_case(tmp_path: Path) -
     limpo = limpar_ambiente({"GRAPHOW_DB": "C:/outro.db"}, _pedido(tmp_path))
 
     assert limpo == {"GRAPHOW_DB": "C:/outro.db"}
+
+
+def test_ambiente_extra_entra_depois_da_limpeza_nominal(tmp_path: Path) -> None:
+    """O extra do pedido (a trava de git do executor) chega à sessão; a sessão mãe continua de fora."""
+    extra = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": "C:/travas"}
+
+    limpo = limpar_ambiente({"PATH": "/bin", "CLAUDECODE": "1"}, _pedido(tmp_path, ambiente_extra=extra))
+
+    assert limpo == {"PATH": "/bin", **extra}
