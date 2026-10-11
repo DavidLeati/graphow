@@ -125,6 +125,12 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         "Bancada de Medição",
         "O portão de cada fase da reestruturação: as três demandas do laboratório rodadas do zero por arquitetura e auditadas do mesmo jeito. Lê os dados versionados em `bancada/` (semente, spec, sondas, prompts e linha de base) e recria o repositório de cada execução com o mesmo hash do laboratório. Não toca o banco do usuário: cada execução tem o seu.",
     ),
+    DefinicaoSetor(
+        18,
+        "orquestrador",
+        "Orquestrador em Código",
+        "O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal sem LLM coordenando. O planejador, o executor de cada fatia e o verificador adversarial rodam em sessões `claude -p` novas, com briefing montado por código, sem MCP do graphow e com o git de escrita travado, e devolvem JSON validado por schema. O orquestrador grava o livro-razão com o papel `orquestrador`, commita cada fatia numa branch do Goal, guarda a telemetria de cada sessão fora do grafo e retoma de onde parou a partir do livro-razão e do git.",
+    ),
 )
 
 

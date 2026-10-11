@@ -10,7 +10,7 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-13 módulos · 1716 linhas · 38 classes
+13 módulos · 1723 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,9 +21,9 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 | [`documentacao/leitura_fonte.py`](#documentacaoleiturafonte) | 89 | Acesso ao código-fonte do repositório, atrás de interface injetável. |
 | [`documentacao/modelo.py`](#documentacaomodelo) | 170 | Modelos imutáveis do catálogo de código extraído do repositório. |
 | [`documentacao/publicacao.py`](#documentacaopublicacao) | 141 | Publicação dos documentos gerados, com escrita atrás de interface injetável. |
-| [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 146 | Renderização do índice de navegação da biblioteca de documentação. |
+| [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 147 | Renderização do índice de navegação da biblioteca de documentação. |
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
-| [`documentacao/setores.py`](#documentacaosetores) | 173 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
+| [`documentacao/setores.py`](#documentacaosetores) | 179 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
 | [`documentacao/settings_claude.py`](#documentacaosettingsclaude) | 108 | Mescla dos hooks e das permissões do graphow no settings.json do Claude Code. |
 | [`documentacao/skill.py`](#documentacaoskill) | 71 | Instalação da skill do agente no diretório de skills do ambiente. |
 | [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 263 | Confere os exemplos de linha de comando dos guias contra o parser real. |

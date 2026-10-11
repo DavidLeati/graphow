@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**17 alas · 256 módulos · 34986 linhas · 472 classes**
+**18 alas · 260 módulos · 35457 linhas · 481 classes**
 
 ---
 
@@ -37,6 +37,7 @@ e o inventário das alas. O catálogo detalhado de cada ala vive em
 | Gerar o acervo de notas dos aprendizados | Setor 15 — `graphow notas-gerar` |
 | Rodar uma sessão `claude -p` e ler o que ela custou | Setor 16 — `graphow.sessoes` |
 | Medir uma arquitetura nas demandas do laboratório | Setor 17 — `graphow bancada` |
+| Rodar um Goal do plano ao fechamento | Setor 18 — `graphow orquestrar` |
 
 ---
 
@@ -73,10 +74,11 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 12 | 1847 | 19 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3750 | 60 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
-| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1716 | 38 |
+| 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1723 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 | 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 5 | 533 | 8 |
 | 17 | [Bancada de Medição](setores/17_bancada.md) | `graphow.bancada` | 12 | 1685 | 24 |
+| 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 4 | 464 | 9 |
 
 ### Missão de cada ala
 
@@ -113,4 +115,6 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 **16. Sessões claude -p** — Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CLAUDE, depois o PATH), monta o comando com saída stream-json, tira do ambiente as variáveis da sessão mãe, aplica o GRAPHOW_DB pedido, espera até o tempo limite, grava o stream num arquivo e devolve o resultado tipado (sessão, texto final, erro, custo, tokens, duração e turnos). Não depende do grafo: é a peça sobre a qual a bancada e o orquestrador rodam agentes.
 
 **17. Bancada de Medição** — O portão de cada fase da reestruturação: as três demandas do laboratório rodadas do zero por arquitetura e auditadas do mesmo jeito. Lê os dados versionados em `bancada/` (semente, spec, sondas, prompts e linha de base) e recria o repositório de cada execução com o mesmo hash do laboratório. Não toca o banco do usuário: cada execução tem o seu.
+
+**18. Orquestrador em Código** — O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal sem LLM coordenando. O planejador, o executor de cada fatia e o verificador adversarial rodam em sessões `claude -p` novas, com briefing montado por código, sem MCP do graphow e com o git de escrita travado, e devolvem JSON validado por schema. O orquestrador grava o livro-razão com o papel `orquestrador`, commita cada fatia numa branch do Goal, guarda a telemetria de cada sessão fora do grafo e retoma de onde parou a partir do livro-razão e do git.
 

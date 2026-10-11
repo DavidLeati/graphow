@@ -35,3 +35,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "graphow.web" = ["static/**/*", "static/*", "static/styles/*", "static/js/*"]
+"graphow.orquestrador" = ["prompts/*.md"]
