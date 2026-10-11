@@ -9,6 +9,12 @@ da tabela. A variação é percentual; contra uma base zero (bloqueantes da
 enxuta, sondas do estoque no graphow), é a diferença absoluta. Dos critérios
 compara-se a fração atendida, porque cada auditor conta os itens da spec do
 seu jeito.
+
+A execução que falhou (erro gravado, ou alguma sessão terminada com erro)
+aparece marcada como FALHA na tabela dos números, com o motivo nas
+observações, e fica fora das variações: custo e tokens de uma sessão que
+morreu não são o custo da arquitetura, e compará-los daria um -100% sem
+aviso. Do mesmo jeito, a auditoria com erro não entra com o placar dela.
 """
 
 from collections.abc import Mapping, Sequence
@@ -28,6 +34,7 @@ ALINHAMENTO_DOS_NUMEROS: str = "| :--- | :--- | ---: | ---: | ---: | ---: | :---
 CABECALHO_DAS_VARIACOES: str = "| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |"
 ALINHAMENTO_DAS_VARIACOES: str = "| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
 CAMPOS_DA_VARIACAO: tuple[str, ...] = ("custo_usd", "tokens", "minutos", "commits", "fracao_atende", "sondas_ok", "bloqueantes")
+MARCA_DE_FALHA: str = "FALHA"
 
 
 @dataclass(frozen=True)
@@ -68,6 +75,7 @@ class LinhaDoPlacar:
     projeto: str
     numeros: Numeros
     observacao: str = ""
+    falhou: bool = False
 
 
 def ler_execucoes(saida: Path) -> tuple[LinhaDoPlacar, ...]:
@@ -95,7 +103,7 @@ def formatar_placar(execucoes: Sequence[LinhaDoPlacar], base: Mapping[tuple[str,
     linhas = [CABECALHO_DOS_NUMEROS, ALINHAMENTO_DOS_NUMEROS]
     linhas.extend(_linha_dos_numeros(linha) for linha in (*execucoes, *referencias))
     linhas.extend(("", CABECALHO_DAS_VARIACOES, ALINHAMENTO_DAS_VARIACOES))
-    for execucao in execucoes:
+    for execucao in (execucao for execucao in execucoes if not execucao.falhou):
         linhas.extend(_linha_da_variacao(execucao, referencia) for referencia in referencias if referencia.projeto == execucao.projeto)
     observacoes = [f"- {linha.rotulo}: {linha.observacao}" for linha in (*execucoes, *referencias) if linha.observacao]
     return tuple([*linhas, *([""] + observacoes if observacoes else [])])
@@ -104,9 +112,9 @@ def formatar_placar(execucoes: Sequence[LinhaDoPlacar], base: Mapping[tuple[str,
 def _ler_execucao(pasta: Path) -> LinhaDoPlacar:
     """`execucao.json` e, se houver, `auditoria.json` de uma pasta."""
     registro = ler_json(pasta / ARQUIVO_DA_EXECUCAO)
-    metricas = registro.get("metricas", {})
+    metricas = registro.get("metricas") or {}
     auditoria = ler_json(pasta / ARQUIVO_DA_AUDITORIA) if (pasta / ARQUIVO_DA_AUDITORIA).is_file() else {}
-    placar = auditoria.get("placar") or {}
+    placar = {} if auditoria.get("erro") else auditoria.get("placar") or {}
     criterios = placar.get("criterios") or {}
     numeros = Numeros(
         custo_usd=metricas.get("custo_usd"),
@@ -120,7 +128,18 @@ def _ler_execucao(pasta: Path) -> LinhaDoPlacar:
         sondas=_soma_ou_nada(placar.get("sondas_ok"), placar.get("sondas_defeito")),
         bloqueantes=placar.get("bloqueantes"),
     )
-    return LinhaDoPlacar(pasta.name, str(registro.get("arquitetura")), str(registro.get("projeto")), numeros, _observacao(registro, auditoria))
+    falha = motivo_da_falha(registro)
+    return LinhaDoPlacar(
+        pasta.name, str(registro.get("arquitetura")), str(registro.get("projeto")), numeros, _observacao(falha, auditoria), bool(falha)
+    )
+
+
+def motivo_da_falha(registro: Mapping[str, Any]) -> str:
+    """O erro da execução ou, num registro anterior à propagação dele, o de cada sessão que deu errado."""
+    if registro.get("erro"):
+        return str(registro["erro"])
+    sessoes = [sessao for sessao in registro.get("sessoes") or [] if sessao.get("is_error")]
+    return "; ".join(f"sessao {sessao.get('session_id') or '?'} terminou com erro" for sessao in sessoes)
 
 
 def _referencia(arquitetura: str, projeto: str, dados: Mapping[str, Any]) -> LinhaDoPlacar:
@@ -140,7 +159,7 @@ def _linha_dos_numeros(linha: LinhaDoPlacar) -> str:
     criterios = SEM_VALOR if numeros.atende is None else f"{numeros.atende}/{numeros.parcial}/{numeros.nao_atende}"
     sondas = SEM_VALOR if numeros.sondas_ok is None else f"{numeros.sondas_ok}/{numeros.sondas}"
     celulas = (
-        linha.rotulo,
+        f"{linha.rotulo} ({MARCA_DE_FALHA})" if linha.falhou else linha.rotulo,
         linha.projeto,
         SEM_VALOR if numeros.custo_usd is None else f"{numeros.custo_usd:.2f}".replace(".", ","),
         formatar_tokens(numeros.tokens),
@@ -161,13 +180,13 @@ def _linha_da_variacao(execucao: LinhaDoPlacar, referencia: LinhaDoPlacar) -> st
     return "| " + " | ".join((execucao.rotulo, referencia.arquitetura, *variacoes)) + " |"
 
 
-def _observacao(registro: Mapping[str, Any], auditoria: Mapping[str, Any]) -> str:
-    """O que o leitor precisa saber da execução: erro, falta de auditoria ou auditoria sem placar."""
-    if registro.get("erro"):
-        return f"execucao com erro: {registro['erro']}"
+def _observacao(falha: str, auditoria: Mapping[str, Any]) -> str:
+    """O que o leitor precisa saber da execução: falha, falta de auditoria ou auditoria com erro."""
+    if falha:
+        return f"{MARCA_DE_FALHA}, fora das variacoes: {falha}"
     if not auditoria:
         return "sem auditoria: criterios, sondas e bloqueantes em aberto"
-    return f"auditoria com erro: {auditoria['erro']}" if auditoria.get("erro") else ""
+    return f"auditoria com erro, placar fora: {auditoria['erro']}" if auditoria.get("erro") else ""
 
 
 def _soma_ou_nada(primeiro: int | None, segundo: int | None) -> int | None:

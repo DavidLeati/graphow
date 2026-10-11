@@ -10,7 +10,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-11 módulos · 1316 linhas · 19 classes
+11 módulos · 1335 linhas · 19 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/execucao.py`](#bancadaexecucao) | 157 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
 | [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
-| [`bancada/placar.py`](#bancadaplacar) | 175 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
+| [`bancada/placar.py`](#bancadaplacar) | 194 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
 | [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
@@ -226,12 +226,13 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 | `CABECALHO_DAS_VARIACOES` | `str` | `'| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) |…` |
 | `ALINHAMENTO_DAS_VARIACOES` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'` |
 | `CAMPOS_DA_VARIACAO` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos', 'commits', 'fracao_atende', 'sondas_…` |
+| `MARCA_DE_FALHA` | `str` | `'FALHA'` |
 
 ### `LinhaDoPlacar`
 
 *DTO imutável* — Uma execução, ou uma referência da linha de base, num projeto.
 
-**Campos:** `rotulo: str`, `arquitetura: str`, `projeto: str`, `numeros: Numeros`, `observacao: str`
+**Campos:** `rotulo: str`, `arquitetura: str`, `projeto: str`, `numeros: Numeros`, `observacao: str`, `falhou: bool`
 
 ### `Numeros`
 
@@ -246,6 +247,7 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 - `ler_execucoes(saida: Path) -> tuple[LinhaDoPlacar, ...]` — Toda execução da saída (ou a própria saída, se for uma execução), em ordem de nome.
 - `ler_linha_de_base(caminho: Path) -> dict[tuple[str, str], LinhaDoPlacar]` — As referências da linha de base por arquitetura e projeto, com o comparável onde houver.
 - `formatar_placar(execucoes: Sequence[LinhaDoPlacar], base: Mapping[tuple[str, str], LinhaDoPlacar]) -> tuple[str, ...]` — A tabela dos números, a das variações contra cada arquitetura de base e as observações.
+- `motivo_da_falha(registro: Mapping[str, Any]) -> str` — O erro da execução ou, num registro anterior à propagação dele, o de cada sessão que deu errado.
 
 ## `bancada/projetos.py`
 

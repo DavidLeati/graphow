@@ -17,12 +17,14 @@ from tests.bancada.test_auditar import STREAM_DO_AUDITOR
 from tests.sessoes.apoio import ambiente_de_teste, comando_do_falso
 
 
-def _execucao(saida: Path, nome: str, metricas: dict[str, object], placar: dict[str, object] | None = None) -> Path:
+def _execucao(
+    saida: Path, nome: str, metricas: dict[str, object], placar: dict[str, object] | None = None, **registro_extra: object
+) -> Path:
     """Uma execução gravada à mão: `execucao.json` e, se houver placar, `auditoria.json`."""
     arquitetura, projeto = nome.split("-", 1)[0], nome.split("-", 1)[1].rsplit("-", 2)[0]
     pasta = saida / nome
     pasta.mkdir(parents=True)
-    registro = {"arquitetura": arquitetura, "projeto": projeto, "erro": "", "metricas": metricas}
+    registro = {"arquitetura": arquitetura, "projeto": projeto, "erro": "", "metricas": metricas, **registro_extra}
     (pasta / "execucao.json").write_text(json.dumps(registro), encoding="utf-8")
     if placar is not None:
         (pasta / "auditoria.json").write_text(json.dumps({"erro": "", "placar": placar}), encoding="utf-8")
@@ -72,6 +74,48 @@ def test_agenda_do_graphow_compara_sem_o_acabamento_e_sem_auditoria_fica_em_aber
     assert any(linha.startswith("| enxuta-agenda-salas-20261011-153000 | agenda-salas | 4,50 | 6,0 M | 22,0 min | 9 | - | - | - |") for linha in linhas)
     assert any("sem auditoria" in linha for linha in linhas)
     assert any("sem o Goal de acabamento" in linha for linha in linhas)
+
+
+def test_execucao_que_falhou_fica_marcada_e_fora_das_variacoes_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a sessão morreu no tempo limite; custo e tokens null não viram -100% contra a base."""
+    metricas = {"custo_usd": None, "tokens": None, "minutos": 120.0, "commits": 3}
+    erro = "sessao 4cb36a24 terminou com erro: tempo esgotado, sem evento result no stream"
+    _execucao(tmp_path, "enxuta-estoque-loja-20261011-170000", metricas, erro=erro)
+    _execucao(tmp_path, "enxuta-estoque-loja-20261011-180000", {"custo_usd": 5.03, "tokens": 6_160_643, "minutos": 20.0, "commits": 11})
+
+    linhas = _placar(tmp_path)
+
+    assert "2 execucoes, 0 auditadas, 1 com falha" in linhas[0]
+    assert "| enxuta-estoque-loja-20261011-170000 (FALHA) | estoque-loja | - | - | 120,0 min | 3 | - | - | - |" in linhas
+    variacoes = linhas[linhas.index("| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |"):]
+    assert not [linha for linha in variacoes if linha.startswith("| enxuta-estoque-loja-20261011-170000 ")]
+    assert "| enxuta-estoque-loja-20261011-180000 | enxuta | +0% | +0% | +0% | +0% | - | - | - |" in variacoes
+    assert f"- enxuta-estoque-loja-20261011-170000: FALHA, fora das variacoes: {erro}" in linhas
+    assert not [linha for linha in linhas if "-100%" in linha]
+
+
+def test_registro_antigo_com_sessao_em_erro_e_erro_vazio_tambem_e_falha_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: execucao.json gravado antes de o erro da sessão ir para `erro`, com custo 0,00."""
+    sessoes = [{"session_id": "s-1", "is_error": True}]
+    _execucao(tmp_path, "enxuta-api-tarefas-20261011-153000", {"custo_usd": 0.0, "tokens": 0, "minutos": 60.0, "commits": 0}, sessoes=sessoes)
+
+    linhas = _placar(tmp_path)
+
+    assert any(linha.startswith("| enxuta-api-tarefas-20261011-153000 (FALHA) |") for linha in linhas)
+    assert "- enxuta-api-tarefas-20261011-153000: FALHA, fora das variacoes: sessao s-1 terminou com erro" in linhas
+    assert not [linha for linha in linhas if "-100%" in linha]
+
+
+def test_auditoria_com_erro_nao_entra_com_o_placar_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o auditor saiu com erro depois de escrever um PLACAR; os números dele ficam de fora."""
+    pasta = _execucao(tmp_path, "enxuta-estoque-loja-20261011-153000", {"custo_usd": 5.03, "tokens": 6_160_643, "minutos": 20.0, "commits": 11})
+    placar = {"criterios": {"atende": 1, "parcial": 0, "nao_atende": 0}, "sondas_ok": 0, "sondas_defeito": 8, "bloqueantes": 9}
+    (pasta / "auditoria.json").write_text(json.dumps({"erro": "a sessao do auditor terminou com erro: tempo esgotado", "placar": placar}), encoding="utf-8")
+
+    linhas = _placar(tmp_path)
+
+    assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,03 | 6,2 M | 20,0 min | 11 | - | - | - |" in linhas
+    assert any("auditoria com erro, placar fora: a sessao do auditor terminou com erro" in linha for linha in linhas)
 
 
 def test_saida_que_e_uma_execucao_so_tambem_serve_edge_case(tmp_path: Path) -> None:

@@ -141,7 +141,10 @@ def _placar(argumentos: argparse.Namespace, console: EscritorConsole, dependenci
     bancada = _bancada(argumentos)
     execucoes = ler_execucoes(saida)
     auditadas = sum(1 for execucao in execucoes if execucao.numeros.atende is not None)
-    console.escrever_linha(f"Placar de {saida}: {len(execucoes)} execucoes, {auditadas} auditadas; base {bancada.linha_de_base}")
+    falhas = sum(1 for execucao in execucoes if execucao.falhou)
+    console.escrever_linha(
+        f"Placar de {saida}: {len(execucoes)} execucoes, {auditadas} auditadas, {falhas} com falha; base {bancada.linha_de_base}"
+    )
     console.escrever_linha("")
     for linha in formatar_placar(execucoes, ler_linha_de_base(bancada.linha_de_base)):
         console.escrever_linha(linha)
