@@ -1,4 +1,4 @@
-"""O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório.
+"""O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório e auditar a entrega.
 
 Não toca o banco do usuário: cada execução ganha um banco próprio, que vira o
 `GRAPHOW_DB` das sessões, porque os hooks do graphow instalados no Claude Code
@@ -6,11 +6,14 @@ rodam em toda sessão `claude -p` e, sem isso, escreveriam nele.
 """
 
 import argparse
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 import shlex
 
 from graphow.api.console import EscritorConsole
 from graphow.bancada.arquiteturas import RegistroDeArquiteturas, registro_padrao
+from graphow.bancada.auditoria import auditar, pedido_do_auditor
 from graphow.bancada.execucao import ConfiguracaoDaRodada, ExecucaoGravada, rodar_projetos
 from graphow.bancada.formatacao import formatar_dinheiro, formatar_inteiro, formatar_minutos
 from graphow.bancada.projetos import RAIZ_DA_BANCADA_PADRAO, Bancada
@@ -21,6 +24,7 @@ CODIGO_SUCESSO: int = 0
 CODIGO_COM_ERRO: int = 1
 TODOS_OS_PROJETOS: str = "todos"
 TEMPO_LIMITE_DA_RODADA_MIN: float = 120.0
+TEMPO_LIMITE_DO_AUDITOR_MIN: float = 60.0
 SEGUNDOS_POR_MINUTO: float = 60.0
 
 
@@ -43,6 +47,24 @@ def registrar_comando_de_bancada(
         "--tempo-limite", type=float, default=TEMPO_LIMITE_DA_RODADA_MIN, help="Minutos por sessao (padrao: 120)"
     )
     _registrar_opcoes_comuns(parser_rodar)
+    parser_auditar = acoes.add_parser("auditar", help="Roda o auditor sobre uma execucao e grava auditoria.json com o PLACAR")
+    parser_auditar.add_argument("--execucao", required=True, help="Pasta de uma execucao, com execucao.json")
+    parser_auditar.add_argument(
+        "--tempo-limite", type=float, default=TEMPO_LIMITE_DO_AUDITOR_MIN, help="Minutos para o auditor (padrao: 60)"
+    )
+    _registrar_opcoes_comuns(parser_auditar)
+
+
+@dataclass(frozen=True)
+class _Dependencias:
+    """O registro de arquiteturas e o executor de sessão; o executor só nasce quando uma ação roda sessão."""
+
+    registro: RegistroDeArquiteturas
+    sessoes: ExecutorDeSessao | None
+
+    def executor(self) -> ExecutorDeSessao:
+        """O executor injetado, ou o que acha o claude em GRAPHOW_CLAUDE ou no PATH."""
+        return self.sessoes or ExecutorDeSessao()
 
 
 def _registrar_opcoes_comuns(parser: argparse.ArgumentParser) -> None:
@@ -63,19 +85,17 @@ def executar_bancada(
     sessoes: ExecutorDeSessao | None = None,
 ) -> int:
     """Executa a ação pedida; o registro e o executor de sessão podem vir de fora, nos testes."""
-    return _rodar(argumentos, console, registro=registro or registro_padrao(), sessoes=sessoes)
+    acoes: Mapping[str, Callable[[argparse.Namespace, EscritorConsole, _Dependencias], int]] = {
+        "rodar": _rodar,
+        "auditar": _auditar,
+    }
+    return acoes[argumentos.acao](argumentos, console, _Dependencias(registro or registro_padrao(), sessoes))
 
 
-def _rodar(
-    argumentos: argparse.Namespace,
-    console: EscritorConsole,
-    *,
-    registro: RegistroDeArquiteturas,
-    sessoes: ExecutorDeSessao | None,
-) -> int:
+def _rodar(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
     """Monta e roda as execuções e imprime, de cada uma, o comando da sessão e as métricas."""
-    bancada = Bancada(Path(argumentos.bancada).expanduser().resolve())
-    nome = argumentos.arquitetura
+    bancada = _bancada(argumentos)
+    nome, registro = argumentos.arquitetura, dependencias.registro
     registro.criar(nome)
     todos = argumentos.projeto == TODOS_OS_PROJETOS
     projetos = bancada.projetos() if todos else (bancada.projeto(argumentos.projeto),)
@@ -85,10 +105,34 @@ def _rodar(
         raiz_das_transcricoes=Path(argumentos.transcricoes).expanduser(),
         tempo_limite_s=argumentos.tempo_limite * SEGUNDOS_POR_MINUTO,
     )
-    execucoes = rodar_projetos(lambda: registro.criar(nome), projetos, configuracao, sessoes=sessoes or ExecutorDeSessao())
+    execucoes = rodar_projetos(lambda: registro.criar(nome), projetos, configuracao, sessoes=dependencias.executor())
     for execucao in execucoes:
         _imprimir_execucao(execucao, console)
     return CODIGO_SUCESSO if all(_sem_erro(execucao) for execucao in execucoes) else CODIGO_COM_ERRO
+
+
+def _auditar(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
+    """Roda o auditor sobre a execução e imprime o placar extraído."""
+    execucao = Path(argumentos.execucao).expanduser().resolve()
+    pedido = pedido_do_auditor(execucao, _bancada(argumentos), argumentos.tempo_limite * SEGUNDOS_POR_MINUTO)
+    sessoes = dependencias.executor()
+    console.escrever_linha(f"Auditor em {execucao}: {shlex.join(sessoes.comando_de(pedido))}")
+    registro = auditar(execucao, pedido, sessoes, transcricoes=Path(argumentos.transcricoes).expanduser())
+    placar = registro["placar"]
+    linha = placar["linha"] if placar else "sem PLACAR"
+    console.escrever_linha(f"  {linha}")
+    console.escrever_linha(
+        f"  auditoria.json gravado | custo do auditor {formatar_dinheiro(registro['metricas']['custo_usd'])}"
+        f" | {formatar_minutos(registro['metricas']['minutos'])}"
+    )
+    if registro["erro"]:
+        console.escrever_linha(f"  {registro['erro']}")
+    return CODIGO_COM_ERRO if registro["erro"] else CODIGO_SUCESSO
+
+
+def _bancada(argumentos: argparse.Namespace) -> Bancada:
+    """A pasta bancada/ pedida, em caminho absoluto."""
+    return Bancada(Path(argumentos.bancada).expanduser().resolve())
 
 
 def _imprimir_execucao(execucao: ExecucaoGravada, console: EscritorConsole) -> None:

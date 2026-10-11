@@ -10,11 +10,12 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-9 módulos · 959 linhas · 16 classes
+10 módulos · 1107 linhas · 17 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
+| [`bancada/auditoria.py`](#bancadaauditoria) | 148 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
 | [`bancada/execucao.py`](#bancadaexecucao) | 147 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
@@ -70,6 +71,38 @@ As arquiteturas que a bancada sabe rodar, registradas por nome.
 ### Funções do módulo
 
 - `registro_padrao() -> RegistroDeArquiteturas` — O registro com as arquiteturas que existem hoje: só a enxuta.
+
+## `bancada/auditoria.py`
+
+`graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ARQUIVO_DA_AUDITORIA` | `str` | `'auditoria.json'` |
+| `PASTA_DA_AUDITORIA` | `str` | `'auditoria'` |
+| `MODELO_DO_AUDITOR` | `str` | `'opus'` |
+| `PERMISSAO_DO_AUDITOR` | `str` | `'bypassPermissions'` |
+| `TEMPO_LIMITE_DO_AUDITOR_S` | `float` | `3600.0` |
+| `MARCA_DO_PLACAR` | `str` | `'PLACAR'` |
+| `PADRAO_DOS_CRITERIOS` | `re.Pattern[str]` | `re.compile('atende\\D{0,3}(\\d+)\\s*/\\s*parcial\\D{0,3}(\\d+)\\s*/\\s*…` |
+| `PADRAO_DAS_SONDAS` | `re.Pattern[str]` | `re.compile('ok\\D{0,3}(\\d+)\\s*/\\s*defeitos?\\D{0,3}(\\d+)', re.IGNOR…` |
+| `PADRAO_DOS_BLOQUEANTES` | `re.Pattern[str]` | `re.compile('bloqueantes?\\D{0,3}(\\d+)', re.IGNORECASE)` |
+| `PADRAO_DE_ITEM` | `re.Pattern[str]` | `re.compile('^\\s*(?:[-*]|\\d+[.)])\\s+(?P<texto>.+)$')` |
+
+### `Placar`
+
+*DTO imutável* — A linha `PLACAR:` do auditor, em números.
+
+**Campos:** `atende: int`, `parcial: int`, `nao_atende: int`, `sondas_ok: int`, `sondas_defeito: int`, `bloqueantes: int`, `linha: str`
+
+- `em_dicionario() -> dict[str, Any]` — O placar para gravar em JSON, com a linha original.
+
+### Funções do módulo
+
+- `extrair_placar(texto: str) -> Placar | None` — O último `PLACAR:` legível do relatório; None quando nenhum traz os números.
+- `bloqueantes_listados(texto: str) -> tuple[str, ...]` — Os itens de lista depois da última linha `PLACAR:`, onde o prompt pede os defeitos bloqueantes.
+- `pedido_do_auditor(execucao: Path, bancada: Bancada, tempo_limite_s: float) -> PedidoDeSessao` — A sessão do auditor sobre a execução: prompt preenchido, pasta da execução e banco próprio.
+- `auditar(execucao: Path, pedido: PedidoDeSessao, sessoes: ExecutorDeSessao) -> dict[str, Any]` — Roda o auditor, guarda prompt e relatório e grava `auditoria.json` com o placar.
 
 ## `bancada/entrega.py`
 

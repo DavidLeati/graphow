@@ -10,12 +10,12 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-12 módulos · 1741 linhas · 18 classes
+12 módulos · 1785 linhas · 19 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_bancada.py`](#apiclibancada) | 114 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório. |
+| [`api/cli_bancada.py`](#apiclibancada) | 158 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório e auditar a entrega. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 322 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 242 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_parser.py`](#apicliparser) | 391 | Construção do analisador de argumentos da linha de comando do Graphow. |
@@ -53,7 +53,7 @@ Interface de Linha de Comando (CLI) para operação do Graphow.
 
 ## `api/cli_bancada.py`
 
-O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório.
+O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório e auditar a entrega.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
@@ -61,7 +61,16 @@ O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratór
 | `CODIGO_COM_ERRO` | `int` | `1` |
 | `TODOS_OS_PROJETOS` | `str` | `'todos'` |
 | `TEMPO_LIMITE_DA_RODADA_MIN` | `float` | `120.0` |
+| `TEMPO_LIMITE_DO_AUDITOR_MIN` | `float` | `60.0` |
 | `SEGUNDOS_POR_MINUTO` | `float` | `60.0` |
+
+### `_Dependencias`
+
+*DTO imutável* — O registro de arquiteturas e o executor de sessão; o executor só nasce quando uma ação roda sessão.
+
+**Campos:** `registro: RegistroDeArquiteturas`, `sessoes: ExecutorDeSessao | None`
+
+- `executor() -> ExecutorDeSessao` — O executor injetado, ou o que acha o claude em GRAPHOW_CLAUDE ou no PATH.
 
 ### Funções do módulo
 
