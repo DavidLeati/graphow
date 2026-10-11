@@ -10,14 +10,14 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-11 módulos · 1335 linhas · 19 classes
+11 módulos · 1403 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
 | [`bancada/auditoria.py`](#bancadaauditoria) | 148 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
-| [`bancada/execucao.py`](#bancadaexecucao) | 157 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
+| [`bancada/execucao.py`](#bancadaexecucao) | 225 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
 | [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/placar.py`](#bancadaplacar) | 194 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
@@ -132,12 +132,21 @@ O estado git da entrega: o ramo de trabalho, os commits depois da semente e a á
 | `NOME_DO_BANCO` | `str` | `'graphow.db'` |
 | `VERSAO_DO_REGISTRO` | `int` | `1` |
 | `FORMATO_DO_CARIMBO` | `str` | `'%Y%m%d-%H%M%S'` |
+| `SEPARADOR_DE_ERROS` | `str` | `'; '` |
 
 ### `ConfiguracaoDaRodada`
 
 *DTO imutável* — O que vale para todas as execuções de uma rodada: onde gravar, de onde ler e quanto esperar.
 
 **Campos:** `bancada: Bancada`, `saida: Path`, `raiz_das_transcricoes: Path | None`, `tempo_limite_s: float`, `carimbo: str`
+
+### `ExecucaoEmAndamento`
+
+*serviço* — Uma execução de um projeto, preenchida etapa a etapa: a falha de qualquer etapa grava o que já se sabia.
+
+- `rodar(arquitetura: Arquitetura, sessoes: ExecutorDeSessao) -> None` — Monta, roda a arquitetura, mede e lê a entrega; a falha de domínio vira erro e a execução segue.
+- `gravar(falha: BaseException | None) -> ExecucaoGravada` — `execucao.json` com o que se sabe, e a falha que parou a linha de execução no erro.
+- `em_dicionario() -> dict[str, Any]` — O registro no formato de `execucao.json`; o que não chegou a ser medido fica null.
 
 ### `ExecucaoGravada`
 
@@ -147,9 +156,9 @@ O estado git da entrega: o ramo de trabalho, os commits depois da semente e a á
 
 ### Funções do módulo
 
-- `montar_execucao(arquitetura: str, projeto: ProjetoDaBancada, configuracao: ConfiguracaoDaRodada) -> PedidoDeExecucao` — A pasta da execução, com o repositório da semente, a spec ao lado e o caminho do banco.
-- `rodar_execucao(arquitetura: Arquitetura, pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> ExecucaoGravada` — Roda a arquitetura na execução montada, mede e grava `execucao.json`.
-- `rodar_projetos(arquitetura: Callable[[], Arquitetura], projetos: Sequence[ProjetoDaBancada], configuracao: ConfiguracaoDaRodada) -> tuple[ExecucaoGravada, ...]` — Cada projeto na sua execução; mais de um roda em paralelo, um por linha de execução.
+- `montar_execucao(projeto: ProjetoDaBancada, diretorio: Path, configuracao: ConfiguracaoDaRodada) -> PedidoDeExecucao` — Na pasta criada, o repositório da semente, a spec ao lado e o caminho do banco.
+- `rodar_projetos(arquitetura: Callable[[], Arquitetura], projetos: Sequence[ProjetoDaBancada], configuracao: ConfiguracaoDaRodada) -> tuple[ExecucaoGravada, ...]` — Cada projeto na sua execução, um por linha de execução; a falha de um fica gravada nele e os outros seguem.
+- `nome_da_spec(projeto: ProjetoDaBancada) -> str` — O arquivo da spec ao lado do repositório, como o prompt o cita.
 - `erros_das_sessoes(resultados: Sequence[ResultadoDeSessao]) -> str` — Cada sessão que deu errado e por quê; vazio quando todas terminaram bem.
 - `gravar_json(caminho: Path, dados: dict[str, Any]) -> None` — O registro em JSON legível, UTF-8 e fim de linha LF.
 - `ler_json(caminho: Path) -> dict[str, Any]` — Um registro da bancada; ausente ou ilegível recusa com o caminho.

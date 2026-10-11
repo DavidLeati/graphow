@@ -160,14 +160,15 @@ def _imprimir_execucao(execucao: ExecucaoGravada, console: EscritorConsole) -> N
     """A pasta, cada sessão com a linha de comando e as métricas gravadas."""
     registro = execucao.registro
     metricas = registro["metricas"]
+    ramo = registro["entrega"]["ramo"] if registro["entrega"] else "?"
     console.escrever_linha(f"Execucao: {execucao.diretorio}")
     for sessao in registro["sessoes"]:
         estado = "erro" if sessao["is_error"] else "ok"
         console.escrever_linha(f"  sessao {sessao['session_id'] or '?'} ({estado}): {shlex.join(sessao['comando'])}")
     console.escrever_linha(
         f"  custo {formatar_dinheiro(metricas['custo_usd'])} | tokens {formatar_inteiro(metricas['tokens'])}"
-        f" ({metricas['fonte_dos_tokens']}) | {formatar_minutos(metricas['minutos'])}"
-        f" | {metricas['commits']} commits no ramo {registro['entrega']['ramo']}"
+        f" ({metricas['fonte_dos_tokens'] or '-'}) | {formatar_minutos(metricas['minutos'])}"
+        f" | {formatar_inteiro(metricas['commits'])} commits no ramo {ramo}"
     )
     if registro["erro"]:
         console.escrever_linha(f"  {registro['erro']}")

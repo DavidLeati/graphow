@@ -11,8 +11,11 @@ from graphow.api.cli_bancada import executar_bancada
 from graphow.api.cli_execucao import ExecutorLinhaDeComando
 from graphow.api.cli_parser import construir_parser
 from graphow.api.console import EscritorConsoleEmMemoria
-from graphow.bancada.arquiteturas import PedidoDeExecucao, RegistroDeArquiteturas, registro_padrao
-from graphow.bancada.projetos import Bancada, ErroDaBancada
+from graphow.bancada import execucao as execucao_da_bancada
+from graphow.bancada.arquiteturas import ArquiteturaEnxuta, PedidoDeExecucao, RegistroDeArquiteturas, registro_padrao
+from graphow.bancada.entrega import EstadoDaEntrega
+from graphow.bancada.execucao import ConfiguracaoDaRodada, rodar_projetos
+from graphow.bancada.projetos import Bancada, ErroDaBancada, ProjetoDaBancada
 from graphow.bancada.semente import GitDaBancada
 from graphow.core.exceptions import GraphowError
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao
@@ -178,6 +181,82 @@ def test_arquitetura_registrada_de_fora_roda_e_a_falha_fica_gravada_edge_case(tm
     assert codigo == 1
     assert "plano recusado" in gravado["erro"]
     assert gravado["sessoes"] == [] and gravado["metricas"]["custo_usd"] is None
+
+
+class _ArquiteturaQueQuebraNaApi:
+    """Roda a enxuta nos projetos e quebra com um erro que não é de domínio só na api, como um defeito de código."""
+
+    nome: str = "quebra-na-api"
+
+    def executar(self, pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> tuple[ResultadoDeSessao, ...]:
+        """A sessão única da enxuta, menos na api-tarefas."""
+        if pedido.projeto.nome == "api-tarefas":
+            raise KeyError("chave que a arquitetura esperava")
+        return ArquiteturaEnxuta().executar(pedido, sessoes)
+
+
+def test_todos_isola_a_execucao_que_quebra_com_erro_fora_do_dominio_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: um KeyError na api não derruba a agenda nem o estoque; os três execucao.json são gravados."""
+    registro = registro_padrao()
+    registro.registrar("quebra-na-api", _ArquiteturaQueQuebraNaApi)
+    sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(tmp_path / "r"))
+    console = EscritorConsoleEmMemoria()
+
+    codigo = executar_bancada(_argumentos(tmp_path / "saida", "todos", "quebra-na-api"), console, registro=registro, sessoes=sessoes)
+
+    assert codigo == 1
+    gravados = {
+        pasta.name.rsplit("-", 2)[0]: json.loads((pasta / "execucao.json").read_text(encoding="utf-8"))
+        for pasta in (tmp_path / "saida").iterdir()
+    }
+    assert sorted(gravados) == ["quebra-na-api-agenda-salas", "quebra-na-api-api-tarefas", "quebra-na-api-estoque-loja"]
+    api = gravados["quebra-na-api-api-tarefas"]
+    assert api["erro"] == "a execucao parou com KeyError: 'chave que a arquitetura esperava'"
+    assert (api["sessoes"], api["metricas"]["custo_usd"], api["entrega"]) == ([], None, None)
+    for nome in ("quebra-na-api-agenda-salas", "quebra-na-api-estoque-loja"):
+        assert (gravados[nome]["erro"], gravados[nome]["metricas"]["custo_usd"]) == ("", 5.03)
+    assert any("a execucao parou com KeyError" in linha for linha in console.linhas)
+
+
+def test_estado_git_ilegivel_grava_as_sessoes_e_a_medicao_com_o_erro_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Caso de borda: a leitura do git falha só no estoque (o agente deixou o repositório quebrado); a sessão e o
+    custo dela ficam no registro, com o erro, e os outros projetos seguem."""
+    original = execucao_da_bancada.ler_estado_da_entrega
+
+    def ler_ou_recusar(repositorio: Path, projeto: ProjetoDaBancada) -> EstadoDaEntrega:
+        if projeto.nome == "estoque-loja":
+            raise ErroDaBancada("git recusou o comando", {"comando": "rev-parse", "erro": "fatal: not a git repository"})
+        return original(repositorio, projeto)
+
+    monkeypatch.setattr(execucao_da_bancada, "ler_estado_da_entrega", ler_ou_recusar)
+    sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(tmp_path / "r"))
+
+    codigo = executar_bancada(_argumentos(tmp_path / "saida", "todos"), EscritorConsoleEmMemoria(), sessoes=sessoes)
+
+    assert codigo == 1
+    gravados = {
+        pasta.name.rsplit("-", 2)[0]: json.loads((pasta / "execucao.json").read_text(encoding="utf-8"))
+        for pasta in (tmp_path / "saida").iterdir()
+    }
+    estoque = gravados["enxuta-estoque-loja"]
+    assert estoque["erro"].startswith("estado git da entrega ilegivel: ") and "git recusou o comando" in estoque["erro"]
+    assert (len(estoque["sessoes"]), estoque["metricas"]["custo_usd"], estoque["metricas"]["commits"]) == (1, 5.03, None)
+    assert gravados["enxuta-agenda-salas"]["erro"] == "" and gravados["enxuta-api-tarefas"]["erro"] == ""
+
+
+def test_pasta_de_execucao_que_ja_existe_recusa_a_rodada_antes_de_criar_qualquer_coisa_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a pasta de um dos projetos já existe; nada é criado nem gravado, nem nas dos outros."""
+    configuracao = ConfiguracaoDaRodada(bancada=Bancada(), saida=tmp_path / "saida", raiz_das_transcricoes=None, carimbo="20261011-153000")
+    (tmp_path / "saida" / "enxuta-estoque-loja-20261011-153000").mkdir(parents=True)
+    sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(tmp_path / "r"))
+
+    with pytest.raises(ErroDaBancada):
+        rodar_projetos(ArquiteturaEnxuta, Bancada().projetos(), configuracao, sessoes=sessoes)
+
+    assert [pasta.name for pasta in (tmp_path / "saida").iterdir()] == ["enxuta-estoque-loja-20261011-153000"]
+    assert not list((tmp_path / "saida" / "enxuta-estoque-loja-20261011-153000").iterdir())
 
 
 def test_registro_recusa_o_mesmo_nome_duas_vezes_edge_case() -> None:
