@@ -41,8 +41,13 @@ def test_role_gate_rejeita_executor_editando_constraint_edge_case() -> None:
     assert "Constraint" in str(res.mensagem_erro)
 
 
-def test_role_gate_rejeita_planejador_fechando_task_edge_case() -> None:
-    """Caso de borda: planejador tentando fechar Task é rejeitado."""
+def test_role_gate_nao_reserva_o_fechamento_de_task_a_um_papel_edge_case() -> None:
+    """Caso de borda: o RoleGate não obriga mais um executor a fechar a Task.
+
+    A regra que recusava planejador e revisor existia para que um executor
+    fechasse a Task aprovada (o modo Fechar). Quem fecha agora é o
+    orquestrador, e o veredito de revisão para agentes segue no InvariantGate.
+    """
     gate = RoleGate()
     estado = GrafoEstado(nos={"t1": NoGrafo(id="t1", tipo=TipoNo.TASK, rotulo="Tarefa 1")})
     dados = DadosPropostaPatch(
@@ -53,8 +58,7 @@ def test_role_gate_rejeita_planejador_fechando_task_edge_case() -> None:
         ],
     )
     res = gate.validar(PropostaPatch.criar(dados), estado)
-    assert res.aprovado is False
-    assert "fechar/concluir Task" in str(res.mensagem_erro)
+    assert res.aprovado is True
 
 
 def test_role_gate_rejeita_executor_criando_task_edge_case() -> None:

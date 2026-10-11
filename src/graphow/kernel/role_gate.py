@@ -360,18 +360,7 @@ class RoleGate:
         resultado_de_gesto = self._gestos.validar_status_que_exige_gesto(no, ctx)
         if not resultado_de_gesto.aprovado:
             return resultado_de_gesto
-        resultado_de_acao_externa = self._gestos.validar_acao_externa(no, ctx)
-        if not resultado_de_acao_externa.aprovado:
-            return resultado_de_acao_externa
-        if not self._eh_fechamento_de_task(no, item):
-            return ResultadoValidacao.sucesso()
-        if papel in (PapelAutor.PLANEJADOR, PapelAutor.REVISOR):
-            return ResultadoValidacao.falha(
-                f"Papel '{papel.value}' não pode fechar/concluir Task",
-                "RoleGate",
-                modo=ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL,
-            )
-        return ResultadoValidacao.sucesso()
+        return self._gestos.validar_acao_externa(no, ctx)
 
     def _encerra_questao(self, no: NoGrafo, item: ItemPatch) -> bool:
         """Identifica a escrita de status que tira a dúvida do estado aberto.
@@ -382,12 +371,6 @@ class RoleGate:
         if no.tipo != TipoNo.QUESTION or not item.path.endswith("/propriedades/status"):
             return False
         return item.op == OperacaoPatch.REMOVE or str(item.value) not in STATUS_DE_QUESTION_ESCRITOS_POR_AGENTES
-
-    def _eh_fechamento_de_task(self, no: NoGrafo, item: ItemPatch) -> bool:
-        """Identifica a operação que marca uma Task como concluída."""
-        if no.tipo != TipoNo.TASK:
-            return False
-        return "status" in item.path and item.value == StatusTask.CONCLUIDO.value
 
 
 def descrever_tipos_permitidos(papel: PapelAutor) -> tuple[str, ...]:

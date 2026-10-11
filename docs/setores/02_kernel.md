@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4807 linhas · 33 classes
+30 módulos · 4790 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -36,7 +36,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 282 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 396 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 379 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 387 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/teto_de_expansao.py`](#kerneltetodeexpansao) | 61 | O teto de expansão (D6 do escopo governado): recusa por contagem, só quando a política liga. |
