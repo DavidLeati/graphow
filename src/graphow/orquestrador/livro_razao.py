@@ -134,11 +134,12 @@ class LivroRazaoDoGoal:
             f"Tentativa {tentativa} da fatia {id_task}",
         )
 
-    def concluir_fatia(self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor) -> None:
-        """O commit vira Artifact da fatia, e a fatia fecha."""
+    def concluir_fatia(self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "") -> None:
+        """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git."""
         id_artefato = f"art-{id_task}-t{tentativa}"
         propriedades = {
             m.CAMPO_COMMIT: commit, "arquivos": list(saida.arquivos), "resumo": saida.resumo, "testes": list(saida.testes),
+            "observacao": observacao,
         }
         self.gravar(
             [

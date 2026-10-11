@@ -21,6 +21,7 @@ from graphow.harness.servico_harness import FaseDoHarness, PedidoDeCicloDeVida, 
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.reactive.montagem import ligar_motor_reativo_padrao
 from graphow.storage.localizador_banco import LocalizacaoBanco
+from graphow.storage.sqlite_store import SQLiteEventStore
 
 CODIGO_SUCESSO: int = 0
 CODIGO_FALHA_DOMINIO: int = 1
@@ -33,6 +34,7 @@ class DependenciasComandosGrafo:
     cli: GraphowCLI
     kernel: WriteKernel
     console: EscritorConsole
+    store: SQLiteEventStore | None = None
 
 
 class ManipuladorComandosGrafo:
@@ -42,6 +44,7 @@ class ManipuladorComandosGrafo:
         self._cli: GraphowCLI = dependencias.cli
         self._kernel: WriteKernel = dependencias.kernel
         self._console: EscritorConsole = dependencias.console
+        self._store: SQLiteEventStore | None = dependencias.store
 
     def executar(self, argumentos: argparse.Namespace, localizacao: LocalizacaoBanco) -> int:
         """Encaminha para o manipulador correspondente ao subcomando informado."""
@@ -57,6 +60,7 @@ class ManipuladorComandosGrafo:
             "web": self._executar_web,
             "mcp": self._executar_mcp,
             "harness": self._executar_harness,
+            "orquestrar": lambda argumentos: self._executar_orquestrar(argumentos, localizacao),
         }
         manipulador = manipuladores.get(argumentos.comando)
         if manipulador is None:
@@ -112,6 +116,16 @@ class ManipuladorComandosGrafo:
         for linha in formatar_relatorio(medicoes, por_rodada=argumentos.por_rodada):
             self._console.escrever_linha(linha)
         return CODIGO_SUCESSO
+
+    def _executar_orquestrar(self, argumentos: argparse.Namespace, localizacao: LocalizacaoBanco) -> int:
+        """O laco do orquestrador sobre o banco aberto; a telemetria vai numa tabela do mesmo arquivo."""
+        from graphow.api.cli_orquestrar import AmbienteDoOrquestrar, executar_orquestrar
+
+        if self._store is None:
+            self._console.escrever_linha("ERRO: orquestrar precisa do banco SQLite aberto")
+            return CODIGO_FALHA_DOMINIO
+        ambiente = AmbienteDoOrquestrar(self._kernel, self._store.conexao, self._console, localizacao.caminho.parent)
+        return executar_orquestrar(argumentos, ambiente)
 
     def _executar_base_colisoes(self, argumentos: argparse.Namespace) -> int:
         """Confere o Goal contra o ramo base: 0 sem colisão, 1 com colisão, 2 sem conferência. Ver api/conferencia_base.py."""

@@ -10,15 +10,16 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-12 módulos · 1847 linhas · 19 classes
+13 módulos · 2021 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_bancada.py`](#apiclibancada) | 220 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
-| [`api/cli_execucao.py`](#apicliexecucao) | 322 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
-| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 242 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
-| [`api/cli_parser.py`](#apicliparser) | 391 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
+| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 256 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
+| [`api/cli_orquestrar.py`](#apicliorquestrar) | 157 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
+| [`api/cli_parser.py`](#apicliparser) | 393 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 115 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
@@ -119,13 +120,36 @@ Manipuladores dos subcomandos que operam sobre um grafo já aberto.
 
 *DTO imutável* — Dependências já construídas que os subcomandos de grafo consomem.
 
-**Campos:** `cli: GraphowCLI`, `kernel: WriteKernel`, `console: EscritorConsole`
+**Campos:** `cli: GraphowCLI`, `kernel: WriteKernel`, `console: EscritorConsole`, `store: SQLiteEventStore | None`
 
 ### `ManipuladorComandosGrafo`
 
 *serviço* — Executa subcomandos que exigem um kernel de escrita já construído.
 
 - `executar(argumentos: argparse.Namespace, localizacao: LocalizacaoBanco) -> int` — Encaminha para o manipulador correspondente ao subcomando informado.
+
+## `api/cli_orquestrar.py`
+
+O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CODIGO_FECHADO` | `int` | `0` |
+| `CODIGO_FALHA` | `int` | `1` |
+| `CODIGO_PARADO` | `int` | `3` |
+| `SEGUNDOS_POR_MINUTO` | `float` | `60.0` |
+| `PASTA_DO_ESTADO` | `str` | `'orquestrar'` |
+
+### `AmbienteDoOrquestrar`
+
+*DTO imutável* — O que a CLI já abriu: o kernel, a conexão do banco, o console e onde o banco mora.
+
+**Campos:** `kernel: WriteKernel`, `conexao: sqlite3.Connection`, `console: EscritorConsole`, `pasta_do_banco: Path`, `executor: ExecutorDeSessao | None`
+
+### Funções do módulo
+
+- `registrar_comando_de_orquestrar(subparsers: argparse._SubParsersAction, parser_base: argparse.ArgumentParser) -> None` — Registra `graphow orquestrar` e as opções dele.
+- `executar_orquestrar(argumentos: argparse.Namespace, ambiente: AmbienteDoOrquestrar) -> int` — Executa a ação pedida e devolve o código de saída.
 
 ## `api/cli_parser.py`
 

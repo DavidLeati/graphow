@@ -293,7 +293,7 @@ class ExecutorLinhaDeComando:
         tracer = self._montar_tracer(contexto.argumentos)
         with SQLiteEventStore(contexto.localizacao_banco.caminho_absoluto_texto) as repositorio:
             kernel = montar_kernel_sqlite(repositorio, tracer)
-            return self._executar_subcomando_de_grafo(contexto, kernel)
+            return self._executar_subcomando_de_grafo(contexto, kernel, repositorio)
 
     def _montar_tracer(self, argumentos: argparse.Namespace) -> Tracer | None:
         """Liga o exportador de spans quando o operador indica um arquivo."""
@@ -310,7 +310,7 @@ class ExecutorLinhaDeComando:
             "AVISO: o banco esta em pasta sincronizada por nuvem. Rode 'graphow banco-info'."
         )
 
-    def _executar_subcomando_de_grafo(self, contexto: ContextoExecucao, kernel: WriteKernel) -> int:
+    def _executar_subcomando_de_grafo(self, contexto: ContextoExecucao, kernel: WriteKernel, store: SQLiteEventStore) -> int:
         """Despacha os subcomandos que dependem de um kernel operacional."""
         from graphow.api.cli_execucao_grafo import DependenciasComandosGrafo, ManipuladorComandosGrafo
 
@@ -318,5 +318,6 @@ class ExecutorLinhaDeComando:
             cli=GraphowCLI(kernel, contexto.console),
             kernel=kernel,
             console=contexto.console,
+            store=store,
         )
         return ManipuladorComandosGrafo(dependencias).executar(contexto.argumentos, contexto.localizacao_banco)
