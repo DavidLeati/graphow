@@ -10,11 +10,12 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-12 módulos · 1685 linhas · 24 classes
+13 módulos · 1751 linhas · 25 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
+| [`bancada/arquitetura_orquestrar.py`](#bancadaarquiteturaorquestrar) | 58 | A arquitetura `orquestrar` da bancada: o `graphow orquestrar` em modo autônomo sobre a spec do projeto. |
+| [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 116 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
 | [`bancada/auditoria.py`](#bancadaauditoria) | 228 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
 | [`bancada/execucao.py`](#bancadaexecucao) | 225 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
@@ -25,6 +26,24 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
 | [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
+
+## `bancada/arquitetura_orquestrar.py`
+
+A arquitetura `orquestrar` da bancada: o `graphow orquestrar` em modo autônomo sobre a spec do projeto.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DO_ORQUESTRAR` | `str` | `'orquestrar'` |
+| `PASTA_DO_ESTADO` | `str` | `'orquestrar'` |
+| `ARQUIVO_DA_PARADA` | `str` | `'orquestrar.json'` |
+
+### `ArquiteturaOrquestrar`
+
+*serviço* — O orquestrador em código, em modo autônomo, com o banco e a branch da execução.
+
+**Campos:** `nome: str`
+
+- `executar(pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> tuple[ResultadoDeSessao, ...]` — Roda o laço do Goal da spec até ele fechar ou parar, e devolve as sessões da telemetria.
 
 ## `bancada/arquiteturas.py`
 
@@ -72,7 +91,7 @@ As arquiteturas que a bancada sabe rodar, registradas por nome.
 
 ### Funções do módulo
 
-- `registro_padrao() -> RegistroDeArquiteturas` — O registro com as arquiteturas que existem hoje: só a enxuta.
+- `registro_padrao() -> RegistroDeArquiteturas` — O registro com as arquiteturas que existem hoje: a enxuta e o orquestrador em código.
 
 ## `bancada/auditoria.py`
 

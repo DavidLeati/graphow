@@ -58,7 +58,7 @@ def registrar_comando_de_bancada(
 def _registrar_rodar(acoes: argparse._SubParsersAction) -> None:
     """`graphow bancada rodar`."""
     parser_rodar = acoes.add_parser("rodar", help="Monta a execucao da semente, roda a arquitetura e grava execucao.json")
-    parser_rodar.add_argument("--arquitetura", required=True, help="Arquitetura registrada (hoje: enxuta)")
+    parser_rodar.add_argument("--arquitetura", required=True, help="Arquitetura registrada (hoje: enxuta ou orquestrar)")
     parser_rodar.add_argument("--projeto", required=True, help="Projeto da bancada, ou 'todos' para os tres em paralelo")
     parser_rodar.add_argument("--saida", required=True, help="Pasta onde criar <arquitetura>-<projeto>-<carimbo>/")
     parser_rodar.add_argument(

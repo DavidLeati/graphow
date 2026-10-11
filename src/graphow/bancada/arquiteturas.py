@@ -2,8 +2,9 @@
 
 Uma arquitetura recebe a execução montada (o repositório recriado da semente,
 a spec ao lado dele e o banco descartável) e devolve as sessões que rodou. O
-registro é o ponto de extensão: a fase 1 registra `orquestrar` aqui, e a
-bancada passa a medi-la do mesmo jeito que mede a enxuta.
+registro é o ponto de extensão: a fase 1 registrou `orquestrar` aqui
+(bancada/arquitetura_orquestrar.py), e a bancada a mede do mesmo jeito que
+mede a enxuta.
 
 A enxuta é o controle do laboratório: uma sessão Opus com permissão total, na
 pasta do repositório, com o prompt do processo fixo (spec, testes de aceite que
@@ -102,7 +103,14 @@ class RegistroDeArquiteturas:
 
 
 def registro_padrao() -> RegistroDeArquiteturas:
-    """O registro com as arquiteturas que existem hoje: só a enxuta."""
+    """O registro com as arquiteturas que existem hoje: a enxuta e o orquestrador em código.
+
+    O `orquestrar` é importado aqui, e não no topo: o módulo dele usa o
+    `PedidoDeExecucao` deste.
+    """
+    from graphow.bancada.arquitetura_orquestrar import NOME_DO_ORQUESTRAR, ArquiteturaOrquestrar
+
     registro = RegistroDeArquiteturas()
     registro.registrar(NOME_DA_ENXUTA, ArquiteturaEnxuta)
+    registro.registrar(NOME_DO_ORQUESTRAR, ArquiteturaOrquestrar)
     return registro

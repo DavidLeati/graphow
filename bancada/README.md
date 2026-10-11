@@ -92,6 +92,7 @@ export GRAPHOW_CLAUDE="/caminho/do/claude.exe"
 # Uma arquitetura num projeto, ou nos três em paralelo
 graphow bancada rodar --arquitetura enxuta --projeto estoque-loja --saida ~/bancada
 graphow bancada rodar --arquitetura enxuta --projeto todos --saida ~/bancada
+graphow bancada rodar --arquitetura orquestrar --projeto todos --saida ~/bancada
 
 # O auditor sobre uma execução (sessão Opus, só lê e roda verificações)
 graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000
@@ -120,8 +121,22 @@ conta) recusa sem `--refazer`. E o `auditoria.json` existe desde antes da
 sessão, dizendo que ela não terminou, para que um auditor morto deixe o erro
 registrado, e não um buraco.
 
-As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje só
-existe `enxuta`; a fase 1 registra `orquestrar`.
+As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje são
+duas:
+
+- `enxuta`: o controle do laboratório, uma sessão Opus com o prompt de
+  processo fixo de `arquiteturas/enxuta.md`.
+- `orquestrar`: o `graphow orquestrar` da fase 1, no processo da bancada, em
+  modo autônomo. Cria o Goal da `spec-<projeto>.md` no `graphow.db` da
+  execução, trabalha na branch de entrega do `projeto.json` (criada da branch
+  da semente) e integra por fast-forward no fim. Planejador, executores e
+  verificador são sessões `claude -p` separadas, todas Opus, com
+  `--permission-mode bypassPermissions`, sem MCP do graphow e sem a
+  configuração do usuário (`--strict-mcp-config`, `--setting-sources
+  project`). O estado do Goal (área de trabalho, streams, patches) fica em
+  `orquestrar/` dentro da execução, e a parada do laço com o status do Goal
+  em `orquestrar.json`. Custo, tokens e minutos somam todas as sessões que a
+  telemetria do orquestrador registrou.
 
 `medir-laboratorio` não roda sessão: lê os logs do laboratório (`_runs/` e
 `b/_runs/`), as transcrições e os repositórios das entregas, mede tudo com a

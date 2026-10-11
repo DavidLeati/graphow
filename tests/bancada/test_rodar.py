@@ -146,13 +146,13 @@ def test_sessao_que_estoura_o_tempo_grava_o_erro_e_custo_desconhecido_edge_case(
 
 
 def test_arquitetura_desconhecida_recusa_antes_de_criar_pasta_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: `orquestrar` ainda não existe nesta fase; nada é montado."""
+    """Caso de borda: uma arquitetura que não está no registro recusa e diz quais estão; nada é montado."""
     sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(tmp_path / "r"))
 
     with pytest.raises(ErroDaBancada) as recusa:
-        executar_bancada(_argumentos(tmp_path / "saida", "agenda-salas", "orquestrar"), EscritorConsoleEmMemoria(), sessoes=sessoes)
+        executar_bancada(_argumentos(tmp_path / "saida", "agenda-salas", "graphow-0.4"), EscritorConsoleEmMemoria(), sessoes=sessoes)
 
-    assert recusa.value.contexto["registradas"] == "enxuta"
+    assert recusa.value.contexto["registradas"] == "enxuta, orquestrar"
     assert not (tmp_path / "saida").exists()
 
 
