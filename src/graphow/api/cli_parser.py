@@ -10,13 +10,9 @@ from graphow.documentacao.skill import DIRETORIO_DE_SKILLS_PADRAO
 from graphow.harness.servico_harness import FaseDoHarness
 
 DESCRICAO_PROGRAMA: str = "Graphow - Substrato de Grafo Agentico Bilateral"
-PAPEIS_ACEITOS_NO_MCP: tuple[str, ...] = (
-    PapelAutor.PLANEJADOR.value,
-    PapelAutor.EXECUTOR.value,
-    PapelAutor.REVISOR.value,
-    PapelAutor.HUMANO.value,
-    PapelAutor.ARBITRO.value,
-)
+# So o servidor da sessao do humano: os agentes do graphow orquestrar rodam sem
+# MCP do graphow e devolvem JSON, e os servidores por papel dos subagentes sairam.
+PAPEIS_ACEITOS_NO_MCP: tuple[str, ...] = (PapelAutor.HUMANO.value,)
 FASES_ACEITAS_NO_HARNESS: tuple[str, ...] = tuple(fase.value for fase in FaseDoHarness)
 
 
@@ -288,20 +284,12 @@ def _registrar_comando_mcp(
         "--papel",
         required=True,
         choices=PAPEIS_ACEITOS_NO_MCP,
-        help="Papel atribuido a esta sessao MCP. Nao pode ser alterado pelo agente",
+        help="Papel atribuido a esta sessao MCP (so humano). Nao pode ser alterado pela sessao",
     )
     parser_mcp.add_argument(
         "--autor",
         default="agente-mcp",
         help="Identificador do autor registrado no log para esta sessao",
-    )
-    parser_mcp.add_argument(
-        "--autor-por-conexao",
-        action="store_true",
-        help=(
-            "Acrescenta ao autor um sufixo unico por processo. Use nos servidores de subagente: "
-            "dois executores em paralelo precisam de posses distintas"
-        ),
     )
 
 

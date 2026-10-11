@@ -81,7 +81,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         10,
         "mcp",
         "Superfície MCP",
-        "Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.",
+        "Ferramentas expostas via Model Context Protocol à sessão do humano (graphow mcp --papel humano, o único papel que abre servidor), com o papel fixado na abertura e recusado nos argumentos. Os agentes do graphow orquestrar rodam sem MCP do graphow. As identidades de agente (planejador, executor, revisor, árbitro) seguem só em processo até a fase 4; configurar_governanca e configurar_autonomia_projeto são sempre do humano.",
     ),
     DefinicaoSetor(
         11,

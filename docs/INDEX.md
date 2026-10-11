@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**18 alas · 278 módulos · 38055 linhas · 512 classes**
+**18 alas · 278 módulos · 38017 linhas · 512 classes**
 
 ---
 
@@ -70,8 +70,8 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 07 | [Linhagem e Ramificação](setores/07_lineage.md) | `graphow.lineage` | 4 | 282 | 7 |
 | 08 | [Integração com Harness](setores/08_harness.md) | `graphow.harness` | 15 | 1804 | 20 |
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
-| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 18 | 2801 | 28 |
-| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 13 | 2023 | 20 |
+| 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 18 | 2776 | 28 |
+| 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 13 | 2010 | 20 |
 | 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3750 | 60 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1749 | 38 |
@@ -100,7 +100,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 **09. Observabilidade e Taxonomia MAST** — Traduz o modo de falha que o portão declarou em categoria MAST e recebe os spans GenAI do kernel, em memória ou em arquivo NDJSON.
 
-**10. Superfície MCP** — Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
+**10. Superfície MCP** — Ferramentas expostas via Model Context Protocol à sessão do humano (graphow mcp --papel humano, o único papel que abre servidor), com o papel fixado na abertura e recusado nos argumentos. Os agentes do graphow orquestrar rodam sem MCP do graphow. As identidades de agente (planejador, executor, revisor, árbitro) seguem só em processo até a fase 4; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
 
 **11. Linha de Comando e Transporte** — Interface de terminal, resolução de dependências por subcomando e formatação de eventos para transporte SSE.
 

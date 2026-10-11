@@ -72,7 +72,7 @@ def test_configuracao_que_chama_o_executavel_passa_pelo_parser_da_cli_nominal(tm
     """O bloco que chama `graphow` com `args` começando no subcomando é validado como a linha de comando."""
     destino = tmp_path / ".agents"
     destino.mkdir(parents=True)
-    bloco = '```json\n{"command": "graphow", "args": ["mcp", "--papel", "executor", "--autor", "agente-x"]}\n```\n'
+    bloco = '```json\n{"command": "graphow", "args": ["mcp", "--papel", "humano", "--autor", "agente-x"]}\n```\n'
     (destino / "ok.md").write_text(bloco, encoding="utf-8")
     (destino / "quebrado.md").write_text(bloco.replace('"--autor", "agente-x"', '"--posse-propria"'), encoding="utf-8")
 

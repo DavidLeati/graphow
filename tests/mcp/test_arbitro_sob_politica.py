@@ -28,12 +28,12 @@ PAPEIS_DE_AGENTE_SEM_GESTO = ("planejador", "executor", "revisor")
 
 
 def test_sessao_arbitro_abre_nominal() -> None:
-    """O papel arbitro é aceito na abertura da sessão MCP e na linha de comando."""
+    """O papel arbitro ainda abre identidade de sessão em processo (a política o lê até a fase 4), mas não servidor."""
     identidade = IdentidadeSessaoMCP.criar("arbitro-1", "arbitro")
 
     assert identidade.papel == PapelAutor.ARBITRO
     assert identidade.eh_humano is False
-    assert "arbitro" in PAPEIS_ACEITOS_NO_MCP
+    assert "arbitro" not in PAPEIS_ACEITOS_NO_MCP
 
 
 def test_papel_sistema_segue_recusado_em_sessao_edge_case() -> None:

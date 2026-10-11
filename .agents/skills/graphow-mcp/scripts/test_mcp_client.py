@@ -3,8 +3,9 @@
 O script iniciava o servidor sem `--papel`, obrigatório desde o Passo 1: o
 processo saía com erro de argumento e a primeira leitura terminava em
 `JSONDecodeError`, sem dizer o que havia acontecido. Agora o papel é explícito,
-a saída de erro do servidor é reportada, e a verificação inclui a recusa de
-`responder_questao` por uma sessão de executor.
+a saída de erro do servidor é reportada, e a verificação inclui a recusa de um
+servidor com papel de agente: desde a fase 1 só a sessão do humano abre
+servidor, e os agentes do `graphow orquestrar` rodam sem MCP do graphow.
 """
 
 import json
@@ -13,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 
-PAPEL_DA_SESSAO = "executor"
+PAPEL_DA_SESSAO = "humano"
 AUTOR_DA_SESSAO = "agente-teste"
 
 FERRAMENTAS_ESPERADAS = (
@@ -30,7 +31,7 @@ FERRAMENTAS_ESPERADAS = (
 )
 
 
-def abrir_servidor(caminho_banco):
+def abrir_servidor(caminho_banco, papel=PAPEL_DA_SESSAO):
     """Sobe o servidor stdio com a identidade fixada na linha de comando."""
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
@@ -42,7 +43,7 @@ def abrir_servidor(caminho_banco):
         "-m",
         "graphow.mcp.stdio_server",
         "--papel",
-        PAPEL_DA_SESSAO,
+        papel,
         "--autor",
         AUTOR_DA_SESSAO,
         "--db",
@@ -125,14 +126,13 @@ def conferir_busca(processo):
     print("   -> Ferramenta 'buscar' executada com sucesso.")
 
 
-def conferir_recusa_de_ferramenta_humana(processo):
-    """A escalação só é encerrada pelo humano, e a recusa precisa ser visível."""
-    conteudo = chamar_ferramenta(
-        processo, 4, "responder_questao", {"id_questao": "quest-1", "resposta": "x"}
-    )
-    assert conteudo.get("sucesso") is False, conteudo
-    assert "abrir_questao" in conteudo.get("erro", ""), conteudo
-    print("   -> Recusa de 'responder_questao' confirmada para sessao de executor.")
+def conferir_recusa_de_papel_de_agente(caminho_banco):
+    """Um servidor com papel de agente não abre: o processo sai com erro de argumento."""
+    processo = abrir_servidor(caminho_banco, "executor")
+    _, erro = processo.communicate(timeout=30)
+    assert processo.returncode != 0, erro
+    assert "invalid choice" in erro, erro
+    print("   -> Servidor com papel 'executor' recusado na abertura.")
 
 
 def main():
@@ -149,8 +149,8 @@ def main():
         conferir_lista_de_ferramentas(processo)
         print("3. Enviando 'tools/call' para 'buscar'...")
         conferir_busca(processo)
-        print("4. Confirmando a recusa de 'responder_questao'...")
-        conferir_recusa_de_ferramenta_humana(processo)
+        print("4. Confirmando que papel de agente nao abre servidor...")
+        conferir_recusa_de_papel_de_agente(caminho_banco)
         print("\nTodos os testes do Graphow MCP stdio passaram.")
         return 0
     finally:

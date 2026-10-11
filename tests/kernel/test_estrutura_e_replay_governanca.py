@@ -11,7 +11,6 @@ from graphow.kernel.matriz_papeis import SEPARADOR_DO_SUFIXO_DE_CONEXAO, autor_s
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.role_gate import RoleGate
 from graphow.lineage.replay_engine import ReplayEngine
-from graphow.mcp.identidade_sessao import SEPARADOR_DO_SUFIXO_DE_CONEXAO as SEPARADOR_DO_MCP
 from tests.kernel.cenario_governanca import (
     AGENTES_SEM_ARBITRO,
     PRESET_ARBITRAGEM,
@@ -117,11 +116,6 @@ def test_o_veredito_so_depende_do_estado_e_o_replay_o_repete_nominal() -> None:
         for _ in range(2):
             proposta = _proposta(PapelAutor.ARBITRO, "arbitro-1#aaaa", fechar)
             assert RoleGate().validar(proposta, estado).aprovado is esperado
-
-
-def test_o_separador_do_sufixo_acompanha_o_da_conexao_mcp_edge_case() -> None:
-    """Caso de borda: o kernel não importa o servidor MCP, então a cópia da constante é conferida aqui."""
-    assert SEPARADOR_DO_SUFIXO_DE_CONEXAO == SEPARADOR_DO_MCP
 
 
 @pytest.mark.parametrize(("autor", "aberta_por", "esperado"), [

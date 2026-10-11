@@ -9,7 +9,7 @@ from typing import Any
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.composicao import montar_kernel_sqlite
 from graphow.kernel.write_kernel import WriteKernel
-from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP, autor_da_conexao
+from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
 from graphow.mcp.server import GraphowMCPServer
 from graphow.mcp.stdio_protocolo import (
     CODIGO_ERRO_DE_PARSE,
@@ -73,15 +73,10 @@ def _construir_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--papel",
         required=True,
-        choices=["planejador", "executor", "revisor", "humano"],
-        help="Papel fixado para esta sessao. Agentes nao podem alterá-lo",
+        choices=["humano"],
+        help="Papel fixado para esta sessao (so humano). A sessao nao pode altera-lo",
     )
     parser.add_argument("--autor", default="agente-mcp", help="Identificador do autor no log")
-    parser.add_argument(
-        "--autor-por-conexao",
-        action="store_true",
-        help="Acrescenta ao autor um sufixo unico por processo, para cada conexao ter posse propria",
-    )
     return parser
 
 
@@ -96,8 +91,7 @@ def main(argumentos: Sequence[str] | None = None) -> int:
     localizacao = LocalizadorBancoEventos().resolver(parsed.db)
     PreparadorDiretorioBanco().garantir_diretorio(localizacao)
     try:
-        autor = autor_da_conexao(parsed.autor, por_conexao=parsed.autor_por_conexao)
-        identidade = IdentidadeSessaoMCP.criar(autor, parsed.papel)
+        identidade = IdentidadeSessaoMCP.criar(parsed.autor, parsed.papel)
     except GraphowError as erro:
         sys.stderr.write(erro.formatar_para_llm() + "\n")
         return CODIGO_FALHA_DOMINIO

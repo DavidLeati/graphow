@@ -39,11 +39,18 @@ def test_subcomando_mcp_recusa_papel_fora_da_ontologia_edge_case() -> None:
         construir_parser().parse_args(["mcp", "--papel", "administrador"])
 
 
-def test_subcomando_mcp_aceita_papel_valido_nominal() -> None:
-    """Um papel válido é aceito e o autor recebe um padrão explícito."""
-    parsed = construir_parser().parse_args(["mcp", "--papel", "executor"])
-    assert parsed.papel == "executor"
+def test_subcomando_mcp_aceita_o_papel_humano_nominal() -> None:
+    """O servidor da sessão do humano abre, e o autor recebe um padrão explícito."""
+    parsed = construir_parser().parse_args(["mcp", "--papel", "humano"])
+    assert parsed.papel == "humano"
     assert parsed.autor == "agente-mcp"
+
+
+@pytest.mark.parametrize("papel", ["planejador", "executor", "revisor", "arbitro", "orquestrador", "sistema"])
+def test_subcomando_mcp_recusa_os_papeis_de_agente_edge_case(papel: str) -> None:
+    """Caso de borda: os servidores por papel saíram com os subagentes; nenhum agente abre servidor do graphow."""
+    with pytest.raises(SystemExit):
+        construir_parser().parse_args(["mcp", "--papel", papel])
 
 
 def test_subcomando_migrar_banco_exige_origem_edge_case() -> None:
@@ -90,15 +97,3 @@ def test_harness_recusa_duas_origens_ao_mesmo_tempo_edge_case() -> None:
         construir_parser().parse_args(
             ["harness", "--fase", "inicio", "--sessao", "s1", "--entrada-hook"]
         )
-
-
-def test_subcomando_mcp_aceita_autor_por_conexao_nominal() -> None:
-    """Os servidores de subagente pedem posse própria por processo."""
-    parsed = construir_parser().parse_args(["mcp", "--papel", "executor", "--autor-por-conexao"])
-    assert parsed.autor_por_conexao is True
-
-
-def test_subcomando_mcp_sem_autor_por_conexao_mantem_o_autor_edge_case() -> None:
-    """Caso de borda: o padrão preserva o comportamento de quem já configurou o servidor."""
-    parsed = construir_parser().parse_args(["mcp", "--papel", "humano"])
-    assert parsed.autor_por_conexao is False

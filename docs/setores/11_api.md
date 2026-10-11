@@ -10,16 +10,16 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2023 linhas · 20 classes
+13 módulos · 2010 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_bancada.py`](#apiclibancada) | 220 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
-| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 256 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
+| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 255 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_orquestrar.py`](#apicliorquestrar) | 157 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
-| [`api/cli_parser.py`](#apicliparser) | 393 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 381 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
@@ -158,7 +158,7 @@ Construção do analisador de argumentos da linha de comando do Graphow.
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `DESCRICAO_PROGRAMA` | `str` | `'Graphow - Substrato de Grafo Agentico Bilateral'` |
-| `PAPEIS_ACEITOS_NO_MCP` | `tuple[str, ...]` | `(PapelAutor.PLANEJADOR.value, PapelAutor.EXECUTOR.value, PapelAutor.REV…` |
+| `PAPEIS_ACEITOS_NO_MCP` | `tuple[str, ...]` | `(PapelAutor.HUMANO.value,)` |
 | `FASES_ACEITAS_NO_HARNESS` | `tuple[str, ...]` | `tuple((fase.value for fase in FaseDoHarness))` |
 
 ### Funções do módulo

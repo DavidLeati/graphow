@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.mcp`
 
-Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na abertura da sessão e recusado nos argumentos. O papel arbitro (graphow mcp --papel arbitro) exerce os gestos que a política do projeto do alvo lhe entrega; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
+Ferramentas expostas via Model Context Protocol à sessão do humano (graphow mcp --papel humano, o único papel que abre servidor), com o papel fixado na abertura e recusado nos argumentos. Os agentes do graphow orquestrar rodam sem MCP do graphow. As identidades de agente (planejador, executor, revisor, árbitro) seguem só em processo até a fase 4; configurar_governanca e configurar_autonomia_projeto são sempre do humano.
 
 ## Inventário
 
-18 módulos · 2801 linhas · 28 classes
+18 módulos · 2776 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,11 +24,11 @@ Ferramentas expostas a agentes via Model Context Protocol, com o papel fixado na
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 162 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 240 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 253 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 234 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 179 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção, decisões e ligação de escopo. |
 | [`mcp/server.py`](#mcpserver) | 145 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 195 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |
-| [`mcp/stdio_server.py`](#mcpstdioserver) | 110 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
+| [`mcp/stdio_server.py`](#mcpstdioserver) | 104 | Servidor MCP sobre transporte stdio com protocolo JSON-RPC 2.0. |
 | [`mcp/submissao.py`](#mcpsubmissao) | 64 | Submissão de patches originados em ferramentas MCP sob a identidade da sessão. |
 | [`mcp/tool_definitions.py`](#mcptooldefinitions) | 347 | Definições formais de schemas para ferramentas MCP expostas a agentes LLM. |
 
@@ -271,8 +271,6 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `PAPEIS_VALIDOS_EM_SESSAO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.PLANEJADOR, PapelAutor.EXECUTO…` |
-| `SEPARADOR_DO_SUFIXO_DE_CONEXAO` | `str` | `'#'` |
-| `BYTES_DO_SUFIXO_DE_CONEXAO` | `int` | `3` |
 | `FERRAMENTAS_EXCLUSIVAS_DO_HUMANO` | `frozenset[str]` | `frozenset({'configurar_governanca', 'configurar_autonomia_projeto'})` |
 | `GESTO_POR_FERRAMENTA` | `Mapping[str, Gesto]` | `MappingProxyType({'responder_questao': Gesto.RESPONDER_QUESTAO, 'promov…` |
 | `RAMO_PADRAO_DA_POLITICA` | `str` | `'main'` |
@@ -305,7 +303,6 @@ Identidade imutável de uma sessão MCP e política de autorização por ferrame
 
 ### Funções do módulo
 
-- `autor_da_conexao(autor: str) -> str` — O autor declarado, com um sufixo único quando cada conexão precisa de posse própria.
 - `resolvedor_de_governanca_maxima(id_alvo: str, ramo_id: str) -> PoliticaGovernanca` — Resolvedor sem grafo: vale a política padrão, governança máxima.
 - `resolvedor_do_kernel(kernel: WriteKernel) -> ResolvedorDePolitica` — Resolvedor que lê o grafo do kernel: o nó dá o projeto, a aresta dá o projeto da origem.
 

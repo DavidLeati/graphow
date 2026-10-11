@@ -84,9 +84,9 @@ def papel_aceita_a_entrega(papel: str) -> bool:
     return papel in {aceitador.value for aceitador in PAPEIS_QUE_ACEITAM_A_ENTREGA}
 
 
-# Cópia deliberada de mcp/identidade_sessao.SEPARADOR_DO_SUFIXO_DE_CONEXAO: o
-# kernel não importa o servidor MCP, que importa o kernel. Um teste confere que
-# as duas constantes não se afastam.
+# Os servidores MCP dos subagentes, que saíram na fase 1, acrescentavam ao autor
+# um sufixo `#xxxx` por conexão, para cada processo ter posse própria. O log
+# antigo traz esses autores, e a comparação de autoria ignora o sufixo.
 SEPARADOR_DO_SUFIXO_DE_CONEXAO: str = "#"
 
 
