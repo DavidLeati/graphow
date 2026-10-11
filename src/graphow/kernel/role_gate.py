@@ -24,6 +24,7 @@ from graphow.kernel.matriz_papeis import (
     TIPOS_EXCLUSIVOS_DO_HUMANO,
     TIPOS_LIBERADOS_POR_GESTO,
 )
+from graphow.kernel.papel_do_orquestrador import validar_escrita_do_orquestrador
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -50,7 +51,9 @@ class RoleGate:
     do projeto são sempre do humano. Os demais gestos que antes eram só dele
     (responder uma `Question`, promover um Aprendizado, governar `Constraint`,
     excluir, fechar Goal, encerrar Sessão) a política do projeto do alvo
-    reserva ao humano ou entrega ao árbitro; nenhum outro papel os ganha.
+    reserva ao humano ou entrega ao árbitro; nenhum outro papel de agente os
+    ganha. O orquestrador não é agente: tem contrato próprio
+    (kernel/papel_do_orquestrador.py).
     """
 
     NOS_CRIACAO_PERMITIDOS: dict[PapelAutor, frozenset[TipoNo]] = {
@@ -97,6 +100,8 @@ class RoleGate:
         """Avalia se todas as operações da proposta estão autorizadas para o papel."""
         if proposta.papel == PapelAutor.HUMANO:
             return ResultadoValidacao.sucesso()
+        if proposta.papel == PapelAutor.ORQUESTRADOR:
+            return validar_escrita_do_orquestrador(proposta, estado)
         contexto = ContextoPapel(
             proposta=proposta,
             estado=estado,

@@ -70,6 +70,10 @@ class PapelAutor(str, Enum):
     # Agente a quem a política de governança entrega os gestos que tira do humano.
     ARBITRO = "arbitro"
     SISTEMA = "sistema"
+    # O laço em código do `graphow orquestrar`, o único escritor do Goal que ele
+    # conduz: grava o que o planejador, o executor e o verificador devolvem.
+    # Nenhum servidor MCP abre sessão com ele (kernel/papel_do_orquestrador.py).
+    ORQUESTRADOR = "orquestrador"
 
 
 class OrigemEvento(str, Enum):

@@ -13,9 +13,11 @@ pela proveniência do nó): o executor que cria a própria aprovação não fech
 própria Task. O aceite pelo teto de correções (kernel/aceite_pelo_teto.py) é a
 outra porta, e a Decision que o dá precisa ser de quem pode aceitar.
 
-São isentos o humano, que é o dono do grafo, e as Tasks de manutenção de
-memória que o próprio grafo abre sem revisor (condensar a sessão e consolidar
-aprendizados): exigir revisão delas travaria a memória.
+São isentos o humano, que é o dono do grafo, o orquestrador, que fecha a fatia
+depois de rodar a suíte e cujo Goal só fecha com a verificação do Goal limpa
+no commit atual, e as Tasks de manutenção de memória que o próprio grafo abre
+sem revisor (condensar a sessão e consolidar aprendizados): exigir revisão
+delas travaria a memória.
 """
 
 from collections.abc import Iterator
@@ -34,6 +36,7 @@ from graphow.projection.revisao import veredito_efetivo
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 SEGMENTOS_DA_PROPRIEDADE: int = 4
 CAMPO_STATUS: str = "status"
+PAPEIS_ISENTOS_DO_VEREDITO: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})
 
 
 def tarefas_sem_veredito_aprovado(proposta: PropostaPatch, estrutura: EstruturaAposLote) -> tuple[str, ...]:
@@ -41,7 +44,7 @@ def tarefas_sem_veredito_aprovado(proposta: PropostaPatch, estrutura: EstruturaA
 
     Vazio para o humano e para as Tasks isentas. Em ordem de aparição no lote.
     """
-    if proposta.papel == PapelAutor.HUMANO:
+    if proposta.papel in PAPEIS_ISENTOS_DO_VEREDITO:
         return ()
     view = GrafoView(_estado_do_julgamento(proposta, estrutura))
     concluidas = dict.fromkeys(_ids_que_o_lote_conclui(proposta))

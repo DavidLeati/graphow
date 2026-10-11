@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.core`
 
-Vocabulário da ontologia (versão 1.5.0: o escopo governado, com as arestas motivada_por, acompanha, integra e desfaz, sobre o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+Vocabulário da ontologia (versão 1.6.0: o papel orquestrador, que grava o livro-razão do Goal no lugar dos agentes, sobre o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 ## Inventário
 
-12 módulos · 1325 linhas · 38 classes
+12 módulos · 1332 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,9 +22,9 @@ Vocabulário da ontologia (versão 1.5.0: o escopo governado, com as arestas mot
 | [`core/governanca.py`](#coregovernanca) | 380 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
-| [`core/ontologia.py`](#coreontologia) | 77 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
+| [`core/ontologia.py`](#coreontologia) | 80 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 88 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
-| [`core/types.py`](#coretypes) | 128 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+| [`core/types.py`](#coretypes) | 132 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/composicao_governanca.py`
 
@@ -317,11 +317,11 @@ Versão declarada do vocabulário da ontologia e a impressão digital que a chec
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `VERSAO_ONTOLOGIA` | `str` | `'1.5.0'` |
+| `VERSAO_ONTOLOGIA` | `str` | `'1.6.0'` |
 | `ARESTAS_DE_CONTENCAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.CONTEM, TipoAresta.PRODUZ, TipoAresta.DECOMPOE})` |
 | `VERSAO_ONTOLOGIA_DESCONHECIDA` | `str` | `'0'` |
 | `TAMANHO_DA_ASSINATURA` | `int` | `12` |
-| `ASSINATURA_DECLARADA` | `str` | `'bc9a37bf5d5d'` |
+| `ASSINATURA_DECLARADA` | `str` | `'5a6203841921'` |
 
 ### Funções do módulo
 

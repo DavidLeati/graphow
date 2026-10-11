@@ -19,6 +19,7 @@ from graphow.kernel.patch_models import (
 )
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
+PAPEIS_SEM_POSSE_DE_TAREFA: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})
 
 # Arestas que mudam o que uma Task é: do que depende, de onde vem, o que a
 # governa, o que a restringe, o que ela substitui e, no escopo governado, o que
@@ -187,9 +188,10 @@ class InvariantGate:
 
         Sem posse, dois executores na mesma Task não colidiam no kernel e o
         segundo sobrescrevia o status do primeiro sem erro. O humano segue fora
-        desta regra: ele é o dono do grafo, não um dos escritores paralelos.
+        desta regra: ele é o dono do grafo, não um dos escritores paralelos. O
+        orquestrador também: é o único escritor do Goal que conduz.
         """
-        if proposta.papel == PapelAutor.HUMANO:
+        if proposta.papel in PAPEIS_SEM_POSSE_DE_TAREFA:
             return ResultadoValidacao.sucesso()
         for item in proposta.operacoes:
             id_task = self._identificar_task_com_status_alterado(item, estado)

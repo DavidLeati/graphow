@@ -97,11 +97,13 @@ class SchemaGate:
         # Aprendizado -> origem: a aresta que o InvariantGate exige no mesmo lote.
         # Evidence -> Artifact/Task: o teste do executor e o veredito do revisor
         # apontam para o trabalho que avaliam, em vez de ficarem presos à sessão.
+        # Evidence -> Goal: a verificação do Goal inteiro, num commit.
         TipoAresta.DERIVA_DE: frozenset({
             (TipoNo.ARTIFACT, TipoNo.TASK),
             (TipoNo.ARTIFACT, TipoNo.ARTIFACT),
             (TipoNo.EVIDENCE, TipoNo.ARTIFACT),
             (TipoNo.EVIDENCE, TipoNo.TASK),
+            (TipoNo.EVIDENCE, TipoNo.GOAL),
             (TipoNo.NOTE, TipoNo.TASK),
             (TipoNo.NOTE, TipoNo.DECISION),
             (TipoNo.NOTE, TipoNo.EVIDENCE),

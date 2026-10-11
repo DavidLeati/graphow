@@ -37,7 +37,10 @@ from graphow.core.types import (
 # `responder_desvio` e as leituras `limiar_desvio_por_raiz`,
 # `limiar_desvio_por_goal` e `teto_expansao`. Os portões de escopo valem só
 # para eventos desta versão em diante.
-VERSAO_ONTOLOGIA: str = "1.5.0"
+# 1.6.0: entra o papel `orquestrador`, o laço em código do `graphow orquestrar`
+# que grava o livro-razão do Goal no lugar dos agentes, e `deriva_de` passa a
+# admitir a Evidence que verifica um Goal inteiro.
+VERSAO_ONTOLOGIA: str = "1.6.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -74,4 +77,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "bc9a37bf5d5d"
+ASSINATURA_DECLARADA: str = "5a6203841921"

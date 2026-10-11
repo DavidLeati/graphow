@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.kernel`
 
-Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset.
+Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.
 
 ## Inventário
 
-29 módulos · 4654 linhas · 33 classes
+30 módulos · 4807 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,22 +24,23 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 373 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 375 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
+| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 141 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 282 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
-| [`kernel/role_gate.py`](#kernelrolegate) | 391 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 385 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/role_gate.py`](#kernelrolegate) | 396 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 387 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/teto_de_expansao.py`](#kerneltetodeexpansao) | 61 | O teto de expansão (D6 do escopo governado): recusa por contagem, só quando a política liga. |
-| [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 120 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
+| [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 123 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
 | [`kernel/veredito_reservado.py`](#kernelvereditoreservado) | 56 | A propriedade `veredito` de uma Evidence é de quem julga: revisor, humano ou árbitro. |
 | [`kernel/write_kernel.py`](#kernelwritekernel) | 309 | Kernel de Escrita e Validação Transacional em 4 Portões (PatchBoard). |
 
@@ -266,6 +267,7 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `PAPEIS_SEM_POSSE_DE_TAREFA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})` |
 | `ARESTAS_QUE_REDEFINEM_A_TAREFA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DEPENDE_DE, TipoAresta.DECOMPOE, TipoAresta.ORIEN…` |
 | `VINCULO_DE_TRABALHO` | `str` | `"'produz' vinda de uma Sessao"` |
 | `VINCULO_ESPERADO` | `Mapping[TipoNo, str]` | `{TipoNo.SETOR: "'contem' vinda de um Projeto", TipoNo.SESSAO: "'contem'…` |
@@ -394,6 +396,24 @@ Notificação pós-commit dos eventos aceitos pelos quatro portões.
 
 - `nome() -> str` `[property]` `[abstract]` — Nome identificador do observador, usado em diagnóstico.
 - `notificar(eventos: Sequence[EventoLog]) -> None` `[abstract]` — Recebe o lote de eventos recém-persistido, já validado e ordenado.
+
+## `kernel/papel_do_orquestrador.py`
+
+O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PORTAO` | `str` | `'RoleGate'` |
+| `SEGMENTOS_DO_ELEMENTO` | `int` | `2` |
+| `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+| `TIPOS_CRIADOS_PELO_ORQUESTRADOR` | `frozenset[TipoNo]` | `frozenset({TipoNo.PROJETO, TipoNo.SETOR, TipoNo.SESSAO, TipoNo.GOAL, Ti…` |
+| `PROPRIEDADES_RESERVADAS_POR_TIPO` | `Mapping[TipoNo, frozenset[str]]` | `{TipoNo.PROJETO: PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO, TipoNo.G…` |
+| `ARESTAS_NEGADAS_AO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.VALE_PARA})` |
+
+### Funções do módulo
+
+- `validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Aprova o lote do orquestrador, salvo a primeira operação que toca uma reserva do humano.
 
 ## `kernel/pares_de_escopo.py`
 
@@ -623,6 +643,7 @@ Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da pol
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
 | `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
 | `CAMPO_STATUS` | `str` | `'status'` |
+| `PAPEIS_ISENTOS_DO_VEREDITO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})` |
 
 ### Funções do módulo
 

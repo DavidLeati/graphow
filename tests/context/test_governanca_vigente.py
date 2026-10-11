@@ -165,7 +165,7 @@ def test_a_secao_vale_para_todo_papel_que_le_nominal() -> None:
     """A política é do Projeto do alvo: planejador, revisor e árbitro leem a mesma coisa."""
     kernel = _kernel(_projeto("a", governanca={"preset": "arbitragem_maxima"}))
 
-    secoes = {papel: _secao(_vista(kernel, "task-a", papel=papel)) for papel in PapelAutor if papel != PapelAutor.SISTEMA}
+    secoes = {papel: _secao(_vista(kernel, "task-a", papel=papel)) for papel in PapelAutor if papel not in (PapelAutor.SISTEMA, PapelAutor.ORQUESTRADOR)}
 
     assert secoes[PapelAutor.EXECUTOR]
     assert all(secao == secoes[PapelAutor.EXECUTOR] for secao in secoes.values())
