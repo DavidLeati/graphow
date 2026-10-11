@@ -1,0 +1,13 @@
+{
+  "nome": "api-tarefas",
+  "descricao": "API HTTP em Node 22 para as tarefas do time de operacoes (pedido do Marcos).",
+  "ramo": "entrega",
+  "semente": {
+    "commit": "5a5dce3068840894831e8b6c4c1babf774c711e8",
+    "arvore": "02c1301a94a8a5494baf156327b54b3fc3546ce3",
+    "ramo": "main",
+    "mensagem": "Estado inicial",
+    "autor": "David Leati <davidleati12@gmail.com>",
+    "data": "2026-10-10T13:15:04-03:00"
+  }
+}

@@ -1,0 +1,8 @@
+- S1: arquivo de dados JSON truncado, vazio, com BOM e em latin-1 na LEITURA: mensagem clara em português ou traceback?
+- S2: reserva semanal com data de fim muito distante (31/12/9999 e 31/12/2100): erro claro, OverflowError ou lentidão? Meça o tempo.
+- S3: argumentos inválidos (capacidade "abc", pessoas "tres", data "1/1/2026 9:00"): mensagem em português e código de saída?
+- S4: exportar CSV com o arquivo de destino travado/aberto por outro processo e com pasta inexistente: mensagem clara ou traceback?
+- S5: descrição com ';', aspas e quebra de linha: o CSV sai válido e a agenda do dia legível?
+- S6: mensagens ao usuário com acentuação correta (ajuda, erros, sucesso)?
+- S7: reserva que cruza meia-noite, início igual ao fim, nome de sala só com espaços, "Sala  A" x "Sala A".
+- S8: a suíte tem teste que passa sem provar o que diz (ex.: assertIn de um dígito, assertNotIn("Traceback") sem capturar stderr)?

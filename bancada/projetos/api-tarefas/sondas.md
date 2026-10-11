@@ -1,0 +1,8 @@
+- S1: GET /tarefas?pagina=99999999999999999999 e tamanho enorme: 400 ou 500?
+- S2: corpo de 3 MB enviado em pedaços: a resposta 413 (ou equivalente) vem logo ou só depois de ler tudo? Corpo infinito recebe resposta?
+- S3: 10 PATCH simultâneos sobre a mesma versão: quantos 200, quantos 409, estado final coerente? PATCH e DELETE simultâneos.
+- S4: POST com status "feito": a tarefa nasce "a fazer" ou é recusada (a decisão do humano é que toda tarefa nova começa "a fazer")?
+- S5: subir o servidor por um caminho com junção/symlink (mklink /J) ou caminho com letra de unidade em minúscula: escuta a porta?
+- S6: header Authorization com "bearer" minúsculo, espaços extras, token errado, sem token, rota inexistente sem token.
+- S7: validação de versão: PATCH e DELETE tratam igual um valor não-inteiro e um inteiro gigante?
+- S8: limites: responsável com 100 mil caracteres, título com 200 emojis, prazo "0000-02-29", Content-Type text/plain.

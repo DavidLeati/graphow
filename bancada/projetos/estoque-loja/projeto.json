@@ -1,0 +1,13 @@
+{
+  "nome": "estoque-loja",
+  "descricao": "CLI Python de estoque de uma ferragem: o chamado 142, com tres defeitos e dois pedidos novos.",
+  "ramo": "chamado-142",
+  "semente": {
+    "commit": "ec76646d814c531ccdf83a8f72995cf5a6237a65",
+    "arvore": "5b27a6c272e29f1097fc861f4c64fb2535856d30",
+    "ramo": "main",
+    "mensagem": "Estado inicial",
+    "autor": "David Leati <davidleati12@gmail.com>",
+    "data": "2026-10-10T13:15:04-03:00"
+  }
+}

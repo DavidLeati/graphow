@@ -1,0 +1,8 @@
+- S1: a suíte depende do estoque.csv real? Numa CÓPIA da pasta, rode `ajuste 007 0 contagem` e depois uma venda (`pedido 001:1`), e rode a suíte de novo: continua passando?
+- S2: pedido com quantidade negativa (007:-5), zero, não numérica (007:abc, 007:1.5), sem quantidade, e `007:20 007:-15` com 10 em estoque.
+- S3: CSV com código repetido, coluna a mais, aspas não fechadas, arquivo salvo em ANSI/latin-1, linha só com espaços: o que acontece com os dados e a mensagem aponta a linha certa?
+- S4: motivo do ajuste com quebra de linha: o movimentos.log continua com 5 campos por linha?
+- S5: cadastro com preço "0,35" (vírgula), preço com 3 casas, mínimo não numérico, cadastro sem argumentos.
+- S6: o primeiro exemplo do README funciona com os dados atuais do repositório?
+- S7: recusas (estoque insuficiente, produto inexistente) saem com código de saída diferente de 0?
+- S8: cada commit da branch compila e passa a suíte da época?

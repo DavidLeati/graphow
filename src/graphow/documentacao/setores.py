@@ -119,6 +119,12 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         "Sessões claude -p",
         "Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CLAUDE, depois o PATH), monta o comando com saída stream-json, tira do ambiente as variáveis da sessão mãe, aplica o GRAPHOW_DB pedido, espera até o tempo limite, grava o stream num arquivo e devolve o resultado tipado (sessão, texto final, erro, custo, tokens, duração e turnos). Não depende do grafo: é a peça sobre a qual a bancada e o orquestrador rodam agentes.",
     ),
+    DefinicaoSetor(
+        17,
+        "bancada",
+        "Bancada de Medição",
+        "O portão de cada fase da reestruturação: as três demandas do laboratório rodadas do zero por arquitetura e auditadas do mesmo jeito. Lê os dados versionados em `bancada/` (semente, spec, sondas, prompts e linha de base) e recria o repositório de cada execução com o mesmo hash do laboratório. Não toca o banco do usuário: cada execução tem o seu.",
+    ),
 )
 
 

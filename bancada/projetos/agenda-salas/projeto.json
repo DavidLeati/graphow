@@ -1,0 +1,13 @@
+{
+  "nome": "agenda-salas",
+  "descricao": "CLI Python para as reservas das 4 salas de um coworking (pedido da Carla, secretaria).",
+  "ramo": "entrega",
+  "semente": {
+    "commit": "7269a58791b55eb357b5f76900ff62b4a804dc35",
+    "arvore": "3fd2dd92d422f6b055a292e30a4cace8f6a66e1a",
+    "ramo": "main",
+    "mensagem": "Estado inicial",
+    "autor": "David Leati <davidleati12@gmail.com>",
+    "data": "2026-10-10T13:15:04-03:00"
+  }
+}

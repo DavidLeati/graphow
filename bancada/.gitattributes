@@ -1,0 +1,4 @@
+# A bancada guarda bytes, nao texto: a semente, as specs e os prompts tem de
+# chegar ao agente e ao auditor exatamente como no laboratorio, e o commit da
+# semente so reproduz o hash original sem conversao de fim de linha.
+* -text

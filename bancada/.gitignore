@@ -1,0 +1,4 @@
+# A semente e a arvore do commit inicial de cada projeto, inteira. Os padroes
+# do repositorio (*.log, *.db) nao valem para ela: o movimentos.log do estoque
+# faz parte do estado inicial.
+!/projetos/*/semente/**
