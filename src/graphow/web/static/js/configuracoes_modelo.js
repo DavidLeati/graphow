@@ -178,13 +178,6 @@ function textoOuNulo(valor) {
   return texto === TEXTO_VAZIO ? null : texto;
 }
 
-function inteiroOuNulo(valor) {
-  const texto = textoOuNulo(valor);
-  if (texto === null) return { valor: null };
-  const numero = Number(texto);
-  return Number.isInteger(numero) && numero >= 1 ? { valor: numero } : { erro: "O teto de rodadas é um inteiro a partir de 1." };
-}
-
 /** As linhas de um textarea viram a lista de globs; sem nenhuma linha, nulo apaga a propriedade. */
 export function listaDeCaminhos(texto) {
   const linhas = String(texto ?? TEXTO_VAZIO).split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean);
@@ -193,13 +186,9 @@ export function listaDeCaminhos(texto) {
 
 /** O corpo `{operacao}` a partir do formulário; vazio apaga a propriedade (valor nulo), como o backend aceita. */
 export function operacaoDoFormulario(campos) {
-  const teto = inteiroOuNulo(campos.teto_rodadas);
-  if (teto.erro) return { erro: teto.erro };
   return {
     corpo: {
       operacao: {
-        cadencia: textoOuNulo(campos.cadencia),
-        teto_rodadas: teto.valor,
         ramo_base: textoOuNulo(campos.ramo_base),
         caminhos_de_colisao: listaDeCaminhos(campos.caminhos_de_colisao),
         gravacao_do_gerente: textoOuNulo(campos.gravacao_do_gerente),
@@ -211,8 +200,6 @@ export function operacaoDoFormulario(campos) {
 /** Os valores do projeto como o formulário os mostra: o que não foi gravado volta vazio. */
 export function camposDaOperacao(operacao) {
   return {
-    cadencia: operacao?.cadencia ?? TEXTO_VAZIO,
-    teto_rodadas: operacao?.teto_rodadas ?? TEXTO_VAZIO,
     ramo_base: operacao?.ramo_base ?? TEXTO_VAZIO,
     caminhos_de_colisao: (operacao?.caminhos_de_colisao || []).join("\n"),
     gravacao_do_gerente: operacao?.gravacao_do_gerente ?? TEXTO_VAZIO,

@@ -6,9 +6,11 @@ sobrescrita do gesto. Quem chama decide só a identidade e o canal; o plano de
 operações, o texto das recusas e a política efetiva que a gravação produz saem
 daqui, para o MCP e a web não divergirem.
 
-Também mora aqui a escrita das propriedades operacionais do Projeto (cadência,
-teto de rodadas, ramo base, globs de colisão e quando o gerente grava), que a
-tela grava no mesmo lote.
+Também mora aqui a escrita das propriedades operacionais do Projeto (ramo
+base, globs de colisão e quando o gerente grava), que a tela grava no mesmo
+lote. A cadência e o teto de rodadas, que diziam quando a raiz da orquestração
+por LLM parava, saíram com ela na fase 1; o valor que um Projeto antigo
+guarde fica na propriedade, sem ninguém que o leia.
 """
 
 from collections.abc import Mapping
@@ -36,11 +38,6 @@ ESCOPO_GLOBAL: str = "global"
 VALOR_HERDAR: str = "herdar"
 ROTULO_DA_GOVERNANCA_GLOBAL: str = "Governanca global"
 
-CAMPO_CADENCIA: str = "cadencia"
-CAMPO_TETO_RODADAS: str = "teto_rodadas"
-# `desvio`: a orquestração devolve a palavra quando um gatilho de desvio do
-# escopo governado dispara, com o placar.
-CADENCIAS_ACEITAS: tuple[str, ...] = ("tarefa", "goal", "setor", "desvio")
 # Quando a skill graphow-gerente grava a definição da demanda: só depois da
 # aprovação do rascunho (o padrão, também quando a propriedade falta) ou a cada
 # confirmação do humano durante o alinhamento.
@@ -48,13 +45,10 @@ CAMPO_GRAVACAO_DO_GERENTE: str = "gravacao_do_gerente"
 GRAVACAO_APOS_APROVACAO: str = "apos_aprovacao"
 GRAVACOES_DO_GERENTE_ACEITAS: tuple[str, ...] = (GRAVACAO_APOS_APROVACAO, "durante_alinhamento")
 PROPRIEDADES_OPERACIONAIS: tuple[str, ...] = (
-    CAMPO_CADENCIA,
-    CAMPO_TETO_RODADAS,
     CAMPO_RAMO_BASE,
     CAMPO_CAMINHOS_DE_COLISAO,
     CAMPO_GRAVACAO_DO_GERENTE,
 )
-TETO_DE_RODADAS_MINIMO: int = 1
 
 
 class ErroDeConfiguracaoDeGovernanca(ValueError):
@@ -172,12 +166,8 @@ def _problemas_da_operacao(chave: Any, valor: Any) -> list[str]:
 
 def _valor_operacional_valido(chave: str, valor: Any) -> bool:
     """Confere o valor contra o domínio da propriedade operacional."""
-    if chave == CAMPO_CADENCIA:
-        return valor in CADENCIAS_ACEITAS
     if chave == CAMPO_GRAVACAO_DO_GERENTE:
         return valor in GRAVACOES_DO_GERENTE_ACEITAS
-    if chave == CAMPO_TETO_RODADAS:
-        return isinstance(valor, int) and not isinstance(valor, bool) and valor >= TETO_DE_RODADAS_MINIMO
     if chave == CAMPO_RAMO_BASE:
         return isinstance(valor, str) and bool(valor.strip())
     return isinstance(valor, list) and all(isinstance(item, str) and item.strip() for item in valor)
@@ -186,8 +176,6 @@ def _valor_operacional_valido(chave: str, valor: Any) -> bool:
 def _dominio_operacional(chave: str) -> str:
     """O domínio da propriedade operacional em texto, para a mensagem de recusa."""
     dominios = {
-        CAMPO_CADENCIA: f"um de {', '.join(CADENCIAS_ACEITAS)}",
-        CAMPO_TETO_RODADAS: f"um inteiro a partir de {TETO_DE_RODADAS_MINIMO}",
         CAMPO_RAMO_BASE: "um texto nao vazio",
         CAMPO_CAMINHOS_DE_COLISAO: "uma lista de globs (textos nao vazios)",
         CAMPO_GRAVACAO_DO_GERENTE: f"um de {', '.join(GRAVACOES_DO_GERENTE_ACEITAS)}",

@@ -31,8 +31,6 @@ const CATALOGO = {
     { preset: "personalizada", descricao: "Você escolhe" },
   ],
   operacao: {
-    cadencia: { descricao: "Quando para", valores: ["tarefa", "goal", "setor"] },
-    teto_rodadas: { descricao: "Rodadas", minimo: 1 },
     ramo_base: { descricao: "Ramo" },
     caminhos_de_colisao: { descricao: "Globs" },
     gravacao_do_gerente: { descricao: "Quando o gerente grava", valores: ["apos_aprovacao", "durante_alinhamento"], padrao: "apos_aprovacao" },
@@ -51,7 +49,7 @@ const PROJETO_PERSONALIZADO = {
   politica_global: { responder_questao: "arbitro", max_correcoes: 2 },
   politica_efetiva: { responder_questao: "humano", max_correcoes: 2 },
   origens: { responder_questao: "projeto", max_correcoes: "global" },
-  operacao: { cadencia: "goal", teto_rodadas: null, ramo_base: null, caminhos_de_colisao: ["src/**", "tests/**"] },
+  operacao: { ramo_base: null, caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" },
 };
 
 test("a origem do valor vira texto curto e o legado continua legível", () => {
@@ -91,13 +89,11 @@ test("o valor escolhido volta como o catálogo o declara: o inteiro de max_corre
   assert.equal(nomeDoValor("max_correcoes", 3), "3 reprovações");
 });
 
-test("a operação em branco apaga as propriedades, e o teto inválido não chega ao servidor", () => {
-  const vazia = operacaoDoFormulario({ cadencia: "", teto_rodadas: "", ramo_base: "  ", caminhos_de_colisao: "" });
-  assert.deepEqual(vazia.corpo.operacao, { cadencia: null, teto_rodadas: null, ramo_base: null, caminhos_de_colisao: null, gravacao_do_gerente: null });
-  const cheia = operacaoDoFormulario({ cadencia: "setor", teto_rodadas: "4", ramo_base: "main", caminhos_de_colisao: "src/**\n\n tests/** ", gravacao_do_gerente: "durante_alinhamento" });
-  assert.deepEqual(cheia.corpo.operacao, { cadencia: "setor", teto_rodadas: 4, ramo_base: "main", caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" });
-  assert.ok(operacaoDoFormulario({ teto_rodadas: "0" }).erro);
-  assert.ok(operacaoDoFormulario({ teto_rodadas: "2,5" }).erro);
+test("a operação em branco apaga as propriedades, e a cheia vai como o backend aceita", () => {
+  const vazia = operacaoDoFormulario({ ramo_base: "  ", caminhos_de_colisao: "" });
+  assert.deepEqual(vazia.corpo.operacao, { ramo_base: null, caminhos_de_colisao: null, gravacao_do_gerente: null });
+  const cheia = operacaoDoFormulario({ ramo_base: "main", caminhos_de_colisao: "src/**\n\n tests/** ", gravacao_do_gerente: "durante_alinhamento" });
+  assert.deepEqual(cheia.corpo.operacao, { ramo_base: "main", caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" });
   assert.equal(listaDeCaminhos("   \n"), null);
 });
 
@@ -134,9 +130,10 @@ test("na Personalizada do projeto cada gesto é um seletor com a opção Herdar"
 });
 
 test("a operação mostra o que está gravado e a lista de caminhos uma por linha", () => {
-  const valores = { cadencia: "goal", teto_rodadas: "", ramo_base: "", caminhos_de_colisao: "src/**\ntests/**" };
+  const valores = { ramo_base: "", caminhos_de_colisao: "src/**\ntests/**", gravacao_do_gerente: "durante_alinhamento" };
   const html = htmlDaOperacao(CATALOGO, valores, false);
-  assert.match(html, /<option value="goal" selected>/);
+  assert.match(html, /<option value="durante_alinhamento" selected>/);
+  assert.doesNotMatch(html, /cadencia|teto_rodadas/);
   assert.match(html, /src\/\*\*\ntests\/\*\*<\/textarea>/);
 });
 

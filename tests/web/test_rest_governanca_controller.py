@@ -191,14 +191,12 @@ def test_operacao_grava_as_propriedades_do_projeto_no_mesmo_lote_nominal() -> No
         RequisicaoGovernanca(
             preset="personalizada",
             personalizada={"excluir": "arbitro"},
-            operacao={"cadencia": "setor", "teto_rodadas": 8, "ramo_base": "origin/stage", "caminhos_de_colisao": ["db/*"]},
+            operacao={"ramo_base": "origin/stage", "caminhos_de_colisao": ["db/*"]},
         ),
     )
 
     assert resposta.status == HTTPStatus.OK, resposta.corpo
     assert resposta.corpo["operacao"] == {
-        "cadencia": "setor",
-        "teto_rodadas": 8,
         "ramo_base": "origin/stage",
         "caminhos_de_colisao": ["db/*"],
         "gravacao_do_gerente": None,
@@ -215,24 +213,24 @@ def test_so_operacao_nao_regrava_a_configuracao_nominal() -> None:
     governanca.gravar_projeto("proj-01", RequisicaoGovernanca(preset="arbitragem_maxima"))
     props_antes = dict(kernel.obter_estado().nos["proj-01"].propriedades)
 
-    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"cadencia": "tarefa"}))
+    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": "stage"}))
 
     assert resposta.status == HTTPStatus.OK, resposta.corpo
     propriedades = kernel.obter_estado().nos["proj-01"].propriedades
     assert propriedades["governanca"] == props_antes["governanca"]
-    assert propriedades["cadencia"] == "tarefa"
+    assert propriedades["ramo_base"] == "stage"
     assert resposta.corpo["configuracao"]["preset"] == "arbitragem_maxima"
 
 
-def test_cadencia_desvio_e_aceita_nominal() -> None:
-    """A cadência `desvio` é gravada e devolvida, e o catálogo a oferece."""
-    kernel, governanca = _montar()
+def test_cadencia_e_teto_de_rodadas_sairam_com_a_orquestracao_por_llm_edge_case() -> None:
+    """Caso de borda: as propriedades que a raiz da orquestração antiga lia são recusadas como desconhecidas."""
+    _, governanca = _montar()
 
-    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"cadencia": "desvio"}))
+    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"cadencia": "goal", "teto_rodadas": 3}))
 
-    assert resposta.status == HTTPStatus.OK, resposta.corpo
-    assert kernel.obter_estado().nos["proj-01"].propriedades["cadencia"] == "desvio"
-    assert "desvio" in governanca.obter_global().corpo["catalogo"]["operacao"]["cadencia"]["valores"]
+    assert resposta.status == HTTPStatus.BAD_REQUEST
+    assert all("propriedade operacional desconhecida" in problema for problema in resposta.corpo["problemas"])
+    assert "cadencia" not in governanca.obter_global().corpo["catalogo"]["operacao"]
 
 
 def test_operacao_invalida_recusa_o_lote_inteiro_edge_case() -> None:
@@ -243,7 +241,7 @@ def test_operacao_invalida_recusa_o_lote_inteiro_edge_case() -> None:
         "proj-01",
         RequisicaoGovernanca(
             preset="arbitragem_maxima",
-            operacao={"cadencia": "quando_quiser", "teto_rodadas": 0, "inventada": 1},
+            operacao={"gravacao_do_gerente": "quando_quiser", "ramo_base": " ", "inventada": 1},
         ),
     )
 
@@ -257,7 +255,7 @@ def test_operacao_nula_apaga_a_propriedade_nominal() -> None:
     kernel, governanca = _montar()
     governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": "stage"}))
 
-    apagada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": None, "cadencia": None}))
+    apagada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": None, "gravacao_do_gerente": None}))
 
     assert apagada.status == HTTPStatus.OK, apagada.corpo
     assert "ramo_base" not in kernel.obter_estado().nos["proj-01"].propriedades

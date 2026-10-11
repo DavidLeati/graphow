@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4790 linhas · 33 classes
+30 módulos · 4778 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -33,7 +33,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 282 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 270 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 379 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
@@ -504,14 +504,10 @@ Planeja a escrita da política de governança, comum à ferramenta MCP e à inte
 | `ESCOPO_GLOBAL` | `str` | `'global'` |
 | `VALOR_HERDAR` | `str` | `'herdar'` |
 | `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
-| `CAMPO_CADENCIA` | `str` | `'cadencia'` |
-| `CAMPO_TETO_RODADAS` | `str` | `'teto_rodadas'` |
-| `CADENCIAS_ACEITAS` | `tuple[str, ...]` | `('tarefa', 'goal', 'setor', 'desvio')` |
 | `CAMPO_GRAVACAO_DO_GERENTE` | `str` | `'gravacao_do_gerente'` |
 | `GRAVACAO_APOS_APROVACAO` | `str` | `'apos_aprovacao'` |
 | `GRAVACOES_DO_GERENTE_ACEITAS` | `tuple[str, ...]` | `(GRAVACAO_APOS_APROVACAO, 'durante_alinhamento')` |
-| `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_CADENCIA, CAMPO_TETO_RODADAS, CAMPO_RAMO_BASE, CAMPO_CAMINHOS_DE…` |
-| `TETO_DE_RODADAS_MINIMO` | `int` | `1` |
+| `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_RAMO_BASE, CAMPO_CAMINHOS_DE_COLISAO, CAMPO_GRAVACAO_DO_GERENTE)` |
 
 ### `ErroDeConfiguracaoDeGovernanca` (ValueError)
 

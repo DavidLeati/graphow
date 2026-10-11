@@ -170,7 +170,7 @@ def test_governanca_do_projeto_herdar_por_gesto_e_operacao_nominal() -> None:
             {
                 "preset": "personalizada",
                 "personalizada": {"excluir": "humano"},
-                "operacao": {"cadencia": "setor", "teto_rodadas": 5, "ramo_base": "origin/stage", "caminhos_de_colisao": ["db/*"]},
+                "operacao": {"ramo_base": "origin/stage", "caminhos_de_colisao": ["db/*"]},
             },
         )
         _, herdada = _chamar("PUT", rota, {"personalizada": {"excluir": "herdar"}})
@@ -181,8 +181,6 @@ def test_governanca_do_projeto_herdar_por_gesto_e_operacao_nominal() -> None:
     assert herdada["configuracao"] == {"preset": "personalizada", "personalizada": {}}
     assert herdada["origens"]["excluir"] == "global"
     assert lida["operacao"] == {
-        "cadencia": "setor",
-        "teto_rodadas": 5,
         "ramo_base": "origin/stage",
         "caminhos_de_colisao": ["db/*"],
         "gravacao_do_gerente": None,
@@ -195,12 +193,12 @@ def test_governanca_do_projeto_invalida_e_inexistente_edge_case() -> None:
     with _servidor() as (base_url, _):
         _montar_hierarquia(base_url)
         rota = f"{base_url}/api/projetos/p-http/governanca"
-        status, invalida = _chamar("PUT", rota, {"operacao": {"teto_rodadas": "muitas"}})
+        status, invalida = _chamar("PUT", rota, {"operacao": {"gravacao_do_gerente": "muitas"}})
         leitura = _chamar("GET", f"{base_url}/api/projetos/nao-existe/governanca")
         escrita = _chamar("PUT", f"{base_url}/api/projetos/nao-existe/governanca", {"preset": "arbitragem_maxima"})
-        sem_operacao_no_global = _chamar("PUT", f"{base_url}/api/governanca/global", {"operacao": {"cadencia": "goal"}})
+        sem_operacao_no_global = _chamar("PUT", f"{base_url}/api/governanca/global", {"operacao": {"ramo_base": "main"}})
 
-    assert status == 400 and "teto_rodadas" in invalida["problemas"][0]
+    assert status == 400 and "gravacao_do_gerente" in invalida["problemas"][0]
     assert leitura[0] == 404 and escrita[0] == 404
     assert sem_operacao_no_global[0] == 400
 
