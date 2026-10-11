@@ -1,6 +1,30 @@
 {
   "versao": 1,
   "descricao": "Linha de base da bancada: as tres demandas do laboratorio de 10/10/2026, rodadas com o graphow 0.4.4 (main 5cfc8cf, prompts instalados de 06/10) e com a arquitetura enxuta de controle, e auditadas com o mesmo prompt e as mesmas sondas.",
+  "correcoes_ao_relatorio": {
+    "resumo": "O relatorio publicado de 10/10 (graphow-lab/relatorio/reestruturacao-graphow.html e a tabela do plano) somou os custos acumulados: cada raiz do graphow 0.4.4 foi retomada com --resume, o result de cada invocacao ja traz o custo acumulado da sessao, e a soma contou duas vezes as invocacoes anteriores. Os custos corretos, e os desta linha de base, somam so o ultimo result de cada session_id. Os commits publicados da enxuta tambem diferem dos ramos de trabalho, que tem 11/11/10 commits depois da semente.",
+    "custo_usd": {
+      "graphow-0.4.4": {
+        "agenda-salas": {"publicado": 18.58, "correto": 10.65},
+        "agenda-salas sem acabamento": {"publicado": 7.93, "correto": 7.57},
+        "estoque-loja": {"publicado": 7.73, "correto": 7.30},
+        "api-tarefas": {"publicado": 9.09, "correto": 8.77}
+      },
+      "enxuta": {
+        "agenda-salas": {"publicado": 4.78, "correto": 4.78},
+        "estoque-loja": {"publicado": 5.03, "correto": 5.03},
+        "api-tarefas": {"publicado": 6.24, "correto": 6.24}
+      }
+    },
+    "commits": {
+      "enxuta": {
+        "agenda-salas": {"publicado": 12, "correto": 11, "motivo": "o relatorio e o placar contaram o commit Estado inicial"},
+        "estoque-loja": {"publicado": 11, "correto": 11, "motivo": ""},
+        "api-tarefas": {"publicado": 11, "correto": 10, "motivo": "a tabela do plano diz 11; o placar e o repositorio, 10"}
+      }
+    },
+    "conferencia": "graphow bancada medir-laboratorio --laboratorio <graphow-lab> mede de novo cada numero dos logs, das transcricoes e dos repositorios; tests/bancada/test_linha_de_base.py prende os numeros corretos e a regra do ultimo result por sessao."
+  },
   "definicoes": {
     "custo_usd": "total_cost_usd do ultimo result de cada sessao, somado entre sessoes. Uma sessao retomada com --resume traz no result o custo acumulado dela; o relatorio de 10/10 somou os results e contou duas vezes as invocacoes anteriores (ver relatorio.custo_usd).",
     "tokens": "entrada + saida + leitura e criacao de cache, das transcricoes da sessao e dos subagentes em ~/.claude/projects, cada mensagem contada uma vez pela primeira entrada dela (definicao de graphow-lab/_runs/base.py).",

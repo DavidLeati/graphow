@@ -187,6 +187,27 @@ def test_commits_publicados_da_enxuta_ficam_ao_lado_dos_corrigidos_edge_case(lin
     assert (gravado["commits"], gravado["relatorio"]["commits"]) == (COMMITS[(ENXUTA, projeto)], COMMITS_PUBLICADOS_DA_ENXUTA[projeto])
 
 
+def test_correcoes_ao_relatorio_registram_o_publicado_e_o_correto_nominal(linha_de_base: dict[str, Any]) -> None:
+    """O bloco `correcoes_ao_relatorio` traz o custo publicado e o correto de cada execução, e os commits da enxuta,
+    e diz o mesmo que os números âncora."""
+    correcoes = linha_de_base["correcoes_ao_relatorio"]
+    custos = {
+        (arquitetura, projeto): (valores["publicado"], valores["correto"])
+        for arquitetura, por_projeto in correcoes["custo_usd"].items()
+        for projeto, valores in por_projeto.items()
+    }
+    commits = {projeto: (valores["publicado"], valores["correto"]) for projeto, valores in correcoes["commits"]["enxuta"].items()}
+
+    assert custos.pop((GRAPHOW, "agenda-salas sem acabamento")) == (
+        CUSTO_PUBLICADO_DA_AGENDA_SEM_ACABAMENTO_USD,
+        CUSTO_CORRIGIDO_DA_AGENDA_SEM_ACABAMENTO_USD,
+    )
+    assert custos == {chave: (CUSTO_PUBLICADO_USD[chave], CUSTO_CORRIGIDO_USD[chave]) for chave in EXECUCOES}
+    assert commits == {projeto: (COMMITS_PUBLICADOS_DA_ENXUTA[projeto], COMMITS[(ENXUTA, projeto)]) for projeto in commits}
+    assert set(commits) == {"agenda-salas", "estoque-loja", "api-tarefas"}
+    assert "somou os custos acumulados" in correcoes["resumo"]
+
+
 @pytest.mark.parametrize(("arquitetura", "projeto"), EXECUCOES)
 def test_cada_numero_da_linha_de_base_diz_de_onde_saiu_nominal(linha_de_base: dict[str, Any], arquitetura: str, projeto: str) -> None:
     """Tokens e minutos medidos ficam a até 1% e 1 min do relatório, que os arredondou; e todo número tem fonte."""

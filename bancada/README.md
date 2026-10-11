@@ -22,7 +22,42 @@ Por execução (uma arquitetura num projeto):
 O custo usa o último `result` de cada sessão porque uma sessão retomada com
 `--resume` traz nele o acumulado. O relatório de 10/10 somou os `result` das
 raízes retomadas e inflou o custo do graphow 0.4.4; a linha de base grava o
-número corrigido e guarda o do relatório ao lado (`relatorio.custo_usd`).
+número corrigido e guarda o do relatório ao lado (`relatorio.custo_usd`). As
+correções estão na seção abaixo.
+
+## Correções ao relatório de 10/10
+
+O relatório publicado do laboratório somou custos acumulados. Cada raiz do
+graphow 0.4.4 foi retomada com `--resume` (o gerente, o Goal principal e, na
+agenda, o Goal de acabamento), e o `result` de cada invocação já traz o custo
+acumulado da sessão. Somar os `result` contou duas vezes as invocações
+anteriores. O custo correto soma só o último `result` de cada `session_id`. Na
+enxuta, de sessão única, a soma é o próprio custo e nada muda. Os commits
+publicados da enxuta também estavam errados: os ramos de trabalho têm 11, 11
+e 10 commits depois da semente.
+
+| Execução | US$ publicado | US$ correto | Commits publicados | Commits corretos |
+| :--- | ---: | ---: | ---: | ---: |
+| graphow 0.4.4, agenda-salas | 18,58 | 10,65 | 0 | 0 |
+| graphow 0.4.4, agenda-salas sem o Goal de acabamento | 7,93 | 7,57 | | |
+| graphow 0.4.4, estoque-loja | 7,73 | 7,30 | 7 | 7 |
+| graphow 0.4.4, api-tarefas | 9,09 | 8,77 | 0 | 0 |
+| enxuta, agenda-salas | 4,78 | 4,78 | 12 | 11 |
+| enxuta, estoque-loja | 5,03 | 5,03 | 11 | 11 |
+| enxuta, api-tarefas | 6,24 | 6,24 | 11 | 10 |
+
+Na agenda, o relatório contou o commit "Estado inicial" (12 em vez de 11); na
+api, a tabela do plano diz 11, e o placar e o repositório, 10. A confirmação de
+que o `result` é acumulado está nas transcrições. Na agenda do graphow, o
+`modelUsage` do último `result` (15.435.012 tokens) é o que as transcrições
+somam, e a soma dos três `result` (26.232.290) não é.
+
+A linha de base grava os números corretos e guarda os publicados em
+`relatorio`; o bloco `correcoes_ao_relatorio` dela tem esta tabela.
+`graphow bancada medir-laboratorio` mede tudo de novo dos logs, e
+`tests/bancada/test_linha_de_base.py` prende os números corretos e a regra
+fora da medição, para que um erro na medição e na linha de base juntas não
+passe.
 
 ## O que tem aqui
 
