@@ -16,6 +16,7 @@ from graphow.bancada.arquiteturas import RegistroDeArquiteturas, registro_padrao
 from graphow.bancada.auditoria import auditar, pedido_do_auditor
 from graphow.bancada.execucao import ConfiguracaoDaRodada, ExecucaoGravada, rodar_projetos
 from graphow.bancada.formatacao import formatar_dinheiro, formatar_inteiro, formatar_minutos
+from graphow.bancada.laboratorio import Laboratorio, formatar_conferencias
 from graphow.bancada.placar import formatar_placar, ler_execucoes, ler_linha_de_base
 from graphow.bancada.projetos import RAIZ_DA_BANCADA_PADRAO, Bancada
 from graphow.bancada.transcricoes import PASTA_DE_PROJETOS_PADRAO
@@ -45,6 +46,13 @@ def registrar_comando_de_bancada(
     parser_placar = acoes.add_parser("placar", help="Compara as execucoes de uma saida com a linha de base")
     parser_placar.add_argument("--saida", required=True, help="Pasta com as execucoes (ou uma execucao)")
     parser_placar.add_argument("--bancada", default=str(RAIZ_DA_BANCADA_PADRAO), help="Pasta bancada/ (padrao: a do repositorio)")
+    parser_laboratorio = acoes.add_parser(
+        "medir-laboratorio", help="Mede de novo, dos logs do laboratorio, cada numero da linha de base e confere"
+    )
+    parser_laboratorio.add_argument(
+        "--laboratorio", required=True, help="Pasta do laboratorio, com _runs/, b/_runs/ e os repositorios das entregas"
+    )
+    _registrar_opcoes_comuns(parser_laboratorio)
 
 
 def _registrar_rodar(acoes: argparse._SubParsersAction) -> None:
@@ -108,6 +116,7 @@ def executar_bancada(
         "rodar": _rodar,
         "auditar": _auditar,
         "placar": _placar,
+        "medir-laboratorio": _medir_laboratorio,
     }
     return acoes[argumentos.acao](argumentos, console, _Dependencias(registro or registro_padrao(), sessoes))
 
@@ -168,6 +177,18 @@ def _placar(argumentos: argparse.Namespace, console: EscritorConsole, dependenci
     for linha in formatar_placar(execucoes, ler_linha_de_base(bancada.linha_de_base)):
         console.escrever_linha(linha)
     return CODIGO_SUCESSO
+
+
+def _medir_laboratorio(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
+    """A conferência da linha de base contra os logs; sai com 1 se algum número divergir. Não roda sessão."""
+    laboratorio = Path(argumentos.laboratorio).expanduser().resolve()
+    bancada = _bancada(argumentos)
+    conferencias = Laboratorio(laboratorio, bancada, Path(argumentos.transcricoes).expanduser()).conferir()
+    console.escrever_linha(f"Linha de base {bancada.linha_de_base} medida de novo dos logs de {laboratorio}")
+    console.escrever_linha("")
+    for linha in formatar_conferencias(conferencias):
+        console.escrever_linha(linha)
+    return CODIGO_COM_ERRO if any(conferencia.divergencias for conferencia in conferencias) else CODIGO_SUCESSO
 
 
 def _bancada(argumentos: argparse.Namespace) -> Bancada:

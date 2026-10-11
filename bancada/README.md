@@ -66,6 +66,9 @@ graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000
 
 # A tabela das execuções contra a linha de base
 graphow bancada placar --saida ~/bancada
+
+# A linha de base medida de novo dos logs do laboratório, número a número
+graphow bancada medir-laboratorio --laboratorio ~/Documents/graphow-lab
 ```
 
 `rodar` cria `<saida>/<arquitetura>-<projeto>-<carimbo>/` com o repositório
@@ -84,6 +87,12 @@ registrado, e não um buraco.
 
 As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje só
 existe `enxuta`; a fase 1 registra `orquestrar`.
+
+`medir-laboratorio` não roda sessão: lê os logs do laboratório (`_runs/` e
+`b/_runs/`), as transcrições e os repositórios das entregas, mede tudo com a
+mesma medição das execuções e confere cada número da linha de base, inclusive
+a soma dos `result` que o relatório publicado usou. Sai com 1 se algum
+divergir. É o que reconfere a linha de base sem confiar nela.
 
 ## Quanto custa
 

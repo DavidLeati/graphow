@@ -456,6 +456,9 @@ graphow bancada rodar --arquitetura enxuta --projeto todos --saida ../bancada-sa
 graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
 graphow bancada placar --saida ../bancada-saida
 
+# Medir de novo a linha de base da bancada a partir dos logs do laboratório
+graphow bancada medir-laboratorio --laboratorio ../graphow-lab
+
 # Projetar os aprendizados promovidos num diretório de notas em Markdown
 graphow notas-gerar --destino notas
 

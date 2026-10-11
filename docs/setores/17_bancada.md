@@ -10,7 +10,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-11 módulos · 1483 linhas · 20 classes
+12 módulos · 1685 linhas · 24 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,6 +19,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
 | [`bancada/execucao.py`](#bancadaexecucao) | 225 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
+| [`bancada/laboratorio.py`](#bancadalaboratorio) | 202 | `graphow bancada medir-laboratorio`: a linha de base medida de novo dos logs do laboratório, número a número. |
 | [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/placar.py`](#bancadaplacar) | 194 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
@@ -182,6 +183,55 @@ Números da bancada como o relatório do laboratório os escreve: vírgula decim
 - `formatar_inteiro(valor: int | None) -> str` — `6.160.643`.
 - `formatar_minutos(valor: float | None) -> str` — `20,0 min`.
 - `formatar_variacao(valor: float | None, base: float | None) -> str` — A variação em relação à base: percentual, ou a diferença absoluta quando a base é zero.
+
+## `bancada/laboratorio.py`
+
+`graphow bancada medir-laboratorio`: a linha de base medida de novo dos logs do laboratório, número a número.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CHAVE_DO_LABORATORIO` | `str` | `'laboratorio'` |
+| `CHAVE_DO_COMPARAVEL` | `str` | `'comparavel'` |
+| `ROTULO_DO_COMPARAVEL` | `str` | `'sem acabamento'` |
+| `NUMEROS_CONFERIDOS` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos', 'commits', 'soma_dos_results')` |
+| `CRITERIOS` | `Mapping[str, Callable[[float, float], bool]]` | `{'custo_usd': lambda medido, gravado: round(medido, 2) == gravado, 'som…` |
+| `CABECALHO` | `str` | `'| Execucao | US$ | Tokens | Min | Commits | Soma dos result | Retomada…` |
+| `ALINHAMENTO` | `str` | `'| :--- | ---: | ---: | ---: | ---: | ---: | ---: | :--- |'` |
+
+### `ConferenciaDaExecucao`
+
+*DTO imutável* — Os números de uma execução do laboratório (ou do comparável dela) medidos de novo.
+
+**Campos:** `rotulo: str`, `numeros: tuple[NumeroConferido, ...]`, `sessoes_retomadas: int`, `observacao: str`
+
+- `divergencias() -> tuple[NumeroConferido, ...]` `[property]` — Os números que não bateram.
+- `numero(nome: str) -> NumeroConferido` — O número pelo nome.
+
+### `Laboratorio`
+
+*DTO imutável* — A pasta do laboratório, a bancada com a linha de base e as transcrições das sessões.
+
+**Campos:** `raiz: Path`, `bancada: Bancada`, `transcricoes: Path | None`
+
+- `conferir() -> tuple[ConferenciaDaExecucao, ...]` — Cada execução da linha de base, e o comparável onde houver, medidos dos logs.
+
+### `NumeroConferido`
+
+*DTO imutável* — Um número medido dos logs ao lado do gravado; `confere` é None quando um dos dois falta.
+
+**Campos:** `nome: str`, `medido: float | None`, `gravado: float | None`
+
+- `confere() -> bool | None` `[property]` — Se o medido, arredondado como o gravado, é ele; None sem os dois.
+
+### `_FonteDaExecucao`
+
+*DTO imutável* — Onde estão o log e o repositório de uma execução, e o que a linha de base gravou dela.
+
+**Campos:** `rotulo: str`, `projeto: str`, `log: Path`, `repositorio: Path`, `gravado: Mapping[str, Any]`
+
+### Funções do módulo
+
+- `formatar_conferencias(conferencias: Sequence[ConferenciaDaExecucao]) -> tuple[str, ...]` — A tabela do que foi medido, as divergências contra a linha de base e o que ficou sem conferir.
 
 ## `bancada/medicao.py`
 

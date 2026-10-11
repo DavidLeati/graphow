@@ -18,6 +18,10 @@
     "placar": "graphow-lab/b/_auditorias/placar.md (resumo das seis linhas PLACAR; os relatorios completos dos auditores nao foram guardados)",
     "repositorios": "graphow-lab/<projeto> (graphow) e graphow-lab/b/<projeto> (enxuta)"
   },
+  "laboratorio": {
+    "graphow-0.4.4": {"logs": "_runs", "repositorios": "."},
+    "enxuta": {"logs": "b/_runs", "repositorios": "b"}
+  },
   "execucoes": {
     "graphow-0.4.4": {
       "agenda-salas": {
@@ -30,6 +34,7 @@
         "sondas": 8,
         "bloqueantes": 2,
         "comparavel": {
+          "invocacoes": 2,
           "custo_usd": 7.57,
           "tokens": 10494822,
           "minutos": 20.1,
