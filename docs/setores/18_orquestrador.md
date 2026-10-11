@@ -10,12 +10,16 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-5 módulos · 692 linhas · 13 classes
+9 módulos · 1421 linhas · 22 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 115 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 228 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 236 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 250 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 128 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 
@@ -110,6 +114,188 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `remover_area(repositorio: Path, area: Path) -> bool` — Tira o worktree do Goal depois da integração; a branch fica. Diz se conseguiu.
 - `instalar_trava(pasta: Path) -> dict[str, str]` — Grava o hook da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
 - `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` de git de escrita, para cada ferramenta de shell dada.
+
+## `orquestrador/gravacao_do_plano.py`
+
+O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só.
+
+### `PlanoParaGravar`
+
+*DTO imutável* — O plano conferido e o que o cerca: o slug, os nós já fixados e o commit do documento.
+
+**Campos:** `plano: Plano`, `slug: str`, `commit_do_documento: str`, `caminho_do_documento: str`, `nos_fixados: Mapping[str, str]`, `renomear_goal: bool`
+
+### Funções do módulo
+
+- `gravar_plano(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> None` — Grava o plano inteiro num lote.
+
+## `orquestrador/leitura_do_goal.py`
+
+O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `STATUS_NA_FILA` | `frozenset[str]` | `frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})` |
+
+### `DuvidaRegistrada`
+
+*DTO imutável* — Uma Question que o orquestrador abriu para uma fatia, e o que o humano respondeu.
+
+**Campos:** `id: str`, `pergunta: str`, `status: str`, `resposta: str`
+
+- `aberta() -> bool` `[property]` — Ainda espera o humano.
+
+### `EstadoDoGoal`
+
+*DTO imutável* — Tudo o que o laço lê do Goal para decidir o passo seguinte.
+
+**Campos:** `id_goal: str`, `rotulo: str`, `status: str`, `propriedades: Mapping[str, Any]`, `fatias: tuple[FatiaRegistrada, ...]`, `verificacoes: tuple[VerificacaoRegistrada, ...]`, `plano_aprovado: bool`
+
+- `configuracao() -> m.ConfiguracaoDoGoal | None` `[property]` — A configuração do laço, quando o orquestrador já conduz o Goal.
+- `plano() -> Mapping[str, Any] | None` `[property]` — O plano gravado, quando já há.
+- `fechado() -> bool` `[property]` — O Goal já fechou.
+- `ciclos_de_correcao() -> int` `[property]` — Quantos ciclos de correção a verificação já abriu.
+- `pendencias() -> list[dict[str, Any]]` `[property]` — As pendências gravadas no Goal.
+- `ultima_verificacao() -> VerificacaoRegistrada | None` `[property]` — A verificação mais recente.
+- `prontas() -> tuple[FatiaRegistrada, ...]` — As fatias que podem rodar agora, na ordem do plano.
+- `pausadas() -> tuple[FatiaRegistrada, ...]` — As fatias paradas numa dúvida aberta.
+- `bloqueadas() -> tuple[FatiaRegistrada, ...]` — As fatias que viraram pendência depois da segunda falha.
+- `todas_concluidas() -> bool` — Há fatias e todas fecharam.
+
+### `FatiaRegistrada`
+
+*DTO imutável* — Uma fatia do Goal como o livro-razão a guarda.
+
+**Campos:** `id: str`, `codigo: str`, `titulo: str`, `status: str`, `ordem: int`, `propriedades: Mapping[str, Any]`, `depende_de: tuple[str, ...]`, `duvidas: tuple[DuvidaRegistrada, ...]`
+
+- `texto(chave: str) -> str` — Uma propriedade de texto da fatia.
+- `lista(chave: str) -> tuple[str, ...]` — Uma propriedade de lista de textos da fatia.
+- `tentativas() -> int` `[property]` — Quantas sessões de executor a fatia já abriu.
+- `duvida_aberta() -> DuvidaRegistrada | None` `[property]` — A dúvida que pausa a fatia, quando há.
+
+### `VerificacaoRegistrada`
+
+*DTO imutável* — Uma verificação do Goal: em que commit, com que veredito e o que achou.
+
+**Campos:** `id: str`, `commit: str`, `veredito: str`, `ciclo: int`, `propriedades: Mapping[str, Any]`
+
+- `limpa() -> bool` `[property]` — Sem bloqueante.
+- `lista(chave: str) -> list[dict[str, Any]]` — Os bloqueantes ou os acompanhamentos gravados.
+
+### Funções do módulo
+
+- `ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None` — O estado do Goal no grafo; None quando o Goal não existe.
+- `setor_do_goal(view: GrafoView, id_goal: str) -> str` — O Setor que contém a Sessao que produziu o Goal; vazio quando não há.
+
+## `orquestrador/livro_razao.py`
+
+O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+| `ROTULO_DO_SETOR` | `str` | `'Goals orquestrados'` |
+| `LIMITE_DO_ROTULO` | `int` | `120` |
+
+### `GoalNovo`
+
+*DTO imutável* — O Goal que nasce de uma spec: onde ele mora no grafo e o que ele guarda.
+
+**Campos:** `id_goal: str`, `rotulo: str`, `spec: str`, `configuracao: m.ConfiguracaoDoGoal`, `nome_do_repositorio: str`
+
+### `LivroRazaoDoGoal`
+
+*serviço* — As escritas do laço sobre um Goal, cada uma num lote do papel `orquestrador`.
+
+- `id_sessao() -> str` `[property]` — A Sessao do orquestrador que produz o que ele grava do Goal.
+- `view() -> GrafoView` — O grafo agora.
+- `gravar(operacoes: Sequence[ItemPatch], justificativa: str) -> None` — Submete o lote; a recusa vira `LoteRecusado` com o motivo do kernel.
+- `produzido(id_no: str, tipo: TipoNo, rotulo: str) -> list[ItemPatch]` — O nó de trabalho pendurado na Sessao do orquestrador.
+- `criar_goal(novo: GoalNovo) -> None` — Projeto e Setor do repositório (se faltam), a Sessao do Goal e o Goal com a spec e a configuração.
+- `adotar_goal(id_setor: str, spec: str, configuracao: m.ConfiguracaoDoGoal) -> None` — O Goal que o gerente criou passa a ser conduzido: a Sessao do orquestrador, a spec montada e a configuração.
+- `iniciar_tentativa(id_task: str, tentativa: int) -> None` — A fatia entra em andamento, com a tentativa contada antes de a sessão abrir.
+- `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, e a fatia fecha.
+- `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro para a próxima.
+- `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
+- `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
+- `gravar_verificacao(numero: int, verificacao: Verificacao) -> str` — A verificação vira Evidence ligada ao Goal, com o commit verificado; devolve o id dela.
+- `criar_correcoes(id_evidencia: str, achados: Sequence[Achado]) -> None` — Cada bloqueante vira uma fatia de correção, que diz por `corrige` de que verificação nasceu.
+- `registrar_pendencias(pendencias: Sequence[Mapping[str, Any]]) -> None` — A lista de pendências do Goal (acompanhamentos e bloqueantes sem ciclo), inteira.
+- `fechar(commit_integrado: str) -> None` — O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra.
+
+### `LoteRecusado` (GraphowError)
+
+*serviço* — O kernel recusou um lote do orquestrador: defeito do laço, e não do agente.
+
+### Funções do módulo
+
+- `no(id_no: str, tipo: TipoNo, rotulo: str) -> ItemPatch` — A criação de um nó.
+- `aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch` — A criação de uma aresta, com id derivado das pontas.
+- `propriedade(id_no: str, chave: str, valor: object) -> ItemPatch` — A escrita de uma propriedade de um nó que já existe.
+
+## `orquestrador/modelo_do_goal.py`
+
+Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `AUTOR_DO_ORQUESTRADOR` | `str` | `'graphow-orquestrar'` |
+| `MODO_SUPERVISIONADO` | `str` | `'supervisionado'` |
+| `MODO_AUTONOMO` | `str` | `'autonomo'` |
+| `MODOS` | `tuple[str, ...]` | `(MODO_SUPERVISIONADO, MODO_AUTONOMO)` |
+| `CAMPO_SPEC` | `str` | `'spec'` |
+| `CAMPO_ORQUESTRACAO` | `str` | `'orquestracao'` |
+| `CAMPO_PLANO` | `str` | `'plano'` |
+| `CAMPO_CICLOS` | `str` | `'ciclos_de_correcao'` |
+| `CAMPO_PENDENCIAS` | `str` | `'pendencias'` |
+| `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+| `CAMPO_FATIA` | `str` | `'fatia'` |
+| `CAMPO_OBJETIVO` | `str` | `'objetivo'` |
+| `CAMPO_CRITERIOS` | `str` | `'criterios'` |
+| `CAMPO_ARQUIVOS_ALVO` | `str` | `'arquivos_alvo'` |
+| `CAMPO_MODELO` | `str` | `'modelo'` |
+| `CAMPO_ORDEM` | `str` | `'ordem'` |
+| `CAMPO_TENTATIVAS` | `str` | `'tentativas'` |
+| `CAMPO_ULTIMO_ERRO` | `str` | `'ultimo_erro'` |
+| `CAMPO_PATCH` | `str` | `'patch_da_tentativa'` |
+| `CAMPO_PENDENCIA` | `str` | `'pendencia'` |
+| `CAMPO_COMMIT` | `str` | `'commit'` |
+| `CAMPO_CORRIGE` | `str` | `'corrige'` |
+| `CAMPO_CRITERIO_PRONTO` | `str` | `'criterio_pronto'` |
+| `CAMPO_PERGUNTA` | `str` | `'pergunta'` |
+| `CAMPO_RESPOSTA` | `str` | `'resposta'` |
+| `CAMPO_ABERTA_POR` | `str` | `'aberta_por'` |
+| `CAMPO_VEREDITO` | `str` | `'veredito'` |
+| `CAMPO_CICLO` | `str` | `'ciclo'` |
+| `ACAO_DA_VERIFICACAO` | `str` | `'verificacao_do_goal'` |
+| `ACAO_DA_TENTATIVA` | `str` | `'tentativa_que_falhou'` |
+| `VEREDITO_LIMPO` | `str` | `'aprovado'` |
+| `VEREDITO_COM_BLOQUEANTE` | `str` | `'rejeitado'` |
+| `STATUS_PENDENTE` | `str` | `'pendente'` |
+| `STATUS_EM_ANDAMENTO` | `str` | `'em_andamento'` |
+| `STATUS_CONCLUIDO` | `str` | `'concluido'` |
+| `STATUS_BLOQUEADO` | `str` | `'bloqueado'` |
+
+### `ConfiguracaoDoGoal`
+
+*DTO imutável* — O que o laço precisa saber de onde e como trabalhar, gravado no Goal na primeira chamada.
+
+**Campos:** `modo: str`, `repositorio: str`, `area: str`, `ramo: str`, `base: str`, `slug: str`, `orcamento_usd: float`
+
+- `em_json() -> dict[str, Any]` — A configuração como propriedade do Goal.
+- `de_json(dados: Mapping[str, Any]) -> 'ConfiguracaoDoGoal'` — A configuração lida do Goal.
+
+### Funções do módulo
+
+- `slug_de(texto: str) -> str` — Identificador estável, minúsculo, sem acento nem espaço.
+- `id_do_goal(slug: str) -> str` — O Goal que o orquestrador cria a partir de uma spec.
+- `id_do_projeto(slug_do_repositorio: str) -> str` — O Projeto dos Goals orquestrados de um repositório.
+- `id_do_setor(slug_do_repositorio: str) -> str` — O Setor dos Goals orquestrados de um repositório.
+- `id_da_sessao(id_goal: str) -> str` — A Sessao do orquestrador que produz o que ele grava do Goal.
+- `id_do_criterio(slug: str, codigo: str) -> str` — A Constraint de um critério de aceite criado pelo plano.
+- `id_da_decisao(slug: str, codigo: str) -> str` — A Decision de uma decisão registrada pelo plano.
+- `id_da_fatia(slug: str, codigo: str) -> str` — A Task de uma fatia do plano ou de uma correção.
 
 ## `orquestrador/saidas.py`
 
