@@ -1,0 +1,159 @@
+{
+  "versao": 1,
+  "descricao": "Linha de base da bancada: as tres demandas do laboratorio de 10/10/2026, rodadas com o graphow 0.4.4 (main 5cfc8cf, prompts instalados de 06/10) e com a arquitetura enxuta de controle, e auditadas com o mesmo prompt e as mesmas sondas.",
+  "definicoes": {
+    "custo_usd": "total_cost_usd do ultimo result de cada sessao, somado entre sessoes. Uma sessao retomada com --resume traz no result o custo acumulado dela; o relatorio de 10/10 somou os results e contou duas vezes as invocacoes anteriores (ver relatorio.custo_usd).",
+    "tokens": "entrada + saida + leitura e criacao de cache, das transcricoes da sessao e dos subagentes em ~/.claude/projects, cada mensagem contada uma vez pela primeira entrada dela (definicao de graphow-lab/_runs/base.py).",
+    "minutos": "da primeira marca _lab inicio a ultima marca _lab fim do log de execucao, em tempo de parede.",
+    "commits": "git rev-list --count <ramo de trabalho> ^<commit da semente> no repositorio da entrega; 0 quando o ramo nao existe.",
+    "criterios": "atende / parcial / nao_atende da linha PLACAR do auditor (criterios e decisoes da spec original).",
+    "sondas_ok": "sondas ok, das 8 do projeto, na linha PLACAR do auditor.",
+    "bloqueantes": "defeitos bloqueantes (ferem criterio ou decisao do humano) na linha PLACAR do auditor."
+  },
+  "fontes": {
+    "relatorio": "graphow-lab/relatorio/reestruturacao-graphow.html e graphow-lab/reestruturacao/plano.txt, tabela do teste de controle",
+    "logs_graphow": "graphow-lab/_runs/<projeto>.jsonl (stream-json das raizes, com --resume)",
+    "logs_enxuta": "graphow-lab/b/_runs/<projeto>.jsonl (stream-json da sessao unica)",
+    "transcricoes": "~/.claude/projects/C--Users-david-Documents-graphow-lab-[b-]<projeto>/<sessao>.jsonl e <sessao>/subagents/*.jsonl",
+    "placar": "graphow-lab/b/_auditorias/placar.md (resumo das seis linhas PLACAR; os relatorios completos dos auditores nao foram guardados)",
+    "repositorios": "graphow-lab/<projeto> (graphow) e graphow-lab/b/<projeto> (enxuta)"
+  },
+  "execucoes": {
+    "graphow-0.4.4": {
+      "agenda-salas": {
+        "custo_usd": 10.65,
+        "tokens": 15325496,
+        "minutos": 28.8,
+        "commits": 0,
+        "criterios": {"atende": 17, "parcial": 2, "nao_atende": 0},
+        "sondas_ok": 2,
+        "sondas": 8,
+        "bloqueantes": 2,
+        "comparavel": {
+          "custo_usd": 7.57,
+          "tokens": 10494822,
+          "minutos": 20.1,
+          "nota": "sem o Goal de acabamento (terceira invocacao, 13:36 a 13:45), que o graphow precisou e a enxuta nao: e o numero que se compara. Os criterios, sondas e bloqueantes sao da entrega com o acabamento."
+        },
+        "relatorio": {"custo_usd": 18.58, "custo_sem_acabamento_usd": 7.93, "tokens": 15300000, "minutos": 29, "commits": 0},
+        "fontes": {
+          "custo_usd": "logs_graphow agenda-salas: 3 invocacoes da sessao 6271842d; result acumulado 0,36 / 7,57 / 10,65",
+          "tokens": "transcricoes da sessao 6271842d e de 38 subagentes",
+          "minutos": "marcas _lab 13:16:11 a 13:44:58",
+          "commits": "repositorios: sem ramo entrega; o trabalho ficou nao commitado na main",
+          "criterios": "placar g-agenda-salas",
+          "sondas_ok": "placar g-agenda-salas",
+          "bloqueantes": "placar g-agenda-salas"
+        },
+        "notas": "O relatorio somou os tres results (0,36 + 7,57 + 10,65 = 18,58), mas cada um ja trazia o acumulado da sessao retomada: o custo e 10,65, e sem o acabamento 7,57 (nao 7,93). A conferencia: o modelUsage do ultimo result (15.435.012 tokens) e o das transcricoes pela ultima entrada, e a soma dos tres (26.232.290) nao e."
+      },
+      "estoque-loja": {
+        "custo_usd": 7.30,
+        "tokens": 11400193,
+        "minutos": 24.9,
+        "commits": 7,
+        "criterios": {"atende": 9, "parcial": 3, "nao_atende": 0},
+        "sondas_ok": 0,
+        "sondas": 8,
+        "bloqueantes": 3,
+        "relatorio": {"custo_usd": 7.73, "tokens": 11400000, "minutos": 25, "commits": 7},
+        "fontes": {
+          "custo_usd": "logs_graphow estoque-loja: 2 invocacoes da sessao 17944258; result acumulado 0,43 / 7,30",
+          "tokens": "transcricoes da sessao 17944258 e de 27 subagentes",
+          "minutos": "marcas _lab 13:16:13 a 13:41:06",
+          "commits": "repositorios: git rev-list --count chamado-142 ^ec76646 (commits feitos por executores)",
+          "criterios": "placar g-estoque-loja",
+          "sondas_ok": "placar g-estoque-loja",
+          "bloqueantes": "placar g-estoque-loja"
+        },
+        "notas": "O relatorio somou os dois results acumulados (0,43 + 7,30 = 7,73)."
+      },
+      "api-tarefas": {
+        "custo_usd": 8.77,
+        "tokens": 12215261,
+        "minutos": 21.8,
+        "commits": 0,
+        "criterios": {"atende": 13, "parcial": 3, "nao_atende": 0},
+        "sondas_ok": 3,
+        "sondas": 8,
+        "bloqueantes": 2,
+        "relatorio": {"custo_usd": 9.09, "tokens": 12200000, "minutos": 22, "commits": 0},
+        "fontes": {
+          "custo_usd": "logs_graphow api-tarefas: 2 invocacoes da sessao 77d4498c; result acumulado 0,33 / 8,77",
+          "tokens": "transcricoes da sessao 77d4498c e de 27 subagentes",
+          "minutos": "marcas _lab 13:16:14 a 13:38:02",
+          "commits": "repositorios: sem ramo entrega; o trabalho ficou nao commitado na main",
+          "criterios": "placar g-api-tarefas",
+          "sondas_ok": "placar g-api-tarefas",
+          "bloqueantes": "placar g-api-tarefas"
+        },
+        "notas": "O relatorio somou os dois results acumulados (0,33 + 8,77 = 9,09)."
+      }
+    },
+    "enxuta": {
+      "agenda-salas": {
+        "custo_usd": 4.78,
+        "tokens": 6715363,
+        "minutos": 24.0,
+        "commits": 11,
+        "criterios": {"atende": 19, "parcial": 0, "nao_atende": 0},
+        "sondas_ok": 4,
+        "sondas": 8,
+        "bloqueantes": 0,
+        "relatorio": {"custo_usd": 4.78, "tokens": 6700000, "minutos": 24, "commits": 12},
+        "fontes": {
+          "custo_usd": "logs_enxuta agenda-salas: 1 invocacao da sessao 888fa1c3",
+          "tokens": "transcricoes da sessao 888fa1c3 e de 2 subagentes revisores",
+          "minutos": "marcas _lab 14:07:22 a 14:31:23",
+          "commits": "repositorios: git rev-list --count entrega ^7269a58",
+          "criterios": "placar b-agenda-salas",
+          "sondas_ok": "placar b-agenda-salas",
+          "bloqueantes": "placar b-agenda-salas"
+        },
+        "notas": "O relatorio e o placar dizem 12 commits, contando o Estado inicial; o ramo entrega tem 11 depois dele."
+      },
+      "estoque-loja": {
+        "custo_usd": 5.03,
+        "tokens": 6160643,
+        "minutos": 20.0,
+        "commits": 11,
+        "criterios": {"atende": 14, "parcial": 0, "nao_atende": 0},
+        "sondas_ok": 6,
+        "sondas": 8,
+        "bloqueantes": 0,
+        "relatorio": {"custo_usd": 5.03, "tokens": 6200000, "minutos": 20, "commits": 11},
+        "fontes": {
+          "custo_usd": "logs_enxuta estoque-loja: 1 invocacao da sessao 4cb36a24",
+          "tokens": "transcricoes da sessao 4cb36a24 e de 2 subagentes revisores",
+          "minutos": "marcas _lab 14:07:23 a 14:27:25",
+          "commits": "repositorios: git rev-list --count chamado-142 ^ec76646",
+          "criterios": "placar b-estoque-loja",
+          "sondas_ok": "placar b-estoque-loja",
+          "bloqueantes": "placar b-estoque-loja"
+        },
+        "notas": ""
+      },
+      "api-tarefas": {
+        "custo_usd": 6.24,
+        "tokens": 9478262,
+        "minutos": 27.2,
+        "commits": 10,
+        "criterios": {"atende": 17, "parcial": 0, "nao_atende": 0},
+        "sondas_ok": 6,
+        "sondas": 8,
+        "bloqueantes": 0,
+        "relatorio": {"custo_usd": 6.24, "tokens": 9500000, "minutos": 27, "commits": 11},
+        "fontes": {
+          "custo_usd": "logs_enxuta api-tarefas: 1 invocacao da sessao d5d3aece",
+          "tokens": "transcricoes da sessao d5d3aece e de 2 subagentes revisores",
+          "minutos": "marcas _lab 14:07:23 a 14:34:37",
+          "commits": "repositorios: git rev-list --count entrega ^5a5dce3",
+          "criterios": "placar b-api-tarefas",
+          "sondas_ok": "placar b-api-tarefas",
+          "bloqueantes": "placar b-api-tarefas"
+        },
+        "notas": "A tabela do plano diz 11 commits; o placar e o repositorio, 10."
+      }
+    }
+  }
+}

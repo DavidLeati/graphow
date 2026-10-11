@@ -10,12 +10,56 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-3 módulos · 267 linhas · 5 classes
+5 módulos · 588 linhas · 9 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`bancada/medicao.py`](#bancadamedicao) | 218 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
+| [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
+
+## `bancada/medicao.py`
+
+Custo, tokens e minutos de uma execução, com as definições do laboratório.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MARCA_DO_LABORATORIO` | `str` | `'_lab'` |
+| `MARCA_DE_INICIO` | `str` | `'inicio'` |
+| `MARCA_DE_FIM` | `str` | `'fim'` |
+| `FONTE_TRANSCRICOES` | `str` | `'transcricoes'` |
+| `FONTE_MODEL_USAGE` | `str` | `'model_usage'` |
+| `FONTE_MISTA` | `str` | `'transcricoes_e_model_usage'` |
+| `SEGUNDOS_POR_MINUTO` | `float` | `60.0` |
+
+### `Invocacao`
+
+*DTO imutável* — Uma chamada de `claude -p`: a sessão, quando começou, quando acabou e o resultado que deu.
+
+**Campos:** `sessao: str`, `inicio: datetime | None`, `fim: datetime | None`, `resultado: ResultadoDoStream | None`
+
+### `Medicao`
+
+*DTO imutável* — Custo, tokens e minutos de uma execução, e de onde saíram os tokens.
+
+**Campos:** `custo_usd: float`, `tokens: int`, `fonte_dos_tokens: str`, `minutos: float | None`, `sessoes: tuple[str, ...]`
+
+- `em_dicionario() -> dict[str, Any]` — Os números como a bancada os grava, com o custo em centavos e os minutos com uma casa.
+
+### `_LeitorDoLog`
+
+*serviço* — Junta os eventos de um log do laboratório em invocações, marca a marca.
+
+- `acrescentar(evento: Mapping[str, Any]) -> None` — Marca de início abre, marca de fim fecha; init e result preenchem a invocação aberta.
+
+### Funções do módulo
+
+- `invocacoes_do_log(linhas: Iterable[str]) -> tuple[Invocacao, ...]` — As invocações de um log do laboratório: cada par de marcas e o que veio entre elas.
+- `ler_log(caminho: Path) -> tuple[Invocacao, ...]` — As invocações do log em disco.
+- `medir(invocacoes: Sequence[Invocacao], raiz_das_transcricoes: Path | None) -> Medicao` — Custo, tokens e minutos das invocações, com as transcrições achadas sob a raiz.
+- `minutos_das_invocacoes(invocacoes: Sequence[Invocacao]) -> float | None` — Do primeiro início ao último fim; None quando falta algum instante.
+- `contar_sessoes_retomadas(invocacoes: Sequence[Invocacao]) -> int` — Quantas sessões tiveram mais de um resultado: as que o laboratório contou em dobro.
 
 ## `bancada/projetos.py`
 
@@ -97,4 +141,27 @@ O repositório de uma execução, recriado da semente com o mesmo hash do labora
 ### Funções do módulo
 
 - `criar_repositorio(projeto: ProjetoDaBancada, destino: Path) -> str` — Copia a semente para o destino, faz o commit inicial e devolve o hash dele, conferido.
+
+## `bancada/transcricoes.py`
+
+Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PASTA_DE_PROJETOS_PADRAO` | `Path` | `Path.home() / '.claude' / 'projects'` |
+| `EXTENSAO_DA_TRANSCRICAO` | `str` | `'.jsonl'` |
+| `CHAVES_DE_USO` | `tuple[str, ...]` | `('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_cre…` |
+
+### `TokensDasTranscricoes`
+
+*DTO imutável* — Os tokens contados pela primeira entrada de cada mensagem (a medida) e pela última (a conferência).
+
+**Campos:** `pela_primeira: int`, `pela_ultima: int`, `arquivos: int`
+
+- `somar(outro: 'TokensDasTranscricoes') -> 'TokensDasTranscricoes'` — As duas contagens e os arquivos somados.
+
+### Funções do módulo
+
+- `localizar_transcricoes(raiz: Path, sessao: str) -> tuple[Path, ...]` — A transcrição da sessão e as dos subagentes dela, em qualquer pasta de projeto sob a raiz.
+- `contar_tokens(arquivos: Iterable[Path], ate: datetime | None) -> TokensDasTranscricoes` — Os tokens das transcrições; com `ate`, só as mensagens até esse instante.
 
