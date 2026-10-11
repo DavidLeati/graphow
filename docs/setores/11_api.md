@@ -10,7 +10,7 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2021 linhas · 20 classes
+13 módulos · 2023 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 256 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_orquestrar.py`](#apicliorquestrar) | 157 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
 | [`api/cli_parser.py`](#apicliparser) | 393 | Construção do analisador de argumentos da linha de comando do Graphow. |
-| [`api/cli_setup.py`](#apiclisetup) | 115 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
+| [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
 | [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |

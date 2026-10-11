@@ -44,9 +44,25 @@ def test_mescla_troca_o_harness_antigo_e_preserva_o_resto_nominal(tmp_path: Path
     gravado = _ler(caminho)
     assert gravado["model"] == "opus"
     assert gravado["hooks"]["SessionEnd"] == [{"hooks": [HOOK_DE_OUTRA_FERRAMENTA]}, *CONFIGURACAO.hooks()["SessionEnd"]]
-    assert gravado["permissions"]["allow"][:2] == ["Bash(ls *)", "mcp__graphow-condutor"]
-    assert "mcp__graphow-condutor" not in resultado.permissoes_acrescentadas
+    assert gravado["permissions"]["allow"][0] == "Bash(ls *)"
+    assert "mcp__graphow-condutor" not in gravado["permissions"]["allow"]
+    assert resultado.permissoes_removidas == ("mcp__graphow-condutor",)
     assert resultado.copia is not None and json.loads(resultado.copia.read_text(encoding="utf-8")) == anterior
+
+
+def test_mescla_tira_o_hook_subagentstop_do_harness_e_deixa_o_alheio_nominal(tmp_path: Path) -> None:
+    """O SubagentStop que media os subagentes do condutor sai; o hook de outra ferramenta no evento fica."""
+    caminho = tmp_path / "settings.json"
+    subagente = {"type": "command", "command": "graphow", "args": ["harness", "--fase", "subagente", "--entrada-hook"]}
+    so_do_harness = {"hooks": {"SubagentStop": [{"hooks": [subagente]}]}}
+    caminho.write_text(json.dumps(so_do_harness), encoding="utf-8")
+    MescladorDeSettings(caminho, CONFIGURACAO).mesclar()
+    assert "SubagentStop" not in _ler(caminho)["hooks"]
+
+    com_alheio = {"hooks": {"SubagentStop": [{"hooks": [HOOK_DE_OUTRA_FERRAMENTA]}, {"hooks": [subagente]}]}}
+    caminho.write_text(json.dumps(com_alheio), encoding="utf-8")
+    MescladorDeSettings(caminho, CONFIGURACAO).mesclar()
+    assert _ler(caminho)["hooks"]["SubagentStop"] == [{"hooks": [HOOK_DE_OUTRA_FERRAMENTA]}]
 
 
 def test_mesclar_de_novo_nao_duplica_nada_edge_case(tmp_path: Path) -> None:

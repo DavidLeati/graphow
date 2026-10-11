@@ -1,15 +1,19 @@
 """Configuração do Claude Code para o graphow: hooks, permissões e servidor da sessão.
 
-Os hooks e os subagentes chamavam `graphow` sem caminho. Com o pacote num venv,
-o executável só está no PATH de quem ativou o venv, e o processo do app desktop
-não o acha: o hook falhava calado e a memória não chegava. Os blocos daqui saem
-com o caminho do executável que está rodando, prontos para colar no
-settings.json ou para o `graphow setup` mesclar nele.
+Os hooks chamavam `graphow` sem caminho. Com o pacote num venv, o executável
+só está no PATH de quem ativou o venv, e o processo do app desktop não o acha:
+o hook falhava calado e a memória não chegava. Os blocos daqui saem com o
+caminho do executável que está rodando, prontos para colar no settings.json ou
+para o `graphow setup` mesclar nele.
+
+O que versões anteriores mesclavam para a orquestração por subagentes (as
+permissões dos servidores MCP de cada papel e o hook SubagentStop, que gravava
+um Run por subagente que o condutor despachava) fica listado como obsoleto: a
+mescla o tira do settings.json.
 """
 
 from dataclasses import dataclass
 from pathlib import Path
-import re
 import shutil
 import sys
 
@@ -21,8 +25,9 @@ TEMPO_LIMITE_DO_HOOK_S: int = 10
 FASES_DOS_HOOKS: tuple[tuple[str, str], ...] = (
     ("SessionStart", "inicio"),
     ("SessionEnd", "fim"),
-    ("SubagentStop", "subagente"),
 )
+# Eventos cujo hook do harness a mescla remove do settings.json.
+EVENTOS_DE_HOOK_OBSOLETOS: tuple[str, ...] = ("SubagentStop",)
 
 # A sessão principal só lê sem perguntar: o servidor dela tem papel humano, e
 # responder Question ou promover Aprendizado passa pela confirmação de quem a conduz.
@@ -34,16 +39,13 @@ FERRAMENTAS_DE_LEITURA_DA_SESSAO: tuple[str, ...] = (
     "minhas_questoes",
     "aguardar_resposta",
 )
-SERVIDORES_DOS_SUBAGENTES: tuple[str, ...] = (
-    "graphow-condutor",
-    "graphow-executor",
-    "graphow-revisor",
-    "graphow-arbitro",
-)
 COMANDOS_DE_MEDICAO: tuple[str, ...] = ("base-colisoes", "orquestracao-medir", "transcricao-medir")
-
-PADRAO_COMANDO_DO_AGENTE: re.Pattern[str] = re.compile(
-    rf"^(?P<prefixo>[ \t]*command:[ \t]*){NOME_DO_EXECUTAVEL}(?=[ \t]*\r?$)", re.MULTILINE
+# As permissões dos servidores MCP por papel dos subagentes que saíram: a mescla as remove.
+PERMISSOES_OBSOLETAS: tuple[str, ...] = (
+    "mcp__graphow-condutor",
+    "mcp__graphow-executor",
+    "mcp__graphow-revisor",
+    "mcp__graphow-arbitro",
 )
 
 
@@ -57,22 +59,15 @@ def resolver_executavel() -> str:
     return Path(no_path).as_posix() if no_path else NOME_DO_EXECUTAVEL
 
 
-def fixar_executavel_no_agente(definicao: str, executavel: str) -> str:
-    """Troca o `command: graphow` do servidor MCP do subagente pelo caminho do executável."""
-    if executavel == NOME_DO_EXECUTAVEL:
-        return definicao
-    return PADRAO_COMANDO_DO_AGENTE.sub(lambda casamento: f'{casamento["prefixo"]}"{executavel}"', definicao)
-
-
 @dataclass(frozen=True)
 class ConfiguracaoDoAmbiente:
-    """O executável que hooks e servidores chamam e o autor da sessão principal."""
+    """O executável que hooks e servidor chamam e o autor da sessão principal."""
 
     executavel: str
     autor: str
 
     def hooks(self) -> dict[str, list[dict[str, object]]]:
-        """Os três hooks do harness, no formato do bloco `hooks` do settings.json."""
+        """Os hooks do harness, no formato do bloco `hooks` do settings.json."""
         return {evento: [{"hooks": [self.hook(fase)]}] for evento, fase in FASES_DOS_HOOKS}
 
     def hook(self, fase: str) -> dict[str, object]:
@@ -85,11 +80,10 @@ class ConfiguracaoDoAmbiente:
         }
 
     def permissoes(self) -> tuple[str, ...]:
-        """O que a orquestração usa sem parar em pedido de permissão."""
+        """O que a sessão do humano usa sem parar em pedido de permissão: ler o grafo e medir."""
         leitura = tuple(f"mcp__{NOME_DO_SERVIDOR_DA_SESSAO}__{nome}" for nome in FERRAMENTAS_DE_LEITURA_DA_SESSAO)
-        subagentes = tuple(f"mcp__{servidor}" for servidor in SERVIDORES_DOS_SUBAGENTES)
         medicao = tuple(f"Bash({NOME_DO_EXECUTAVEL} {comando} *)" for comando in COMANDOS_DE_MEDICAO)
-        return leitura + subagentes + medicao
+        return leitura + medicao
 
     def bloco_do_settings(self) -> dict[str, object]:
         """O trecho do settings.json que liga hooks e permissões."""

@@ -21,11 +21,10 @@
     "O id da sessao e o diretorio chegam no JSON da entrada padrao, nunca por",
     "variavel de ambiente: '--entrada-hook' le esse JSON no proprio subcomando.",
     "SessionEnd tambem le a transcricao (transcript_path) e grava no Run os tokens",
-    "por categoria, o modelo que respondeu e as mensagens do modelo. SubagentStop",
-    "grava um Run por subagente, pendurado na sessao que o despachou, com tokens,",
-    "modelo e as tarefas que ele assumiu: e com esses Run que 'graphow",
-    "orquestracao-medir' compara configuracoes de modelo. A linha 'Cota: 5h <n>%,",
-    "semana <n>%' que a raiz escreve vira a cota de inicio e de fim dos Run."
+    "por categoria, o modelo que respondeu e as mensagens do modelo.",
+    "O hook SubagentStop, que gravava um Run por subagente do condutor, saiu com a",
+    "orquestracao por subagentes: a mescla o tira do settings.json. As sessoes do",
+    "graphow orquestrar rodam sem os hooks do usuario (--setting-sources project)."
   ],
   "hooks": {
     "SessionStart": [
@@ -55,23 +54,6 @@
               "harness",
               "--fase",
               "fim",
-              "--entrada-hook"
-            ],
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "graphow",
-            "args": [
-              "harness",
-              "--fase",
-              "subagente",
               "--entrada-hook"
             ],
             "timeout": 10

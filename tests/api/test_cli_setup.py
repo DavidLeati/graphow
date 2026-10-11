@@ -25,12 +25,25 @@ def test_setup_instala_e_imprime_o_bloco_sem_tocar_o_settings_nominal(tmp_path: 
     codigo, console = _executar([], tmp_path)
 
     assert codigo == CODIGO_SUCESSO
-    assert (tmp_path / "claude" / "agents" / "graphow-condutor.md").is_file()
+    assert (tmp_path / "claude" / "skills" / "graphow-gerente" / "SKILL.md").is_file()
+    assert not (tmp_path / "claude" / "agents").exists()
     assert not (tmp_path / "claude" / "settings.json").exists()
     texto = "\n".join(console.linhas)
-    assert '"SubagentStop"' in texto
+    assert '"SessionStart"' in texto and '"SubagentStop"' not in texto
     assert f'claude mcp add --scope user graphow -- "{EXECUTAVEL}" mcp --papel humano --autor david' in texto
-    assert "governanca" in texto
+
+
+def test_setup_remove_a_copia_obsoleta_e_diz_o_que_removeu_nominal(tmp_path: Path) -> None:
+    """O subagente que a versão anterior instalou sai do diretório do Claude Code, e o setup lista a remoção."""
+    antigo = tmp_path / "claude" / "agents" / "graphow-condutor.md"
+    antigo.parent.mkdir(parents=True)
+    antigo.write_text("antigo\n", encoding="utf-8")
+
+    codigo, console = _executar([], tmp_path)
+
+    assert codigo == CODIGO_SUCESSO
+    assert not antigo.exists()
+    assert f"Removido (obsoleto): {antigo}" in console.linhas
 
 
 def test_setup_com_escrever_settings_mescla_hooks_nominal(tmp_path: Path) -> None:

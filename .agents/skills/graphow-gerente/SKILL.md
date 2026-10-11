@@ -1,6 +1,6 @@
 ---
 name: graphow-gerente
-description: Gerente de demandas sobre o grafo do Graphow, a etapa antes da orquestração. Recebe do humano uma demanda em prosa (chamado, pedido de cliente, ideia de melhoria ou de projeto), analisa com criticidade, separa fato de hipótese, pergunta só o que muda a conclusão e monta a definição que a orquestração precisa - Goal, critérios de aceite, Constraints e as Decisions de negócio com o motivo de cada uma. Grava no grafo depois da aprovação do humano, ou durante o alinhamento se o Projeto estiver configurado assim (propriedade operacional `gravacao_do_gerente`), e entrega o Goal à graphow-orquestracao. Ao fim, revisa a entrega contra o que foi decidido. Use quando pedirem para alinhar, definir, escopar ou triar uma demanda, transformar um chamado em trabalho, montar um Goal ou revisar se uma entrega atende o combinado. Exige a skill graphow-mcp e o servidor graphow da sessão principal com papel humano.
+description: Gerente de demandas sobre o grafo do Graphow, a etapa antes da orquestração. Recebe do humano uma demanda em prosa (chamado, pedido de cliente, ideia de melhoria ou de projeto), analisa com criticidade, separa fato de hipótese, pergunta só o que muda a conclusão e monta a definição que a orquestração precisa - Goal, critérios de aceite, Constraints e as Decisions de negócio com o motivo de cada uma. Grava no grafo depois da aprovação do humano, ou durante o alinhamento se o Projeto estiver configurado assim (propriedade operacional `gravacao_do_gerente`), e entrega o Goal ao `graphow orquestrar`. Ao fim, revisa a entrega contra o que foi decidido. Use quando pedirem para alinhar, definir, escopar ou triar uma demanda, transformar um chamado em trabalho, montar um Goal ou revisar se uma entrega atende o combinado. Exige a skill graphow-mcp e o servidor graphow da sessão principal com papel humano.
 ---
 
 # Gerente de demandas sobre o Graphow
@@ -63,7 +63,7 @@ Quando o humano disser que a demanda está entendida, monte o rascunho e mostre-
     Fora do escopo (vira uma única Constraint `fronteira`):
       - <o que foi pedido ou cogitado e ficou de fora, e por quê>
 
-Os critérios de aceite e a fronteira são o que fecha o escopo do Goal: o trabalho que surgir depois só entra se atender a um deles, e o que não atender a nenhum vira proposta para o humano decidir. Por isso cada critério precisa ser verificável e independente dos outros (a Task que o atender o cita pelo id), e a fronteira precisa ser específica o bastante para o condutor reconhecer o que cruza dela. "Prova ao vivo" e o registro dela são critério do Goal quando o humano os quer, e entram no critério da Task que entrega, nunca numa Task própria.
+Os critérios de aceite e a fronteira são o que fecha o escopo do Goal: o trabalho que surgir depois só entra se atender a um deles, e o que não atender a nenhum vira proposta para o humano decidir. Por isso cada critério precisa ser verificável e independente dos outros (a Task que o atender o cita pelo id), e a fronteira precisa ser específica o bastante para o planejador e o verificador reconhecerem o que cruza dela. "Prova ao vivo" e o registro dela são critério do Goal quando o humano os quer, e entram no critério da Task que entrega, nunca numa Task própria.
 
 Separe o que é decisão do que é sugestão sua. Uma pendência que impede começar o trabalho segura a entrega à orquestração: diga qual é e de quem depende.
 
@@ -74,7 +74,7 @@ Separe o que é decisão do que é sugestão sua. Uma pendência que impede come
 - `apos_aprovacao` (o padrão, e o que vale quando a propriedade não existe ou não há Projeto ainda): nada vai para o grafo até o humano aprovar o rascunho do passo 3. Aí, tudo num `propor_patch` só.
 - `durante_alinhamento`: cada Decision, Constraint ou Evidence vai para o grafo assim que o humano a confirma na conversa, e o Goal nasce quando o alvo estiver claro. O que ainda é hipótese continua fora.
 
-O humano muda o valor na aba Configurações do `graphow web`, no Projeto, junto da cadência e do teto de rodadas.
+O humano muda o valor na aba Configurações do `graphow web`, no Projeto.
 
 **O que gravar**, com os nós produzidos pela Sessao em que você está (aresta `produz`, o id está na vista que o hook imprimiu):
 
@@ -125,13 +125,21 @@ Cada Constraint também nasce produzida pela Sessao (o `produz` do lote): sem el
 
 ## 5. Entregar à orquestração
 
-Com o Goal gravado e sem pendência que impeça começar, pergunte se segue para a orquestração. Com o sim, siga a skill `graphow-orquestracao` com o Goal como alvo. A cadência e o teto de rodadas são dela.
+Com o Goal gravado e sem pendência que impeça começar, pergunte se segue para a orquestração. Com o sim, diga ao humano como rodar, com o id do Goal e a pasta do repositório em que o trabalho acontece:
 
-Instrução do humano que chegar durante a orquestração e mudar o combinado volta para você: registre a Decision nova com `substitui` sobre a antiga, para o histórico mostrar o que mudou e por quê, antes da próxima rodada.
+    graphow orquestrar --goal <id-do-goal> --repo <pasta-do-repositorio>
 
-## 6. Propostas fora do Goal
+O orquestrador é código. Ele monta a spec a partir do Goal e do que você gravou (os critérios de aceite, a fronteira, as restrições e as Decisions, com o texto inteiro e o motivo), e roda o planejador, um executor por fatia e o verificador adversarial, cada um numa sessão `claude -p` nova, numa branch só do Goal. No modo supervisionado, o padrão, ele para com o plano esperando aprovação (`--aprovar-plano`, ou o gesto `aprovar_plano`) e para de novo com "pronto para integrar"; com `--modo autonomo` ele segue direto e integra por fast-forward na base. `--status` mostra onde o Goal está e quanto as sessões custaram, e `--orcamento-usd` põe o teto de custo do Goal. Se o humano preferir, ofereça rodar em segundo plano e acompanhe pelo `--status`. Cada sessão custa dinheiro: rode só com o sim dele.
 
-A descoberta que não atende a nenhum critério de aceite não vira Task: o condutor a deixa como `Note` com `acao: proposta_fora_do_goal` e `status: aberta`. Como você lê com papel humano, a vista do Projeto e a do Goal trazem a seção `Propostas Fora Do Goal`, que o planejador não vê. Leve-as ao humano na entrega de cada rodada e na revisão, cada uma com a origem e a sessão que a linha cita. Quem decide é ele, pela caixa de propostas do `graphow web` ou pedindo a você que grave `status: aceita` ou `descartada` na Note (`replace` em `/nos/<id>/propriedades/status`). Aceitar não cria Task: se o humano quer o trabalho dentro deste Goal, o caminho é um critério de aceite novo (Constraint `criterio_aceite`); se é outra demanda, é outro Goal, pelos passos 1 a 4.
+A dúvida de um executor vira Question no grafo e pausa só aquela fatia. Leve-a ao humano; com a resposta gravada (`responder_questao`), rodar de novo retoma a fatia com a resposta no briefing.
+
+Instrução do humano que chegar durante a orquestração e mudar o combinado volta para você: registre a Decision nova com `substitui` sobre a antiga, para o histórico mostrar o que mudou e por quê. O plano que o orquestrador já gravou não muda sozinho: diga ao humano qual fatia a mudança afeta.
+
+## 6. Pendências e propostas fora do Goal
+
+O que o verificador achou e não fere critério nem decisão vira pendência do Goal: fica na propriedade `pendencias` do Goal e na seção Pendencias de `docs/goals/<slug>.md`, na branch do Goal. Leve as pendências ao humano na revisão. Quem decide é ele: se o trabalho entra neste Goal, o caminho é um critério de aceite novo (Constraint `criterio_aceite`); se é outra demanda, é outro Goal, pelos passos 1 a 4.
+
+As Notes com `acao: proposta_fora_do_goal` que a orquestração anterior gravava continuam no grafo. Como você lê com papel humano, a vista do Projeto e a do Goal as trazem na seção `Propostas Fora Do Goal`; o humano decide pela caixa de propostas do `graphow web` ou pedindo a você que grave `status: aceita` ou `descartada` na Note (`replace` em `/nos/<id>/propriedades/status`). Aceitar não cria Task.
 
 ## 7. Revisar a entrega
 

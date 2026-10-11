@@ -10,21 +10,21 @@ Extrai o catálogo do próprio código e renderiza o índice e os dossiês. Exis
 
 ## Inventário
 
-13 módulos · 1723 linhas · 38 classes
+13 módulos · 1749 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`documentacao/__init__.py`](#documentacaoinit) | 58 | Geração do catálogo de documentação a partir do próprio código-fonte. |
-| [`documentacao/ambiente.py`](#documentacaoambiente) | 103 | Configuração do Claude Code para o graphow: hooks, permissões e servidor da sessão. |
+| [`documentacao/ambiente.py`](#documentacaoambiente) | 97 | Configuração do Claude Code para o graphow: hooks, permissões e servidor da sessão. |
 | [`documentacao/extrator.py`](#documentacaoextrator) | 155 | Extração do catálogo de código a partir da árvore sintática dos módulos. |
-| [`documentacao/instalacao_ambiente.py`](#documentacaoinstalacaoambiente) | 111 | Instalação das skills e dos subagentes do graphow no diretório do Claude Code. |
+| [`documentacao/instalacao_ambiente.py`](#documentacaoinstalacaoambiente) | 127 | Instalação das skills do graphow no diretório do Claude Code, e a limpeza do que ficou obsoleto. |
 | [`documentacao/leitura_fonte.py`](#documentacaoleiturafonte) | 89 | Acesso ao código-fonte do repositório, atrás de interface injetável. |
 | [`documentacao/modelo.py`](#documentacaomodelo) | 170 | Modelos imutáveis do catálogo de código extraído do repositório. |
 | [`documentacao/publicacao.py`](#documentacaopublicacao) | 141 | Publicação dos documentos gerados, com escrita atrás de interface injetável. |
 | [`documentacao/renderizador_indice.py`](#documentacaorenderizadorindice) | 147 | Renderização do índice de navegação da biblioteca de documentação. |
 | [`documentacao/renderizador_setor.py`](#documentacaorenderizadorsetor) | 128 | Renderização do dossiê Markdown de uma ala temática. |
 | [`documentacao/setores.py`](#documentacaosetores) | 179 | Definição das alas temáticas da biblioteca e montagem do catálogo. |
-| [`documentacao/settings_claude.py`](#documentacaosettingsclaude) | 108 | Mescla dos hooks e das permissões do graphow no settings.json do Claude Code. |
+| [`documentacao/settings_claude.py`](#documentacaosettingsclaude) | 124 | Mescla dos hooks e das permissões do graphow no settings.json do Claude Code. |
 | [`documentacao/skill.py`](#documentacaoskill) | 71 | Instalação da skill do agente no diretório de skills do ambiente. |
 | [`documentacao/verificacao_guias.py`](#documentacaoverificacaoguias) | 263 | Confere os exemplos de linha de comando dos guias contra o parser real. |
 
@@ -49,28 +49,27 @@ Configuração do Claude Code para o graphow: hooks, permissões e servidor da s
 | `NOME_DO_EXECUTAVEL` | `str` | `'graphow'` |
 | `NOME_DO_SERVIDOR_DA_SESSAO` | `str` | `'graphow'` |
 | `TEMPO_LIMITE_DO_HOOK_S` | `int` | `10` |
-| `FASES_DOS_HOOKS` | `tuple[tuple[str, str], ...]` | `(('SessionStart', 'inicio'), ('SessionEnd', 'fim'), ('SubagentStop', 's…` |
+| `FASES_DOS_HOOKS` | `tuple[tuple[str, str], ...]` | `(('SessionStart', 'inicio'), ('SessionEnd', 'fim'))` |
+| `EVENTOS_DE_HOOK_OBSOLETOS` | `tuple[str, ...]` | `('SubagentStop',)` |
 | `FERRAMENTAS_DE_LEITURA_DA_SESSAO` | `tuple[str, ...]` | `('ler_vista', 'expandir_no', 'buscar', 'proximas_tarefas', 'minhas_ques…` |
-| `SERVIDORES_DOS_SUBAGENTES` | `tuple[str, ...]` | `('graphow-condutor', 'graphow-executor', 'graphow-revisor', 'graphow-ar…` |
 | `COMANDOS_DE_MEDICAO` | `tuple[str, ...]` | `('base-colisoes', 'orquestracao-medir', 'transcricao-medir')` |
-| `PADRAO_COMANDO_DO_AGENTE` | `re.Pattern[str]` | `re.compile(f'^(?P<prefixo>[ \\t]*command:[ \\t]*){NOME_DO_EXECUTAVEL}(?…` |
+| `PERMISSOES_OBSOLETAS` | `tuple[str, ...]` | `('mcp__graphow-condutor', 'mcp__graphow-executor', 'mcp__graphow-reviso…` |
 
 ### `ConfiguracaoDoAmbiente`
 
-*DTO imutável* — O executável que hooks e servidores chamam e o autor da sessão principal.
+*DTO imutável* — O executável que hooks e servidor chamam e o autor da sessão principal.
 
 **Campos:** `executavel: str`, `autor: str`
 
-- `hooks() -> dict[str, list[dict[str, object]]]` — Os três hooks do harness, no formato do bloco `hooks` do settings.json.
+- `hooks() -> dict[str, list[dict[str, object]]]` — Os hooks do harness, no formato do bloco `hooks` do settings.json.
 - `hook(fase: str) -> dict[str, object]` — Um hook de comando com argumentos em lista, sem shell no meio para citar caminho.
-- `permissoes() -> tuple[str, ...]` — O que a orquestração usa sem parar em pedido de permissão.
+- `permissoes() -> tuple[str, ...]` — O que a sessão do humano usa sem parar em pedido de permissão: ler o grafo e medir.
 - `bloco_do_settings() -> dict[str, object]` — O trecho do settings.json que liga hooks e permissões.
 - `comando_do_servidor_da_sessao() -> str` — O `claude mcp add` que registra, uma vez por usuário, o servidor da sessão principal.
 
 ### Funções do módulo
 
 - `resolver_executavel() -> str` — O graphow ao lado do interpretador que roda (o do venv), senão o do PATH, senão o nome.
-- `fixar_executavel_no_agente(definicao: str, executavel: str) -> str` — Troca o `command: graphow` do servidor MCP do subagente pelo caminho do executável.
 
 ## `documentacao/extrator.py`
 
@@ -92,14 +91,14 @@ Extração do catálogo de código a partir da árvore sintática dos módulos.
 
 ## `documentacao/instalacao_ambiente.py`
 
-Instalação das skills e dos subagentes do graphow no diretório do Claude Code.
+Instalação das skills do graphow no diretório do Claude Code, e a limpeza do que ficou obsoleto.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `SKILLS_DO_REPOSITORIO` | `tuple[str, ...]` | `('graphow-mcp', 'graphow-orquestracao', 'graphow-gerente')` |
+| `SKILLS_DO_REPOSITORIO` | `tuple[str, ...]` | `('graphow-mcp', 'graphow-gerente')` |
+| `SKILLS_OBSOLETAS` | `tuple[str, ...]` | `('graphow-orquestracao',)` |
+| `AGENTES_OBSOLETOS` | `tuple[str, ...]` | `('graphow-arbitro.md', 'graphow-condutor.md', 'graphow-executor.md', 'g…` |
 | `PASTA_DAS_SKILLS` | `Path` | `Path('.agents') / 'skills'` |
-| `PASTA_DOS_AGENTES` | `Path` | `Path('.agents') / 'agents'` |
-| `PADRAO_DOS_AGENTES` | `str` | `'graphow-*.md'` |
 | `DIRETORIO_CLAUDE_PADRAO` | `str` | `'~/.claude'` |
 
 ### `CopiaPlanejada`
@@ -112,21 +111,22 @@ Instalação das skills e dos subagentes do graphow no diretório do Claude Code
 
 ### `InstaladorDoAmbiente`
 
-*serviço* — Copia as skills e os subagentes, com o servidor MCP de cada um no executável dado.
+*serviço* — Copia as skills do repositório e remove as cópias dos componentes que saíram dele.
 
-- `instalar() -> ResultadoDoAmbiente` — Grava o plano inteiro, sobrescrevendo as cópias anteriores.
-- `desatualizados() -> tuple[Path, ...]` — Os arquivos do ambiente que faltam ou diferem do repositório.
-- `planejar() -> tuple[CopiaPlanejada, ...]` — Todas as cópias, skills primeiro e subagentes depois.
+- `instalar() -> ResultadoDoAmbiente` — Grava o plano inteiro, sobrescrevendo as cópias anteriores, e remove as obsoletas.
+- `desatualizados() -> tuple[Path, ...]` — Os arquivos que faltam ou diferem do repositório, e as cópias obsoletas que ainda estão lá.
+- `obsoletos() -> tuple[Path, ...]` — As cópias, no diretório do Claude Code, dos componentes que saíram do repositório.
+- `planejar() -> tuple[CopiaPlanejada, ...]` — Todas as cópias, skill a skill.
 
 ### `RepositorioSemAmbiente` (GraphowError)
 
-*serviço* — A origem não tem as skills e os subagentes: o pacote não veio de um checkout do graphow.
+*serviço* — A origem não tem as skills: o pacote não veio de um checkout do graphow.
 
 ### `ResultadoDoAmbiente`
 
-*DTO imutável* — O que a instalação gravou: arquivos por skill e os subagentes.
+*DTO imutável* — O que a instalação gravou, por skill, e as cópias obsoletas que ela removeu.
 
-**Campos:** `arquivos_por_skill: tuple[tuple[str, int], ...]`, `agentes: tuple[Path, ...]`
+**Campos:** `arquivos_por_skill: tuple[tuple[str, int], ...]`, `removidos: tuple[Path, ...]`
 
 ## `documentacao/leitura_fonte.py`
 
@@ -356,9 +356,9 @@ Mescla dos hooks e das permissões do graphow no settings.json do Claude Code.
 
 ### `ResultadoDaMescla`
 
-*DTO imutável* — Onde a mescla escreveu, a cópia que guardou e as permissões que acrescentou.
+*DTO imutável* — Onde a mescla escreveu, a cópia que guardou e as permissões que acrescentou e removeu.
 
-**Campos:** `caminho: Path`, `copia: Path | None`, `permissoes_acrescentadas: tuple[str, ...]`
+**Campos:** `caminho: Path`, `copia: Path | None`, `permissoes_acrescentadas: tuple[str, ...]`, `permissoes_removidas: tuple[str, ...]`
 
 ### `SettingsInvalido` (GraphowError)
 
