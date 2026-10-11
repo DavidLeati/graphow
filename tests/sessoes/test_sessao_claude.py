@@ -103,7 +103,10 @@ def test_tempo_esgotado_mata_o_processo_e_marca_erro_edge_case(tmp_path: Path) -
     assert resultado.is_error is True
     assert resultado.leitura.resultado is None
     assert resultado.session_id == "4cb36a24-6f3f-4ad6-8179-f4aadfd02d53"
-    assert resultado.custo_usd == 0.0
+    assert (resultado.custo_usd, resultado.tokens, resultado.turnos) == (None, None, None)
+    assert resultado.motivo_do_erro == "tempo esgotado, sem evento result no stream"
+    resumo = resultado.em_dicionario()
+    assert (resumo["custo_usd"], resumo["tokens_model_usage"], resumo["erro"]) == (None, None, resultado.motivo_do_erro)
 
 
 def test_tempo_esgotado_mata_a_arvore_aberta_por_um_cmd_edge_case(tmp_path: Path) -> None:
@@ -130,6 +133,8 @@ def test_codigo_de_saida_diferente_de_zero_e_erro_edge_case(tmp_path: Path) -> N
 
     assert resultado.codigo_saida == 3
     assert resultado.is_error is True
+    assert resultado.motivo_do_erro == "codigo de saida 3"
+    assert resultado.custo_usd is not None and round(resultado.custo_usd, 2) == 5.03
 
 
 def test_executavel_que_nao_abre_recusa_com_o_comando_edge_case(tmp_path: Path) -> None:

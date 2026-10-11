@@ -41,7 +41,10 @@ class ResultadoDeSessao:
     """O que a sessão fez, lido do stream, e como o processo terminou.
 
     `is_error` junta as três formas de dar errado: o `result` com erro, o
-    processo que saiu com código diferente de zero e o que não chegou ao fim.
+    processo que saiu com código diferente de zero e o que não chegou ao fim;
+    `motivo_do_erro` diz qual. Sem `result`, custo, tokens e turnos são
+    desconhecidos (None), e não zero: a sessão gastou, só não chegou a dizer
+    quanto.
     """
 
     comando: tuple[str, ...]
@@ -69,19 +72,31 @@ class ResultadoDeSessao:
         return self.tempo_esgotado or self.codigo_saida != 0 or resultado is None or resultado.is_error
 
     @property
-    def custo_usd(self) -> float:
-        """O custo que o resultado declarou; acumulado da sessão, se ela foi retomada."""
-        return self.leitura.resultado.custo_usd if self.leitura.resultado else 0.0
+    def motivo_do_erro(self) -> str:
+        """Por que a sessão deu errado, com cada forma que aconteceu; vazio quando deu certo."""
+        resultado = self.leitura.resultado
+        motivos = (
+            ("tempo esgotado", self.tempo_esgotado),
+            (f"codigo de saida {self.codigo_saida}", self.codigo_saida not in (0, None) and not self.tempo_esgotado),
+            ("sem evento result no stream", resultado is None),
+            (f"result com is_error ({resultado.subtipo if resultado else ''})", bool(resultado and resultado.is_error)),
+        )
+        return ", ".join(motivo for motivo, aconteceu in motivos if aconteceu)
 
     @property
-    def tokens(self) -> UsoDeTokens:
-        """O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo."""
-        return self.leitura.resultado.tokens if self.leitura.resultado else UsoDeTokens()
+    def custo_usd(self) -> float | None:
+        """O custo que o resultado declarou (acumulado da sessão, se ela foi retomada); None sem resultado."""
+        return self.leitura.resultado.custo_usd if self.leitura.resultado else None
 
     @property
-    def turnos(self) -> int:
-        """Os turnos que o resultado declarou."""
-        return self.leitura.resultado.turnos if self.leitura.resultado else 0
+    def tokens(self) -> UsoDeTokens | None:
+        """O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo; None sem resultado."""
+        return self.leitura.resultado.tokens if self.leitura.resultado else None
+
+    @property
+    def turnos(self) -> int | None:
+        """Os turnos que o resultado declarou; None sem resultado."""
+        return self.leitura.resultado.turnos if self.leitura.resultado else None
 
     @property
     def duracao_s(self) -> float:
@@ -99,9 +114,10 @@ class ResultadoDeSessao:
             "codigo_saida": self.codigo_saida,
             "tempo_esgotado": self.tempo_esgotado,
             "is_error": self.is_error,
+            "erro": self.motivo_do_erro,
             "custo_usd": self.custo_usd,
             "turnos": self.turnos,
-            "tokens_model_usage": self.tokens.em_dicionario(),
+            "tokens_model_usage": self.tokens.em_dicionario() if self.tokens else None,
         }
 
 

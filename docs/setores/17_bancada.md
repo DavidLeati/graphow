@@ -10,16 +10,16 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-11 módulos · 1282 linhas · 19 classes
+11 módulos · 1316 linhas · 19 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
 | [`bancada/auditoria.py`](#bancadaauditoria) | 148 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
-| [`bancada/execucao.py`](#bancadaexecucao) | 147 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
+| [`bancada/execucao.py`](#bancadaexecucao) | 157 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
-| [`bancada/medicao.py`](#bancadamedicao) | 218 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
+| [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/placar.py`](#bancadaplacar) | 175 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
@@ -150,6 +150,7 @@ O estado git da entrega: o ramo de trabalho, os commits depois da semente e a á
 - `montar_execucao(arquitetura: str, projeto: ProjetoDaBancada, configuracao: ConfiguracaoDaRodada) -> PedidoDeExecucao` — A pasta da execução, com o repositório da semente, a spec ao lado e o caminho do banco.
 - `rodar_execucao(arquitetura: Arquitetura, pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> ExecucaoGravada` — Roda a arquitetura na execução montada, mede e grava `execucao.json`.
 - `rodar_projetos(arquitetura: Callable[[], Arquitetura], projetos: Sequence[ProjetoDaBancada], configuracao: ConfiguracaoDaRodada) -> tuple[ExecucaoGravada, ...]` — Cada projeto na sua execução; mais de um roda em paralelo, um por linha de execução.
+- `erros_das_sessoes(resultados: Sequence[ResultadoDeSessao]) -> str` — Cada sessão que deu errado e por quê; vazio quando todas terminaram bem.
 - `gravar_json(caminho: Path, dados: dict[str, Any]) -> None` — O registro em JSON legível, UTF-8 e fim de linha LF.
 - `ler_json(caminho: Path) -> dict[str, Any]` — Um registro da bancada; ausente ou ilegível recusa com o caminho.
 
@@ -194,7 +195,7 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 
 *DTO imutável* — Custo, tokens e minutos de uma execução, e de onde saíram os tokens.
 
-**Campos:** `custo_usd: float`, `tokens: int`, `fonte_dos_tokens: str`, `minutos: float | None`, `sessoes: tuple[str, ...]`
+**Campos:** `custo_usd: float | None`, `tokens: int | None`, `fonte_dos_tokens: str`, `minutos: float | None`, `sessoes: tuple[str, ...]`
 
 - `em_dicionario() -> dict[str, Any]` — Os números como a bancada os grava, com o custo em centavos e os minutos com uma casa.
 

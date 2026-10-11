@@ -114,12 +114,36 @@ def test_sessoes_distintas_se_somam_e_a_sem_transcricao_marca_a_fonte_nominal(tm
 
 
 def test_invocacao_que_morreu_conta_os_tokens_da_transcricao_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: tempo esgotado, sem resultado; o custo é desconhecido (zero), mas os tokens gastos contam."""
+    """Caso de borda: tempo esgotado, sem resultado; o custo é desconhecido (None), mas os tokens gastos contam."""
     _transcricao(tmp_path / "p" / "s.jsonl", [_entrada("m1", 1, 0)])
 
     medicao = medir((Invocacao("s", _instante(0), _instante(9), None),), tmp_path)
 
-    assert (medicao.custo_usd, medicao.tokens, medicao.sessoes) == (0.0, 100, ("s",))
+    assert (medicao.custo_usd, medicao.tokens, medicao.sessoes) == (None, 100, ("s",))
+    assert medicao.em_dicionario()["custo_usd"] is None
+
+
+def test_invocacao_que_morreu_sem_transcricao_deixa_custo_e_tokens_desconhecidos_edge_case() -> None:
+    """Caso de borda: sem resultado e sem transcrição, nada se sabe; zero faria a execução parecer de graça."""
+    medicao = medir((Invocacao("s", _instante(0), _instante(9), None),), None)
+
+    assert (medicao.custo_usd, medicao.tokens) == (None, None)
+    assert (medicao.em_dicionario()["custo_usd"], medicao.em_dicionario()["tokens"]) == (None, None)
+
+
+def test_retomada_que_morreu_no_fim_deixa_o_custo_desconhecido_edge_case() -> None:
+    """Caso de borda: a primeira invocação deu resultado e a retomada morreu; o acumulado dela não chegou."""
+    invocacoes = (_invocacao("s", (0, 5), 1.0, 100), Invocacao("s", _instante(20), _instante(25), None))
+
+    assert medir(invocacoes, None).custo_usd is None
+
+
+def test_sem_invocacao_ou_sem_sessao_nada_se_sabe_edge_case() -> None:
+    """Caso de borda: a arquitetura falhou antes de rodar, ou o processo morreu antes de abrir a sessão."""
+    morta_antes_do_init = Invocacao("", _instante(0), _instante(1), None)
+
+    assert (medir((), None).custo_usd, medir((), None).tokens) == (None, None)
+    assert medir((_invocacao("s", (0, 5), 1.0, 100), morta_antes_do_init), None).custo_usd is None
 
 
 def test_log_do_laboratorio_vira_invocacoes_pelas_marcas_nominal() -> None:

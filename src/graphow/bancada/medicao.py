@@ -20,13 +20,18 @@ Que o resultado é acumulado se confere, em vez de se supor: com transcrição, 
 `modelUsage` do último resultado bate com os tokens dela pela última entrada,
 e a soma dos resultados não bate; sem transcrição, o acumulado nunca diminui.
 Quando a conferência diz que a sessão não acumulou, os custos se somam.
+
+O que não se sabe fica None, e não zero. A invocação que morreu sem `result`
+(tempo esgotado, processo morto) gastou, só não disse quanto: o custo da
+execução fica desconhecido, e os tokens também, a menos que a transcrição da
+sessão esteja em disco. Zero ali faria a execução parecer de graça no placar.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from graphow.bancada.transcricoes import TokensDasTranscricoes, contar_tokens, localizar_transcricoes
 from graphow.harness.transcricao import ler_instante
@@ -39,6 +44,7 @@ FONTE_TRANSCRICOES: str = "transcricoes"
 FONTE_MODEL_USAGE: str = "model_usage"
 FONTE_MISTA: str = "transcricoes_e_model_usage"
 SEGUNDOS_POR_MINUTO: float = 60.0
+Numero = TypeVar("Numero", int, float)
 
 
 @dataclass(frozen=True)
@@ -59,8 +65,8 @@ class Invocacao:
 class Medicao:
     """Custo, tokens e minutos de uma execução, e de onde saíram os tokens."""
 
-    custo_usd: float
-    tokens: int
+    custo_usd: float | None
+    tokens: int | None
     fonte_dos_tokens: str
     minutos: float | None
     sessoes: tuple[str, ...]
@@ -68,7 +74,7 @@ class Medicao:
     def em_dicionario(self) -> dict[str, Any]:
         """Os números como a bancada os grava, com o custo em centavos e os minutos com uma casa."""
         return {
-            "custo_usd": round(self.custo_usd, 2),
+            "custo_usd": None if self.custo_usd is None else round(self.custo_usd, 2),
             "tokens": self.tokens,
             "fonte_dos_tokens": self.fonte_dos_tokens,
             "minutos": None if self.minutos is None else round(self.minutos, 1),
@@ -131,13 +137,21 @@ def ler_log(caminho: Path) -> tuple[Invocacao, ...]:
 
 
 def medir(invocacoes: Sequence[Invocacao], raiz_das_transcricoes: Path | None) -> Medicao:
-    """Custo, tokens e minutos das invocações, com as transcrições achadas sob a raiz."""
+    """Custo, tokens e minutos das invocações, com as transcrições achadas sob a raiz.
+
+    Sem invocação, ou com uma que morreu antes de abrir a sessão, nada se sabe
+    do que foi gasto: custo e tokens ficam None.
+    """
     ate = _corte(invocacoes)
     por_sessao = _por_sessao(invocacoes)
     medidas = {sessao: _tokens_da_sessao(sessao, raiz_das_transcricoes, ate) for sessao in por_sessao}
+    contam = {sessao: _resultados_que_contam(lista, medidas[sessao]) for sessao, lista in por_sessao.items()}
+    sem_sessao = not invocacoes or any(not invocacao.sessao for invocacao in invocacoes)
+    custos = [None if resultados is None else sum(r.custo_usd for r in resultados) for resultados in contam.values()]
+    tokens = [_tokens_finais(contam[sessao], medidas[sessao]) for sessao in por_sessao]
     return Medicao(
-        custo_usd=sum(_custo_da_sessao(resultados, medidas[sessao]) for sessao, resultados in por_sessao.items()),
-        tokens=sum(_tokens_finais(resultados, medidas[sessao]) for sessao, resultados in por_sessao.items()),
+        custo_usd=None if sem_sessao else _soma_conhecida(custos),
+        tokens=None if sem_sessao else _soma_conhecida(tokens),
         fonte_dos_tokens=_fonte(medidas.values()),
         minutos=minutos_das_invocacoes(invocacoes),
         sessoes=tuple(por_sessao),
@@ -155,7 +169,7 @@ def minutos_das_invocacoes(invocacoes: Sequence[Invocacao]) -> float | None:
 
 def contar_sessoes_retomadas(invocacoes: Sequence[Invocacao]) -> int:
     """Quantas sessões tiveram mais de um resultado: as que o laboratório contou em dobro."""
-    return sum(1 for resultados in _por_sessao(invocacoes).values() if len(resultados) > 1)
+    return sum(1 for lista in _por_sessao(invocacoes).values() if sum(1 for i in lista if i.resultado) > 1)
 
 
 def _corte(invocacoes: Sequence[Invocacao]) -> datetime | None:
@@ -164,14 +178,12 @@ def _corte(invocacoes: Sequence[Invocacao]) -> datetime | None:
     return max(fins) if fins else None
 
 
-def _por_sessao(invocacoes: Sequence[Invocacao]) -> dict[str, list[ResultadoDoStream]]:
-    """Os resultados de cada sessão, na ordem das invocações; a sessão sem resultado fica com a lista vazia."""
-    por_sessao: dict[str, list[ResultadoDoStream]] = {}
+def _por_sessao(invocacoes: Sequence[Invocacao]) -> dict[str, list[Invocacao]]:
+    """As invocações de cada sessão, na ordem em que rodaram; as sem sessão ficam de fora."""
+    por_sessao: dict[str, list[Invocacao]] = {}
     for invocacao in invocacoes:
-        resultados = por_sessao.setdefault(invocacao.sessao, [])
-        if invocacao.resultado is not None:
-            resultados.append(invocacao.resultado)
-    return {sessao: resultados for sessao, resultados in por_sessao.items() if sessao}
+        por_sessao.setdefault(invocacao.sessao, []).append(invocacao)
+    return {sessao: lista for sessao, lista in por_sessao.items() if sessao}
 
 
 def _tokens_da_sessao(sessao: str, raiz: Path | None, ate: datetime | None) -> TokensDasTranscricoes:
@@ -181,22 +193,34 @@ def _tokens_da_sessao(sessao: str, raiz: Path | None, ate: datetime | None) -> T
     return contar_tokens(localizar_transcricoes(raiz, sessao), ate)
 
 
-def _custo_da_sessao(resultados: Sequence[ResultadoDoStream], transcricoes: TokensDasTranscricoes) -> float:
-    """O último custo, se a sessão acumulou; a soma, se cada invocação contou só a si."""
-    if not resultados:
-        return 0.0
+def _resultados_que_contam(
+    invocacoes: Sequence[Invocacao], transcricoes: TokensDasTranscricoes
+) -> tuple[ResultadoDoStream, ...] | None:
+    """Os resultados cuja soma é o gasto da sessão: o último, se ela acumulou; todos, se não.
+
+    None quando o gasto não está em resultado nenhum: a última invocação morreu
+    sem `result`, ou, numa sessão que não acumula, faltou o de alguma.
+    """
+    resultados = tuple(invocacao.resultado for invocacao in invocacoes if invocacao.resultado is not None)
+    if not resultados or invocacoes[-1].resultado is None:
+        return None
     if _acumulou(resultados, transcricoes):
-        return resultados[-1].custo_usd
-    return sum(resultado.custo_usd for resultado in resultados)
+        return resultados[-1:]
+    return resultados if len(resultados) == len(invocacoes) else None
 
 
-def _tokens_finais(resultados: Sequence[ResultadoDoStream], transcricoes: TokensDasTranscricoes) -> int:
-    """Os tokens das transcrições; sem elas, o `modelUsage`, com a mesma regra do custo."""
-    if transcricoes.arquivos or not resultados:
+def _tokens_finais(resultados: Sequence[ResultadoDoStream] | None, transcricoes: TokensDasTranscricoes) -> int | None:
+    """Os tokens das transcrições, que existem mesmo quando a sessão morreu; sem elas, o `modelUsage`."""
+    if transcricoes.arquivos:
         return transcricoes.pela_primeira
-    if _acumulou(resultados, transcricoes):
-        return resultados[-1].tokens.total
-    return sum(resultado.tokens.total for resultado in resultados)
+    return None if resultados is None else sum(resultado.tokens.total for resultado in resultados)
+
+
+def _soma_conhecida(valores: Sequence[Numero | None]) -> Numero | None:
+    """A soma, ou None se algum valor é desconhecido."""
+    if any(valor is None for valor in valores):
+        return None
+    return sum(valor for valor in valores if valor is not None)
 
 
 def _acumulou(resultados: Sequence[ResultadoDoStream], transcricoes: TokensDasTranscricoes) -> bool:

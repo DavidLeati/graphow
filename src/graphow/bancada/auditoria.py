@@ -138,7 +138,7 @@ def _ler_linha_do_placar(linha: str) -> Placar | None:
 def _erro_da_auditoria(resultado: ResultadoDeSessao, placar: Placar | None) -> str:
     """Vazio quando a sessão terminou bem e o placar foi lido; senão, o que faltou."""
     if resultado.is_error:
-        return f"a sessao do auditor terminou com erro (codigo {resultado.codigo_saida}, tempo esgotado: {resultado.tempo_esgotado})"
+        return f"a sessao do auditor terminou com erro: {resultado.motivo_do_erro}"
     return "" if placar else "o relatorio do auditor nao tem linha PLACAR legivel"
 
 

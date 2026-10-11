@@ -10,14 +10,14 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-5 módulos · 505 linhas · 8 classes
+5 módulos · 521 linhas · 8 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
 | [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 168 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 76 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 206 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 222 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
 ## `sessoes/executavel.py`
 
@@ -132,9 +132,10 @@ Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 - `session_id() -> str` `[property]` — A sessão que o stream abriu; vazio quando ele não chegou a abrir.
 - `texto_final() -> str` `[property]` — A resposta final da sessão.
 - `is_error() -> bool` `[property]` — Erro no resultado, no processo ou no tempo.
-- `custo_usd() -> float` `[property]` — O custo que o resultado declarou; acumulado da sessão, se ela foi retomada.
-- `tokens() -> UsoDeTokens` `[property]` — O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo.
-- `turnos() -> int` `[property]` — Os turnos que o resultado declarou.
+- `motivo_do_erro() -> str` `[property]` — Por que a sessão deu errado, com cada forma que aconteceu; vazio quando deu certo.
+- `custo_usd() -> float | None` `[property]` — O custo que o resultado declarou (acumulado da sessão, se ela foi retomada); None sem resultado.
+- `tokens() -> UsoDeTokens | None` `[property]` — O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo; None sem resultado.
+- `turnos() -> int | None` `[property]` — Os turnos que o resultado declarou; None sem resultado.
 - `duracao_s() -> float` `[property]` — O tempo de parede, do lançamento do processo ao fim dele.
 - `em_dicionario() -> dict[str, Any]` — O resumo da sessão, para gravar em JSON ao lado do stream.
 

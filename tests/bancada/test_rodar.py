@@ -121,6 +121,25 @@ def test_sessao_com_erro_fica_gravada_e_a_saida_e_1_edge_case(tmp_path: Path) ->
     assert codigo == 1
     assert gravado["sessoes"][0]["is_error"] is True
     assert gravado["sessoes"][0]["codigo_saida"] == 3
+    assert gravado["erro"] == "sessao 4cb36a24-6f3f-4ad6-8179-f4aadfd02d53 terminou com erro: codigo de saida 3"
+
+
+def test_sessao_que_estoura_o_tempo_grava_o_erro_e_custo_desconhecido_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a sessão morre no tempo limite, sem `result`; o erro vai para execucao.json e o custo e os
+    tokens ficam null, e não zero."""
+    sessoes = ExecutorDeSessao(comando_do_falso(), ambiente_de_teste(tmp_path / "r", GRAPHOW_TESTE_DORMIR="60"))
+    argumentos = _argumentos(tmp_path / "saida", "estoque-loja")
+    argumentos.tempo_limite = 0.05
+    console = EscritorConsoleEmMemoria()
+
+    codigo = executar_bancada(argumentos, console, sessoes=sessoes)
+
+    gravado = json.loads((_unica_execucao(tmp_path / "saida") / "execucao.json").read_text(encoding="utf-8"))
+    assert codigo == 1
+    assert "terminou com erro: tempo esgotado, sem evento result no stream" in gravado["erro"]
+    assert (gravado["metricas"]["custo_usd"], gravado["metricas"]["tokens"]) == (None, None)
+    assert gravado["sessoes"][0]["custo_usd"] is None and gravado["sessoes"][0]["tempo_esgotado"] is True
+    assert any("custo - | tokens -" in linha for linha in console.linhas), console.linhas
 
 
 def test_arquitetura_desconhecida_recusa_antes_de_criar_pasta_edge_case(tmp_path: Path) -> None:
@@ -158,7 +177,7 @@ def test_arquitetura_registrada_de_fora_roda_e_a_falha_fica_gravada_edge_case(tm
     gravado = json.loads((_unica_execucao(tmp_path / "saida") / "execucao.json").read_text(encoding="utf-8"))
     assert codigo == 1
     assert "plano recusado" in gravado["erro"]
-    assert gravado["sessoes"] == [] and gravado["metricas"]["custo_usd"] == 0.0
+    assert gravado["sessoes"] == [] and gravado["metricas"]["custo_usd"] is None
 
 
 def test_registro_recusa_o_mesmo_nome_duas_vezes_edge_case() -> None:

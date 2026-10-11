@@ -78,6 +78,7 @@ def rodar_execucao(
     """Roda a arquitetura na execução montada, mede e grava `execucao.json`."""
     inicio = _agora()
     resultados, erro = _executar(arquitetura, pedido, sessoes)
+    erro = erro or erros_das_sessoes(resultados)
     invocacoes = tuple(Invocacao(r.session_id, r.inicio, r.fim, r.leitura.resultado) for r in resultados)
     medicao = medir(invocacoes, transcricoes).em_dicionario()
     entrega = ler_estado_da_entrega(pedido.repositorio, pedido.projeto)
@@ -116,6 +117,15 @@ def rodar_projetos(
 
     with ThreadPoolExecutor(max_workers=max(1, len(pedidos))) as paralelo:
         return tuple(paralelo.map(rodar, pedidos))
+
+
+def erros_das_sessoes(resultados: Sequence[ResultadoDeSessao]) -> str:
+    """Cada sessão que deu errado e por quê; vazio quando todas terminaram bem."""
+    return "; ".join(
+        f"sessao {resultado.session_id or '?'} terminou com erro: {resultado.motivo_do_erro}"
+        for resultado in resultados
+        if resultado.is_error
+    )
 
 
 def gravar_json(caminho: Path, dados: dict[str, Any]) -> None:
