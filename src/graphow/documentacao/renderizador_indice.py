@@ -39,6 +39,7 @@ ROTEAMENTO_POR_INTENCAO: tuple[tuple[str, str], ...] = (
     ("Regenerar esta documentação", "Setor 14 — `graphow docs-gerar`"),
     ("Gerar o acervo de notas dos aprendizados", "Setor 15 — `graphow notas-gerar`"),
     ("Rodar uma sessão `claude -p` e ler o que ela custou", "Setor 16 — `graphow.sessoes`"),
+    ("Medir uma arquitetura nas demandas do laboratório", "Setor 17 — `graphow bancada`"),
 )
 
 REGRAS_DE_ENGENHARIA: tuple[tuple[str, str], ...] = (

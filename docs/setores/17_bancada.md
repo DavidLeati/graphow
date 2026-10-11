@@ -10,14 +10,131 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-5 módulos · 588 linhas · 9 classes
+9 módulos · 959 linhas · 16 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 108 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
+| [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
+| [`bancada/execucao.py`](#bancadaexecucao) | 147 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
+| [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
 | [`bancada/medicao.py`](#bancadamedicao) | 218 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
 | [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
+
+## `bancada/arquiteturas.py`
+
+As arquiteturas que a bancada sabe rodar, registradas por nome.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DA_ENXUTA` | `str` | `'enxuta'` |
+| `MODELO_DA_ENXUTA` | `str` | `'opus'` |
+| `PERMISSAO_DA_ENXUTA` | `str` | `'bypassPermissions'` |
+| `PASTA_DAS_SESSOES` | `str` | `'sessoes'` |
+
+### `Arquitetura` (Protocol)
+
+*serviço* — O que a bancada exige de uma arquitetura: um nome e rodar a execução montada.
+
+**Campos:** `nome: str`
+
+- `executar(pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> tuple[ResultadoDeSessao, ...]` — Roda o projeto e devolve as sessões, na ordem em que rodaram.
+
+### `ArquiteturaEnxuta`
+
+*serviço* — Uma sessão Opus, sem graphow, com o prompt de processo fixo do laboratório.
+
+**Campos:** `nome: str`
+
+- `pedido_de_sessao(pedido: PedidoDeExecucao) -> PedidoDeSessao` — A sessão única: o prompt preenchido com a spec ao lado do repositório e o ramo do projeto.
+- `executar(pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> tuple[ResultadoDeSessao, ...]` — Roda a sessão única.
+
+### `PedidoDeExecucao`
+
+*DTO imutável* — A execução montada que a arquitetura recebe: onde está cada coisa e quanto tempo ela tem.
+
+**Campos:** `projeto: ProjetoDaBancada`, `bancada: Bancada`, `diretorio: Path`, `repositorio: Path`, `spec: Path`, `banco: Path`, `tempo_limite_s: float`
+
+- `pasta_das_sessoes() -> Path` `[property]` — Onde cada sessão grava o stream e a saída de erro.
+
+### `RegistroDeArquiteturas`
+
+*serviço* — As arquiteturas por nome, cada uma com a fábrica que a cria.
+
+- `nomes() -> tuple[str, ...]` `[property]` — Os nomes registrados, em ordem alfabética.
+- `registrar(nome: str, fabrica: Callable[[], Arquitetura]) -> None` — Registra a arquitetura; o mesmo nome duas vezes é engano e recusa.
+- `criar(nome: str) -> Arquitetura` — A arquitetura pelo nome; a recusa lista as registradas.
+
+### Funções do módulo
+
+- `registro_padrao() -> RegistroDeArquiteturas` — O registro com as arquiteturas que existem hoje: só a enxuta.
+
+## `bancada/entrega.py`
+
+O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja.
+
+### `EstadoDaEntrega`
+
+*DTO imutável* — Onde a entrega está no repositório da execução.
+
+**Campos:** `ramo: str`, `ramo_existe: bool`, `ramo_atual: str`, `commits: int`, `arvore_suja: bool`
+
+- `em_dicionario() -> dict[str, object]` — O estado para gravar em JSON.
+
+### Funções do módulo
+
+- `ler_estado_da_entrega(repositorio: Path, projeto: ProjetoDaBancada) -> EstadoDaEntrega` — O ramo de trabalho, os commits nele depois da semente, o ramo do HEAD e se há mudança fora de commit.
+- `descrever_ramo(estado: EstadoDaEntrega) -> str` — O ramo como o prompt do auditor o recebe, com a ressalva quando o trabalho não está nele.
+
+## `bancada/execucao.py`
+
+`graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ARQUIVO_DA_EXECUCAO` | `str` | `'execucao.json'` |
+| `NOME_DO_BANCO` | `str` | `'graphow.db'` |
+| `VERSAO_DO_REGISTRO` | `int` | `1` |
+| `FORMATO_DO_CARIMBO` | `str` | `'%Y%m%d-%H%M%S'` |
+
+### `ConfiguracaoDaRodada`
+
+*DTO imutável* — O que vale para todas as execuções de uma rodada: onde gravar, de onde ler e quanto esperar.
+
+**Campos:** `bancada: Bancada`, `saida: Path`, `raiz_das_transcricoes: Path | None`, `tempo_limite_s: float`, `carimbo: str`
+
+### `ExecucaoGravada`
+
+*DTO imutável* — Uma execução terminada: a pasta dela e o que foi gravado em `execucao.json`.
+
+**Campos:** `diretorio: Path`, `registro: dict[str, Any]`
+
+### Funções do módulo
+
+- `montar_execucao(arquitetura: str, projeto: ProjetoDaBancada, configuracao: ConfiguracaoDaRodada) -> PedidoDeExecucao` — A pasta da execução, com o repositório da semente, a spec ao lado e o caminho do banco.
+- `rodar_execucao(arquitetura: Arquitetura, pedido: PedidoDeExecucao, sessoes: ExecutorDeSessao) -> ExecucaoGravada` — Roda a arquitetura na execução montada, mede e grava `execucao.json`.
+- `rodar_projetos(arquitetura: Callable[[], Arquitetura], projetos: Sequence[ProjetoDaBancada], configuracao: ConfiguracaoDaRodada) -> tuple[ExecucaoGravada, ...]` — Cada projeto na sua execução; mais de um roda em paralelo, um por linha de execução.
+- `gravar_json(caminho: Path, dados: dict[str, Any]) -> None` — O registro em JSON legível, UTF-8 e fim de linha LF.
+- `ler_json(caminho: Path) -> dict[str, Any]` — Um registro da bancada; ausente ou ilegível recusa com o caminho.
+
+## `bancada/formatacao.py`
+
+Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `TOKENS_POR_MILHAO` | `float` | `1000000.0` |
+| `SEM_VALOR` | `str` | `'-'` |
+
+### Funções do módulo
+
+- `formatar_dinheiro(valor: float | None) -> str` — `US$ 5,03`.
+- `formatar_tokens(valor: int | None) -> str` — `6,2 M`, a forma do relatório.
+- `formatar_inteiro(valor: int | None) -> str` — `6.160.643`.
+- `formatar_minutos(valor: float | None) -> str` — `20,0 min`.
+- `formatar_variacao(valor: float | None, base: float | None) -> str` — A variação em relação à base: percentual, ou a diferença absoluta quando a base é zero.
 
 ## `bancada/medicao.py`
 

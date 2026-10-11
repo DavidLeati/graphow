@@ -10,14 +10,15 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-11 módulos · 1623 linhas · 18 classes
+12 módulos · 1741 linhas · 18 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_execucao.py`](#apicliexecucao) | 320 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
+| [`api/cli_bancada.py`](#apiclibancada) | 114 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório. |
+| [`api/cli_execucao.py`](#apicliexecucao) | 322 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 242 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
-| [`api/cli_parser.py`](#apicliparser) | 389 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 391 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 115 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
@@ -49,6 +50,23 @@ Interface de Linha de Comando (CLI) para operação do Graphow.
 
 - `main(argumentos: Sequence[str] | None) -> int` — Ponto de entrada principal da linha de comando.
 - `descrever_localizacao_banco(localizacao: LocalizacaoBanco) -> tuple[str, ...]` — Monta as linhas de diagnóstico sobre onde o banco de eventos reside.
+
+## `api/cli_bancada.py`
+
+O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CODIGO_SUCESSO` | `int` | `0` |
+| `CODIGO_COM_ERRO` | `int` | `1` |
+| `TODOS_OS_PROJETOS` | `str` | `'todos'` |
+| `TEMPO_LIMITE_DA_RODADA_MIN` | `float` | `120.0` |
+| `SEGUNDOS_POR_MINUTO` | `float` | `60.0` |
+
+### Funções do módulo
+
+- `registrar_comando_de_bancada(subparsers: argparse._SubParsersAction, parser_base: argparse.ArgumentParser) -> None` — Registra `graphow bancada` e as ações dele.
+- `executar_bancada(argumentos: argparse.Namespace, console: EscritorConsole) -> int` — Executa a ação pedida; o registro e o executor de sessão podem vir de fora, nos testes.
 
 ## `api/cli_execucao.py`
 

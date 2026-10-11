@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from graphow.api.cli import GraphowCLI, descrever_localizacao_banco
+from graphow.api.cli_bancada import executar_bancada
 from graphow.api.cli_setup import executar_setup
 from graphow.api.console import EscritorConsole, EscritorConsolePadrao
 from graphow.documentacao import MontadorDocumentacaoDoRepositorio
@@ -98,6 +99,7 @@ class ExecutorLinhaDeComando:
             "transcricao-medir": self._executar_transcricao_medir,
             "skill-instalar": self._executar_skill_instalar,
             "setup": lambda contexto: executar_setup(contexto.argumentos, contexto.console, RAIZ_PROJETO),
+            "bancada": lambda contexto: executar_bancada(contexto.argumentos, contexto.console),
         }
         manipulador = manipuladores_sem_banco.get(contexto.argumentos.comando)
         if manipulador is not None:
