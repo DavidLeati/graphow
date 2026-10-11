@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**17 alas · 255 módulos · 34800 linhas · 469 classes**
+**17 alas · 256 módulos · 34974 linhas · 472 classes**
 
 ---
 
@@ -62,7 +62,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 12 | 1332 | 38 |
 | 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 30 | 4790 | 33 |
-| 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 12 | 1525 | 35 |
+| 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 13 | 1699 | 38 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 23 | 3742 | 40 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
 | 06 | [Divulgação Progressiva](setores/06_context.md) | `graphow.context` | 21 | 2820 | 32 |
@@ -84,7 +84,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 **02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.
 
-**03. Persistência Append-Only** — Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, migra bancos antigos e repara sequências duplicadas.
+**03. Persistência Append-Only** — Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões do orquestrador, numa tabela fora do log. Resolve onde o banco vive, migra bancos antigos e repara sequências duplicadas.
 
 **04. Projeção Determinística** — Dobra os eventos do log no estado em memória e mantém a projeção reconciliada com o que foi persistido por outros escritores.
 

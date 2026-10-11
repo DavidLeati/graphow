@@ -39,7 +39,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         3,
         "storage",
         "Persistência Append-Only",
-        "Repositórios de eventos, locks e linhagem de ramos. Resolve onde o banco vive, migra bancos antigos e repara sequências duplicadas.",
+        "Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões do orquestrador, numa tabela fora do log. Resolve onde o banco vive, migra bancos antigos e repara sequências duplicadas.",
     ),
     DefinicaoSetor(
         4,
