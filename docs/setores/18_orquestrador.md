@@ -10,11 +10,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-4 módulos · 464 linhas · 9 classes
+5 módulos · 692 linhas · 13 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 115 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 228 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 
@@ -51,6 +52,64 @@ Os schemas da saída de cada papel: o que o planejador, o executor e o verificad
 ### Funções do módulo
 
 - `caminho_do_prompt(papel: str) -> Path` — O prompt de sistema do papel, no pacote.
+
+## `orquestrador/git_do_goal.py`
+
+O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `EXECUTAVEL_DO_GIT` | `str` | `'git'` |
+| `VARIAVEIS_DE_OUTRO_REPOSITORIO` | `frozenset[str]` | `frozenset({'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'})` |
+| `NOME_DO_HOOK_DA_TRAVA` | `str` | `'reference-transaction'` |
+| `HOOK_DA_TRAVA` | `str` | `'#!/bin/sh\n# Trava do graphow orquestrar: a sessao do agente nao atual…` |
+| `IDENTIDADE_DE_RESERVA` | `tuple[str, ...]` | `('-c', 'user.name=graphow orquestrar', '-c', 'user.email=orquestrador@g…` |
+| `LIMITE_DO_RESUMO_DO_DIFF` | `int` | `4000` |
+
+### `AreaDoGoal`
+
+*DTO imutável* — Onde o trabalho do Goal acontece: o repositório do humano, o worktree, a branch e a base.
+
+**Campos:** `repositorio: Path`, `pasta: Path`, `ramo: str`, `base: str`
+
+### `FalhaDoGitDoGoal` (GraphowError)
+
+*serviço* — O git recusou o que o orquestrador pediu; o contexto traz o comando e a saída de erro.
+
+### `GitDoGoal`
+
+*DTO imutável* — Roda o git numa pasta (o repositório do humano ou a área do Goal), sem a trava do agente.
+
+**Campos:** `pasta: Path`
+
+- `tentar() -> SaidaDoGit` — O comando, sem recusar quando o git sai com erro.
+- `rodar() -> str` — A saída padrão; recusa com a saída de erro quando o git falha.
+- `head() -> str` — O commit em que a pasta está.
+- `ramo_atual() -> str` — A branch do HEAD; vazio com o HEAD destacado.
+- `ramo_existe(ramo: str) -> bool` — A branch local existe.
+- `mudancas() -> tuple[str, ...]` — As linhas do `status --porcelain`: o que está fora de commit, ignorados de fora.
+- `e_ancestral(antes: str, depois: str) -> bool` — `antes` está na história de `depois` (ou é ele).
+- `arquivos_entre(antes: str, depois: str) -> tuple[str, ...]` — Os arquivos que mudaram de um commit ao outro.
+- `resumo_do_diff(antes: str, depois: str) -> str` — O `diff --stat` entre os dois commits, cortado para caber no briefing.
+- `commits_desde(base: str) -> tuple[str, ...]` — Hash curto e assunto de cada commit da branch desde a base, do mais antigo ao mais novo.
+
+### `SaidaDoGit`
+
+*DTO imutável* — O código de saída e as duas saídas de um comando do git.
+
+**Campos:** `codigo: int`, `saida: str`, `erro: str`
+
+### Funções do módulo
+
+- `raiz_do_repositorio(pasta: Path) -> Path` — A raiz do repositório git que contém a pasta.
+- `preparar_area(area: AreaDoGoal) -> None` — O worktree do Goal na branch dele: reaproveitado se já existe, criado da base se a branch é nova.
+- `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
+- `descartar_mudancas(area: Path, arquivo_patch: Path) -> bool` — Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.
+- `restaurar_head(area: Path, ramo: str, esperado: str) -> str` — Desfaz o que o agente fez no git: volta à branch e, com `reset --soft`, ao commit esperado.
+- `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até a branch do Goal, só por fast-forward; devolve o commit integrado.
+- `remover_area(repositorio: Path, area: Path) -> bool` — Tira o worktree do Goal depois da integração; a branch fica. Diz se conseguiu.
+- `instalar_trava(pasta: Path) -> dict[str, str]` — Grava o hook da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
+- `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` de git de escrita, para cada ferramenta de shell dada.
 
 ## `orquestrador/saidas.py`
 
