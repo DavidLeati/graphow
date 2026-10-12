@@ -232,7 +232,8 @@ def _mexeu_no_aceite(mexidos: list[str]) -> str:
     """O erro da fatia que alterou, apagou ou moveu teste de aceite."""
     return (
         f"a fatia alterou, apagou, moveu ou criou em aceite/ os arquivos {', '.join(mexidos)}: o executor nao toca os testes de aceite, eles provam os "
-        "criterios e foram escritos antes, por outra sessao. Se um teste de aceite esta errado, devolva `duvida` com o porque."
+        "criterios e foram escritos antes, por outra sessao. Se um teste de aceite esta errado, diga o criterio em `teste_errado` "
+        "e o porque em `duvida`."
     )
 
 

@@ -226,7 +226,8 @@ def _modo_autonomo(estado: EstadoDoGoal) -> str:
         return ""
     return ("## Modo autonomo\nNao ha humano para responder: nao ha duvida. Decida pela spec e registre em `decisoes` cada "
             "decisao que tomou por conta propria (questao, decisao, motivo); o humano as revisa depois. A unica parada e "
-            "`teste_errado`: um teste de aceite esta errado; diga o criterio em `teste_errado` e o porque em `duvida`.")
+            "`teste_errado`: um teste de aceite esta errado; devolva `status` `teste_errado`, o criterio em `teste_errado` e o "
+            "porque em `duvida`.")
 
 
 def _falha_anterior(fatia: FatiaRegistrada) -> list[str]:
