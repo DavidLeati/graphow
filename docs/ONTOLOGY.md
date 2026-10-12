@@ -60,7 +60,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 |---|---|---|
 | `Task` | `criterio_pronto` | O critério de aceite, contra o qual o revisor julga. Já existia; a orquestração não criou outro nome para ele. |
 | `Task` | `modelo`, `motivo_modelo` | O modelo que deve executar a tarefa e por quê. `criar_tarefa` recusa o modelo sem o motivo, para a escolha ficar auditável no log. |
-| `Task` | `trilha` | `leve` ou `completa`; ausente vale `completa`. A leve é a da tarefa trivial de texto (redação, comentário ou documentação), sem mudança com efeito em código, dado ou configuração: pula o teste do executor frio, roda em Sonnet e vai ao revisor Sonnet. `criar_tarefa` recusa outro valor e a leve com `modelo: opus`. |
+| `Task` | `trilha` | `leve` ou `completa`; ausente vale `completa`. A leve é a da tarefa trivial de texto (redação, comentário ou documentação), sem mudança com efeito em código, dado ou configuração: a orquestração por LLM (até a fase 1) a rodava em Sonnet, sem o teste do executor frio, e a mandava ao revisor Sonnet. `criar_tarefa` recusa outro valor e a leve com `modelo: opus`. |
 | `Task` | `entrega` | `artefato` (o padrão: arquivo, documento, dado) ou `acao_externa` (um gesto no mundo que não deixa arquivo, como enviar um e-mail ou marcar uma reunião). Quem executa a ação externa é o gesto `acao_externa` da política (seção 5.1). `criar_tarefa` recusa outro valor, e o executor não a troca. |
 | `Task` | `arquivos_alvo` | Os arquivos que a tarefa toca, relativos à raiz do trabalho (código, documentos, planilhas). Só rodam em paralelo tarefas com arquivos-alvo disjuntos; a de ação externa não leva. |
 | `Task` | `corrige` | Na tarefa de correção, a `Evidence` de revisão rejeitada que a motivou. |
@@ -82,7 +82,7 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `Note` | `acao` | Com `proposta_fora_do_goal`, a descoberta fora dos critérios do Goal registrada como proposta para o humano decidir, e não como `Task`. |
 | `Evidence` | `acao` | Com `veredito_de_escopo`, o julgamento de uma raiz de decisão e das `Task`s que ela gerou contra os critérios e a fronteira do Goal; não bloqueia. O revisor a grava com `deriva_de` para a raiz (a Decision, a Evidence, a Question ou a Task de onde a cadeia de `motivada_por` parte), e é por essa aresta que a raiz sai da lista de decisões sem veredito de escopo. |
 | `Evidence` | `parecer_de_escopo`, `motivo` | Na Evidence de `acao: veredito_de_escopo`: `cabe`, `nao_cabe` ou `parcial`, e o motivo. Não é `veredito`: essa propriedade é a do fechamento da `Task`, e a de escopo não vigora sobre tarefa alguma. |
-| `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet acha, numa Task da trilha leve, mudança com efeito (no diff, quando a entrega é código). Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição, e a Task vai ao revisor Opus. |
+| `Evidence` | `triagem` | `fora_da_trilha` quando o revisor Sonnet da orquestração por LLM (até a fase 1) achava, numa Task da trilha leve, mudança com efeito (no diff, quando a entrega era código). Não é veredito: não vigora sobre a tarefa nem entra na contagem da medição. |
 
 ---
 
@@ -162,10 +162,10 @@ outras colunas, e a `governanca_maxima` é exatamente isso.
 | Papel | Nós que pode criar | Campos que pode editar | Ações proibidas | Conforme a política |
 |---|---|---|---|---|
 | `humano` | Todos | Todos | Nenhuma | - |
-| `planejador` | `Task`, `Decision`, `Question`, `Note`, `Evidence` localizada | `titulo`, `descricao`, `criterio_pronto` de `Task` | Fechar `Task`, editar `Constraint`, encerrar `Question`, registrar ou promover `Aprendizado` | Só `estrutura: ilimitado` (como todo agente). Nenhum gesto de papel: o planejador nunca ganha o que a política tira do humano |
+| `planejador` | `Task`, `Decision`, `Question`, `Note`, `Evidence` localizada | `titulo`, `descricao`, `criterio_pronto` de `Task` | Editar `Constraint`, encerrar `Question`, registrar ou promover `Aprendizado` | Só `estrutura: ilimitado` (como todo agente). Nenhum gesto de papel: o planejador nunca ganha o que a política tira do humano |
 | `executor` | `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado` | `status` da `Task` cuja posse detém | Criar `Task`, editar `Constraint`, encerrar `Question`, mexer em `Task` de outro, promover `Aprendizado` | Só `estrutura: ilimitado` |
-| `revisor` | `Evidence`, `Question`, `Note`, `Aprendizado` | Status de revisão da `Task` cuja posse detém | Fechar `Task` diretamente, encerrar `Question`, promover `Aprendizado` | Só `estrutura: ilimitado` |
-| `arbitro` | `Evidence`, `Decision`, `Note` | O `status` da `Question` (`respondida` ou `descartada`), do `Goal` (`concluido`) e da `Sessao`, e a posse alheia, cada um com o gesto da política | Fechar `Task`, criar `Task`, `Governanca` ou `Projeto`, promover global, alterar a governança, encerrar a `Question` que abriu, promover o `Aprendizado` que registrou | `responder_questao`, `promover_aprendizado` (Setor e Projeto), `constraint`, `excluir`, `fechar_goal`, `encerrar_sessao`, `liberar_posse_alheia`, `aprovar_plano`, e todos os tipos de nó menos `Constraint`, `Governanca` e `Projeto` sob `estrutura: ilimitado` |
+| `revisor` | `Evidence`, `Question`, `Note`, `Aprendizado` | Status de revisão da `Task` cuja posse detém | Encerrar `Question`, promover `Aprendizado` | Só `estrutura: ilimitado` |
+| `arbitro` | `Evidence`, `Decision`, `Note` | O `status` da `Question` (`respondida` ou `descartada`), do `Goal` (`concluido`) e da `Sessao`, e a posse alheia, cada um com o gesto da política | Criar `Task`, `Governanca` ou `Projeto`, promover global, alterar a governança, encerrar a `Question` que abriu, promover o `Aprendizado` que registrou | `responder_questao`, `promover_aprendizado` (Setor e Projeto), `constraint`, `excluir`, `fechar_goal`, `encerrar_sessao`, `liberar_posse_alheia`, `aprovar_plano`, e todos os tipos de nó menos `Constraint`, `Governanca` e `Projeto` sob `estrutura: ilimitado` |
 | `sistema` | `Run`, `Sessao`, e `Projeto` e `Setor` do ambiente padrão da memória | Métricas de execução e a própria `Sessao` | Criar ou alterar nós semânticos de trabalho | Encerrar a `Sessao` que abriu vale sempre, sem política |
 | `orquestrador` | `Projeto`, `Setor`, `Sessao`, `Goal`, `Task`, `Decision`, `Constraint`, `Question` aberta, `Artifact`, `Evidence`, `Note` | Tudo o que o laço grava do Goal que conduz: o status das fatias (sem posse e sem veredito de revisão por `Task`), o fechamento do `Goal` e da própria `Sessao` | `Governanca`, a `governanca` e o `nivel_autonomia` do `Projeto`, `Aprendizado` e o alcance dele, `Goal.planos` e `respostas_de_desvio`, encerrar `Question`, remover qualquer nó ou aresta | Não lê a política: tem contrato próprio (`kernel/papel_do_orquestrador.py`), e nenhum servidor MCP abre com ele |
 
@@ -180,7 +180,10 @@ exerce:
 3. O **push** do git, quando o trabalho mora num repositório: fora do grafo, é sempre do humano; o gesto `integracao` cobre só o commit e o merge local na base.
 
 Fora da política, e não do humano por exceção, vale também a regra do veredito: um
-agente só conclui uma `Task` com revisão aprovada (seção 5.4).
+agente só conclui uma `Task` com revisão aprovada (seção 5.4). Fechar a `Task` não é
+reservado a papel nenhum desde a fase 1, quando saiu a regra do RoleGate que recusava
+planejador e revisor: vale a posse, o veredito e a `Question` que bloqueia. O
+`orquestrador` fecha a fatia do Goal que conduz sem posse nem veredito por Task.
 
 ### 4.2 O Que Só o Humano Faz Por Padrão, e a Política Pode Entregar ao Árbitro
 

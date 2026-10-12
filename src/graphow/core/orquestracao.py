@@ -18,9 +18,9 @@ CAMPO_ARQUIVOS_ALVO: str = "arquivos_alvo"
 CAMPO_CORRIGE: str = "corrige"
 CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 
-# Na Task: a trilha que ela percorre. A leve serve a tarefa trivial, só texto,
-# comentário ou documentação: pula o teste do executor frio, roda em Sonnet e
-# vai ao revisor Sonnet. Ausente vale como completa, que é a trilha de sempre.
+# Na Task: a trilha que ela percorria na orquestração por LLM (até a fase 1). A
+# leve servia a tarefa trivial, só texto, comentário ou documentação: rodava em
+# Sonnet e ia ao revisor Sonnet. Ausente vale como completa.
 CAMPO_TRILHA: str = "trilha"
 TRILHA_LEVE: str = "leve"
 TRILHA_COMPLETA: str = "completa"
@@ -56,8 +56,8 @@ CAMPO_VEREDITO: str = "veredito"
 VEREDITO_APROVADO: str = "aprovado"
 VEREDITO_REJEITADO: str = "rejeitado"
 
-# Na Evidence do revisor Sonnet, quando o diff de uma Task da trilha leve muda
-# comportamento: ele não julga, e a Task vai ao revisor Opus. Fica fora de
+# Na Evidence do revisor Sonnet da orquestração por LLM, quando o diff de uma
+# Task da trilha leve mudava comportamento: ele não julgava, e a Task ia ao Opus. Fica fora de
 # `veredito` de propósito, para não virar o veredito vigente da tarefa nem
 # entrar na contagem de aprovações e rejeições da medição.
 CAMPO_TRIAGEM: str = "triagem"

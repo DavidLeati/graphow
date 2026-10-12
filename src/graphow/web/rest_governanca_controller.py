@@ -121,7 +121,7 @@ class GovernancaWebController:
         return RespostaHttpWeb(corpo)
 
     def liberar_posse(self, id_task: str, ramo_id: str = "main") -> RespostaHttpWeb:
-        """Libera o lock da Task de qualquer dono: é o gesto humano que destrava o subagente que não voltou."""
+        """Libera o lock da Task de qualquer dono: é o gesto humano que destrava a sessão que não voltou."""
         no = self._kernel.obter_estado(ramo_id).nos.get(id_task)
         if no is None or no.tipo != TipoNo.TASK:
             return _nao_encontrado(f"Task '{id_task}' nao encontrada neste ramo")

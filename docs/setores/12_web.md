@@ -517,7 +517,7 @@ Controlador REST da governança: o que a tela de configurações lê e o que o h
 - `gravar_global(req: RequisicaoGovernanca) -> RespostaHttpWeb` — Grava a política global; a personalizada é mesclada na guardada e nunca apagada.
 - `gravar_projeto(id_projeto: str, req: RequisicaoGovernanca) -> RespostaHttpWeb` — Grava a política do Projeto e, no mesmo lote, as propriedades operacionais.
 - `obter_auditoria(limite: int, ramo_id: str) -> RespostaHttpWeb` — Os eventos que o árbitro escreveu, os mais recentes primeiro, cortados no limite.
-- `liberar_posse(id_task: str, ramo_id: str) -> RespostaHttpWeb` — Libera o lock da Task de qualquer dono: é o gesto humano que destrava o subagente que não voltou.
+- `liberar_posse(id_task: str, ramo_id: str) -> RespostaHttpWeb` — Libera o lock da Task de qualquer dono: é o gesto humano que destrava a sessão que não voltou.
 
 ## `web/rest_lineage_controller.py`
 

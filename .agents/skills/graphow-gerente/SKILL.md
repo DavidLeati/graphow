@@ -78,11 +78,11 @@ O humano muda o valor na aba Configurações do `graphow web`, no Projeto.
 
 **O que gravar**, com os nós produzidos pela Sessao em que você está (aresta `produz`, o id está na vista que o hook imprimiu):
 
-- o `Goal`, com `descricao` nas propriedades. Ele entra na hierarquia pela Sessao que o produz, e a Sessao pelo Setor que a contém: para um projeto grande, com Setor próprio, crie o Setor e uma Sessao dentro dele antes dos Goals. O Goal não leva `criterios_aceite` nem `fora_do_escopo` em prosa: duas fontes divergem, e a vista do executor só mostra do Goal o rótulo;
+- o `Goal`, com `descricao` nas propriedades. Ele entra na hierarquia pela Sessao que o produz, e a Sessao pelo Setor que a contém: para um projeto grande, com Setor próprio, crie o Setor e uma Sessao dentro dele antes dos Goals. O Goal não leva `criterios_aceite` nem `fora_do_escopo` em prosa: duas fontes divergem, e o orquestrador monta a spec do Goal a partir dos nós, não da prosa;
 - cada critério de aceite numa `Constraint` própria com `tipo: criterio_aceite` e `escopa` para o Goal. O rótulo é o critério por extenso, verificável, e o id do nó é o que a Task emergente cita em `atende_criterio` (de preferência um id legível, como `crit-<goal>-1`);
 - o fora do escopo em UMA `Constraint` com `tipo: fronteira` e `escopa` para o Goal: o rótulo resume a fronteira e a propriedade `itens` lista, item a item, o que ficou de fora e por quê;
 - cada outra `Constraint` (restrição técnica, de segurança ou de negócio, sem `tipo`) com `escopa` para o Goal;
-- cada `Decision` com `orienta` para o Goal, para descer a toda a decomposição, e o motivo na propriedade `motivo`. A vista do executor mostra do Goal só o rótulo: o que ele precisa saber chega pela Decision que orienta o Goal, não pela conversa;
+- cada `Decision` com `orienta` para o Goal, para descer a toda a decomposição, e o motivo na propriedade `motivo`. O que o planejador e o executor do orquestrador precisam saber chega pela Decision, que vai inteira, com o motivo, na spec que o orquestrador monta, e não pela conversa;
 - cada `Evidence` que sustenta uma decisão, com `justifica` para a Decision. Ela diz de onde veio o fato: `fonte` (o chamado, a URL, a reunião com data e participantes), `local` opcional (a interação, a página, o minuto) e o `trecho` literal; num arquivo com linhas, `arquivo`, `linhas` e `trecho`. Grave sempre o trecho: é ele que dá à Evidence autoridade de fato registrado, e a que cita `local` ou `linhas` sem ele o kernel recusa com `evidencia_sem_localizacao`;
 - o que ficou em aberto, na propriedade `em_aberto` do Goal.
 
@@ -129,7 +129,7 @@ Com o Goal gravado e sem pendência que impeça começar, pergunte se segue para
 
     graphow orquestrar --goal <id-do-goal> --repo <pasta-do-repositorio>
 
-O orquestrador é código. Ele monta a spec a partir do Goal e do que você gravou (os critérios de aceite, a fronteira, as restrições e as Decisions, com o texto inteiro e o motivo), e roda o planejador, um executor por fatia e o verificador adversarial, cada um numa sessão `claude -p` nova, numa branch só do Goal. No modo supervisionado, o padrão, ele para com o plano esperando aprovação (`--aprovar-plano`, ou o gesto `aprovar_plano`) e para de novo com "pronto para integrar"; com `--modo autonomo` ele segue direto e integra por fast-forward na base. `--status` mostra onde o Goal está e quanto as sessões custaram, e `--orcamento-usd` põe o teto de custo do Goal. Se o humano preferir, ofereça rodar em segundo plano e acompanhe pelo `--status`. Cada sessão custa dinheiro: rode só com o sim dele.
+O orquestrador é código. Ele monta a spec a partir do Goal e do que você gravou (os critérios de aceite, a fronteira, as restrições e as Decisions, com o texto inteiro e o motivo), e roda o planejador, um executor por fatia e o verificador adversarial, cada um numa sessão `claude -p` nova, numa branch só do Goal. No modo supervisionado, o padrão, ele para com o plano esperando aprovação (`graphow orquestrar --goal <id> --aprovar-plano`, que grava a aprovação do humano no Goal; o gesto `aprovar_plano` do MCP é o do escopo governado e não destrava o laço) e para de novo com "pronto para integrar"; com `--modo autonomo` ele segue direto e integra por fast-forward na base. `--status` mostra onde o Goal está e quanto as sessões custaram, e `--orcamento-usd` põe o teto de custo do Goal. Se o humano preferir, ofereça rodar em segundo plano e acompanhe pelo `--status`. Cada sessão custa dinheiro: rode só com o sim dele.
 
 A dúvida de um executor vira Question no grafo e pausa só aquela fatia. Leve-a ao humano; com a resposta gravada (`responder_questao`), rodar de novo retoma a fatia com a resposta no briefing.
 
@@ -143,11 +143,11 @@ As Notes com `acao: proposta_fora_do_goal` que a orquestração anterior gravava
 
 ## 7. Revisar a entrega
 
-Quando o Goal fechar, ou quando o humano pedir, compare o que foi entregue com as Decisions, as Constraints e os critérios de aceite do Goal. Aponte cada divergência e o impacto dela. Não reabra uma decisão fechada sem motivo novo. Se a demanda veio de um solicitante, prepare a resposta de encerramento. Enviá-la é um gesto no mundo: quando ele fizer parte do Goal, é uma `Task` de `entrega: acao_externa`, que a política (`acao_externa`) deixa com o humano ou entrega ao executor.
+Quando o Goal fechar, ou quando o humano pedir, compare o que foi entregue com as Decisions, as Constraints e os critérios de aceite do Goal. Aponte cada divergência e o impacto dela. Não reabra uma decisão fechada sem motivo novo. Se a demanda veio de um solicitante, prepare a resposta de encerramento. Enviá-la é um gesto no mundo, e é do humano: o `graphow orquestrar` não faz ação externa, e desde a fase 1 nenhum agente roda a `Task` de `entrega: acao_externa`.
 
 ## Limites
 
-- Não envie nada nem acione pessoa ou ferramenta fora do grafo sem autorização. Você redige; enviar é do humano, ou da `Task` de ação externa quando a política a entrega ao executor. Nunca diga que enviou.
+- Não envie nada nem acione pessoa ou ferramenta fora do grafo sem autorização. Você redige; enviar é do humano. Nunca diga que enviou.
 - Não altere sistemas, bancos, documentos ou código quando o pedido for analisar ou definir. Executar é da orquestração.
 - Não grave credenciais nem copie conversas inteiras para o grafo. Registre decisões e o motivo delas.
 - Não configure a governança nem mude `gravacao_do_gerente` por conta própria: são do humano, pela aba Configurações.

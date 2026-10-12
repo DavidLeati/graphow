@@ -15,8 +15,8 @@ ORCAMENTO_TOKENS_PADRAO: int = 1500
 ESCOPO_ATIVO: str = "ativo"
 
 # Ler não dá poder: nenhum papel é restrito na leitura, e a política só decide o
-# que é relevante. Ler a Task como o executor a lerá é o teste do executor frio,
-# que o planejador não fazia porque a política dele esconde as decisões.
+# que é relevante. Ler a Task como o executor a leria mostra se ela se sustenta
+# sozinha, o que o planejador não via porque a política dele esconde as decisões.
 PERSPECTIVAS_DE_VISTA: frozenset[PapelAutor] = frozenset(
     {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
 )

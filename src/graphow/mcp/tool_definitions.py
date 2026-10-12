@@ -13,7 +13,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "orcamento_tokens": {"type": "integer", "default": 1500, "description": "Limite máximo de tokens da vista."},
                 "escopo": {"type": "string", "enum": ["tudo", "ativo"], "default": "tudo", "description": "'ativo' poda a navegação para o que está perto de trabalho não concluído. O padrão é 'tudo': Decision e Evidence são a memória que evita re-decidir, e escondê-las por default custa mais do que economiza."},
                 "raio_do_escopo": {"type": "integer", "default": 1, "description": "Saltos a partir do trabalho aberto quando escopo='ativo'. Acima de 1 o recorte cresce rápido."},
-                "perspectiva": {"type": "string", "enum": ["planejador", "executor", "revisor"], "description": "Lê o alvo como esse papel o lê; omitida, vale o papel da sessão. É o teste do executor frio: antes de despachar uma Task, leia-a com perspectiva='executor' e pergunte se quem nunca viu a conversa a executaria só com aquilo."},
+                "perspectiva": {"type": "string", "enum": ["planejador", "executor", "revisor"], "description": "Lê o alvo como esse papel o lê; omitida, vale o papel da sessão. Lida com perspectiva='executor', a Task mostra se quem nunca viu a conversa a executaria só com aquilo."},
             },
             "required": ["id_alvo"],
         },
@@ -95,7 +95,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
     },
     {
         "name": "liberar_tarefa",
-        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado. Libere antes de terminar: a posse de um subagente que acabou sem liberar trava a tarefa até quem pode devolver a posse de outro autor por esta mesma ferramenta: o humano, ou o árbitro quando a política do projeto lhe entrega o gesto liberar_posse_alheia.",
+        "description": "Devolve a posse de uma Task assumida por esta sessão, sem alterar o status registrado. Libere antes de terminar: a posse de uma sessão que acabou sem liberar trava a tarefa até quem pode devolver a posse de outro autor por esta mesma ferramenta: o humano, ou o árbitro quando a política do projeto lhe entrega o gesto liberar_posse_alheia.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -192,7 +192,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "depende_de": {"type": "string", "description": "ID de Task pré-requisito (depende_de)."},
                 "modelo": {"type": "string", "description": "Modelo que deve executar a tarefa, como 'sonnet' ou 'opus'. Exige motivo_modelo: a escolha fica auditável no log."},
                 "motivo_modelo": {"type": "string", "description": "Por que este modelo: julgamento de domínio, mudança que atravessa várias partes do trabalho, tarefa que já falhou uma revisão."},
-                "trilha": {"type": "string", "enum": ["leve", "completa"], "description": "Trilha da tarefa. 'leve' só para tarefa trivial de texto (redação, revisão de texto, comentário ou documentação), sem mudança com efeito em código, dado ou configuração: pula o teste do executor frio e vai ao revisor Sonnet. Recusada com modelo opus. Ausente vale 'completa'."},
+                "trilha": {"type": "string", "enum": ["leve", "completa"], "description": "Trilha da tarefa. 'leve' marca a tarefa trivial de texto (redação, revisão de texto, comentário ou documentação), sem mudança com efeito em código, dado ou configuração, que a orquestração por LLM (até a fase 1) revisava em Sonnet. Recusada com modelo opus. Ausente vale 'completa'."},
                 "entrega": {"type": "string", "enum": ["artefato", "acao_externa"], "description": "O que a tarefa entrega. 'artefato' (padrão): arquivo, documento ou dado. 'acao_externa': um gesto no mundo que não deixa arquivo, como enviar um e-mail ou marcar uma reunião; o gesto acao_externa da política decide se é do humano (padrão) ou do executor, e a prova vai numa Evidence com fonte e resultado."},
                 "arquivos_alvo": {"type": "array", "items": {"type": "string"}, "description": "Arquivos que a tarefa vai tocar, relativos à raiz do trabalho (código, documentos, planilhas). Só rodam em paralelo tarefas com arquivos_alvo disjuntos; a de ação externa não leva."},
                 "decisoes": {"type": "array", "items": {"type": "string"}, "description": "IDs das Decision que valem para esta tarefa. Cada uma ganha a aresta orienta, que é por onde o executor as encontra."},

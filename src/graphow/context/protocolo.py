@@ -66,6 +66,7 @@ PASSOS_DO_PROTOCOLO: tuple[str, ...] = (
 PASSO_DO_BANCO: str = "Nao edite o banco por fora: toda escrita passa pelas ferramentas."
 GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA: str = "Promover aprendizado e encerrar a sessao sao gestos humanos"
 FECHO_DO_PASSO_DE_GOVERNANCA: str = "o hook de fim encerra esta."
+SEM_ARBITRO_EM_EXECUCAO: str = "nenhum agente roda com esse papel desde a fase 1: na pratica, ficam com a sessao humana"
 
 
 def montar_protocolo(
@@ -99,17 +100,18 @@ def _passo_de_governanca(politica: PoliticaGovernanca) -> str:
     """O passo do banco e dos gestos de governança, derivado da política efetiva do projeto.
 
     Em governança máxima fica o texto que sempre disse que promover aprendizado e
-    encerrar a sessão são do humano. Fora dela, lista numa linha o que está com o
-    árbitro e o que segue humano, para o agente não tentar o gesto que a política
-    lhe nega nem pedir ao humano o que o árbitro decide.
+    encerrar a sessão são do humano. Fora dela, lista numa linha o que a política
+    entrega ao papel árbitro e o que segue humano, e diz que nenhum agente roda
+    com esse papel desde a fase 1: o que a política lhe entrega fica, na prática,
+    com a sessão humana, e o texto não promete um árbitro que decida.
     """
     if esta_toda_com_o_humano(politica):
         return f"{PASSO_DO_BANCO} {GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA}; {FECHO_DO_PASSO_DE_GOVERNANCA}"
-    com_arbitro = ", ".join(gesto.value for gesto in gestos_com_o_arbitro(politica)) or "nenhum"
+    com_arbitro = ", ".join(gesto.value for gesto in gestos_com_o_arbitro(politica)) or "nenhum gesto"
     humanos = ", ".join((SEMPRE_HUMANOS, *(gesto.value for gesto in gestos_com_o_humano(politica))))
     return (
-        f"{PASSO_DO_BANCO} Governanca {nome_do_preset(politica)}: gestos com o arbitro: {com_arbitro}. "
-        f"Seguem humanos: {humanos}; {FECHO_DO_PASSO_DE_GOVERNANCA}"
+        f"{PASSO_DO_BANCO} Governanca {nome_do_preset(politica)}: a politica entrega ao papel arbitro {com_arbitro} "
+        f"({SEM_ARBITRO_EM_EXECUCAO}). Seguem humanos: {humanos}; {FECHO_DO_PASSO_DE_GOVERNANCA}"
     )
 
 

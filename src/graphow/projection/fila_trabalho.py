@@ -87,11 +87,11 @@ class TarefaImpedida:
 class TarefaExecutavel:
     """Tarefa liberada para trabalho, com o que o agente precisa para decidir.
 
-    Modelo e arquivos-alvo vêm junto porque é com eles que o orquestrador
-    despacha: qual executor chamar, e o que pode rodar em paralelo sem dois
-    agentes editando o mesmo arquivo. A trilha diz se a tarefa pula o teste do
-    executor frio e vai ao revisor Sonnet; a Task sem ela vem como completa,
-    para quem despacha não tratar ausência como caso à parte; a entrega, pelo
+    Modelo e arquivos-alvo vêm junto porque eram com eles que a orquestração
+    por LLM (até a fase 1) despachava: qual executor chamar, e o que podia rodar
+    em paralelo sem dois agentes editando o mesmo arquivo. A trilha diz se a
+    tarefa é a leve, de texto; a Task sem ela vem como completa, para quem lê
+    a fila não tratar ausência como caso à parte; a entrega, pelo
     mesmo motivo, vem como `artefato` quando falta, e `acao_externa` diz que a
     tarefa é um gesto no mundo, que a política reserva ao humano ou entrega ao
     executor. A profundidade da correção diz quantas

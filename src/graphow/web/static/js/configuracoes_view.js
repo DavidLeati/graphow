@@ -57,7 +57,7 @@ export class ConfiguracoesView {
       <div class="ferramenta mod-configuracoes">
         <div class="ferramenta-cabecalho">
           <h2>${icone("settings", { tamanho: 18 })} Configurações</h2>
-          <p class="texto-fraco">Quem decide cada gesto: o humano ou o árbitro. A configuração global vale para todo projeto; cada projeto pode herdá-la ou sobrescrevê-la.</p>
+          <p class="texto-fraco">Quem decide cada gesto: o humano ou o árbitro. A configuração global vale para todo projeto; cada projeto pode herdá-la ou sobrescrevê-la. Desde a fase 1 nenhum agente roda com o papel árbitro, e o <code>graphow orquestrar</code> não lê esta política: ele para nos portões fixos do laço.</p>
         </div>
         <div class="ferramenta-controles">
           <label class="campo-compacto"><span>Escopo</span><select class="seletor" data-escopo></select></label>

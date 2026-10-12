@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-21 módulos · 2820 linhas · 32 classes
+21 módulos · 2822 linhas · 32 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -26,7 +26,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 347 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/propostas_fora_do_goal.py`](#contextpropostasforadogoal) | 65 | A seção de propostas fora do Goal, só na vista do humano. |
-| [`context/protocolo.py`](#contextprotocolo) | 127 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
+| [`context/protocolo.py`](#contextprotocolo) | 129 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
 | [`context/restricoes_de_escopo.py`](#contextrestricoesdeescopo) | 56 | A restrição como a vista a mostra: com o id, o `tipo` e os critérios de aceite à frente. |
 | [`context/secoes.py`](#contextsecoes) | 280 | Seções que compõem uma vista de contexto e sua ordem de descarte. |
@@ -380,6 +380,7 @@ O protocolo da memória dito ao agente: o mesmo texto no hook de início e no ap
 | `PASSO_DO_BANCO` | `str` | `'Nao edite o banco por fora: toda escrita passa pelas ferramentas.'` |
 | `GESTOS_HUMANOS_NA_GOVERNANCA_MAXIMA` | `str` | `'Promover aprendizado e encerrar a sessao sao gestos humanos'` |
 | `FECHO_DO_PASSO_DE_GOVERNANCA` | `str` | `'o hook de fim encerra esta.'` |
+| `SEM_ARBITRO_EM_EXECUCAO` | `str` | `'nenhum agente roda com esse papel desde a fase 1: na pratica, ficam co…` |
 
 ### Funções do módulo
 

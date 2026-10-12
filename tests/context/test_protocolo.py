@@ -94,7 +94,8 @@ def test_personalizada_separa_o_que_e_do_arbitro_do_que_segue_humano_nominal() -
     do_arbitro, humanos = passo.split("Seguem humanos:")
 
     assert "Governanca personalizada" in passo
-    assert "gestos com o arbitro: excluir." in do_arbitro
+    assert "a politica entrega ao papel arbitro excluir (" in do_arbitro
+    assert "nenhum agente roda com esse papel desde a fase 1" in do_arbitro
     assert "promover_aprendizado" in humanos
     assert "encerrar_sessao" in humanos
     assert "excluir" not in humanos
@@ -106,7 +107,7 @@ def test_politica_sem_gesto_do_arbitro_diz_nenhum_edge_case() -> None:
 
     passo = montar_protocolo(politica=politica)[-1]
 
-    assert "gestos com o arbitro: nenhum." in passo
+    assert "a politica entrega ao papel arbitro nenhum gesto (" in passo
 
 
 def test_protocolo_com_governanca_e_ascii_edge_case() -> None:

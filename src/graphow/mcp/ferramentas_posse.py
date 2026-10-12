@@ -140,9 +140,9 @@ class FerramentasPosse:
         """Devolve o lock da Task, deixando o status como está.
 
         O humano devolve a posse de qualquer um, e o árbitro também quando a
-        política do projeto lhe entrega `liberar_posse_alheia`. Um subagente que morre sem
+        política do projeto lhe entrega `liberar_posse_alheia`. Uma sessão que morre sem
         liberar deixa a tarefa presa a um autor que não volta mais. Se a
-        revisão já aprovou a tarefa, o executor que vem fechá-la a retoma em
+        revisão já aprovou a tarefa, o agente que vem fechá-la a retoma em
         `assumir_tarefa`; fora disso nenhum agente a tira dali, só o dono do
         grafo.
         """
