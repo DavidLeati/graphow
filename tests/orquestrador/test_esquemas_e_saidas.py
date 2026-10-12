@@ -1,6 +1,7 @@
 """Os schemas dos papéis, a validação em código e a conferência de sentido de cada saída."""
 
 import copy
+import json
 from pathlib import Path
 import tomllib
 from typing import Any
@@ -15,6 +16,7 @@ from graphow.orquestrador.esquemas import (
     PAPEIS,
     caminho_do_prompt,
 )
+from graphow.orquestrador.comandos_do_stream import chamadas_bash
 from graphow.orquestrador.saida_do_verificador import Verificacao, conferir_verificacao
 from graphow.orquestrador.saidas import (
     IdsFixados,
@@ -44,7 +46,6 @@ PLANO: dict[str, Any] = {
 }
 VERIFICACAO: dict[str, Any] = {
     "resumo": "suite verde, programa rodado",
-    "comandos": [{"comando": "python -m pytest -q", "codigo": 0, "saida": "2 passed"}],
     "criterios": [{"id": "C1", "veredito": "atende", "prova": "pytest 2 passed"},
                   {"id": "C2", "veredito": "parcial", "prova": "README sem exemplo"}],
     "decisoes": [{"id": "D1", "veredito": "atende", "prova": "sem import externo"}],
@@ -142,13 +143,12 @@ def test_verificacao_sem_parecer_de_um_criterio_e_recusada_edge_case() -> None:
 @pytest.mark.parametrize(
     ("trocas", "trecho"),
     [
-        ({"comandos": []}, "$.comandos: precisa de ao menos 1"),
         ({"criterios": [{"id": "C1", "veredito": "atende", "prova": "."}]}, "$.criterios[0].prova"),
-        ({"comandos": [{"comando": "pytest", "codigo": "zero", "saida": "ok"}]}, "$.comandos[0].codigo"),
+        ({"comandos": [{"comando": "pytest", "codigo": 0, "saida": "ok"}]}, "$: campo nao previsto 'comandos'"),
     ],
 )
-def test_verificacao_sem_comando_ou_com_prova_vazia_nao_confere_edge_case(trocas: dict[str, Any], trecho: str) -> None:
-    """Caso de borda: sem comando rodado, com prova "." ou com código que não é número, a verificação volta."""
+def test_verificacao_com_prova_vazia_ou_que_declara_comandos_nao_confere_edge_case(trocas: dict[str, Any], trecho: str) -> None:
+    """Caso de borda: a prova "." volta, e o verificador não declara mais `comandos`: eles vêm do stream (F)."""
     problemas = validar_contra_esquema({**copy.deepcopy(VERIFICACAO), **trocas}, ESQUEMA_DA_VERIFICACAO)
 
     assert any(problema.startswith(trecho) for problema in problemas), problemas
@@ -163,13 +163,20 @@ def test_prova_curta_diz_que_e_curta_e_nao_vazia_edge_case() -> None:
     assert "$.criterios[0].prova: texto curto demais (1 caractere(s); o minimo e 10)" in problemas
 
 
-def test_conferencia_recusa_a_verificacao_sem_comandos_mesmo_fora_do_schema_edge_case() -> None:
-    """Caso de borda: a leitura tolera a falta de `comandos`, e a conferência a recusa."""
-    dados = {chave: valor for chave, valor in copy.deepcopy(VERIFICACAO).items() if chave != "comandos"}
+def test_chamadas_bash_saem_do_stream_com_o_codigo_e_o_trecho_da_saida_nominal(tmp_path: Path) -> None:
+    """F: o comando, o código (do `Exit code N` do erro; zero sem erro) e o fim da saída de cada chamada Bash do stream."""
+    stream = tmp_path / "verificador.jsonl"
+    chamadas = [{"type": "tool_use", "id": f"t{n}", "name": "Bash", "input": {"command": c}}
+                for n, c in enumerate(("python -m unittest", "python cli.py media"))]
+    resultados = [{"type": "tool_result", "tool_use_id": "t0", "content": "Ran 3 tests\r\nOK", "is_error": False},
+                  {"type": "tool_result", "tool_use_id": "t1", "content": "Exit code 2\nlista vazia", "is_error": True}]
+    linhas = [{"type": "assistant", "message": {"content": chamadas}}, {"type": "user", "message": {"content": resultados}}]
+    stream.write_text("\n".join(json.dumps(linha) for linha in linhas) + "\n", encoding="utf-8")
 
-    problemas = conferir_verificacao(Verificacao.de_json(dados), ("C1", "C2"), ("D1",))
+    lidas = chamadas_bash([stream])
 
-    assert "a verificacao nao lista nenhum comando rodado em 'comandos'" in problemas
+    assert [(c.comando, c.codigo, c.saida) for c in lidas] == [("python -m unittest", 0, "Ran 3 tests\nOK"),
+                                                               ("python cli.py media", 2, "lista vazia")]
 
 
 @pytest.mark.parametrize("papel", PAPEIS)

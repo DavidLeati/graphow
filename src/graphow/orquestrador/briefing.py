@@ -254,9 +254,9 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
         "Devolva a verificacao no JSON do schema, com um parecer para cada criterio que esta verificacao julga "
         + ("e para cada decisao" if marco.final else "(e para as decisoes que o marco toca)")
-        + " e, em `comandos`, cada comando que rodou, copiado como o mandou ao Bash, com o codigo de saida e um trecho "
-        "do que ele imprimiu: o orquestrador confere cada um contra as chamadas Bash desta sessao. Depois de voce, ele "
-        "roda a suite nesse commit: suite vermelha reprova a entrega.",
+        + ". O orquestrador grava as chamadas Bash desta sessao, com o codigo de saida e um trecho da saida: na prova, "
+        "cite o comando que rodou e o que ele mostrou. Depois de voce, ele roda a suite nesse commit: suite vermelha "
+        "reprova a entrega.",
     ])
 
 

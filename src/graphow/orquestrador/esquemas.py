@@ -133,7 +133,6 @@ ESQUEMA_DA_EXECUCAO_AUTONOMA: dict[str, Any] = {
 PARECER: dict[str, Any] = _objeto(
     {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": PROVA}
 )
-COMANDO_RODADO: dict[str, Any] = _objeto({"comando": TEXTO, "codigo": {"type": "integer"}, "saida": TEXTO})
 # A gravidade não vem do verificador: o código a decide pelo que o achado toca
 # (orquestrador/saida_do_verificador.py). A severidade é a opinião dele, informativa.
 ACHADO: dict[str, Any] = _objeto(
@@ -147,10 +146,10 @@ ACHADO: dict[str, Any] = _objeto(
         "severidade": {"type": "string", "enum": list(SEVERIDADES)},
     }
 )
+# O verificador não declara mais os comandos: o orquestrador os tira do stream (orquestrador/comandos_do_stream.py).
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
     {
         "resumo": TEXTO,
-        "comandos": _lista_de(COMANDO_RODADO, 1),
         "criterios": _lista_de(PARECER, 1),
         "decisoes": _lista_de(PARECER),
         "achados": _lista_de(ACHADO),

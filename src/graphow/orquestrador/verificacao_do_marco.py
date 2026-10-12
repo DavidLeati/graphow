@@ -4,8 +4,8 @@ Ao fim de cada marco, com as fatias dele concluídas, uma sessão nova do
 verificador confere a entrega no commit atual: julga os critérios que o marco
 completou (no último marco, a verificação final, todos os critérios e todas as
 decisões, sobre o Goal inteiro), roda a suíte e o programa e sonda as bordas.
-Lista os comandos que rodou, e cada um tem de aparecer nas chamadas Bash do
-stream da sessão. Depois o próprio orquestrador roda nesse commit a suíte do
+Os comandos que ele rodou o orquestrador tira do stream da sessão, com o
+código de saída e um trecho da saída, e grava na verificação. Depois o próprio orquestrador roda nesse commit a suíte do
 plano (sem os testes de aceite) e os testes de aceite dos critérios que os
 marcos até este completaram (os dos marcos anteriores, como regressão; na
 final, também o comando de todos e, num comando só, a suíte com todos os
@@ -45,7 +45,8 @@ from graphow.orquestrador.saida_do_aceite import (
     rodar_o_comando_de_aceite,
     rodar_testes,
 )
-from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, Verificacao, conferir_verificacao
+from graphow.orquestrador.comandos_do_stream import chamadas_bash
+from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, ComandoRodado, Verificacao, conferir_verificacao
 from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
@@ -65,8 +66,9 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
-    verificacao = com_a_segunda_opiniao(contexto, _so_o_que_o_marco_julga(Verificacao.de_json(dados), estado, marco),
-                                        textos=_textos_julgaveis(estado, marco))
+    dados, chamadas = dados
+    julgada = replace(_so_o_que_o_marco_julga(Verificacao.de_json(dados), estado, marco), comandos=chamadas)
+    verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
     execucoes, trocados = _aceite_no_commit(contexto, estado, marco)
@@ -168,8 +170,13 @@ def nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
 
 def _sessao_do_verificador(
     contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str
-) -> Mapping[str, Any] | Parada:
-    """A saída conferida do verificador, que roda numa sessão nova e não deixa mudança na área; ou a parada."""
+) -> tuple[Mapping[str, Any], tuple[ComandoRodado, ...]] | Parada:
+    """A saída conferida do verificador e as chamadas Bash que o stream dele mostra; ou a parada.
+
+    A sessão roda num contexto novo e não deixa mudança na área. Os comandos
+    da verificação saem do stream, com o código e o trecho da saída: o
+    verificador não os declara, e nada volta a ele por isso.
+    """
     decisoes = decisoes_do_plano(estado)
     exigidas = decisoes if marco.final else ()
     conhecidos = criterios_ate_o_marco(estado, marco)
@@ -181,14 +188,14 @@ def _sessao_do_verificador(
             conferir=lambda dados: conferir_verificacao(
                 Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes)
             ),
-            comandos_declarados=lambda dados: [str(comando.get("comando", "")) for comando in dados.get("comandos", [])],
-            orcamento_restante_usd=contexto.restante(),
+            orcamento_restante_usd=contexto.restante(), exige_bash=True,
         )
     )
     descartar_mudancas(contexto.area, contexto.patch(f"verificador-{numero}"))
     if resposta.dados is None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, "A verificacao nao conferiu: " + "; ".join(resposta.problemas))
-    return resposta.dados
+    chamadas = chamadas_bash(resultado.arquivo_stream for resultado in resposta.resultados)
+    return resposta.dados, tuple(ComandoRodado(c.comando, c.codigo, c.saida) for c in chamadas)
 
 
 def _pendencias_depois(

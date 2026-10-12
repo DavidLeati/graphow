@@ -55,13 +55,12 @@ def verificacao(c2: str = "atende", achados: list[dict[str, Any]] | None = None)
     """Uma resposta de verificador com o parecer de C2 dado."""
     saida = {
         "resumo": "suite verde e programa rodado",
-        "comandos": [{"comando": "python verificar.py", "codigo": 0, "saida": "ok"}],
         "criterios": [{"id": "C1", "veredito": "atende", "prova": "verificar.py: ok"},
                       {"id": "C2", "veredito": c2, "prova": "README lido"}],
         "decisoes": [{"id": "D1", "veredito": "atende", "prova": "sem import externo"}],
         "achados": achados or [],
     }
-    return {"saida": saida, "custo": 0.5}
+    return {"saida": saida, "custo": 0.5, "bash": ["python verificar.py"]}
 
 
 BLOQUEANTE_DO_README: dict[str, Any] = {

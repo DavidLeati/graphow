@@ -169,7 +169,7 @@ def _lados(id_parecer: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 def conferir_verificacao(
     verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str], *, conhecidos: Sequence[str] | None = None
 ) -> tuple[str, ...]:
-    """Um parecer por critério e por decisão pedidos, achado que toca só o que pode tocar e ao menos um comando rodado.
+    """Um parecer por critério e por decisão pedidos e achado que toca só o que pode tocar (os comandos vêm do stream).
 
     O que o achado pode tocar é o que a verificação julga, ou, quando dito, os
     critérios já entregues e as decisões (`conhecidos`).
@@ -178,7 +178,6 @@ def conferir_verificacao(
     dadas = [parecer.id for parecer in verificacao.decisoes]
     tocaveis = set(conhecidos) if conhecidos is not None else {*criterios, *decisoes}
     return (
-        *(() if verificacao.comandos else ("a verificacao nao lista nenhum comando rodado em 'comandos'",)),
         *(f"falta o parecer do criterio {id_c}" for id_c in criterios if id_c not in dados),
         *(f"falta o parecer da decisao {id_d}" for id_d in decisoes if id_d not in dadas),
         *(f"parecer {id_p} repetido" for id_p in sorted({i for i in dados + dadas if (dados + dadas).count(i) > 1})),

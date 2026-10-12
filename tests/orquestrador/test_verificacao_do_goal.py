@@ -63,27 +63,26 @@ def test_verificacao_com_prova_vazia_nao_fecha_o_goal_edge_case(tmp_path: Path) 
     roteiro = roteiro_farto()
     vazia = verificacao("atende")
     vazia["saida"]["criterios"] = [{**parecer, "prova": "."} for parecer in vazia["saida"]["criterios"]]
-    vazia["saida"]["comandos"] = []
     roteiro["verificador"] = [copy.deepcopy(vazia), copy.deepcopy(vazia)]
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     assert parada.motivo == MotivoDaParada.FALHA
-    assert "A verificacao nao conferiu" in parada.mensagem and "comandos" in parada.mensagem
+    assert "A verificacao nao conferiu" in parada.mensagem and "prova" in parada.mensagem
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and not estado.fechado and estado.verificacoes == ()
 
 
 def _mentirosa() -> dict[str, Any]:
-    """A verificação que declara `python verificar.py` sem que o stream mostre a chamada."""
+    """A verificação que dá parecer sem ter rodado comando nenhum no Bash."""
     resposta = verificacao("atende")
-    resposta["bash"] = ["ls"]
+    resposta["bash"] = []
     return resposta
 
 
-def test_comando_declarado_que_nao_rodou_volta_a_sessao_e_a_resposta_honesta_fecha_nominal(tmp_path: Path) -> None:
-    """O comando declarado que o stream não mostra volta à mesma sessão; a resposta que o rodou fecha o Goal."""
+def test_verificacao_sem_chamada_bash_volta_a_sessao_e_a_que_rodou_fecha_nominal(tmp_path: Path) -> None:
+    """F: os comandos vêm do stream; a sessão que não rodou nada volta uma vez, e a que rodou fecha com as chamadas gravadas."""
     roteiro = roteiro_farto()
     roteiro["verificador"] = [_mentirosa(), verificacao("atende")]
     bancada = montar_bancada(tmp_path, roteiro)
@@ -93,11 +92,12 @@ def test_comando_declarado_que_nao_rodou_volta_a_sessao_e_a_resposta_honesta_fec
     assert parada.fechou, parada.mensagem
     primeira, segunda = bancada.chamadas("verificador")
     assert "--resume" in segunda["argv"] and "--resume" not in primeira["argv"]
-    assert "nao aparecem nas chamadas Bash" in segunda["stdin"] and "python verificar.py" in segunda["stdin"]
+    assert "a sessao nao rodou nenhum comando no Bash" in segunda["stdin"]
+    assert _evidencia(bancada, 1)["comandos"] == [{"comando": "python verificar.py", "codigo": 0, "saida": "ok"}]
 
 
 def test_verificador_que_insiste_no_comando_que_nao_rodou_nao_fecha_o_goal_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: duas respostas com comando inventado, nenhuma verificação gravada, e a parada diz qual comando."""
+    """Caso de borda: duas respostas sem comando rodado, nenhuma verificação gravada, e a parada diz por quê."""
     roteiro = roteiro_farto()
     roteiro["verificador"] = [_mentirosa(), _mentirosa()]
     bancada = montar_bancada(tmp_path, roteiro)
@@ -105,7 +105,7 @@ def test_verificador_que_insiste_no_comando_que_nao_rodou_nao_fecha_o_goal_edge_
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     assert parada.motivo == MotivoDaParada.FALHA
-    assert "nao aparecem nas chamadas Bash" in parada.mensagem and "`python verificar.py`" in parada.mensagem
+    assert "a sessao nao rodou nenhum comando no Bash" in parada.mensagem
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.verificacoes == ()
 

@@ -32,7 +32,7 @@ import time
 from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
-from graphow.orquestrador.comandos_do_stream import comandos_nao_rodados, problema_dos_comandos
+from graphow.orquestrador.comandos_do_stream import comandos_bash, comandos_nao_rodados, problema_dos_comandos
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_AUTOR_DE_ACEITE,
@@ -113,6 +113,7 @@ class PedidoDePapel:
     comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None = None
     retomadas: int = 1
     esquema: Mapping[str, Any] | None = None
+    exige_bash: bool = False
 
     @property
     def schema(self) -> Mapping[str, Any]:
@@ -207,6 +208,8 @@ class SessoesDePapel:
 def _conferida(pedido: PedidoDePapel, resultados: Sequence[ResultadoDeSessao]) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]:
     """A saída da última invocação conferida e, quando o papel declara comandos, conferida contra o stream da sessão."""
     dados, problemas = ler_saida(resultados[-1], pedido)
+    if dados is not None and pedido.exige_bash and not any(comandos_bash(r.arquivo_stream) for r in resultados):
+        return None, ("a sessao nao rodou nenhum comando no Bash: rode a suite, os testes e o programa de verdade",)
     if dados is None or pedido.comandos_declarados is None:
         return dados, problemas
     faltando = problema_dos_comandos(comandos_nao_rodados(pedido.comandos_declarados(dados), resultados))
