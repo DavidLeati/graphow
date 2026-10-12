@@ -96,6 +96,15 @@ def autor_de_aceite(ja_atendido: str = "", **campos: Any) -> dict[str, Any]:
     return {"saida": saida, "arquivos": {"aceite/aceite_c1.py": ACEITE_C1}, "custo": 0.2, **campos}
 
 
+def revisao(veredito: str = "aprovado", **campos: Any) -> dict[str, Any]:
+    """Uma resposta do revisor da fatia de risco; a rejeição traz um problema que toca C1."""
+    problemas = [] if veredito == "aprovado" else [
+        {"titulo": "somar nao trata negativos", "descricao": "somar(-2, -3) devolve 5",
+         "prova": "python -c 'from soma import somar; print(somar(-2, -3))' imprimiu 5", "local": "soma.py:2",
+         "criterios": ["C1"]}]
+    return {"saida": {"veredito": veredito, "resumo": "diff lido e testes rodados", "problemas": problemas}, "custo": 0.2, **campos}
+
+
 def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
     """Plano, aceite, duas fatias, verificação com bloqueante, correção e verificação limpa."""
     return {
@@ -107,6 +116,7 @@ def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
             executor_pronto({"README.md": "# brinquedo\nUse somar(a, b): somar(2, 3) == 5.\n"}),
         ],
         "verificador": [verificacao("parcial", [BLOQUEANTE_DO_README]), verificacao("atende", [ACOMPANHAMENTO])],
+        "revisor": [revisao() for _ in range(3)],
     }
 
 

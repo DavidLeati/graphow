@@ -30,6 +30,7 @@ from tests.orquestrador.apoio_laco import (
     autor_de_aceite,
     executor_pronto,
     montar_bancada,
+    revisao,
     verificacao,
 )
 
@@ -42,6 +43,7 @@ def roteiro_farto(vezes: int = 6) -> dict[str, list[dict[str, Any]]]:
     return {
         "planejador": [{"saida": copy.deepcopy(PLANO), "custo": 0.4} for _ in range(vezes)],
         "aceite": [autor_de_aceite() for _ in range(vezes)],
+        "revisor": [revisao() for _ in range(vezes)],
         "executor": [executor_pronto(dict(TUDO)) for _ in range(vezes)],
         "verificador": [verificacao("atende") for _ in range(vezes)],
     }

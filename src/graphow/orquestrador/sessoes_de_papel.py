@@ -37,6 +37,7 @@ from graphow.orquestrador.esquemas import (
     PAPEL_AUTOR_DE_ACEITE,
     PAPEL_EXECUTOR,
     PAPEL_PLANEJADOR,
+    PAPEL_REVISOR,
     PAPEL_VERIFICADOR,
     caminho_do_prompt,
 )
@@ -57,6 +58,7 @@ FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"),
     PAPEL_AUTOR_DE_ACEITE: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
     PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
+    PAPEL_REVISOR: ("Bash", "Read", "Glob", "Grep"),
     PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"),
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"

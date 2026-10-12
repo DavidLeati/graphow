@@ -88,6 +88,8 @@ def _operacoes_da_fatia(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar, fatia:
         m.CAMPO_ARQUIVOS_ALVO: list(fatia.arquivos),
         m.CAMPO_MODELO: fatia.modelo,
         m.CAMPO_MARCO: pedido.plano.marco_da_fatia(fatia.id),
+        m.CAMPO_RISCO: fatia.risco,
+        m.CAMPO_MOTIVO_DO_RISCO: fatia.motivo_do_risco,
         m.CAMPO_TENTATIVAS: 0,
         m.CAMPO_CRITERIO_PRONTO: " ".join(f"{c}: {textos.get(c, '')}" for c in fatia.criterios),
     }

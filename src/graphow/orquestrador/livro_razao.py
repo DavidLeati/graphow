@@ -15,17 +15,18 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.core import aceite as a
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
 
 RAMO_PADRAO: str = "main"
+ACAO_DA_REVISAO_DE_RISCO: str = "revisao_de_risco"
 ROTULO_DO_SETOR: str = "Goals orquestrados"
 LIMITE_DO_ROTULO: int = 120
 
@@ -180,6 +181,19 @@ class LivroRazaoDoGoal:
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_PENDENTE),
             ],
             f"Tentativa {tentativa} da fatia {id_task} falhou",
+        )
+
+    def registrar_revisao(self, id_task: str, tentativa: int, *, dados: Mapping[str, Any]) -> None:
+        """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia."""
+        id_evidencia = f"rev-{id_task}-t{tentativa}"
+        veredito = str(dados.get("veredito", ""))
+        propriedades = {"acao": ACAO_DA_REVISAO_DE_RISCO, m.CAMPO_VEREDITO: veredito, "resumo": str(dados.get("resumo", "")),
+                        "problemas": [dict(item) for item in dados.get("problemas", [])], "motivo": str(dados.get("motivo", "")),
+                        "observacao": str(dados.get("observacao", "")), m.CAMPO_TENTATIVAS: tentativa}
+        self.gravar(
+            [*self.produzido(id_evidencia, TipoNo.EVIDENCE, f"Revisao de risco de {id_task}: {veredito}", propriedades=propriedades),
+             aresta(id_evidencia, id_task, TipoAresta.DERIVA_DE)],
+            f"Revisao de risco da fatia {id_task} na tentativa {tentativa}",
         )
 
     def marcar_pendencia(self, id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None:

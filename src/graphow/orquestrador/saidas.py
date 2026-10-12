@@ -58,6 +58,8 @@ class Fatia:
     arquivos: tuple[str, ...] = ()
     depende_de: tuple[str, ...] = ()
     modelo: str = ""
+    risco: bool = False
+    motivo_do_risco: str = ""
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Fatia":
@@ -70,6 +72,8 @@ class Fatia:
             arquivos=_textos(dados.get("arquivos")),
             depende_de=_textos(dados.get("depende_de")),
             modelo=str(dados.get("modelo", "")),
+            risco=dados.get("risco") is True,
+            motivo_do_risco=str(dados.get("motivo_do_risco", "")).strip(),
         )
 
 

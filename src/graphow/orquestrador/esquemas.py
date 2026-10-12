@@ -16,8 +16,10 @@ PAPEL_PLANEJADOR: str = "planejador"
 # O autor de aceite: uma sessão separada do executor, depois do plano, que escreve os testes de aceite.
 PAPEL_AUTOR_DE_ACEITE: str = "aceite"
 PAPEL_EXECUTOR: str = "executor"
+# O revisor da fatia de risco, e só dela: julga o diff antes do commit.
+PAPEL_REVISOR: str = "revisor"
 PAPEL_VERIFICADOR: str = "verificador"
-PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_VERIFICADOR)
+PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_REVISOR, PAPEL_VERIFICADOR)
 # Os prompts de papel moram no pacote e vão à sessão por `--append-system-prompt-file`:
 # nada é instalado em ~/.claude para o orquestrador funcionar.
 PASTA_DOS_PROMPTS: Path = Path(__file__).parent / "prompts"
@@ -66,7 +68,10 @@ FATIA: dict[str, Any] = _objeto(
         "arquivos": LISTA_DE_TEXTOS,
         "depende_de": LISTA_DE_TEXTOS,
         "modelo": {"type": "string", "enum": list(MODELOS_SUGERIDOS)},
-    }
+        "risco": {"type": "boolean"},
+        "motivo_do_risco": TEXTO_LIVRE,
+    },
+    opcionais=("risco", "motivo_do_risco"),
 )
 MARCO: dict[str, Any] = _objeto({"id": TEXTO, "titulo": TEXTO, "fatias": LISTA_DE_TEXTOS})
 ESQUEMA_DO_PLANO: dict[str, Any] = _objeto(
@@ -88,6 +93,14 @@ ACEITE_DO_CRITERIO: dict[str, Any] = _objeto(
 )
 ESQUEMA_DO_ACEITE: dict[str, Any] = _objeto(
     {"resumo": TEXTO, "comando_aceite": TEXTO, "criterios": _lista_de(ACEITE_DO_CRITERIO, 1)}
+)
+
+PROBLEMA_DA_REVISAO: dict[str, Any] = _objeto(
+    {"titulo": TEXTO, "descricao": TEXTO, "prova": PROVA, "local": TEXTO_LIVRE, "criterios": LISTA_DE_TEXTOS}
+)
+ESQUEMA_DA_REVISAO: dict[str, Any] = _objeto(
+    {"veredito": {"type": "string", "enum": ["aprovado", "rejeitado"]}, "resumo": TEXTO,
+     "problemas": _lista_de(PROBLEMA_DA_REVISAO)}
 )
 
 ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
@@ -131,6 +144,7 @@ ESQUEMA_POR_PAPEL: Mapping[str, Mapping[str, Any]] = {
     PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO,
     PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_ACEITE,
     PAPEL_EXECUTOR: ESQUEMA_DA_EXECUCAO,
+    PAPEL_REVISOR: ESQUEMA_DA_REVISAO,
     PAPEL_VERIFICADOR: ESQUEMA_DA_VERIFICACAO,
 }
 

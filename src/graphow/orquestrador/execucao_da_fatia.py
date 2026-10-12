@@ -4,7 +4,8 @@ O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
 trava), recusa a fatia que alterou, apagou ou moveu um teste de aceite, roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
-vermelhos até a fatia que os atende) e só então commita na branch do Goal, com
+vermelhos até a fatia que os atende), passa a fatia de risco pela revisão
+(orquestrador/revisao_da_fatia.py) e só então commita na branch do Goal, com
 a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
 ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
@@ -25,6 +26,7 @@ from graphow.orquestrador.git_do_goal import (
     mensagem_do_orquestrador,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
+from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, de_risco, revisar_fatia
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
@@ -81,10 +83,23 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         return None
     if saida.status != STATUS_PRONTO:
         return _falhou(contexto, tentativa, f"o executor devolveu {saida.status}: {saida.resumo}")
+    problema = _conferir_a_entrega(contexto, tentativa)
+    if isinstance(problema, Parada):
+        return problema
+    if problema:
+        return _falhou(contexto, tentativa, problema)
+    commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
+    contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
+                                  achado=fatia.texto(m.CAMPO_ACHADO))
+    return None
+
+
+def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str | Parada:
+    """Os testes de aceite intocados, a suíte verde sem eles e, na fatia de risco, a revisão; vazio quando tudo passa."""
     estado = contexto.estado()
     mexidos = sorted(set(contexto.git.caminhos_mudados()) & set(estado.arquivos_protegidos()))
     if mexidos:
-        return _falhou(contexto, tentativa, _mexeu_no_aceite(mexidos))
+        return _mexeu_no_aceite(mexidos)
     plano = estado.plano or {}
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(
@@ -92,11 +107,9 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s,
         )
     if not suite.passou:
-        return _falhou(contexto, tentativa, suite.descrever())
-    commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
-    contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
-                                  achado=fatia.texto(m.CAMPO_ACHADO))
-    return None
+        return suite.descrever()
+    motivo = de_risco(tentativa.fatia)
+    return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo)) if motivo else ""
 
 
 def _mexeu_no_aceite(mexidos: list[str]) -> str:

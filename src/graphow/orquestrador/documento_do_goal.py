@@ -59,7 +59,8 @@ def _tabela_do_plano(plano: Plano) -> list[str]:
         "| Fatia | Titulo | Criterios | Depende de | Arquivos |",
         "| :--- | :--- | :--- | :--- | :--- |",
         *(
-            f"| {f.id} | {f.titulo} | {', '.join(f.criterios)} | {', '.join(f.depende_de) or '-'} | {', '.join(f.arquivos) or '-'} |"
+            f"| {f.id} | {f.titulo}{' (risco)' if f.risco else ''} | {', '.join(f.criterios)} | {', '.join(f.depende_de) or '-'} | "
+            f"{', '.join(f.arquivos) or '-'} |"
             for f in plano.fatias
         ),
     ]

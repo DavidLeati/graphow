@@ -125,6 +125,23 @@ def _suite_e_aceite(estado: EstadoDoGoal) -> list[str]:
     return linhas
 
 
+def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str:
+    """O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões e o que mudou."""
+    plano = estado.plano or {}
+    return _juntar([
+        f"# Revisao da fatia de risco {fatia.codigo} do Goal {estado.id_goal}: {fatia.titulo}",
+        "A mudanca da fatia esta na pasta atual, fora de commit: veja com `git status` e `git diff HEAD`.",
+        _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), fatia.texto(m.CAMPO_MOTIVO_DO_RISCO)]),
+        _bloco("Criterios que a fatia cobre, com os testes de aceite que os provam", _criterios_com_aceite(estado, fatia.lista(m.CAMPO_CRITERIOS))),
+        _bloco("Decisoes que o trabalho segue", _decisoes(plano)),
+        _bloco("Arquivos mudados", [f"- {caminho}" for caminho in mudados]),
+        _bloco("Suite e aceite", [f"Suite: `{plano.get('comando_suite', '')}` (ja passou, rodada pelo orquestrador). "
+                                  f"Testes de aceite: `{(estado.aceite or {}).get('comando', '')}`."]),
+        "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
+        "Devolva a revisao no JSON do schema.",
+    ])
+
+
 def briefing_do_autor_de_aceite(estado: EstadoDoGoal) -> str:
     """O pedido ao autor de aceite: a spec, os critérios com o tipo de verificação, as decisões e a suíte."""
     plano, configuracao = estado.plano or {}, estado.configuracao

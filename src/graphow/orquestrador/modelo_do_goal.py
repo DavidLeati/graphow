@@ -58,6 +58,10 @@ CAMPO_ARQUIVOS_ALVO: str = "arquivos_alvo"
 # verificador olha o marco quando todas elas fecham.
 CAMPO_MARCO: str = a.CAMPO_MARCO
 CAMPO_MODELO: str = "modelo"
+# A fatia de risco: o planejador a marca (julgamento de domínio, mudança que
+# atravessa partes), e só nela uma sessão de revisão julga o diff antes do commit.
+CAMPO_RISCO: str = "risco"
+CAMPO_MOTIVO_DO_RISCO: str = "motivo_do_risco"
 CAMPO_ORDEM: str = "ordem"
 CAMPO_TENTATIVAS: str = "tentativas"
 CAMPO_FALHAS: str = "falhas"
