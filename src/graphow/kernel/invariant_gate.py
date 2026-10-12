@@ -7,6 +7,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
+from graphow.kernel.fechamento_do_goal import validar_fechamento_do_goal
 from graphow.kernel.forma_do_escopo import validar_forma_do_escopo
 from graphow.kernel.ligacao_de_escopo import validar_escopo_das_tarefas
 from graphow.kernel.localizacao import EvidenciaNoLote, diagnosticar_localizacao, projetar_evidencias_do_lote
@@ -78,6 +79,7 @@ class InvariantGate:
             lambda: self._validar_bloqueio_questoes(proposta, estrutura.antes),
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
+            lambda: validar_fechamento_do_goal(proposta, estrutura),
         )
         verificacoes += (lambda: validar_forma_do_escopo(proposta, estado),)
         if proposta.papel not in PAPEIS_FORA_DO_ESCOPO_GOVERNADO:

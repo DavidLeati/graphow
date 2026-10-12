@@ -145,6 +145,7 @@ class Orquestrador:
 
 def _passo(contexto: ContextoDoGoal) -> Parada | None:
     """Um passo do laço, decidido pelo estado de agora; None quando o laço segue."""
+    contexto.registrar_ponta()
     estado = contexto.estado()
     if estado.fechado:
         return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"O Goal {contexto.id_goal} esta fechado.")

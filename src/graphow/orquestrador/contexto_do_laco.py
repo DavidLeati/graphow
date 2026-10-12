@@ -13,6 +13,7 @@ from pathlib import Path
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, commitar, sincronizar_ramo
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
@@ -116,7 +117,22 @@ class ContextoDoGoal:
         """O commit do orquestrador no clone, já levado à branch do Goal no repositório do humano."""
         commit = commitar(self.area, mensagem, vazio_permitido=vazio_permitido)
         sincronizar_ramo(self.area_do_goal)
+        self.registrar_ponta()
         return commit
+
+    def commit_do_codigo(self) -> str:
+        """O commit do código da área: o último que mudou algo além do documento do Goal."""
+        return self.git.commit_do_codigo(caminho_do_documento(self.configuracao.slug))
+
+    def registrar_ponta(self) -> None:
+        """A ponta da branch do Goal no livro-razão, quando o git andou desde a última gravada.
+
+        É dela que o kernel lê se a verificação final vale para o commit atual.
+        """
+        ponta = {m.CAMPO_COMMIT: self.git.head(), m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo()}
+        goal = self.livro.view().obter_no(self.id_goal)
+        if goal is not None and goal.obter_propriedade(m.CAMPO_PONTA_DO_RAMO) != ponta:
+            self.livro.gravar_ponta(ponta)
 
     @property
     def git(self) -> GitDoGoal:

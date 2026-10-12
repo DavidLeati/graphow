@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.harness.ambiente_padrao import gerar_slug
 from graphow.kernel.papel_do_orquestrador import CAMPO_APROVACAO_DO_PLANO as CAMPO_DA_APROVACAO
 from graphow.kernel.papel_do_orquestrador import sessao_do_goal
@@ -24,14 +25,19 @@ MODOS: tuple[str, ...] = (MODO_SUPERVISIONADO, MODO_AUTONOMO)
 
 # No Goal.
 CAMPO_SPEC: str = "spec"
-CAMPO_ORQUESTRACAO: str = "orquestracao"
-CAMPO_PLANO: str = "plano"
+CAMPO_ORQUESTRACAO: str = a.CAMPO_CONDUCAO
+CAMPO_PLANO: str = a.CAMPO_PLANO
 # A saída do planejador já conferida, gravada antes do commit do documento e do
 # plano: a retomada a reaproveita em vez de pagar outra sessão.
 CAMPO_PLANO_PROPOSTO: str = "plano_proposto"
 CAMPO_CICLOS: str = "ciclos_de_correcao"
 CAMPO_PENDENCIAS: str = "pendencias"
 CAMPO_INTEGRADO_EM: str = "integrado_em"
+# A ponta da branch do Goal como o orquestrador a viu no git: o commit e o commit
+# do código (o último que mudou algo além do documento do Goal). O kernel só
+# deixa o Goal fechar com a verificação final feita nesse commit do código.
+CAMPO_PONTA_DO_RAMO: str = a.CAMPO_PONTA_DO_RAMO
+CAMPO_COMMIT_DO_CODIGO: str = a.CAMPO_COMMIT_DO_CODIGO
 # O portão do plano do orquestrador: quem aprovou, com que papel e em que commit
 # do documento do Goal. Só o humano o escreve (`--aprovar-plano`); o contrato do
 # papel orquestrador o recusa (kernel/papel_do_orquestrador.py).
@@ -50,7 +56,7 @@ CAMPO_FALHAS: str = "falhas"
 CAMPO_ULTIMO_ERRO: str = "ultimo_erro"
 CAMPO_PATCH: str = "patch_da_tentativa"
 CAMPO_PENDENCIA: str = "pendencia"
-CAMPO_COMMIT: str = "commit"
+CAMPO_COMMIT: str = a.CAMPO_COMMIT
 # Na fatia de correção: a Evidence de verificação de onde ela nasceu. Nome próprio,
 # e não o `corrige` do escopo governado: o laço não depende das regras dele.
 CAMPO_CORRIGE: str = "corrige_verificacao"
@@ -60,13 +66,16 @@ CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 CAMPO_PERGUNTA: str = "pergunta"
 CAMPO_RESPOSTA: str = "resposta"
 CAMPO_ABERTA_POR: str = "aberta_por"
-CAMPO_VEREDITO: str = "veredito"
+CAMPO_VEREDITO: str = a.CAMPO_VEREDITO
 CAMPO_CICLO: str = "ciclo"
-ACAO_DA_VERIFICACAO: str = "verificacao_do_goal"
+CAMPO_NUMERO: str = a.CAMPO_NUMERO
+CAMPO_FINAL: str = a.CAMPO_FINAL
+CAMPO_PARECERES: str = a.CAMPO_PARECERES
+ACAO_DA_VERIFICACAO: str = a.ACAO_DA_VERIFICACAO
 ACAO_DA_TENTATIVA: str = "tentativa_que_falhou"
 
-VEREDITO_LIMPO: str = "aprovado"
-VEREDITO_COM_BLOQUEANTE: str = "rejeitado"
+VEREDITO_LIMPO: str = a.VEREDITO_LIMPO
+VEREDITO_COM_BLOQUEANTE: str = a.VEREDITO_COM_BLOQUEANTE
 
 STATUS_PENDENTE: str = "pendente"
 STATUS_EM_ANDAMENTO: str = "em_andamento"

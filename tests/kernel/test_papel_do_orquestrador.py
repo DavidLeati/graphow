@@ -54,6 +54,14 @@ def _produzido(id_no: str, tipo: TipoNo, propriedades: dict[str, Any] | None = N
     return [_no(id_no, tipo, propriedades), _aresta(sessao, id_no, TipoAresta.PRODUZ)]
 
 
+def _prova_do_fechamento(id_goal: str = "goal", sessao: str = SESSAO) -> list[ItemPatch]:
+    """A ponta da branch e a verificação final limpa nela: o que o kernel exige para fechar o Goal conduzido."""
+    propriedades = {"acao": "verificacao_do_goal", "numero": 1, "final": True, "veredito": "aprovado", "commit_do_codigo": "abc123"}
+    id_ver = f"ver-{id_goal}"
+    return [_propriedade(id_goal, "ponta_do_ramo", {"commit": "abc123", "commit_do_codigo": "abc123"}),
+            *_produzido(id_ver, TipoNo.EVIDENCE, propriedades, sessao=sessao), _aresta(id_ver, id_goal, TipoAresta.DERIVA_DE)]
+
+
 def _kernel_com_goal_e_fatias() -> WriteKernel:
     """Projeto, Setor, a Sessao do Goal, o Goal conduzido com critério e decisão, e duas fatias."""
     kernel = montar_kernel_em_memoria()
@@ -93,10 +101,7 @@ def test_orquestrador_grava_o_goal_conclui_fatias_e_fecha_sem_posse_nem_revisor_
 
     assert _concluir_fatia(kernel, "f1").sucesso
     assert _concluir_fatia(kernel, "f2").sucesso
-    verificacao = _submeter(
-        kernel, [*_produzido("ver-1", TipoNo.EVIDENCE, {"veredito": "aprovado", "commit": "abc123"}),
-                 _aresta("ver-1", "goal", TipoAresta.DERIVA_DE)],
-    )
+    verificacao = _submeter(kernel, _prova_do_fechamento())
     fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido"), _propriedade(SESSAO, "status", "concluida")])
 
     assert verificacao.sucesso, verificacao.mensagem
@@ -218,7 +223,7 @@ def test_adocao_do_goal_do_gerente_abre_o_alcance_do_orquestrador_nominal() -> N
 
     adocao = _submeter(kernel, _adocao())
     fatia = _submeter(kernel, [*_produzido("f1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "f1", TipoAresta.DECOMPOE)])
-    fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido")])
+    fechamento = _submeter(kernel, [*_prova_do_fechamento(), _propriedade("goal", "status", "concluido")])
 
     assert adocao.sucesso, adocao.mensagem
     assert fatia.sucesso, fatia.mensagem
@@ -303,7 +308,9 @@ def test_cada_goal_do_mesmo_setor_segue_no_proprio_lote_nominal() -> None:
 
     for nome in ("a", "b"):
         id_goal = f"goal-{nome}"
-        recibo = _submeter(kernel, [_propriedade(f"{id_goal}-f1", "status", "concluido"), _propriedade(id_goal, "status", "concluido")], goal=id_goal)
+        operacoes = [_propriedade(f"{id_goal}-f1", "status", "concluido"), *_prova_do_fechamento(id_goal, sessao_do_goal(id_goal)),
+                     _propriedade(id_goal, "status", "concluido")]
+        recibo = _submeter(kernel, operacoes, goal=id_goal)
         assert recibo.sucesso, recibo.mensagem
 
 

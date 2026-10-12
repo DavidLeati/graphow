@@ -119,6 +119,11 @@ class GitDoGoal:
         """O `diff --stat` entre os dois commits, cortado para caber no briefing."""
         return self.rodar("diff", "--stat", antes, depois).strip()[:LIMITE_DO_RESUMO_DO_DIFF]
 
+    def commit_do_codigo(self, documento: str) -> str:
+        """O último commit, a partir do HEAD, que mudou algo além do documento dado; o HEAD quando não há."""
+        saida = self.rodar("log", "-1", "--format=%H", "HEAD", "--", ".", f":(exclude){documento}")
+        return saida.strip() or self.head()
+
     def commits_desde(self, base: str) -> tuple[str, ...]:
         """Hash curto e assunto de cada commit da branch desde a base, do mais antigo ao mais novo."""
         saida = self.rodar("log", "--reverse", "--format=%h %s", f"{base}..HEAD")

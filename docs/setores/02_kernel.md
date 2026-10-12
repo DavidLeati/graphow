@@ -6,11 +6,11 @@
 
 **Pacote:** `graphow.kernel`
 
-Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.
+Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset, e só deixa o Goal do aceite no centro (conduzido pelo orquestrador ou com Criterio) fechar com a verificação final limpa no commit atual, todo critério atendido e nenhum achado bloqueante aberto, para qualquer papel. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.
 
 ## Inventário
 
-31 módulos · 5021 linhas · 34 classes
+32 módulos · 5214 linhas · 34 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,11 +20,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/execucao_sem_plano.py`](#kernelexecucaosemplano) | 54 | O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado). |
+| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 191 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
 | [`kernel/forma_do_escopo.py`](#kernelformadoescopo) | 191 | A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 383 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 385 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
@@ -148,6 +149,22 @@ O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 d
 ### Funções do módulo
 
 - `validar_plano_para_assumir(segmentos: Sequence[str], item: ItemPatch, contexto: ContextoPapel) -> ResultadoValidacao` — Recusa o executor que põe em andamento a Task de um Goal sem plano aprovado.
+
+## `kernel/fechamento_do_goal.py`
+
+O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PORTAO` | `str` | `'InvariantGate'` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+| `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
+| `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+
+### Funções do módulo
+
+- `validar_fechamento_do_goal(proposta: PropostaPatch, estrutura: EstruturaAposLote) -> ResultadoValidacao` — Recusa o lote que conclui um Goal do aceite no centro sem a prova; aprova o resto.
+- `motivos_para_nao_fechar(view: GrafoView, id_goal: str) -> tuple[str, ...]` — O que falta para o Goal fechar; vazio quando a prova está toda lá, ou quando a regra não o alcança.
 
 ## `kernel/forma_do_escopo.py`
 

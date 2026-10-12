@@ -37,6 +37,7 @@ from graphow.orquestrador.git_do_goal import (
     remover_area,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, VerificacaoRegistrada
+from graphow.orquestrador.livro_razao import RegistroDaVerificacao
 from graphow.orquestrador.saidas import Achado, Verificacao, conferir_verificacao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, rodar_suite
@@ -54,14 +55,13 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parad
 
 
 def _vale_para_o_commit_atual(contexto: ContextoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
-    """O commit verificado é o atual, ou o que veio depois dele só mexeu no documento do Goal."""
-    head = contexto.git.head()
-    if verificacao.commit == head:
-        return True
-    if not contexto.git.e_ancestral(verificacao.commit, head):
-        return False
-    documento = caminho_do_documento(contexto.configuracao.slug)
-    return set(contexto.git.arquivos_entre(verificacao.commit, head)) <= {documento}
+    """A verificação foi feita no commit do código atual: o que veio depois dela só mexeu no documento do Goal.
+
+    É a mesma conta que o kernel faz contra a ponta da branch gravada no Goal
+    (kernel/fechamento_do_goal.py); a verificação de antes da fase 2, sem o
+    commit do código, não vale mais e é refeita.
+    """
+    return bool(verificacao.commit_do_codigo) and verificacao.commit_do_codigo == contexto.commit_do_codigo()
 
 
 def _ja_corrigida(estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
@@ -86,11 +86,18 @@ def _verificar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
     verificacao = verificacao if suite.passou else verificacao.com_a_suite_vermelha(suite.descrever()[-LIMITE_DO_TRECHO:])
     numero = len(estado.verificacoes) + 1
     pendencias = _pendencias_depois(estado, verificacao, numero=numero)
-    contexto.livro.gravar_verificacao(
-        numero, verificacao, commit=head, ciclo=estado.ciclos_de_correcao, pendencias=pendencias, suite=suite
-    )
+    contexto.livro.gravar_verificacao(RegistroDaVerificacao(
+        numero=numero, verificacao=verificacao, commit=head, commit_do_codigo=contexto.commit_do_codigo(), suite=suite,
+        nos=_nos_do_plano(plano), pendencias=pendencias, ciclo=estado.ciclos_de_correcao,
+    ))
     _sincronizar_documento(contexto, pendencias, numero=numero)
     return None
+
+
+def _nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
+    """O nó do livro-razão de cada critério e decisão do plano, pelo código."""
+    itens = [*plano.get("criterios", []), *plano.get("decisoes", [])]
+    return {str(item["id"]): str(item.get("no", "")) for item in itens if isinstance(item, Mapping)}
 
 
 def _sessao_do_verificador(contexto: ContextoDoGoal, estado: EstadoDoGoal, head: str) -> Mapping[str, Any] | Parada:

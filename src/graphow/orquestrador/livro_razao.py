@@ -10,7 +10,7 @@ motivo do kernel, e o laço para.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from graphow.core.exceptions import GraphowError
@@ -58,6 +58,40 @@ class GoalNovo:
     spec: str
     configuracao: m.ConfiguracaoDoGoal
     nome_do_repositorio: str
+
+
+@dataclass(frozen=True)
+class RegistroDaVerificacao:
+    """O que a Evidence de uma verificação guarda: o número, o commit verificado, o parecer e o que o orquestrador rodou."""
+
+    numero: int
+    verificacao: Verificacao
+    commit: str
+    commit_do_codigo: str
+    suite: ResultadoDaSuite
+    nos: Mapping[str, str] = field(default_factory=dict)
+    pendencias: Sequence[Mapping[str, Any]] = ()
+    ciclo: int = 0
+    final: bool = True
+
+    def propriedades(self) -> dict[str, Any]:
+        """As propriedades da Evidence; cada parecer leva o nó do critério ou da decisão que julga."""
+        verificacao, suite = self.verificacao, self.suite
+        return {
+            "acao": m.ACAO_DA_VERIFICACAO,
+            m.CAMPO_VEREDITO: m.VEREDITO_COM_BLOQUEANTE if verificacao.bloqueantes() else m.VEREDITO_LIMPO,
+            m.CAMPO_NUMERO: self.numero, m.CAMPO_FINAL: self.final,
+            m.CAMPO_COMMIT: self.commit, m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo, m.CAMPO_CICLO: self.ciclo,
+            "fonte": "graphow orquestrar: sessao do verificador",
+            "resumo": verificacao.resumo,
+            "comandos": [comando.em_json() for comando in verificacao.comandos],
+            "suite_do_orquestrador": {"comando": suite.comando, "shell": suite.shell, "codigo": suite.codigo, "passou": suite.passou,
+                                      "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
+            m.CAMPO_PARECERES: [{"id": p.id, "no": self.nos.get(p.id, ""), "veredito": p.veredito, "prova": p.prova}
+                                for p in (*verificacao.criterios, *verificacao.decisoes)],
+            "bloqueantes": [achado.em_json() for achado in verificacao.bloqueantes()],
+            "acompanhamentos": [achado.em_json() for achado in verificacao.acompanhamentos()],
+        }
 
 
 class LivroRazaoDoGoal:
@@ -200,36 +234,25 @@ class LivroRazaoDoGoal:
         )
         return id_questao
 
-    def gravar_verificacao(
-        self, numero: int, verificacao: Verificacao, *, commit: str, ciclo: int, pendencias: Sequence[Mapping[str, Any]],
-        suite: ResultadoDaSuite,
-    ) -> str:
+    def gravar_verificacao(self, registro: "RegistroDaVerificacao") -> str:
         """A verificação vira Evidence ligada ao Goal, com os comandos do verificador e a suíte que o orquestrador
         rodou no commit verificado, no mesmo lote da lista de pendências que ela deixa; devolve o id."""
-        id_evidencia = f"ver-{self.id_goal}-{numero}"
+        id_evidencia = f"ver-{self.id_goal}-{registro.numero}"
+        verificacao = registro.verificacao
         bloqueantes = verificacao.bloqueantes()
-        propriedades = {
-            "acao": m.ACAO_DA_VERIFICACAO,
-            m.CAMPO_VEREDITO: m.VEREDITO_COM_BLOQUEANTE if bloqueantes else m.VEREDITO_LIMPO,
-            m.CAMPO_COMMIT: commit,
-            m.CAMPO_CICLO: ciclo,
-            "fonte": "graphow orquestrar: sessao do verificador",
-            "resumo": verificacao.resumo,
-            "comandos": [comando.em_json() for comando in verificacao.comandos],
-            "suite_do_orquestrador": {"comando": suite.comando, "shell": suite.shell, "codigo": suite.codigo, "passou": suite.passou,
-                                      "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
-            "pareceres": [{"id": p.id, "veredito": p.veredito, "prova": p.prova} for p in (*verificacao.criterios, *verificacao.decisoes)],
-            "bloqueantes": [achado.em_json() for achado in bloqueantes],
-            "acompanhamentos": [achado.em_json() for achado in verificacao.acompanhamentos()],
-        }
-        rotulo = f"Verificacao {numero} em {commit[:12]}: " + (f"{len(bloqueantes)} bloqueante(s)" if bloqueantes else "limpa")
+        rotulo = f"Verificacao {registro.numero} em {registro.commit[:12]}: " + (f"{len(bloqueantes)} bloqueante(s)" if bloqueantes else "limpa")
         self.gravar(
-            [*self.produzido(id_evidencia, TipoNo.EVIDENCE, rotulo, propriedades=propriedades),
+            [*self.produzido(id_evidencia, TipoNo.EVIDENCE, rotulo, propriedades=registro.propriedades()),
              aresta(id_evidencia, self.id_goal, TipoAresta.DERIVA_DE),
-             propriedade(self.id_goal, m.CAMPO_PENDENCIAS, [dict(item) for item in pendencias])],
-            f"Verificacao {numero} do Goal {self.id_goal}",
+             propriedade(self.id_goal, m.CAMPO_PENDENCIAS, [dict(item) for item in registro.pendencias])],
+            f"Verificacao {registro.numero} do Goal {self.id_goal}",
         )
         return id_evidencia
+
+    def gravar_ponta(self, ponta: Mapping[str, str]) -> None:
+        """A ponta da branch do Goal como o git a tem agora: o commit e o commit do código."""
+        commit = str(ponta.get(m.CAMPO_COMMIT, ""))
+        self.gravar([propriedade(self.id_goal, m.CAMPO_PONTA_DO_RAMO, dict(ponta))], f"Ponta da branch do Goal {self.id_goal} em {commit[:12]}")
 
     def criar_correcoes(self, id_evidencia: str, achados: Sequence[Achado], *, ciclo: int, ordem: int) -> None:
         """Cada bloqueante vira uma fatia de correção, que diz por `corrige` de que verificação nasceu."""

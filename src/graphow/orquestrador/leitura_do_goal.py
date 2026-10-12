@@ -82,6 +82,7 @@ class VerificacaoRegistrada:
     veredito: str
     ciclo: int
     propriedades: Mapping[str, Any]
+    commit_do_codigo: str = ""
 
     @property
     def limpa(self) -> bool:
@@ -229,6 +230,7 @@ def _verificacoes(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada,
             veredito=str(e.obter_propriedade(m.CAMPO_VEREDITO) or ""),
             ciclo=int(e.obter_propriedade(m.CAMPO_CICLO) or 0),
             propriedades=e.propriedades,
+            commit_do_codigo=str(e.obter_propriedade(m.CAMPO_COMMIT_DO_CODIGO) or ""),
         )
         for e in ordenadas
     )

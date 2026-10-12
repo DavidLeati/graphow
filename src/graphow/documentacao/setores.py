@@ -33,7 +33,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         2,
         "kernel",
         "Kernel de Escrita (PatchBoard)",
-        "Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.",
+        "Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset, e só deixa o Goal do aceite no centro (conduzido pelo orquestrador ou com Criterio) fechar com a verificação final limpa no commit atual, todo critério atendido e nenhum achado bloqueante aberto, para qualquer papel. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.",
     ),
     DefinicaoSetor(
         3,

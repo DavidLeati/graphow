@@ -41,6 +41,7 @@ class ModoFalhaMAST(str, Enum):
     EVIDENCIA_SEM_LOCALIZACAO = "evidencia_sem_localizacao"
     ELEMENTO_JA_EXISTENTE = "elemento_ja_existente"
     FECHAMENTO_SEM_VEREDITO_APROVADO = "fechamento_sem_veredito_aprovado"
+    FECHAMENTO_SEM_VERIFICACAO_LIMPA = "fechamento_sem_verificacao_limpa"
     LIGACAO_DE_ESCOPO_AUSENTE = "ligacao_de_escopo_ausente"
     PLANO_NAO_APROVADO = "plano_nao_aprovado"
     ORCAMENTO_DE_ESCOPO_ESGOTADO = "orcamento_de_escopo_esgotado"
@@ -70,6 +71,8 @@ CATEGORIA_POR_MODO: Mapping[ModoFalhaMAST, CategoriaFalhaMAST] = {
     ModoFalhaMAST.ELEMENTO_JA_EXISTENTE: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,
     # Concluir sem revisão aprovada é pular a verificação que o grafo exige.
     ModoFalhaMAST.FECHAMENTO_SEM_VEREDITO_APROVADO: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
+    # Fechar o Goal sem a verificação final limpa no commit atual é pular a prova do aceite.
+    ModoFalhaMAST.FECHAMENTO_SEM_VERIFICACAO_LIMPA: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
     # Task sem dizer de que nasceu, e Goal sem plano aprovado: o trabalho fora do
     # escopo que o humano aprovou é a própria verificação do plano que falta.
     ModoFalhaMAST.LIGACAO_DE_ESCOPO_AUSENTE: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,

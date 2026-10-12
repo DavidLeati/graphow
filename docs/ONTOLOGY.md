@@ -341,3 +341,11 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   fere algo é `bloqueante`, sem exceção, e o que não fere nada é
   `acompanhamento`. O bloqueante vira fatia de correção (`Task` que deriva do
   `Achado`); o acompanhamento fica como pendência do Goal.
+- **Fechamento.** O `InvariantGate` só deixa o `Goal` conduzido pelo
+  orquestrador, ou com `Criterio` ligado, ir para `concluido` quando a última
+  verificação dele (a de maior `numero`) é a `final`, limpa, feita no commit do
+  código (`commit_do_codigo`, o último commit que mudou algo além do documento
+  do Goal) que o Goal grava como ponta da branch (`ponta_do_ramo`), com parecer
+  `atende` para cada critério e nenhum `Achado` bloqueante fora de `resolvido`
+  ou `descartado`. Vale para todo papel, o humano inclusive, e recusa com
+  `fechamento_sem_verificacao_limpa` (kernel/fechamento_do_goal.py).
