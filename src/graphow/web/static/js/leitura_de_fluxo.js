@@ -39,8 +39,12 @@ const ANCORAS = {
 
 const TIPOS_DE_ESTRUTURA = new Set(["Projeto", "Setor", "Sessao", "Run"]);
 
+// O Critério e o Achado não têm status: têm o estado que as verificações lhes dão.
+const TIPOS_COM_ESTADO = new Set(["Criterio", "Achado"]);
+
 export function statusDe(no) {
-  return no?.propriedades?.status || STATUS_PADRAO[no?.tipo] || null;
+  const estado = TIPOS_COM_ESTADO.has(no?.tipo) ? no?.propriedades?.estado : null;
+  return no?.propriedades?.status || estado || STATUS_PADRAO[no?.tipo] || null;
 }
 
 /** Lado da aresta em que o vizinho fica, visto do nó: "montante" ou "jusante". */

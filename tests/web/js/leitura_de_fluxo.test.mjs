@@ -51,6 +51,12 @@ test("status ausente vira o padrão do tipo", () => {
   assert.equal(statusDe({ tipo: "Task", propriedades: { status: "concluido" } }), "concluido");
 });
 
+test("critério e achado mostram o estado que as verificações lhes dão; outro tipo com `estado` não", () => {
+  assert.equal(statusDe({ tipo: "Criterio", propriedades: { estado: "parcial" } }), "parcial");
+  assert.equal(statusDe({ tipo: "Achado", propriedades: { estado: "aberto", gravidade: "bloqueante" } }), "aberto");
+  assert.equal(statusDe({ tipo: "Note", propriedades: { estado: "qualquer" } }), null);
+});
+
 test("quem depende tem o pré-requisito a montante; quem bloqueia fica a montante do bloqueado", () => {
   assert.equal(ladoDoVizinho("depende_de", true), "montante");
   assert.equal(ladoDoVizinho("depende_de", false), "jusante");

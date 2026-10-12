@@ -89,6 +89,13 @@ const TOM_DOS_STATUS = {
   falha: "alerta",
   aberta: "espera",
   pendente: "espera",
+  // Critério e Achado: o estado que as verificações lhes dão.
+  atende: "ok",
+  resolvido: "ok",
+  parcial: "andamento",
+  corrigido: "andamento",
+  nao_atende: "alerta",
+  aberto: "alerta",
   solicitada: "espera",
   descartada: "neutro",
 };

@@ -2,6 +2,7 @@ import { escapeHtml } from "./dom.js";
 import { descreverHistoricoDoNo, foiAlterado, formatarIdadeCurta } from "./idade.js";
 import { caminhoSvg, tracarCurva } from "./geometria_aresta.js";
 import { idsNaJanela, janelaComMargem, retanguloDaAresta, retanguloVisivel, retangulosSeCruzam } from "./janela_visivel.js";
+import { statusDe } from "./leitura_de_fluxo.js";
 
 const TAMANHO_PADRAO_DO_CARTAO = { largura: 220, altura: 150 };
 
@@ -334,7 +335,9 @@ export class CanvasRenderer {
     el.style.left = `${pos.x}px`;
     el.style.top = `${pos.y}px`;
 
-    const statusBadge = node.propriedades?.status ? `<span class="badge badge-status">${escapeHtml(node.propriedades.status)}</span>` : "";
+    const situacao = statusDe(node);
+    const statusBadge = situacao && (node.propriedades?.status || node.propriedades?.estado)
+      ? `<span class="badge badge-status">${escapeHtml(situacao)}</span>` : "";
     const lockBadge = node.lock_ativo ? `<span class="badge badge-locked">🔒 ${escapeHtml(node.lock_ativo)}</span>` : "";
     const blockBadge = node.esta_bloqueado ? `<span class="badge badge-blocked">⚠️ Bloqueado</span>` : "";
 

@@ -125,6 +125,21 @@ def test_telemetria_registra_cada_sessao_com_custo_fora_do_grafo_nominal(complet
     assert "Sessoes: 7 invocacao(oes) em 7 sessao(oes) | US$ 2.50" in linhas
 
 
+def test_status_mostra_o_aceite_os_criterios_os_marcos_e_os_achados_nominal(completo: tuple[Bancada, Parada]) -> None:
+    """O `--status` diz o que prova o Goal: o commit dos testes, o estado de cada critério, os marcos e as verificações."""
+    bancada, _ = completo
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.aceite is not None
+
+    linhas = formatar_status(estado, bancada.telemetria.listar("goal-soma"))
+
+    assert f"Aceite: commit {estado.aceite['commit'][:12]}, `{estado.aceite['comando']}`" in linhas
+    assert "Criterios: C1 atende, C2 atende" in linhas
+    assert "Marco M1 (final): fatias F1, F2; verificado limpo" in linhas
+    assert any(linha.startswith("  ver-goal-soma-1 (M1): rejeitado") for linha in linhas)
+    assert not any(linha.startswith("Achados bloqueantes sem resolver") for linha in linhas)
+
+
 def test_modo_supervisionado_para_no_plano_e_no_pronto_para_integrar_nominal(tmp_path: Path) -> None:
     """Para no portão do plano; aprovado, executa; limpo, espera o humano integrar; integrado, fecha."""
     roteiro = roteiro_completo()
