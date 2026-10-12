@@ -13,10 +13,17 @@ Goal de antes dele traz a Constraint `criterio_aceite`, que segue valendo. O
 texto e o tipo de verificação de cada critério do humano vão também no
 `SpecDoGoal`: o orquestrador os grava como o humano os escreveu, e não pede ao
 planejador que os extraia de novo.
+
+O código de cada um (C3, D2) é o que o gerente gravou na propriedade `codigo`
+do nó, e não a ordem em que os nós nasceram: o critério que o humano
+acrescentou depois, ou gravou fora de ordem, guarda o código que ele leu. Só
+quando algum nó não tem código válido, ou dois repetem o mesmo, os códigos
+saem da ordem de criação, todos.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+import re
 
 from graphow.core import aceite as a
 from graphow.core.escopo import CAMPO_TIPO_CONSTRAINT, CONSTRAINT_CRITERIO_ACEITE, CONSTRAINT_FRONTEIRA
@@ -45,22 +52,31 @@ def montar_spec_do_goal(view: GrafoView, id_goal: str) -> SpecDoGoal:
     criterios = [no for no in restricoes if no.tipo == TipoNo.CRITERIO or _tipo_da_restricao(no) == CONSTRAINT_CRITERIO_ACEITE]
     decisoes = [no for no in _ordenados(view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.ORIENTA))
                 if no.tipo == TipoNo.DECISION and not view.obter_arestas_entrada(no.id, TipoAresta.SUBSTITUI)]
-    codigos = {**{f"C{i}": no.id for i, no in enumerate(criterios, 1)}, **{f"D{i}": no.id for i, no in enumerate(decisoes, 1)}}
+    com_c, com_d = _com_codigo(criterios, "C"), _com_codigo(decisoes, "D")
     partes = [
         f"# {goal.rotulo}",
         str(goal.obter_propriedade("descricao") or ""),
         _secao("Criterios de aceite (definidos pelo humano: mantenha o id e o texto)",
-               [f"- C{i} ({no.id}, {_verificacao(no)}): {_texto(no)}" for i, no in enumerate(criterios, 1)]),
+               [f"- {codigo} ({no.id}, {_verificacao(no)}): {_texto(no)}" for codigo, no in com_c]),
         _secao("Fora do escopo", _itens_da_fronteira(restricoes)),
         _secao("Restricoes", [f"- {no.rotulo}" for no in restricoes if no.tipo == TipoNo.CONSTRAINT and not _tipo_da_restricao(no)]),
-        _secao("Decisoes do humano (mantenha o id)", [_linha_da_decisao(view, i, no) for i, no in enumerate(decisoes, 1)]),
+        _secao("Decisoes do humano (mantenha o id)", [_linha_da_decisao(view, codigo, no) for codigo, no in com_d]),
         _secao("Em aberto", [str(goal.obter_propriedade("em_aberto") or "")]),
     ]
     texto = "\n\n".join(parte for parte in partes if parte.strip()) + "\n"
-    fixados = IdsFixados(criterios=tuple(f"C{i}" for i in range(1, len(criterios) + 1)),
-                         decisoes=tuple(f"D{i}" for i in range(1, len(decisoes) + 1)))
-    do_humano = tuple(Criterio(f"C{i}", _texto(no), _verificacao(no)) for i, no in enumerate(criterios, 1))
-    return SpecDoGoal(texto, fixados, codigos, do_humano)
+    fixados = IdsFixados(criterios=tuple(codigo for codigo, _ in com_c), decisoes=tuple(codigo for codigo, _ in com_d))
+    do_humano = tuple(Criterio(codigo, _texto(no), _verificacao(no)) for codigo, no in com_c)
+    return SpecDoGoal(texto, fixados, {codigo: no.id for codigo, no in (*com_c, *com_d)}, do_humano)
+
+
+def _com_codigo(nos: Sequence[NoGrafo], letra: str) -> list[tuple[str, NoGrafo]]:
+    """Cada nó com o código dele (a propriedade `codigo`, em ordem numérica); sem código válido e único em todos, pela ordem."""
+    padrao = re.compile(rf"{letra}([1-9]\d*)")
+    gravados = [str(no.obter_propriedade(a.CAMPO_CODIGO) or "").strip().upper() for no in nos]
+    validos = all(padrao.fullmatch(codigo) for codigo in gravados) and len(set(gravados)) == len(gravados)
+    if not validos:
+        return [(f"{letra}{numero}", no) for numero, no in enumerate(nos, 1)]
+    return sorted(zip(gravados, nos), key=lambda par: int(par[0][1:]))
 
 
 def _texto(no: NoGrafo) -> str:
@@ -93,9 +109,9 @@ def _itens_da_fronteira(restricoes: Iterable[NoGrafo]) -> list[str]:
     return linhas
 
 
-def _linha_da_decisao(view: GrafoView, numero: int, no: NoGrafo) -> str:
+def _linha_da_decisao(view: GrafoView, codigo: str, no: NoGrafo) -> str:
     """A decisão com o motivo e os trechos que a sustentam."""
-    linha = f"- D{numero} ({no.id}): {_texto(no)}"
+    linha = f"- {codigo} ({no.id}): {_texto(no)}"
     motivo = str(no.obter_propriedade("motivo") or "")
     if motivo:
         linha += f" Motivo: {motivo}"
