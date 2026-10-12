@@ -10,13 +10,13 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-42 módulos · 7017 linhas · 60 classes
+42 módulos · 7036 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 169 | Os testes de aceite rodam sempre da cópia intocada, com a configuração de teste do commit do aceite. |
+| [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 184 | Os testes de aceite rodam sempre da cópia intocada, com a configuração de teste do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 160 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 252 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 140 | Os testes de aceite rodam com a configuração de teste do commit do aceite, mexa o executor no que mexer. |
@@ -38,7 +38,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 217 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 141 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 153 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 155 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 81 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
@@ -75,6 +75,7 @@ Os testes de aceite rodam sempre da cópia intocada, com a configuração de tes
 - `configuracoes_mudadas(area: Path, caminhos: Iterable[str]) -> tuple[str, ...]` — Dos caminhos mudados desde o commit `antes`, os de configuração de teste (no pyproject e afins, só a parte de teste).
 - `soltos_que_mudam_os_testes(area: Path) -> tuple[str, ...]` — Os arquivos fora do git (não versionados ou ignorados) que estão em aceite/ ou que configuram os testes.
 - `preparar_o_aceite(area: Path, commit_do_aceite: str) -> tuple[str, ...]` — Antes de rodar os testes de aceite: aceite/ como no commit do aceite e a configuração solta fora; diz o que tirou.
+- `forcar_o_aceite_no_indice(area: Path) -> tuple[str, ...]` — Os arquivos de aceite/ que o .gitignore do projeto ignora entram no índice à força (`git add -f`); devolve quais.
 - `flags_do_indice(area: Path) -> tuple[str, ...]` — Os arquivos com `skip-worktree` (S) ou `assume-unchanged` (letra minúscula) no índice: mudança que o status esconde.
 - `limpar_flags(area: Path, arquivos: Sequence[str]) -> None` — Tira as flags do índice dos arquivos, para o git voltar a ver o que mudou neles.
 

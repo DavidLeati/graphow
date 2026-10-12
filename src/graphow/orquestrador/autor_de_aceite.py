@@ -21,6 +21,7 @@ from typing import Any
 
 from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.aceite_intocado import forcar_o_aceite_no_indice
 from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_aceite, gravar_se_mudou
@@ -146,6 +147,7 @@ def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_a
     provados = ", ".join(criterio.id for criterio in saida.criterios)
     assunto = f"Escreve os testes de aceite do Goal {contexto.configuracao.slug} ({provados})"
     mensagem = mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=id_do_aceite)
+    forcar_o_aceite_no_indice(contexto.area)
     return contexto.commitar(mensagem, vazio_permitido=True)
 
 

@@ -239,3 +239,19 @@ def test_aceite_roda_com_a_parte_de_teste_do_commit_dele_e_a_area_volta_a_ponta_
     assert durante["conftest.py"] is None and durante["pytest.ini"] == "[pytest]\n"
     assert {nome: (repositorio / nome).read_text(encoding="utf-8") for nome in ponta} == ponta
     assert not (repositorio / "pytest.ini").exists() and git(repositorio, "status", "--porcelain").strip() == ""
+
+
+def test_aceite_que_o_gitignore_ignora_entra_no_commit_e_na_copia_intocada_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (ajuste 6): com `aceite/` no .gitignore do projeto, o commit do aceite leva o teste à força, e ele roda."""
+    bancada = montar_bancada(tmp_path, _roteiro(executor_pronto(FATIA_CERTA)))
+    (bancada.repositorio / ".gitignore").write_text("aceite/\n", encoding="utf-8")
+    git(bancada.repositorio, "add", ".gitignore")
+    git(bancada.repositorio, "commit", "-qm", "Ignora aceite/")
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.aceite is not None
+    assert "aceite/aceite_c1.py" in git(bancada.repositorio, "show", "--name-only", "--format=", estado.aceite["commit"])
+    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]][0] is True

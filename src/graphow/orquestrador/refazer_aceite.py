@@ -22,6 +22,7 @@ from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_AUTOR_DE_ACEITE
 from graphow.orquestrador.git_do_goal import commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
+from graphow.orquestrador.aceite_intocado import forcar_o_aceite_no_indice
 from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, commit_da_configuracao, gravar_aceite, gravar_aceite_proposto
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
@@ -50,6 +51,7 @@ def refazer_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedid
                           f"Os testes refeitos de {pedido.alvo} nao conferiram: " + "; ".join(problemas))
         gravar_aceite_proposto(contexto.livro, {CHAVE_DO_REFEITO: _em_json(novo), "pedido": pedido.id})
         assunto = f"Refaz os testes de aceite de {pedido.alvo} do Goal {contexto.configuracao.slug}"
+        forcar_o_aceite_no_indice(contexto.area)
         commit = contexto.commitar(mensagem_do_orquestrador(assunto, f"Pedido do humano: {pedido.motivo}", id_goal=contexto.id_goal,
                                                             id_task=id_revisao), vazio_permitido=True)
     else:

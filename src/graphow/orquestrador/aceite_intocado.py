@@ -155,6 +155,21 @@ def _apagar(caminho: Path) -> None:
         caminho.unlink(missing_ok=True)
 
 
+def forcar_o_aceite_no_indice(area: Path) -> tuple[str, ...]:
+    """Os arquivos de aceite/ que o .gitignore do projeto ignora entram no índice à força (`git add -f`); devolve quais.
+
+    Sem isso, o commit do aceite não os levava, a cópia intocada não os tinha,
+    e a limpeza de aceite/ antes de rodar o aceite os apagava.
+    """
+    git = GitDoGoal(area)
+    ignorados = git.rodar("-c", "core.quotepath=false", "ls-files", "--others", "--ignored", "--exclude-standard", "--",
+                          f"{PASTA_DO_ACEITE}/").splitlines()
+    forcados = tuple(caminho for caminho in ignorados if caminho and not e_cache(caminho))
+    if forcados:
+        git.rodar("add", "-f", "--", *forcados)
+    return forcados
+
+
 def flags_do_indice(area: Path) -> tuple[str, ...]:
     """Os arquivos com `skip-worktree` (S) ou `assume-unchanged` (letra minúscula) no índice: mudança que o status esconde."""
     linhas = GitDoGoal(area).rodar("-c", "core.quotepath=false", "ls-files", "-v").splitlines()
