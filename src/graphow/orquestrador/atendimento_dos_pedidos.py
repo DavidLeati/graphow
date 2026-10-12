@@ -17,11 +17,13 @@ from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_MAIS_CICLOS,
     PEDIDO_RECUSAR_PLANO,
     PEDIDO_REFAZER_ACEITE,
+    PEDIDO_RETIRAR_CRITERIO,
     NovoPedido,
     PedidoRecusado,
     cancelamento,
     descarte,
 )
+from graphow.orquestrador.retirada_de_criterio import descartes_da_retirada, no_do_criterio
 from graphow.projection.graph_view import GrafoView
 
 
@@ -43,6 +45,8 @@ def conferir_pedido(view: GrafoView, estado: EstadoDoGoal, pedido: NovoPedido) -
         return pedido, _recusa_do_plano(estado)
     if pedido.acao == PEDIDO_REFAZER_ACEITE:
         return pedido, _refazer_o_aceite(estado, pedido.alvo)
+    if pedido.acao == PEDIDO_RETIRAR_CRITERIO:
+        return pedido, descartes_da_retirada(view, no_do_criterio(estado, pedido.alvo), pedido.motivo)
     raise PedidoRecusado(f"pedido desconhecido: {pedido.acao}", {"acao": pedido.acao})
 
 

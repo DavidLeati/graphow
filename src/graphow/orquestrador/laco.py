@@ -42,10 +42,17 @@ from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import descartar_mudancas, preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
-from graphow.orquestrador.pedidos_do_humano import PEDIDO_RECUSAR_PLANO, PEDIDO_REFAZER_ACEITE, NovoPedido, gravar_pedido
+from graphow.orquestrador.pedidos_do_humano import (
+    PEDIDO_RECUSAR_PLANO,
+    PEDIDO_REFAZER_ACEITE,
+    PEDIDO_RETIRAR_CRITERIO,
+    NovoPedido,
+    gravar_pedido,
+)
 from graphow.orquestrador.planejamento import planejar
 from graphow.orquestrador.refazer_aceite import refazer_aceite
 from graphow.orquestrador.replanejamento import replanejar
+from graphow.orquestrador.retirada_de_criterio import retirar_criterio
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
 from graphow.orquestrador.trava_do_git import instalar_trava
@@ -199,7 +206,10 @@ Etapa = Callable[[ContextoDoGoal, EstadoDoGoal], Parada | None]
 
 
 def _etapa_antes_das_fatias(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Etapa | None:
-    """O que vem antes das fatias, na ordem: a recusa do plano, o plano, o aceite, o aceite a refazer e o portão do humano."""
+    """O que vem antes das fatias, na ordem: a retirada de critério, a recusa do plano, o plano, o aceite, o aceite a refazer e o portão."""
+    retiradas = estado.pedidos_pendentes(PEDIDO_RETIRAR_CRITERIO)
+    if estado.plano is not None and retiradas:
+        return lambda c, e: retirar_criterio(c, e, retiradas[0])
     recusas = estado.pedidos_pendentes(PEDIDO_RECUSAR_PLANO)
     if estado.plano is not None and recusas:
         return lambda c, e: replanejar(c, e, recusas[0])

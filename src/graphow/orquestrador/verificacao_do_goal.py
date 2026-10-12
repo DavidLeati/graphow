@@ -68,6 +68,8 @@ def _corrigir(
     final para: não há mais o que executar.
     """
     bloqueantes = (*ultima.bloqueantes_abertos(), *(estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()))
+    if not bloqueantes:
+        return _so_criterio_reprovado(contexto, ultima)
     ciclos = estado.ciclos_do_marco(marco)
     if ciclos < estado.limite_de_ciclos(marco):
         ordem = max((fatia.ordem for fatia in estado.fatias), default=0)
@@ -84,6 +86,17 @@ def _corrigir(
         f"enquanto houver bloqueante aberto. Saidas do humano: `graphow orquestrar --goal {contexto.id_goal} --mais-ciclos 1 "
         f"--motivo \"...\"` (mais um ciclo de correcao), `--descartar-achado <id> --motivo \"...\"` (aceita o achado: "
         + ", ".join(achado.id for achado in bloqueantes) + ") ou `--cancelar --motivo \"...\"`.",
+    )
+
+
+def _so_criterio_reprovado(contexto: ContextoDoGoal, ultima: VerificacaoRegistrada) -> Parada:
+    """A verificação sem bloqueante aberto, mas com critério reprovado: o descarte não aprova critério, e o laço para."""
+    criterios = ", ".join(ultima.reprovados)
+    return Parada(
+        contexto.id_goal, MotivoDaParada.BLOQUEANTES_RESTANTES,
+        f"A verificacao {ultima.id} reprova {criterios}, e os achados que os feriam foram descartados: o descarte nao aprova "
+        f"criterio. Para fechar sem eles: `graphow orquestrar --goal {contexto.id_goal} --retirar-criterio <criterio> --motivo "
+        f"\"...\"`; se o teste de aceite esta errado, `--refazer-aceite <criterio> --motivo \"...\"`; ou `--cancelar`.",
     )
 
 

@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.esquemas import PAPEIS
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
+from graphow.orquestrador.retirada_de_criterio import retirados as retiradas_do_goal
 from graphow.storage.telemetria_de_sessoes import SessaoRegistrada, TotaisDeTelemetria, totalizar
 
 SEGUNDOS_POR_MINUTO: float = 60.0
@@ -48,7 +49,10 @@ def _linhas_do_aceite(estado: EstadoDoGoal) -> list[str]:
     aceite = estado.aceite
     linhas = [f"Aceite: commit {str(aceite.get('commit', ''))[:12]}, `{aceite.get('comando', '')}`" if aceite else "Aceite: ainda nao escrito"]
     estados = _estados_dos_criterios(estado)
-    linhas.append("Criterios: " + ", ".join(f"{c['id']} {estados.get(str(c['id']), 'pendente')}" for c in estado.plano.get("criterios", [])))
+    retirados = {str(r["codigo"]): str(r["motivo"]) for r in retiradas_do_goal(estado)}
+    linhas.append("Criterios: " + ", ".join(
+        f"{c['id']} " + (f"retirado pelo humano ({retirados[str(c['id'])]})" if str(c["id"]) in retirados else estados.get(str(c["id"]), "pendente"))
+        for c in estado.plano.get("criterios", [])))
     linhas.extend(f"Marco {marco.id}{' (final)' if marco.final else ''}: fatias {', '.join(marco.fatias)}; "
                   + ("verificado limpo" if any(v.limpa for v in estado.verificacoes_do_marco(marco)) else
                      "ciclos esgotados, bloqueantes seguem para a final" if estado.marco_esgotado(marco) else "sem verificacao limpa")

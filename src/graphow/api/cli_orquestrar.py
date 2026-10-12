@@ -30,6 +30,7 @@ from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_MAIS_CICLOS,
     PEDIDO_RECUSAR_PLANO,
     PEDIDO_REFAZER_ACEITE,
+    PEDIDO_RETIRAR_CRITERIO,
     NovoPedido,
     PedidoRecusado,
 )
@@ -80,6 +81,8 @@ def _registrar_pedidos_do_humano(acao: argparse._MutuallyExclusiveGroup, parser:
     acao.add_argument("--cancelar", action="store_true", help="Cancela o Goal (pede --motivo); o laco nao o conduz mais")
     acao.add_argument("--recusar-plano", action="store_true", help="Recusa o plano antes de qualquer fatia (pede --motivo): o planejador o refaz")
     acao.add_argument("--refazer-aceite", metavar="CRITERIO", default="", help="O autor de aceite refaz os testes do criterio (pede --motivo)")
+    acao.add_argument("--retirar-criterio", metavar="CRITERIO", default="",
+                      help="Tira o criterio da conta do fechamento (pede --motivo): a unica saida para fechar com ele reprovado")
     parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar, recusar, refazer)")
 
 
@@ -169,6 +172,8 @@ def _pedido_do_humano(argumentos: argparse.Namespace) -> NovoPedido | None:
         return NovoPedido(PEDIDO_REFAZER_ACEITE, argumentos.motivo, por, alvo=argumentos.refazer_aceite.upper())
     if argumentos.recusar_plano:
         return NovoPedido(PEDIDO_RECUSAR_PLANO, argumentos.motivo, por)
+    if argumentos.retirar_criterio:
+        return NovoPedido(PEDIDO_RETIRAR_CRITERIO, argumentos.motivo, por, alvo=argumentos.retirar_criterio.upper())
     return NovoPedido(PEDIDO_CANCELAR, argumentos.motivo, por) if argumentos.cancelar else None
 
 

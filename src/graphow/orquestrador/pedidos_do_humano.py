@@ -14,7 +14,10 @@ nem removê-lo), com o motivo obrigatório:
 - `recusar_plano`: o planejador refaz o plano, com o recusado e o motivo no
   briefing (só antes de qualquer fatia rodar);
 - `refazer_aceite`: o autor de aceite refaz os testes de um critério, com o
-  motivo no briefing.
+  motivo no briefing;
+- `retirar_criterio`: o critério sai da conta do fechamento (o descarte de
+  Achado não aprova critério: é a única saída para fechar com um critério
+  reprovado), e os Achados abertos que só ele fere se descartam no mesmo lote.
 
 A Decision é produzida pela Sessao do orquestrador do Goal (é por ela que o
 pedido entra no laço), mas a proveniência é do humano. O laço lê o estado
@@ -39,8 +42,9 @@ PEDIDO_MAIS_CICLOS: str = "mais_ciclos"
 PEDIDO_CANCELAR: str = "cancelar"
 PEDIDO_RECUSAR_PLANO: str = "recusar_plano"
 PEDIDO_REFAZER_ACEITE: str = "refazer_aceite"
+PEDIDO_RETIRAR_CRITERIO: str = "retirar_criterio"
 PEDIDOS: frozenset[str] = frozenset({PEDIDO_DESCARTAR_ACHADO, PEDIDO_MAIS_CICLOS, PEDIDO_CANCELAR, PEDIDO_RECUSAR_PLANO,
-                                     PEDIDO_REFAZER_ACEITE})
+                                     PEDIDO_REFAZER_ACEITE, PEDIDO_RETIRAR_CRITERIO})
 ESTADOS_QUE_SE_DESCARTAM: frozenset[str] = frozenset({a.ESTADO_ABERTO, a.ESTADO_CORRIGIDO, a.ESTADO_DO_ACOMPANHAMENTO})
 
 

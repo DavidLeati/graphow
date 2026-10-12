@@ -164,6 +164,22 @@ def test_acompanhamento_e_bloqueante_descartado_nao_impedem_o_fechamento_edge_ca
     assert recibo.sucesso, recibo.mensagem
 
 
+def test_descarte_nao_aprova_criterio_so_a_retirada_pelo_humano_tira_da_conta_edge_case() -> None:
+    """Caso de borda (ajuste 4): com C1 nao_atende, descartar o Achado não fecha; retirar C1 por Decision do humano fecha."""
+    kernel = _kernel_com_goal()
+    assert _submeter(kernel, [*_verificacao(1, veredito="rejeitado", c1="nao_atende"), *_achado("achado-1", "ver-1", "aberto")]).sucesso
+    assert _submeter(kernel, _mover("achado-1", "descartado", motivo_do_descarte="aceito"), PapelAutor.HUMANO).sucesso
+
+    so_descartado = _fechar(kernel)
+    pedido = [*_no("ped-1", TipoNo.DECISION, {"acao_do_humano": "retirar_criterio", "goal": "goal", "alvo": "C1", "motivo": "fora"})]
+    assert _submeter(kernel, pedido, PapelAutor.HUMANO).sucesso
+    assert _submeter(kernel, [_propriedade("crit-1", "retirado", {"decisao": "ped-1", "motivo": "fora"})]).sucesso
+    retirado = _fechar(kernel)
+
+    assert not so_descartado.sucesso and "o criterio crit-1 esta 'nao_atende'" in so_descartado.mensagem
+    assert retirado.sucesso, retirado.mensagem
+
+
 def test_goal_de_antes_do_aceite_no_centro_fecha_como_fechava_edge_case() -> None:
     """Caso de borda: o Goal sem condução nem Criterio (o fluxo do humano de antes) não é alcançado pela regra."""
     kernel = montar_kernel_em_memoria()

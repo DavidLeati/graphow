@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-33 módulos · 5612 linhas · 35 classes
+33 módulos · 5605 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/execucao_sem_plano.py`](#kernelexecucaosemplano) | 54 | O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado). |
-| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 250 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
+| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 243 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
 | [`kernel/forma_do_escopo.py`](#kernelformadoescopo) | 191 | A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |

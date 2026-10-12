@@ -14,9 +14,9 @@ conduzido pelo orquestrador (`orquestracao`) ou tem `Criterio` ligado, precisa:
   Goal (`ponta_do_ramo`, que o orquestrador grava do git a cada commit; o
   commit que só muda o documento do Goal não muda o commit do código);
 - de parecer `atende` nela para cada critério do Goal (todo `Criterio` que o
-  escopa e todo nó que o plano gravado lista como critério), ou, quando não
-  atende, de que todo Achado dela que fere o critério tenha sido descartado
-  pelo humano; o Criterio que uma Decision do humano tirou do plano sai da conta;
+  escopa e todo nó que o plano gravado lista como critério); descartar o Achado
+  não aprova o critério: o único jeito de fechar sem ele é o humano retirá-lo,
+  e o Criterio que uma Decision do humano retirou sai da conta;
 - e de que nenhum `Achado` bloqueante do Goal (das verificações e das revisões
   de risco dele, ou que fere critério ou decisão dele) siga aberto ou só
   corrigido.
@@ -205,7 +205,7 @@ def _retirado_pelo_humano(view: GrafoView, id_criterio: str) -> bool:
 
 
 def _criterios_sem_atende(view: GrafoView, goal: NoGrafo, ultima: NoGrafo) -> list[str]:
-    """Cada critério do Goal sem parecer `atende` na última verificação, salvo o que o humano aceitou descartando o Achado."""
+    """Cada critério do Goal sem parecer `atende` na última verificação (o retirado pelo humano já saiu da conta)."""
     pareceres = ultima.obter_propriedade(a.CAMPO_PARECERES)
     vereditos = {
         str(parecer.get(a.CAMPO_NO_DO_PARECER)): str(parecer.get(a.CAMPO_VEREDITO))
@@ -214,15 +214,8 @@ def _criterios_sem_atende(view: GrafoView, goal: NoGrafo, ultima: NoGrafo) -> li
     return [
         f"o criterio {id_no} esta '{vereditos.get(id_no, 'sem parecer')}' na ultima verificacao"
         for id_no in _criterios_do_goal(view, goal)
-        if vereditos.get(id_no) != a.VEREDITO_QUE_ATENDE and not _aceito_pelo_humano(view, ultima.id, id_no)
+        if vereditos.get(id_no) != a.VEREDITO_QUE_ATENDE
     ]
-
-
-def _aceito_pelo_humano(view: GrafoView, id_verificacao: str, id_criterio: str) -> bool:
-    """Todo Achado da verificação que fere o critério foi descartado pelo humano (e há ao menos um)."""
-    feridos = [achado for achado in _achados_de(view, id_verificacao)
-               if any(aresta.destino_id == id_criterio for aresta in view.obter_arestas_saida(achado.id, TipoAresta.FERE))]
-    return bool(feridos) and all(achado.obter_propriedade(a.CAMPO_ESTADO) == a.ESTADO_DESCARTADO for achado in feridos)
 
 
 def _bloqueantes_abertos(view: GrafoView, goal: NoGrafo) -> list[str]:

@@ -19,9 +19,11 @@ from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_CANCELAR,
     PEDIDO_DESCARTAR_ACHADO,
     PEDIDO_MAIS_CICLOS,
+    PEDIDO_RETIRAR_CRITERIO,
     NovoPedido,
     PedidoRecusado,
 )
+from graphow.orquestrador.status import formatar_status
 
 from tests.api.test_cli_orquestrar import _executavel, _rodar
 from tests.orquestrador.apoio_git import git
@@ -168,3 +170,49 @@ def test_achado_com_crlf_na_descricao_sincroniza_o_documento_duas_vezes_edge_cas
     assert parada.fechou, parada.mensagem
     documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
     assert "soma.py poderia ser calc.py\nsaida do runner:\nOK" in documento and "\r" not in documento
+
+
+def _c1_sempre_vermelho(tmp_path: Path) -> tuple[Bancada, list[str]]:
+    """A soma fica errada em toda tentativa: o teste de aceite de C1 reprova C1 até a final esgotar (sonda_descarte)."""
+    roteiro = roteiro_completo()
+    errada = {"soma.py": "def somar(a, b):\n    return 0\n", "verificar.py": "print('ok')\n"}
+    roteiro["executor"] = [executor_pronto(errada), roteiro["executor"][1], *(executor_pronto({"notas.txt": f"t{n}\n"}) for n in range(1, 4))]
+    roteiro["verificador"] = [verificacao("atende") for _ in range(4)]
+    bancada = montar_bancada(tmp_path, roteiro)
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.BLOQUEANTES_RESTANTES
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    return bancada, [a.id for v in estado.verificacoes for a in v.bloqueantes_abertos()]
+
+
+def test_descartar_achado_nao_fecha_o_goal_com_criterio_reprovado_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (ajuste 4, sonda_descarte): descartados todos os Achados, C1 segue nao_atende, e o laço para dizendo como sair."""
+    bancada, abertos = _c1_sempre_vermelho(tmp_path)
+    orquestrador = bancada.orquestrador()
+    for id_achado in abertos:
+        orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_DESCARTAR_ACHADO, "aceito o risco", "david", alvo=id_achado))
+
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.BLOQUEANTES_RESTANTES, parada.mensagem
+    assert "o descarte nao aprova criterio" in parada.mensagem and "--retirar-criterio" in parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and not estado.fechado and estado.verificacoes[-1].reprovados == ("C1",)
+
+
+def test_retirar_o_criterio_reprovado_fecha_o_goal_e_aparece_no_status_e_no_documento_nominal(tmp_path: Path) -> None:
+    """Ajuste 4: --retirar-criterio C1 é Decision do humano; os Achados de C1 se descartam com ele, e o Goal fecha sem C1."""
+    bancada, _ = _c1_sempre_vermelho(tmp_path)
+    orquestrador = bancada.orquestrador()
+
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_RETIRAR_CRITERIO, "a soma fica para o proximo Goal", "david", alvo="C1"))
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    view = bancada.kernel.obter_view()
+    assert view.obter_no("crit-soma-c1").obter_propriedade("retirado")["decisao"] == "pedido-goal-soma-1"
+    estado = ler_estado(view, "goal-soma")
+    assert estado is not None
+    assert any("C1 retirado pelo humano (a soma fica para o proximo Goal)" in linha for linha in formatar_status(estado, []))
+    documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
+    assert "## Criterios retirados pelo humano" in documento and "**C1**, retirado por david" in documento

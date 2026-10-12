@@ -23,6 +23,7 @@ from graphow.orquestrador.saidas import Plano
 PASTA_DOS_DOCUMENTOS: str = "docs/goals"
 TITULO_DAS_PENDENCIAS: str = "## Pendencias"
 TITULO_DO_ACEITE: str = "## Testes de aceite"
+TITULO_DOS_RETIRADOS: str = "## Criterios retirados pelo humano"
 
 
 def caminho_do_documento(slug: str) -> str:
@@ -77,6 +78,14 @@ def com_aceite(documento: str, linhas: Sequence[str]) -> str:
     corpo, separador, resto = documento.partition(f"\n{TITULO_DAS_PENDENCIAS}\n")
     corpo = corpo.split(f"\n{TITULO_DO_ACEITE}\n")[0].rstrip("\n")
     secao = "\n".join([TITULO_DO_ACEITE, "", *linhas])
+    return f"{corpo}\n\n{secao}\n" + (f"\n{TITULO_DAS_PENDENCIAS}\n{resto}" if separador else "")
+
+
+def com_retirados(documento: str, linhas: Sequence[str]) -> str:
+    """O documento com a seção dos critérios retirados pelo humano logo antes das pendências (reescrita, se já havia)."""
+    corpo, separador, resto = documento.partition(f"\n{TITULO_DAS_PENDENCIAS}\n")
+    corpo = corpo.split(f"\n{TITULO_DOS_RETIRADOS}\n")[0].rstrip("\n")
+    secao = "\n".join([TITULO_DOS_RETIRADOS, "", *linhas])
     return f"{corpo}\n\n{secao}\n" + (f"\n{TITULO_DAS_PENDENCIAS}\n{resto}" if separador else "")
 
 

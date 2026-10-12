@@ -61,6 +61,7 @@ class VerificacaoRegistrada:
     commit_do_codigo: str = ""
     achados: tuple[AchadoRegistrado, ...] = ()
     marco: str = ""
+    reprovados: tuple[str, ...] = ()
 
     def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
         """Os nós Achado bloqueantes desta verificação."""
@@ -72,12 +73,15 @@ class VerificacaoRegistrada:
 
     @property
     def limpa(self) -> bool:
-        """Sem bloqueante, ou com todo bloqueante dela encerrado: resolvido, ou descartado pelo humano.
+        """Sem bloqueante, ou com todo bloqueante dela encerrado (resolvido, ou descartado pelo humano), e sem critério reprovado.
 
         O laço lê o estado do Achado, e não o veredito velho da Evidence: o
-        bloqueante que o humano descartou não segura mais o marco.
+        bloqueante que o humano descartou não segura mais o marco. Mas o
+        descarte não aprova critério: o critério que ela julgou `nao_atende` ou
+        `parcial` (e que o humano não retirou) a deixa suja.
         """
-        return self.veredito == m.VEREDITO_LIMPO or (bool(self.bloqueantes()) and not self.bloqueantes_abertos())
+        encerrada = self.veredito == m.VEREDITO_LIMPO or (bool(self.bloqueantes()) and not self.bloqueantes_abertos())
+        return encerrada and not self.reprovados
 
 
 
@@ -87,6 +91,7 @@ def verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegi
     evidencias = [view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.DERIVA_DE)]
     do_goal = [e for e in evidencias if do_orquestrador(e) and e.obter_propriedade("acao") == m.ACAO_DA_VERIFICACAO]
     ordenadas = sorted(do_goal, key=lambda e: (e.ordem.seq_criacao, e.id))
+    ativos = criterios_ativos(view, id_goal)
     return tuple(
         VerificacaoRegistrada(
             id=e.id,
@@ -97,9 +102,29 @@ def verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegi
             commit_do_codigo=str(e.obter_propriedade(m.CAMPO_COMMIT_DO_CODIGO) or ""),
             achados=achados_da_evidencia(view, e.id),
             marco=str(e.obter_propriedade(m.CAMPO_MARCO) or ""),
+            reprovados=_reprovados(e.obter_propriedade(m.CAMPO_PARECERES), ativos),
         )
         for e in ordenadas
     )
+
+
+def criterios_ativos(view: GrafoView, id_goal: str) -> frozenset[str]:
+    """Os nós Criterio que escopam o Goal e que o humano não retirou (por uma Decision dele)."""
+    origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_goal, TipoAresta.ESCOPA))
+    return frozenset(no.id for no in origens if no is not None and no.tipo == TipoNo.CRITERIO and not retirado_pelo_humano(view, no))
+
+
+def retirado_pelo_humano(view: GrafoView, criterio: NoGrafo) -> bool:
+    """O Criterio traz a retirada por uma Decision que o humano gravou."""
+    retirada = criterio.obter_propriedade(a.CAMPO_RETIRADO)
+    decisao = view.obter_no(str(retirada.get("decisao", ""))) if isinstance(retirada, Mapping) else None
+    return decisao is not None and decisao.tipo == TipoNo.DECISION and decisao.proveniencia.papel == PapelAutor.HUMANO.value
+
+
+def _reprovados(pareceres: object, ativos: frozenset[str]) -> tuple[str, ...]:
+    """Os códigos dos critérios ativos que o parecer não deu como `atende`."""
+    itens = [p for p in pareceres if isinstance(p, Mapping)] if isinstance(pareceres, list) else []
+    return tuple(str(p.get("id")) for p in itens if str(p.get("no", "")) in ativos and p.get("veredito") != a.VEREDITO_QUE_ATENDE)
 
 
 def achados_da_evidencia(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegistrado, ...]:
