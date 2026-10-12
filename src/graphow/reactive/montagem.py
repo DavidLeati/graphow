@@ -1,10 +1,7 @@
 """Montagem padrão do motor reativo com os comportamentos nativos do Graphow."""
 
 from graphow.kernel.write_kernel import WriteKernel
-from graphow.reactive.builtins import (
-    ReavaliacaoDecisaoSubstituidaBehavior,
-    RevisorNotificadoBehavior,
-)
+from graphow.reactive.builtins import ReavaliacaoDecisaoSubstituidaBehavior
 from graphow.reactive.condensacao import SessaoEncerradaBehavior
 from graphow.reactive.consolidacao import AprendizadosAcumuladosBehavior
 from graphow.reactive.engine import MotorReativo
@@ -15,7 +12,6 @@ from graphow.reactive.observador_reativo import ObservadorReativo
 def montar_comportamentos_padrao() -> tuple[ComportamentoReativo, ...]:
     """Lista os comportamentos reativos que o produto ativa por padrão."""
     return (
-        RevisorNotificadoBehavior(),
         ReavaliacaoDecisaoSubstituidaBehavior(),
         SessaoEncerradaBehavior(),
         AprendizadosAcumuladosBehavior(),

@@ -121,8 +121,8 @@ def test_reacao_e_gravada_com_origem_comportamento_nominal() -> None:
     assert origens == {OrigemEvento.COMPORTAMENTO}
 
 
-def test_reacao_de_revisao_chega_ao_grafo_nominal() -> None:
-    """A outra reação nativa também é cobrada pelo efeito, não pela intenção."""
+def test_task_pronta_para_revisao_nao_gera_nota_edge_case() -> None:
+    """Caso de borda: a reação que acordava o revisor por Task saiu; a Task que vai à revisão não gera Note."""
     kernel = WriteKernel(InMemoryEventStore())
     _submeter_como_humano(
         kernel,
@@ -138,8 +138,7 @@ def test_reacao_de_revisao_chega_ao_grafo_nominal() -> None:
 
     motor.processar_evento(evento)
 
-    notas = kernel.obter_view().listar_nos_por_tipo(TipoNo.NOTE)
-    assert [nota.rotulo for nota in notas] == ["Revisao solicitada: t1"]
+    assert kernel.obter_view().listar_nos_por_tipo(TipoNo.NOTE) == []
     assert motor.recusas_registradas == ()
 
 

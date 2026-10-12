@@ -114,25 +114,25 @@ def test_observadores_ficam_registrados_no_kernel_nominal() -> None:
 
 
 def test_comportamento_reativo_dispara_e_tambem_e_publicado() -> None:
-    """Uma Task pronta para revisão gera a nota do revisor, que também chega ao canvas."""
+    """Uma Decision substituída gera a nota de reavaliação, que também chega ao canvas."""
     kernel, controlador = _montar_ambiente()
     _criar_task(kernel, "task-1")
     fila = controlador.registrar_assinante()
 
-    operacao = ItemPatch(
-        op=OperacaoPatch.REPLACE,
-        path="/nos/task-1/propriedades/status",
-        value=StatusTask.PRONTO_PARA_REVISAO.value,
+    operacoes = (
+        _operacao_de_no("d-velha", TipoNo.DECISION, "Decisao velha"),
+        _operacao_de_aresta("prod-d-velha", ID_SESSAO, "d-velha", TipoAresta.PRODUZ),
+        _operacao_de_no("d-nova", TipoNo.DECISION, "Decisao nova"),
+        _operacao_de_aresta("prod-d-nova", ID_SESSAO, "d-nova", TipoAresta.PRODUZ),
+        _operacao_de_aresta("subst", "d-nova", "d-velha", TipoAresta.SUBSTITUI),
     )
-    dados = DadosPropostaPatch(
-        autor="david", papel=PapelAutor.HUMANO, operacoes=(operacao,), justificativa="revisao"
-    )
+    dados = DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="nova decisao")
     kernel.submeter_patch(PropostaPatch.criar(dados))
 
-    eventos = _coletar(fila, 2)
-    assert eventos[0].tipo_evento == TipoEvento.NO_ATUALIZADO
-    assert eventos[1].tipo_evento == TipoEvento.NO_CRIADO
-    assert "Revisao" in str(eventos[1].payload["rotulo"])
+    eventos = _coletar(fila, 6)
+    assert [evento.tipo_evento for evento in eventos[:5]] == [TipoEvento.NO_CRIADO, TipoEvento.ARESTA_CRIADA] * 2 + [TipoEvento.ARESTA_CRIADA]
+    assert eventos[5].tipo_evento == TipoEvento.NO_CRIADO
+    assert "foi substituida" in str(eventos[5].payload["rotulo"])
 
 
 def test_lote_multiplo_publica_todos_os_eventos_edge_case() -> None:

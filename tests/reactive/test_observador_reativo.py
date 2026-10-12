@@ -82,47 +82,43 @@ def _criar_task(kernel: WriteKernel, id_task: str) -> None:
     )
 
 
+def _substituir_decisao(kernel: WriteKernel) -> None:
+    """Duas Decisions da sessão, a nova substituindo a velha, num lote só."""
+    def no(id_no: str) -> ItemPatch:
+        return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": TipoNo.DECISION.value, "rotulo": id_no})
+
+    def aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+        id_aresta = f"{tipo.value}-{origem}-{destino}"
+        valor = {"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value}
+        return ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/{id_aresta}", value=valor)
+
+    _submeter(kernel, [no("d-velha"), aresta("sess-1", "d-velha", TipoAresta.PRODUZ), no("d-nova"),
+                       aresta("sess-1", "d-nova", TipoAresta.PRODUZ), aresta("d-nova", "d-velha", TipoAresta.SUBSTITUI)])
+
+
 def test_comportamento_dispara_sem_chamada_manual_nominal() -> None:
     """A reação acontece pelo gancho do kernel, sem ninguém acionar o motor."""
     kernel = _kernel_com_reatividade()
     _criar_task(kernel, "task-1")
-    _submeter(
-        kernel,
-        [
-            ItemPatch(
-                op=OperacaoPatch.REPLACE,
-                path="/nos/task-1/propriedades/status",
-                value=StatusTask.PRONTO_PARA_REVISAO.value,
-            )
-        ],
-    )
+    _substituir_decisao(kernel)
 
     notas = kernel.obter_view().listar_nos_por_tipo(TipoNo.NOTE)
     assert len(notas) == 1
-    assert "Revis" in notas[0].rotulo
+    assert "foi substituida" in notas[0].rotulo
 
 
 def test_comportamentos_padrao_estao_todos_registrados_nominal() -> None:
     """A montagem padrão ativa os comportamentos nativos declarados."""
     motor = montar_motor_reativo_padrao(WriteKernel(InMemoryEventStore()))
     assert len(motor.comportamentos_registrados) == len(montar_comportamentos_padrao())
-    assert "RevisorNotificado" in motor.comportamentos_registrados
+    assert "ReavaliacaoDecisaoSubstituida" in motor.comportamentos_registrados
 
 
 def test_reentrancia_nao_duplica_reacoes_edge_case() -> None:
     """Caso de borda: a reação submete um patch e não pode reagir a si mesma em duplicidade."""
     kernel = _kernel_com_reatividade()
     _criar_task(kernel, "task-1")
-    _submeter(
-        kernel,
-        [
-            ItemPatch(
-                op=OperacaoPatch.REPLACE,
-                path="/nos/task-1/propriedades/status",
-                value=StatusTask.PRONTO_PARA_REVISAO.value,
-            )
-        ],
-    )
+    _substituir_decisao(kernel)
     assert len(kernel.obter_view().listar_nos_por_tipo(TipoNo.NOTE)) == 1
 
 

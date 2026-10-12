@@ -1,68 +1,67 @@
 """Testes unitários para MotorReativo."""
 
 from graphow.core.events import DadosCriacaoEvento, EventoLog, TipoEvento
-from graphow.core.types import PapelAutor, StatusTask, TipoAresta, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
-from graphow.reactive.builtins import RevisorNotificadoBehavior
+from graphow.reactive.builtins import ReavaliacaoDecisaoSubstituidaBehavior
 from graphow.reactive.engine import MotorReativo
 from graphow.storage.in_memory_store import InMemoryEventStore
 
 
+def _no(id_no: str, tipo: TipoNo) -> ItemPatch:
+    """A criação de um nó."""
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": id_no})
+
+
+def _aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
+    """A criação de uma aresta."""
+    id_aresta = f"{tipo.value}-{origem}-{destino}"
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/{id_aresta}",
+                     value={"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": tipo.value})
+
+
+def _kernel_com_decisao_substituida() -> WriteKernel:
+    """Projeto, Setor, Sessao e duas Decisions, a nova substituindo a velha, gravadas sem motor ligado."""
+    kernel = WriteKernel(InMemoryEventStore())
+    operacoes = [
+        _no("proj-1", TipoNo.PROJETO), _no("setor-1", TipoNo.SETOR), _aresta("proj-1", "setor-1", TipoAresta.CONTEM),
+        _no("sess-1", TipoNo.SESSAO), _aresta("setor-1", "sess-1", TipoAresta.CONTEM),
+        _no("d-velha", TipoNo.DECISION), _aresta("sess-1", "d-velha", TipoAresta.PRODUZ),
+        _no("d-nova", TipoNo.DECISION), _aresta("sess-1", "d-nova", TipoAresta.PRODUZ),
+        _aresta("d-nova", "d-velha", TipoAresta.SUBSTITUI),
+    ]
+    recibo = kernel.submeter_patch(PropostaPatch.criar(DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes)))
+    assert recibo.sucesso, recibo.mensagem
+    return kernel
+
+
+def _evento_da_substituicao(kernel: WriteKernel) -> EventoLog:
+    """O evento que criou a aresta `substitui`."""
+    return next(evento for evento in kernel.repositorio.ler_eventos("main")
+                if evento.tipo_evento == TipoEvento.ARESTA_CRIADA and evento.payload.get("tipo") == TipoAresta.SUBSTITUI.value)
+
+
 def test_motor_reativo_despacho_nominal() -> None:
     """Testa disparo e persistência de reações pelo MotorReativo."""
-    store = InMemoryEventStore()
-    kernel = WriteKernel(store)
+    kernel = _kernel_com_decisao_substituida()
     motor = MotorReativo(kernel)
-    motor.registrar_comportamento(RevisorNotificadoBehavior())
+    motor.registrar_comportamento(ReavaliacaoDecisaoSubstituidaBehavior())
 
-    # Cria a hierarquia ate a sessao e a task inicial que ela produz
-    kernel.submeter_patch(
-        PropostaPatch.criar(
-            DadosPropostaPatch(
-                autor="david",
-                papel=PapelAutor.HUMANO,
-                operacoes=[
-                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/proj-1", value={"id": "proj-1", "tipo": TipoNo.PROJETO.value, "rotulo": "Projeto"}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/setor-1", value={"id": "setor-1", "tipo": TipoNo.SETOR.value, "rotulo": "Setor"}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-setor", value={"id": "c-setor", "origem_id": "proj-1", "destino_id": "setor-1", "tipo": TipoAresta.CONTEM.value}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/sess-1", value={"id": "sess-1", "tipo": TipoNo.SESSAO.value, "rotulo": "Sessao"}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/c-sessao", value={"id": "c-sessao", "origem_id": "setor-1", "destino_id": "sess-1", "tipo": TipoAresta.CONTEM.value}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/nos/t1", value={"id": "t1", "tipo": TipoNo.TASK.value, "rotulo": "T1"}),
-                    ItemPatch(op=OperacaoPatch.ADD, path="/arestas/prod-t1", value={"id": "prod-t1", "origem_id": "sess-1", "destino_id": "t1", "tipo": TipoAresta.PRODUZ.value}),
-                ],
-            )
-        )
-    )
+    eventos_gerados = motor.processar_evento(_evento_da_substituicao(kernel))
 
-    # Evento de transição para pronto_para_revisao, logo após os 7 eventos do lote acima
-    dados_update = DadosCriacaoEvento(
-        seq=8,
-        autor="executor-1",
-        papel=PapelAutor.EXECUTOR,
-        tipo_evento=TipoEvento.NO_ATUALIZADO,
-        payload={"id": "t1", "propriedades": {"status": StatusTask.PRONTO_PARA_REVISAO.value}},
-    )
-    ev_update = EventoLog.criar(dados_update)
-    store.append_evento(ev_update)
-
-    eventos_gerados = motor.processar_evento(ev_update)
     assert len(eventos_gerados) > 0
-
-    view = kernel.obter_view("main")
-    notas = view.listar_nos_por_tipo(TipoNo.NOTE)
+    notas = kernel.obter_view("main").listar_nos_por_tipo(TipoNo.NOTE)
     assert len(notas) == 1
-    assert "Revisao solicitada" in notas[0].rotulo
+    assert "Decisao d-velha foi substituida por d-nova" in notas[0].rotulo
 
 
 def test_motor_reativo_limite_cascata_edge_case() -> None:
     """Caso de borda: limite de profundidade de cascata é respeitado."""
-    store = InMemoryEventStore()
-    kernel = WriteKernel(store)
+    kernel = _kernel_com_decisao_substituida()
     motor = MotorReativo(kernel, limite_cascata=0)
-    motor.registrar_comportamento(RevisorNotificadoBehavior())
+    motor.registrar_comportamento(ReavaliacaoDecisaoSubstituidaBehavior())
 
-    dados = DadosCriacaoEvento(1, "executor", PapelAutor.EXECUTOR, TipoEvento.NO_ATUALIZADO, {"id": "t1"})
-    ev = EventoLog.criar(dados)
-    gerados = motor.processar_evento(ev, profundidade=0)
+    gerados = motor.processar_evento(_evento_da_substituicao(kernel), profundidade=0)
+
     assert len(gerados) == 0

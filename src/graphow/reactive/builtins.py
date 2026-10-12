@@ -3,52 +3,19 @@
 Cada reação nasce ligada à sessão e ao nó que a motivou, e é gravada com origem
 `comportamento`. A reação que duplicava a própria Question como Note saiu: ela
 gerava ruído sem informação — a dúvida já está no grafo, com aresta `bloqueia`,
-selo no canvas e presença na vista.
+selo no canvas e presença na vista. A que acordava o revisor com uma Note
+quando uma Task ia para `pronto_para_revisao` saiu na fase 2: a revisão por
+Task deixou de ser o padrão, e a da fatia de risco é chamada pelo
+orquestrador, em código.
 """
 
 from graphow.core.events import EventoLog, TipoEvento
 from graphow.core.models import NoGrafo
-from graphow.core.types import PapelAutor, StatusTask, TipoAresta, TipoNo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import PropostaPatch
 from graphow.projection.graph_view import GrafoView
 from graphow.reactive.interfaces import ComportamentoReativo
 from graphow.reactive.notas import PedidoDeNota, localizar_sessao_de, montar_proposta_de_nota
-
-
-class RevisorNotificadoBehavior(ComportamentoReativo):
-    """Acorda o revisor quando uma Task transiciona para 'pronto_para_revisao'."""
-
-    @property
-    def nome(self) -> str:
-        """Nome identificador do comportamento."""
-        return "RevisorNotificado"
-
-    def avaliar(self, evento: EventoLog, view: GrafoView) -> PropostaPatch | None:
-        """Verifica transição de status para pronto_para_revisao."""
-        if evento.tipo_evento != TipoEvento.NO_ATUALIZADO:
-            return None
-        propriedades = evento.payload.get("propriedades", {})
-        if propriedades.get("status") != StatusTask.PRONTO_PARA_REVISAO.value:
-            return None
-        return self._montar_nota(str(evento.payload.get("id", "")), view)
-
-    def _montar_nota(self, id_task: str, view: GrafoView) -> PropostaPatch | None:
-        """Cria a nota de revisão apontando para a tarefa e para a sessão dela."""
-        tarefa = view.obter_no(id_task)
-        id_sessao = localizar_sessao_de(id_task, view) if tarefa is not None else None
-        if tarefa is None or id_sessao is None:
-            return None
-        return montar_proposta_de_nota(
-            PedidoDeNota(
-                prefixo="nota-rev",
-                rotulo=f"Revisao solicitada: {tarefa.rotulo}",
-                id_alvo=id_task,
-                id_sessao=id_sessao,
-                autor="comportamento-revisor",
-                papel=PapelAutor.REVISOR,
-                propriedades={"acao": "revisar_artefatos"},
-            )
-        )
 
 
 class ReavaliacaoDecisaoSubstituidaBehavior(ComportamentoReativo):

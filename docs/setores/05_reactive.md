@@ -10,17 +10,17 @@ Comportamentos desacoplados que observam commits e propõem patches derivados, c
 
 ## Inventário
 
-10 módulos · 937 linhas · 14 classes
+10 módulos · 896 linhas · 13 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`reactive/builtins.py`](#reactivebuiltins) | 95 | Comportamentos reativos nativos desacoplados do Graphow. |
+| [`reactive/builtins.py`](#reactivebuiltins) | 62 | Comportamentos reativos nativos desacoplados do Graphow. |
 | [`reactive/condensacao.py`](#reactivecondensacao) | 183 | Condensação pedida pelo próprio grafo: a sessão encerra e o motor abre a Task. |
 | [`reactive/consolidacao.py`](#reactiveconsolidacao) | 267 | Consolidação pedida pelo próprio grafo: os aprendizados de um alcance se acumulam e o motor abre a Task. |
 | [`reactive/diagnostico.py`](#reactivediagnostico) | 57 | Registro das reações que o kernel recusou, para que nenhuma morra calada. |
 | [`reactive/engine.py`](#reactiveengine) | 104 | Motor reativo que processa eventos e orquestra comportamentos desacoplados. |
 | [`reactive/interfaces.py`](#reactiveinterfaces) | 22 | Interface abstrata para comportamentos reativos desacoplados. |
-| [`reactive/montagem.py`](#reactivemontagem) | 43 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
+| [`reactive/montagem.py`](#reactivemontagem) | 39 | Montagem padrão do motor reativo com os comportamentos nativos do Graphow. |
 | [`reactive/notas.py`](#reactivenotas) | 110 | Montagem das notas reativas: sempre ligadas à sessão e ao nó que as motivou. |
 | [`reactive/observador_reativo.py`](#reactiveobservadorreativo) | 41 | Adaptador que liga o motor reativo ao gancho pós-commit do kernel. |
 
@@ -34,13 +34,6 @@ Comportamentos reativos nativos desacoplados do Graphow.
 
 - `nome() -> str` `[property]` — Nome identificador do comportamento.
 - `avaliar(evento: EventoLog, view: GrafoView) -> PropostaPatch | None` — Detecta criação de aresta 'substitui' entre Decisões.
-
-### `RevisorNotificadoBehavior` (ComportamentoReativo)
-
-*serviço* — Acorda o revisor quando uma Task transiciona para 'pronto_para_revisao'.
-
-- `nome() -> str` `[property]` — Nome identificador do comportamento.
-- `avaliar(evento: EventoLog, view: GrafoView) -> PropostaPatch | None` — Verifica transição de status para pronto_para_revisao.
 
 ## `reactive/condensacao.py`
 

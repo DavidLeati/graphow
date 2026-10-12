@@ -220,7 +220,7 @@ def test_tarefa_de_manutencao_da_memoria_fecha_sem_veredito_nominal(acao: str) -
 
 def test_outra_acao_nao_isenta_a_task_edge_case() -> None:
     """Caso de borda: só as duas ações abertas pelo grafo ficam isentas."""
-    assert _recusado_por_falta_de_veredito(_validar(_concluir(), Cenario(acao="revisar_artefatos")))
+    assert _recusado_por_falta_de_veredito(_validar(_concluir(), Cenario(acao="acao_qualquer")))
 
 
 def test_mover_o_status_para_outro_valor_nao_exige_veredito_nominal() -> None:
