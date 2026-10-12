@@ -45,6 +45,8 @@ PEDIDO_REFAZER_ACEITE: str = "refazer_aceite"
 PEDIDO_RETIRAR_CRITERIO: str = "retirar_criterio"
 PEDIDOS: frozenset[str] = frozenset({PEDIDO_DESCARTAR_ACHADO, PEDIDO_MAIS_CICLOS, PEDIDO_CANCELAR, PEDIDO_RECUSAR_PLANO,
                                      PEDIDO_REFAZER_ACEITE, PEDIDO_RETIRAR_CRITERIO})
+# A decisão que o executor do modo autônomo tomou por conta própria (orquestrador/decisoes_do_agente.py).
+CAMPO_DECIDIDA_PELO_AGENTE: str = "decidida_pelo_agente"
 ESTADOS_QUE_SE_DESCARTAM: frozenset[str] = frozenset({a.ESTADO_ABERTO, a.ESTADO_CORRIGIDO, a.ESTADO_DO_ACOMPANHAMENTO})
 
 
@@ -62,6 +64,7 @@ class PedidoDoHumano:
     alvo: str = ""
     ciclos: int = 0
     por: str = ""
+    fatia: str = ""
 
 
 def ler_pedidos(view: GrafoView, id_goal: str) -> tuple[PedidoDoHumano, ...]:
@@ -85,6 +88,27 @@ def _pedido(no: NoGrafo) -> PedidoDoHumano:
         alvo=str(no.obter_propriedade("alvo") or ""), ciclos=ciclos if isinstance(ciclos, int) and not isinstance(ciclos, bool) else 0,
         por=no.proveniencia.autor,
     )
+
+
+@dataclass(frozen=True)
+class DecisaoDoAgente:
+    """Uma decisão que o executor tomou por conta própria, no modo autônomo, para o humano revisar."""
+
+    id: str
+    fatia: str
+    questao: str
+    decisao: str
+    motivo: str
+
+
+def ler_decisoes_do_agente(view: GrafoView, id_goal: str) -> tuple[DecisaoDoAgente, ...]:
+    """As decisões do agente que o orquestrador gravou no Goal, na ordem do log."""
+    produzidos = (view.obter_no(a.destino_id) for a in view.obter_arestas_saida(sessao_do_goal(id_goal), TipoAresta.PRODUZ))
+    nos = sorted((no for no in produzidos if no is not None and no.tipo == TipoNo.DECISION
+                  and no.obter_propriedade(CAMPO_DECIDIDA_PELO_AGENTE) is True
+                  and no.proveniencia.papel == PapelAutor.ORQUESTRADOR.value), key=lambda no: (no.ordem.seq_criacao, no.id))
+    return tuple(DecisaoDoAgente(no.id, str(no.obter_propriedade("fatia") or ""), str(no.obter_propriedade("questao") or ""),
+                                 str(no.obter_propriedade("texto") or ""), str(no.obter_propriedade("motivo") or "")) for no in nos)
 
 
 @dataclass(frozen=True)

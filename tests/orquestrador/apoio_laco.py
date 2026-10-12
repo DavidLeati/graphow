@@ -191,6 +191,20 @@ def montar_bancada(tmp_path: Path, roteiro: dict[str, list[dict[str, Any]]]) -> 
     )
 
 
+def ate_o_portao_aprovado(bancada: Bancada) -> Orquestrador:
+    """O Goal da spec no modo supervisionado, parado no portão, com o plano e os testes aprovados pelo humano.
+
+    A dúvida do executor só existe no supervisionado: no autônomo não há quem responda.
+    """
+    from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
+
+    orquestrador = bancada.orquestrador()
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco())
+    assert parada.motivo == MotivoDaParada.AGUARDANDO_APROVACAO, parada.mensagem
+    orquestrador.aprovar_plano("goal-soma", "david")
+    return orquestrador
+
+
 class Queda(BaseException):
     """O processo do orquestrador caiu no meio de uma sessão."""
 

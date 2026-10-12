@@ -108,6 +108,8 @@ def briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto:
         _bloco("Suite e aceite", _suite_e_aceite(estado)),
         _bloco("O que as fatias anteriores entregaram", [*contexto.entregues, _diff(contexto.diff_da_anterior)]),
         _bloco("Respostas do humano as suas duvidas", _respostas(fatia)),
+        _bloco("O autor de aceite respondeu sobre o teste que voce disse errado", _resposta_do_autor(fatia)),
+        _modo_autonomo(estado),
         _bloco("A tentativa anterior falhou", _falha_anterior(fatia)),
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
     ])
@@ -121,7 +123,8 @@ def _suite_e_aceite(estado: EstadoDoGoal) -> list[str]:
     if aceite.get("comando"):
         linhas.append(f"Testes de aceite: `{aceite['comando']}` roda todos. Os dos criterios que outras fatias ainda vao "
                       "atender seguem vermelhos ate elas. Nao altere, apague nem mova nada de "
-                      f"`{PASTA_DO_ACEITE}/`: se um teste de aceite estiver errado, devolva `duvida` com o porque.")
+                      f"`{PASTA_DO_ACEITE}/`: se um teste de aceite estiver errado, diga o criterio em `teste_errado` "
+                      "e o porque em `duvida`.")
     return linhas
 
 
@@ -202,6 +205,26 @@ def _respostas(fatia: FatiaRegistrada) -> list[str]:
     return respostas
 
 
+def _resposta_do_autor(fatia: FatiaRegistrada) -> list[str]:
+    """O que o autor de aceite fez com o teste que o executor apontou: refez, ou manteve e por quê."""
+    resposta = fatia.propriedades.get("resposta_do_autor_de_aceite")
+    if not isinstance(resposta, Mapping):
+        return []
+    feito = "refez os testes" if resposta.get("mudou") else "manteve os testes"
+    return [f"O autor de aceite {feito} de {resposta.get('criterio', '')}: {resposta.get('resumo', '')}",
+            "Faca os testes de aceite passarem como estao; se o desacordo continua, a verificacao o julga."]
+
+
+def _modo_autonomo(estado: EstadoDoGoal) -> str:
+    """No modo autônomo, o que o executor faz em vez de perguntar."""
+    configuracao = estado.configuracao
+    if configuracao is None or configuracao.modo != m.MODO_AUTONOMO:
+        return ""
+    return ("## Modo autonomo\nNao ha humano para responder: nao ha duvida. Decida pela spec e registre em `decisoes` cada "
+            "decisao que tomou por conta propria (questao, decisao, motivo); o humano as revisa depois. A unica parada e "
+            "`teste_errado`: um teste de aceite esta errado; diga o criterio em `teste_errado` e o porque em `duvida`.")
+
+
 def _falha_anterior(fatia: FatiaRegistrada) -> list[str]:
     """O erro da tentativa anterior e onde está o que ela tinha mudado."""
     erro = fatia.texto(m.CAMPO_ULTIMO_ERRO)
@@ -226,6 +249,7 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         _bloco("Testes de aceite", [f"`{(estado.aceite or {}).get('comando', '')}` roda todos. Depois de voce, o orquestrador "
                                     "roda cada teste de aceite dos criterios julgados: teste vermelho reprova o criterio."]),
         _bloco("Decisoes", _decisoes(plano)),
+        _bloco("Desacordos sobre testes de aceite (julgue o criterio)", _desacordos(estado)),
         _bloco("Commits do Goal desde a base", list(entregues)),
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
         "Devolva a verificacao no JSON do schema, com um parecer para cada criterio que esta verificacao julga "
@@ -234,6 +258,19 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         "do que ele imprimiu: o orquestrador confere cada um contra as chamadas Bash desta sessao. Depois de voce, ele "
         "roda a suite nesse commit: suite vermelha reprova a entrega.",
     ])
+
+
+def _desacordos(estado: EstadoDoGoal) -> list[str]:
+    """O executor que disse que um teste de aceite está errado e o autor que o manteve: a verificação julga o critério."""
+    linhas = []
+    for fatia in estado.fatias:
+        resposta, desacordo = fatia.propriedades.get("resposta_do_autor_de_aceite"), fatia.propriedades.get("desacordo_sobre_o_teste")
+        if isinstance(resposta, Mapping) and not resposta.get("mudou"):
+            linhas.append(f"- {resposta.get('criterio')}: o executor de {fatia.codigo} disse que o teste esta errado; o autor o manteve: "
+                          f"{resposta.get('resumo', '')}")
+        if isinstance(desacordo, Mapping):
+            linhas.append(f"- {desacordo.get('criterio')}: o executor de {fatia.codigo} insistiu: {desacordo.get('argumento', '')}")
+    return linhas
 
 
 def _alcance_do_marco(marco: MarcoRegistrado) -> str:

@@ -29,6 +29,7 @@ from tests.orquestrador.apoio_laco import (
     Queda,
     autor_de_aceite,
     executor_pronto,
+    ate_o_portao_aprovado,
     montar_bancada,
     revisao,
     segunda_opiniao,
@@ -166,7 +167,7 @@ def test_duas_duvidas_respondidas_nao_gastam_as_tentativas_nominal(tmp_path: Pat
     duvida = {"saida": {"status": "duvida", "resumo": "parei", "arquivos": [], "testes": [], "duvida": "Inteiros?"}, "custo": 0.1}
     roteiro["executor"] = [copy.deepcopy(duvida), copy.deepcopy(duvida), *roteiro["executor"]]
     bancada = montar_bancada(tmp_path, roteiro)
-    orquestrador = bancada.orquestrador()
+    orquestrador = ate_o_portao_aprovado(bancada)
 
     def responder() -> None:
         estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
@@ -177,9 +178,9 @@ def test_duas_duvidas_respondidas_nao_gastam_as_tentativas_nominal(tmp_path: Pat
             ItemPatch(OperacaoPatch.REPLACE, f"/nos/{id_questao}/propriedades/resposta", "sim"))))
         assert bancada.kernel.submeter_patch(resposta).sucesso
 
-    primeira = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    primeira = orquestrador.rodar("goal-soma", OpcoesDoLaco())
     responder()
-    segunda = orquestrador.rodar("goal-soma", AUTONOMO)
+    segunda = orquestrador.rodar("goal-soma", OpcoesDoLaco())
     responder()
     terceira = orquestrador.rodar("goal-soma", AUTONOMO)
 

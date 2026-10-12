@@ -20,6 +20,7 @@ from tests.orquestrador.apoio_laco import (
     VERIFICAR,
     autor_de_aceite,
     executor_pronto,
+    ate_o_portao_aprovado,
     montar_bancada,
     roteiro_completo,
     verificacao,
@@ -76,8 +77,8 @@ def test_plano_que_ja_rodou_nao_se_recusa_edge_case(tmp_path: Path) -> None:
     roteiro["executor"] = roteiro["executor"][:1] + [{"saida": {"status": "duvida", "resumo": "?", "arquivos": [], "testes": [],
                                                                "duvida": "Inteiros ou decimais?"}, "custo": 0.1}]
     bancada = montar_bancada(tmp_path, roteiro)
-    orquestrador = bancada.orquestrador()
-    assert orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.AGUARDANDO_RESPOSTA
+    orquestrador = ate_o_portao_aprovado(bancada)
+    assert orquestrador.rodar("goal-soma", OpcoesDoLaco()).motivo == MotivoDaParada.AGUARDANDO_RESPOSTA
 
     with pytest.raises(PedidoRecusado) as recusa:
         orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_RECUSAR_PLANO, "mudei de ideia", "david"))
@@ -86,7 +87,7 @@ def test_plano_que_ja_rodou_nao_se_recusa_edge_case(tmp_path: Path) -> None:
 
 
 def test_duvida_de_teste_errado_respondida_refaz_o_aceite_do_criterio_nominal(tmp_path: Path) -> None:
-    """Bloqueante 3: o executor diz que o teste de C1 está errado; o humano responde; o autor refaz C1 e a fatia segue."""
+    """Bloqueante 3 e ajuste 7: o executor diz que o teste de C1 está errado; o humano responde `refazer`; o autor refaz C1."""
     roteiro = roteiro_completo()
     duvida = {"saida": {"status": "duvida", "resumo": "o teste pede 5 para 2+3, mas a spec fala em inteiros", "arquivos": [],
                         "testes": [], "duvida": "O teste de C1 esta errado?", "teste_errado": "C1"}, "custo": 0.1}
@@ -96,14 +97,14 @@ def test_duvida_de_teste_errado_respondida_refaz_o_aceite_do_criterio_nominal(tm
     roteiro["aceite"].append(refeito)
     roteiro["executor"].insert(0, duvida)
     bancada = montar_bancada(tmp_path, roteiro)
-    orquestrador = bancada.orquestrador()
-    assert orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.AGUARDANDO_RESPOSTA
+    orquestrador = ate_o_portao_aprovado(bancada)
+    assert orquestrador.rodar("goal-soma", OpcoesDoLaco()).motivo == MotivoDaParada.AGUARDANDO_RESPOSTA
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None
     questao = estado.fatias[0].duvidas[0]
     commit_antes = estado.aceite["commit"]
     resposta = (ItemPatch(OperacaoPatch.REPLACE, f"/nos/{questao.id}/propriedades/status", "respondida"),
-                ItemPatch(OperacaoPatch.REPLACE, f"/nos/{questao.id}/propriedades/resposta", "o teste precisa imprimir que refez"))
+                ItemPatch(OperacaoPatch.REPLACE, f"/nos/{questao.id}/propriedades/resposta", "refazer: o teste precisa imprimir que refez"))
     assert bancada.kernel.submeter_patch(PropostaPatch.criar(DadosPropostaPatch(
         autor="david", papel=PapelAutor.HUMANO, operacoes=resposta, justificativa="resposta"))).sucesso
 

@@ -21,6 +21,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 STATUS_DUVIDA: str = "duvida"
+STATUS_TESTE_ERRADO: str = "teste_errado"
 MARCO_UNICO: str = "M1"
 
 
@@ -229,6 +230,7 @@ class SaidaDoExecutor:
     testes: tuple[str, ...] = ()
     duvida: str = ""
     teste_errado: str = ""
+    decisoes: tuple[Mapping[str, Any], ...] = ()
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "SaidaDoExecutor":
@@ -240,8 +242,13 @@ class SaidaDoExecutor:
             testes=_textos(dados.get("testes")),
             duvida=str(dados.get("duvida", "")).strip(),
             teste_errado=str(dados.get("teste_errado", "")).strip(),
+            decisoes=tuple(dict(item) for item in dados.get("decisoes", []) if isinstance(item, Mapping)),
         )
 
     def conferir(self) -> tuple[str, ...]:
-        """A dúvida precisa da pergunta."""
-        return ("status duvida sem a pergunta em 'duvida'",) if self.status == STATUS_DUVIDA and not self.duvida else ()
+        """A dúvida precisa da pergunta; o teste errado, do critério e do porquê."""
+        if self.status == STATUS_DUVIDA and not self.duvida:
+            return ("status duvida sem a pergunta em 'duvida'",)
+        if self.status == STATUS_TESTE_ERRADO and not (self.teste_errado and self.duvida):
+            return ("status teste_errado pede o criterio em 'teste_errado' e o porque em 'duvida'",)
+        return ()

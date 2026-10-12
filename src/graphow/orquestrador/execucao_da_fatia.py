@@ -24,7 +24,15 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.aceite_intocado import configuracoes_mudadas, flags_do_indice, limpar_flags, soltos_que_mudam_os_testes
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
-from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
+from graphow.orquestrador.decisoes_do_agente import (
+    CAMPO_CRITERIOS_REFEITOS,
+    CAMPO_DESACORDO,
+    CAMPO_TESTE_ERRADO,
+    PREFIXO_DO_PEDIDO_AUTOMATICO,
+    documentar_decisoes,
+    operacoes_das_decisoes,
+)
+from graphow.orquestrador.esquemas import ESQUEMA_DA_EXECUCAO_AUTONOMA, PAPEL_EXECUTOR
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
@@ -33,6 +41,7 @@ from graphow.orquestrador.git_do_goal import (
     mensagem_do_orquestrador,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
+from graphow.orquestrador.livro_razao import propriedade
 from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, RejeicaoDaRevisao, de_risco, revisar_fatia
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite, e_cache
 from graphow.orquestrador.saidas import SaidaDoExecutor
@@ -41,6 +50,7 @@ from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
 
 STATUS_PRONTO: str = "pronto"
 STATUS_DUVIDA: str = "duvida"
+STATUS_TESTE_ERRADO: str = "teste_errado"
 
 
 @dataclass(frozen=True)
@@ -75,6 +85,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
             briefing=briefing_do_executor(estado, fatia, _contexto_da_fatia(contexto, estado, numero)),
             conferir=lambda dados: SaidaDoExecutor.de_json(dados).conferir(),
             modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(),
+            esquema=ESQUEMA_DA_EXECUCAO_AUTONOMA if contexto.configuracao.modo == m.MODO_AUTONOMO else None,
         )
     )
     desfeito = resposta.desfeito
@@ -90,7 +101,9 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         patch = _guardar(contexto, fatia, f"t{tentativa.numero}-duvida")
         contexto.livro.abrir_duvida(fatia.id, tentativa.numero, pergunta=saida.duvida, patch=patch, criterio_do_teste=saida.teste_errado)
         return None
-    if saida.status != STATUS_PRONTO:
+    if saida.status == STATUS_TESTE_ERRADO and _pausar_para_refazer(contexto, tentativa, saida):
+        return None
+    if saida.status not in (STATUS_PRONTO, STATUS_TESTE_ERRADO):
         return _falhou(contexto, tentativa, f"o executor devolveu {saida.status}: {saida.resumo}")
     try:
         problema = _conferir_a_entrega(contexto, tentativa)
@@ -103,10 +116,29 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         return _falhou(contexto, tentativa, problema.texto, nota=False)
     if problema:
         return _falhou(contexto, tentativa, problema)
+    documentar_decisoes(contexto, fatia, saida.decisoes)
     commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
-                                  achados=m.achados_da_correcao(fatia.propriedades))
+                                  achados=m.achados_da_correcao(fatia.propriedades),
+                                  extra=operacoes_das_decisoes(contexto.livro, fatia.id, tentativa.numero, decisoes=saida.decisoes))
     return None
+
+
+def _pausar_para_refazer(contexto: ContextoDoGoal, tentativa: Tentativa, saida: SaidaDoExecutor) -> bool:
+    """O teste errado do modo autônomo: a fatia volta à fila e o laço pede o refazer, uma vez por critério; senão, segue."""
+    fatia = tentativa.fatia
+    refeitos = contexto.estado().propriedades.get(CAMPO_CRITERIOS_REFEITOS) or []
+    if saida.teste_errado in refeitos:
+        contexto.livro.gravar([propriedade(fatia.id, CAMPO_DESACORDO, {"criterio": saida.teste_errado, "argumento": saida.duvida})],
+                              f"Desacordo sobre o teste de aceite de {saida.teste_errado} na fatia {fatia.id}")
+        return False
+    patch = _guardar(contexto, fatia, f"t{tentativa.numero}-teste-errado")
+    pedido = {"id": f"{PREFIXO_DO_PEDIDO_AUTOMATICO}{fatia.id}-t{tentativa.numero}", "criterio": saida.teste_errado,
+              "argumento": saida.duvida, "tentativa": tentativa.numero}
+    contexto.livro.gravar([propriedade(fatia.id, CAMPO_TESTE_ERRADO, pedido), propriedade(fatia.id, m.CAMPO_PATCH, patch),
+                           propriedade(fatia.id, m.CAMPO_STATUS, m.STATUS_PENDENTE)],
+                          f"O executor da fatia {fatia.id} diz que o teste de aceite de {saida.teste_errado} esta errado")
+    return True
 
 
 def _depois_da_interrupcao(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> tuple[EstadoDoGoal, FatiaRegistrada]:

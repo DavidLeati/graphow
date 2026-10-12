@@ -31,6 +31,8 @@ LIMITE_DO_PROMPT_BYTES: int = 5 * 1024
 VERIFICACOES_DE_CRITERIO: tuple[str, ...] = a.VERIFICACOES_DE_CRITERIO
 MODELOS_SUGERIDOS: tuple[str, ...] = ("opus", "sonnet", "haiku")
 STATUS_DO_EXECUTOR: tuple[str, ...] = ("pronto", "duvida", "falhou")
+# No modo autônomo não há humano para responder: a única parada é o teste de aceite errado.
+STATUS_DO_EXECUTOR_AUTONOMO: tuple[str, ...] = ("pronto", "teste_errado", "falhou")
 VEREDITOS_DE_CRITERIO: tuple[str, ...] = a.VEREDITOS_DE_CRITERIO
 SEVERIDADES: tuple[str, ...] = ("alta", "media", "baixa")
 
@@ -110,6 +112,7 @@ ESQUEMA_DA_REVISAO: dict[str, Any] = _objeto(
      "problemas": _lista_de(PROBLEMA_DA_REVISAO)}
 )
 
+DECISAO_DO_AGENTE: dict[str, Any] = _objeto({"questao": TEXTO, "decisao": TEXTO, "motivo": TEXTO})
 ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
     {
         "status": {"type": "string", "enum": list(STATUS_DO_EXECUTOR)},
@@ -118,9 +121,14 @@ ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
         "testes": LISTA_DE_TEXTOS,
         "duvida": TEXTO_LIVRE,
         "teste_errado": TEXTO_LIVRE,
+        "decisoes": _lista_de(DECISAO_DO_AGENTE),
     },
-    opcionais=("teste_errado",),
+    opcionais=("teste_errado", "decisoes"),
 )
+ESQUEMA_DA_EXECUCAO_AUTONOMA: dict[str, Any] = {
+    **ESQUEMA_DA_EXECUCAO,
+    "properties": {**ESQUEMA_DA_EXECUCAO["properties"], "status": {"type": "string", "enum": list(STATUS_DO_EXECUTOR_AUTONOMO)}},
+}
 
 PARECER: dict[str, Any] = _objeto(
     {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": PROVA}

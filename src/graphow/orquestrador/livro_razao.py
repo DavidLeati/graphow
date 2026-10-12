@@ -157,7 +157,7 @@ class LivroRazaoDoGoal:
 
     def concluir_fatia(
         self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "",
-        achados: Sequence[str] = (),
+        achados: Sequence[str] = (), extra: Sequence[ItemPatch] = (),
     ) -> None:
         """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
 
@@ -176,6 +176,7 @@ class LivroRazaoDoGoal:
                 propriedade(id_task, m.CAMPO_COMMIT, commit),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_CONCLUIDO),
                 propriedade(id_task, m.CAMPO_ENTREGA_PENDENTE, None),
+                *extra,
                 *(item for achado in achados for item in (propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO),
                                                           propriedade(achado, a.CAMPO_COMMIT_DA_CORRECAO, commit))),
             ],

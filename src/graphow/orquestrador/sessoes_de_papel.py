@@ -112,6 +112,12 @@ class PedidoDePapel:
     orcamento_restante_usd: float = 0.0
     comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None = None
     retomadas: int = 1
+    esquema: Mapping[str, Any] | None = None
+
+    @property
+    def schema(self) -> Mapping[str, Any]:
+        """O schema da saída: o do pedido (o executor do modo autônomo tem o dele) ou o do papel."""
+        return self.esquema or ESQUEMA_POR_PAPEL[self.papel]
 
 
 @dataclass(frozen=True)
@@ -188,7 +194,7 @@ class SessoesDePapel:
             retomar=retomar,
             banco_graphow=self._configuracao.banco_dos_hooks,
             tempo_limite_s=self._configuracao.tempo_limite_s,
-            argumentos_extras=argumentos_do_papel(pedido.papel, pedido.orcamento_restante_usd),
+            argumentos_extras=argumentos_do_papel(pedido.papel, pedido.orcamento_restante_usd, esquema=pedido.esquema),
             ambiente_extra=self._configuracao.ambiente_da_trava,
         )
         aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
@@ -212,11 +218,11 @@ def _marca_da_invocacao() -> str:
     return f"{datetime.now():%Y%m%dT%H%M%S}-{secrets.token_hex(2)}"
 
 
-def argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]:
+def argumentos_do_papel(papel: str, orcamento_restante_usd: float, *, esquema: Mapping[str, Any] | None = None) -> tuple[str, ...]:
     """O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último."""
     return (
         "--append-system-prompt-file", str(caminho_do_prompt(papel)),
-        "--json-schema", json.dumps(ESQUEMA_POR_PAPEL[papel], separators=(",", ":")),
+        "--json-schema", json.dumps(esquema or ESQUEMA_POR_PAPEL[papel], separators=(",", ":")),
         "--strict-mcp-config",
         "--setting-sources", FONTES_DE_CONFIGURACAO,
         "--tools", ",".join(FERRAMENTAS_POR_PAPEL[papel]),
@@ -231,7 +237,7 @@ def ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapp
     if dados is None:
         motivo = resultado.motivo_do_erro or "a sessao nao devolveu JSON"
         return None, (f"sem saida estruturada: {motivo}",)
-    problemas = validar_contra_esquema(dados, ESQUEMA_POR_PAPEL[pedido.papel])
+    problemas = validar_contra_esquema(dados, dict(pedido.schema))
     if problemas:
         return None, problemas
     problemas = pedido.conferir(dados)

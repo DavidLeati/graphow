@@ -20,8 +20,10 @@ from typing import Any
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.decisoes_do_agente import CAMPO_CRITERIOS_REFEITOS, CAMPO_RESPOSTA_DO_AUTOR, PREFIXO_DO_PEDIDO_AUTOMATICO
 from graphow.orquestrador.esquemas import PAPEL_AUTOR_DE_ACEITE
-from graphow.orquestrador.git_do_goal import commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
+from graphow.orquestrador.git_do_goal import arquivos_do_commit, commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
+from graphow.orquestrador.livro_razao import propriedade
 from graphow.orquestrador.aceite_intocado import forcar_o_aceite_no_indice
 from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, commit_da_configuracao, gravar_aceite, gravar_aceite_proposto
@@ -59,6 +61,8 @@ def refazer_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedid
         refeito = proposto.get(CHAVE_DO_REFEITO) if isinstance(proposto, Mapping) else None
         novo, commit = SaidaDoAceite.do_livro(refeito if isinstance(refeito, Mapping) else estado.aceite), feito.hash
     _gravar(contexto, estado, novo, commit=commit, pedido=pedido)
+    if pedido.fatia:
+        _responder_a_fatia(contexto, estado, pedido, commit=commit, resumo=novo.resumo)
     return None
 
 
@@ -126,7 +130,8 @@ def _com_o_refeito(atual: SaidaDoAceite, refeito: SaidaDoAceite, criterio: str) 
     """O aceite inteiro com o critério trocado pelo refeito, e o comando de todos que o autor devolveu."""
     novo: AceiteDoCriterio = refeito.criterios[0] if refeito.criterios else AceiteDoCriterio(criterio)
     criterios = tuple(novo if c.id == criterio else c for c in atual.criterios)
-    return replace(atual, criterios=criterios, comando_aceite=refeito.comando_aceite or atual.comando_aceite)
+    return replace(atual, criterios=criterios, comando_aceite=refeito.comando_aceite or atual.comando_aceite,
+                   resumo=refeito.resumo or atual.resumo)
 
 
 def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite, *, commit: str, pedido: PedidoDoHumano) -> None:
@@ -140,13 +145,26 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite,
         commit_da_configuracao=commit_da_configuracao(estado.aceite)))
 
 
+def _responder_a_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano, *, commit: str, resumo: str) -> None:
+    """A fatia que apontou o teste errado recebe o que o autor fez (refez ou manteve, e o porquê); o refazer do agente conta uma vez."""
+    mudou = any(dentro_do_aceite(caminho) for caminho in arquivos_do_commit(contexto.area, commit))
+    resposta = {"criterio": pedido.alvo, "mudou": mudou, "resumo": resumo, "pedido": pedido.id}
+    operacoes = [propriedade(pedido.fatia, CAMPO_RESPOSTA_DO_AUTOR, resposta)]
+    if pedido.id.startswith(PREFIXO_DO_PEDIDO_AUTOMATICO):
+        refeitos = [str(c) for c in estado.propriedades.get(CAMPO_CRITERIOS_REFEITOS) or []]
+        operacoes.append(propriedade(estado.id_goal, CAMPO_CRITERIOS_REFEITOS, [*refeitos, pedido.alvo]))
+    contexto.livro.gravar(operacoes, f"Resposta do autor de aceite sobre o teste de {pedido.alvo} a fatia {pedido.fatia}")
+
+
 def briefing_do_refazer(estado: EstadoDoGoal, pedido: PedidoDoHumano, atual: SaidaDoAceite) -> str:
     """O pedido ao autor: o de sempre, mais o critério a refazer, os testes atuais dele e o motivo do humano."""
     do_criterio = atual.do_criterio(pedido.alvo)
     testes = [f"- {t.arquivo}::{t.nome} (`{t.comando}`)" for t in (do_criterio.testes if do_criterio else ())]
     return "\n\n".join([
         f"# Refazer os testes de aceite de {pedido.alvo}",
-        f"O humano pediu que os testes de aceite de {pedido.alvo} sejam refeitos. Motivo do humano: {pedido.motivo}",
+        f"Pediu-se que os testes de aceite de {pedido.alvo} sejam refeitos. Motivo: {pedido.motivo}",
+        "Se o teste esta certo, mantenha-o (devolva os mesmos testes, sem mudar os arquivos) e diga por que no resumo: "
+        "o executor recebe a sua resposta, e a verificacao julga o desacordo." if pedido.fatia else "",
         "Testes atuais de " + pedido.alvo + ":\n" + ("\n".join(testes) or "(nenhum)"),
         f"Reescreva so os testes de {pedido.alvo}: pode mudar os arquivos dele em aceite/ e criar novos ali; nao toque nos "
         "testes dos outros criterios nem em nada fora de aceite/. A implementacao pode ja existir: cada teste novo tem de "

@@ -22,6 +22,7 @@ from tests.orquestrador.apoio_laco import (
     Queda,
     autor_de_aceite,
     executor_pronto,
+    ate_o_portao_aprovado,
     montar_bancada,
     roteiro_completo,
     verificacao,
@@ -198,9 +199,9 @@ def test_duvida_pausa_so_a_fatia_e_a_resposta_volta_no_briefing_nominal(tmp_path
               "arquivos": {"rascunho.py": "x = 1\n"}, "custo": 0.1}
     roteiro["executor"] = [duvida, roteiro["executor"][1], roteiro["executor"][0], roteiro["executor"][2]]
     bancada = montar_bancada(tmp_path, roteiro)
-    orquestrador = bancada.orquestrador()
+    orquestrador = ate_o_portao_aprovado(bancada)
 
-    pausado = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    pausado = orquestrador.rodar("goal-soma", OpcoesDoLaco())
     ultimo_antes_da_resposta = _assuntos(bancada.repositorio, "graphow/soma")[0]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None

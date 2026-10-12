@@ -53,6 +53,10 @@ def _linhas_do_aceite(estado: EstadoDoGoal) -> list[str]:
     linhas.append("Criterios: " + ", ".join(
         f"{c['id']} " + (f"retirado pelo humano ({retirados[str(c['id'])]})" if str(c["id"]) in retirados else estados.get(str(c["id"]), "pendente"))
         for c in estado.plano.get("criterios", [])))
+    decisoes = estado.decisoes_do_agente
+    if decisoes:
+        linhas.append(f"Decisoes do agente para o humano revisar: {len(decisoes)}")
+        linhas.extend(f"  {d.fatia}: {d.questao} -> {d.decisao} ({d.motivo})" for d in decisoes)
     linhas.extend(f"Marco {marco.id}{' (final)' if marco.final else ''}: fatias {', '.join(marco.fatias)}; "
                   + ("verificado limpo" if any(v.limpa for v in estado.verificacoes_do_marco(marco)) else
                      "ciclos esgotados, bloqueantes seguem para a final" if estado.marco_esgotado(marco) else "sem verificacao limpa")

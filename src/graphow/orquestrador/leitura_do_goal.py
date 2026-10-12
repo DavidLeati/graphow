@@ -20,8 +20,18 @@ from graphow.orquestrador.leitura_das_verificacoes import (
     achados_das_revisoes,
     verificacoes_do_goal,
 )
-from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, PEDIDO_REFAZER_ACEITE, PedidoDoHumano, ler_pedidos
+from graphow.orquestrador.pedidos_do_humano import (
+    PEDIDO_MAIS_CICLOS,
+    PEDIDO_REFAZER_ACEITE,
+    DecisaoDoAgente,
+    PedidoDoHumano,
+    ler_decisoes_do_agente,
+    ler_pedidos,
+)
 from graphow.projection.graph_view import GrafoView
+
+# O teste de aceite errado que o executor do modo autônomo apontou (orquestrador/decisoes_do_agente.py).
+CAMPO_TESTE_ERRADO: str = "teste_errado"
 
 STATUS_NA_FILA: frozenset[str] = frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})
 
@@ -35,6 +45,7 @@ class DuvidaRegistrada:
     status: str
     resposta: str
     criterio_do_teste: str = ""
+    decisao_do_teste: str = ""
 
     @property
     def aberta(self) -> bool:
@@ -111,6 +122,7 @@ class EstadoDoGoal:
     verificacoes: tuple[VerificacaoRegistrada, ...] = ()
     plano_aprovado: bool = False
     pedidos: tuple[PedidoDoHumano, ...] = ()
+    decisoes_do_agente: tuple[DecisaoDoAgente, ...] = ()
 
     @property
     def configuracao(self) -> m.ConfiguracaoDoGoal | None:
@@ -206,17 +218,22 @@ class EstadoDoGoal:
         return m.MAXIMO_DE_CICLOS_DE_CORRECAO + dados
 
     def pedidos_pendentes(self, acao: str) -> tuple[PedidoDoHumano, ...]:
-        """Os pedidos do humano com a ação dada que o laço ainda não atendeu.
+        """Os pedidos com a ação dada que o laço ainda não atendeu: os do humano e os de refazer um teste de aceite.
 
-        A dúvida do executor que diz que um teste de aceite está errado, depois
-        de respondida pelo humano, é um pedido de refazer aquele aceite, com a
-        resposta como motivo.
+        A dúvida do executor que diz que um teste de aceite está errado só pede
+        o refazer quando o humano responde que sim (`refazer`), com a resposta
+        como motivo; no modo autônomo, o `teste_errado` do executor pede o
+        refazer sozinho (orquestrador/decisoes_do_agente.py).
         """
         atendidos = self.propriedades.get(a.CAMPO_PEDIDOS_ATENDIDOS)
         feitos = set(atendidos) if isinstance(atendidos, list) else set()
-        duvidas = (PedidoDoHumano(d.id, PEDIDO_REFAZER_ACEITE, d.resposta, alvo=d.criterio_do_teste)
-                   for f in self.fatias for d in f.duvidas if d.criterio_do_teste and not d.aberta)
-        return tuple(pedido for pedido in (*self.pedidos, *duvidas) if pedido.acao == acao and pedido.id not in feitos)
+        duvidas = (PedidoDoHumano(d.id, PEDIDO_REFAZER_ACEITE, d.resposta, alvo=d.criterio_do_teste, fatia=f.id)
+                   for f in self.fatias for d in f.duvidas if d.criterio_do_teste and not d.aberta and d.decisao_do_teste == "refazer")
+        automaticos = (PedidoDoHumano(str(t["id"]), PEDIDO_REFAZER_ACEITE, f"o executor da fatia {f.codigo} diz que o teste de "
+                                      f"{t['criterio']} esta errado: {t.get('argumento', '')}", alvo=str(t["criterio"]), fatia=f.id)
+                       for f in self.fatias if isinstance(t := f.propriedades.get(CAMPO_TESTE_ERRADO), Mapping) and t.get("id"))
+        candidatos = (*self.pedidos, *duvidas, *automaticos)
+        return tuple(pedido for pedido in candidatos if pedido.acao == acao and pedido.id not in feitos)
 
     def marco_esgotado(self, marco: MarcoRegistrado) -> bool:
         """O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer."""
@@ -272,6 +289,7 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
         verificacoes=verificacoes_do_goal(view, id_goal),
         plano_aprovado=_plano_aprovado_pelo_humano(goal),
         pedidos=ler_pedidos(view, id_goal),
+        decisoes_do_agente=ler_decisoes_do_agente(view, id_goal),
     )
 
 
@@ -325,9 +343,18 @@ def _duvidas(view: GrafoView, id_task: str) -> tuple[DuvidaRegistrada, ...]:
             status=str(q.obter_propriedade("status") or StatusQuestion.ABERTA.value),
             resposta=str(q.obter_propriedade(m.CAMPO_RESPOSTA) or ""),
             criterio_do_teste=str(q.obter_propriedade(m.CAMPO_CRITERIO_DO_TESTE) or ""),
+            decisao_do_teste=_decisao_do_teste(q),
         )
         for q in validas
     )
+
+
+def _decisao_do_teste(questao: NoGrafo) -> str:
+    """O que o humano decidiu sobre o teste dito errado: `refazer` ou `manter`, pela propriedade ou pela primeira palavra da resposta."""
+    gravada = str(questao.obter_propriedade("decisao_do_teste") or "").strip().lower()
+    palavras = str(questao.obter_propriedade(m.CAMPO_RESPOSTA) or "").strip().lower().split()
+    primeira = palavras[0].strip(":.,;-") if palavras else ""
+    return gravada if gravada in ("refazer", "manter") else primeira if primeira in ("refazer", "manter") else ""
 
 
 def setor_do_goal(view: GrafoView, id_goal: str) -> str:

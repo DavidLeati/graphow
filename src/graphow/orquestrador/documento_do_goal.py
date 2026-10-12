@@ -24,6 +24,7 @@ PASTA_DOS_DOCUMENTOS: str = "docs/goals"
 TITULO_DAS_PENDENCIAS: str = "## Pendencias"
 TITULO_DO_ACEITE: str = "## Testes de aceite"
 TITULO_DOS_RETIRADOS: str = "## Criterios retirados pelo humano"
+TITULO_DAS_DECISOES_DO_AGENTE: str = "## Decisoes do agente (para o humano revisar)"
 
 
 def caminho_do_documento(slug: str) -> str:
@@ -83,9 +84,17 @@ def com_aceite(documento: str, linhas: Sequence[str]) -> str:
 
 def com_retirados(documento: str, linhas: Sequence[str]) -> str:
     """O documento com a seção dos critérios retirados pelo humano logo antes das pendências (reescrita, se já havia)."""
+    return com_secao(documento, TITULO_DOS_RETIRADOS, linhas)
+
+
+def com_secao(documento: str, titulo: str, linhas: Sequence[str]) -> str:
+    """O documento com a seção dada (reescrita, se já havia) logo antes das pendências, e as outras seções como estavam."""
     corpo, separador, resto = documento.partition(f"\n{TITULO_DAS_PENDENCIAS}\n")
-    corpo = corpo.split(f"\n{TITULO_DOS_RETIRADOS}\n")[0].rstrip("\n")
-    secao = "\n".join([TITULO_DOS_RETIRADOS, "", *linhas])
+    antes, _, depois = corpo.partition(f"\n{titulo}\n")
+    seguinte = depois.find("\n## ")
+    sobra = depois[seguinte:] if depois and seguinte >= 0 else ""
+    corpo = (antes + sobra).rstrip("\n")
+    secao = "\n".join([titulo, "", *linhas])
     return f"{corpo}\n\n{secao}\n" + (f"\n{TITULO_DAS_PENDENCIAS}\n{resto}" if separador else "")
 
 
