@@ -144,6 +144,13 @@ class LivroRazaoDoGoal:
             f"Tentativa {tentativa} da fatia {id_task}",
         )
 
+    def devolver_tentativa(self, id_task: str, tentativas: int) -> None:
+        """A tentativa que a API recusou não conta: a fatia volta a pendente, com as tentativas de antes dela."""
+        self.gravar(
+            [propriedade(id_task, m.CAMPO_STATUS, m.STATUS_PENDENTE), propriedade(id_task, m.CAMPO_TENTATIVAS, tentativas)],
+            f"Tentativa da fatia {id_task} devolvida: a API recusou a sessao",
+        )
+
     def concluir_fatia(
         self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "",
         achados: Sequence[str] = (),

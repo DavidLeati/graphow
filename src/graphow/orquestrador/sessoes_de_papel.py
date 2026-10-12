@@ -28,6 +28,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import secrets
+import time
 from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
@@ -41,6 +42,7 @@ from graphow.orquestrador.esquemas import (
     PAPEL_VERIFICADOR,
     caminho_do_prompt,
 )
+from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
 from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
@@ -63,6 +65,8 @@ FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"
 MODELO_PADRAO: str = "opus"
+# As esperas antes de repetir a invocação que esbarrou num erro passageiro da API.
+RECUOS_DO_ERRO_DA_API_S: tuple[float, ...] = (30.0, 120.0, 300.0)
 # Escrever testes de aceite não pede o Opus: na bancada, o autor custou de US$ 1,35 a
 # 2,15 por Goal, a maior parte em saída. O padrão dele é o Sonnet; `--modelo-aceite` muda.
 MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {"aceite": "sonnet"}
@@ -87,6 +91,8 @@ class ConfiguracaoDasSessoes:
     modo_de_permissao: str = MODO_DE_PERMISSAO_PADRAO
     tempo_limite_s: float = 3600.0
     banco_dos_hooks: Path | None = None
+    esperar: Callable[[float], None] = time.sleep
+    recuos_s: tuple[float, ...] = RECUOS_DO_ERRO_DA_API_S
 
 
 @dataclass(frozen=True)
@@ -129,22 +135,41 @@ class SessoesDePapel:
         return self._configuracao.modelos.get(papel) or modelo_padrao(papel)
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
-        """A sessão conferida, e o clone deixado como estava antes dela; o que foi desfeito vai na resposta."""
+        """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa."""
         foto = fotografar_clone(pedido.pasta)
-        resposta = self._rodar_e_conferir(pedido)
-        return replace(resposta, desfeito=restaurar_o_clone(foto))
+        try:
+            resposta = self._rodar_e_conferir(pedido)
+        finally:
+            desfeito = restaurar_o_clone(foto)
+        return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão, e as retomadas (uma, ou as que o pedido dá) com os problemas enquanto a saída não confere."""
-        resultados = [self._invocar(pedido, pedido.briefing, "")]
+        resultados = [self._invocar_com_recuo(pedido, pedido.briefing, "")]
         dados, problemas = _conferida(pedido, tuple(resultados))
         while problemas and len(resultados) <= pedido.retomadas and not resultados[-1].tempo_esgotado:
             sessao = resultados[-1].session_id or resultados[0].session_id
             if not sessao:
                 break
-            resultados.append(self._invocar(pedido, pedido_de_correcao_da_saida(problemas), sessao))
+            resultados.append(self._invocar_com_recuo(pedido, pedido_de_correcao_da_saida(problemas), sessao))
             dados, problemas = _conferida(pedido, tuple(resultados))
         return RespostaDePapel(None if problemas else dados, problemas, tuple(resultados))
+
+    def _invocar_com_recuo(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
+        """A invocação; no erro passageiro da API, a mesma de novo depois de cada espera; no limite de uso, a recusa."""
+        resultado = self._invocar(pedido, prompt, retomar)
+        for espera in self._configuracao.recuos_s:
+            falha = falha_da_api(resultado)
+            if falha is None:
+                return resultado
+            if falha.limite_de_uso:
+                raise recusa(falha, pedido.papel)
+            self._configuracao.esperar(espera)
+            resultado = self._invocar(pedido, prompt, retomar)
+        falha = falha_da_api(resultado)
+        if falha is not None:
+            raise recusa(falha, pedido.papel)
+        return resultado
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
         """Uma invocação de `claude -p`: a linha de telemetria nasce em andamento e fecha com o resultado."""

@@ -14,6 +14,12 @@ invocação traz o acumulado da sessão, não o da invocação. E a leitura é
 defensiva: linha que não é JSON é ignorada, e o stream sem `result` (processo
 morto, tempo esgotado) devolve leitura sem resultado, em vez de números
 inventados.
+
+O erro da API também se lê: o `result` traz `api_error`, `api_error_status` e
+`terminal_reason`, e o limite de uso da conta vem antes num `rate_limit_event`
+com status `rejected` e a hora em que a janela volta (`resetsAt`). Na
+bancada, o limite de uso derrubou uma fatia, que gastou as duas tentativas e
+as duas retomadas em dez segundos, e virou pendência.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -24,6 +30,10 @@ from typing import Any
 TIPO_RESULTADO: str = "result"
 TIPO_SISTEMA: str = "system"
 SUBTIPO_INICIO: str = "init"
+# O limite de uso da conta: o evento que o Claude Code emite quando a janela de
+# uso estoura, e o status que diz que a chamada foi recusada por ele.
+TIPO_LIMITE_DE_USO: str = "rate_limit_event"
+STATUS_DO_LIMITE_REJEITADO: str = "rejected"
 CHAVES_DO_MODEL_USAGE: Mapping[str, str] = {
     "entrada": "inputTokens",
     "saida": "outputTokens",
@@ -79,6 +89,9 @@ class ResultadoDoStream:
     duracao_ms: int | None
     tokens_por_modelo: Mapping[str, UsoDeTokens] = field(default_factory=dict)
     saida_estruturada: Any = None
+    erro_da_api: str = ""
+    status_do_erro: int | None = None
+    razao_do_fim: str = ""
 
     @property
     def tokens(self) -> UsoDeTokens:
@@ -96,6 +109,7 @@ class LeituraDoStream:
     session_id: str = ""
     modelo: str = ""
     resultado: ResultadoDoStream | None = None
+    limite_rejeitado: Mapping[str, Any] | None = None
 
 
 def eventos_do_stream(linhas: Iterable[str]) -> Iterator[Mapping[str, Any]]:
@@ -108,14 +122,22 @@ def eventos_do_stream(linhas: Iterable[str]) -> Iterator[Mapping[str, Any]]:
 
 def ler_stream(linhas: Iterable[str]) -> LeituraDoStream:
     """A sessão do `system/init` e o último `result` do stream."""
-    session_id, modelo, resultado = "", "", None
+    session_id, modelo, resultado, limite = "", "", None, None
     for evento in eventos_do_stream(linhas):
         if _eh_inicio(evento):
             session_id = session_id or str(evento.get("session_id") or "")
             modelo = modelo or str(evento.get("model") or "")
         if evento.get("type") == TIPO_RESULTADO:
             resultado = ler_resultado(evento)
-    return LeituraDoStream(session_id=session_id or (resultado.session_id if resultado else ""), modelo=modelo, resultado=resultado)
+        limite = _limite_rejeitado(evento) or limite
+    return LeituraDoStream(session_id=session_id or (resultado.session_id if resultado else ""), modelo=modelo, resultado=resultado,
+                           limite_rejeitado=limite)
+
+
+def _limite_rejeitado(evento: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """O `rate_limit_event` que diz que a conta passou do limite de uso (status `rejected`); None nos outros eventos."""
+    informacao = evento.get("rate_limit_info") if evento.get("type") == TIPO_LIMITE_DE_USO else None
+    return informacao if isinstance(informacao, Mapping) and informacao.get("status") == STATUS_DO_LIMITE_REJEITADO else None
 
 
 def ler_resultado(evento: Mapping[str, Any]) -> ResultadoDoStream:
@@ -130,6 +152,9 @@ def ler_resultado(evento: Mapping[str, Any]) -> ResultadoDoStream:
         duracao_ms=_inteiro_ou_nada(evento.get("duration_ms")),
         tokens_por_modelo=_tokens_por_modelo(evento.get("modelUsage")),
         saida_estruturada=evento.get("structured_output"),
+        erro_da_api=str(evento.get("api_error") or ""),
+        status_do_erro=_inteiro_ou_nada(evento.get("api_error_status")),
+        razao_do_fim=str(evento.get("terminal_reason") or ""),
     )
 
 

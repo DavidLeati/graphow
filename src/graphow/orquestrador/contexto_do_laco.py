@@ -5,10 +5,11 @@ sessão, telemetria e a pasta de estado) vêm de quem monta o laço, a CLI ou a
 bancada. A parada diz por que o laço parou e o que falta para seguir.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+import time
 
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
@@ -44,6 +45,7 @@ class MotivoDaParada(str, Enum):
     ORCAMENTO = "orcamento"
     PRONTO_PARA_INTEGRAR = "pronto_para_integrar"
     BLOQUEANTES_RESTANTES = "bloqueantes_restantes"
+    LIMITE_DE_USO = "limite_de_uso"
     FALHA = "falha"
 
 
@@ -85,6 +87,7 @@ class DependenciasDoLaco:
     modelos: Mapping[str, str] = field(default_factory=dict)
     modo_de_permissao: str = MODO_DE_PERMISSAO_PADRAO
     tempo_limite_da_sessao_s: float = TEMPO_LIMITE_PADRAO_S
+    esperar: Callable[[float], None] = time.sleep
 
 
 @dataclass(frozen=True)

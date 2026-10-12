@@ -38,7 +38,8 @@ from graphow.orquestrador.entrada_do_goal import (
     pedido_de_adocao,
 )
 from graphow.orquestrador.execucao_da_fatia import executar_fatia
-from graphow.orquestrador.git_do_goal import preparar_area, raiz_do_repositorio
+from graphow.orquestrador.falhas_da_api import LimiteDaApi
+from graphow.orquestrador.git_do_goal import descartar_mudancas, preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_RECUSAR_PLANO, PEDIDO_REFAZER_ACEITE, NovoPedido, gravar_pedido
@@ -137,7 +138,10 @@ class Orquestrador:
         contexto = self._contexto(estado, opcoes, repositorio)
         preparar_area(contexto.area_do_goal)
         for _ in range(LIMITE_DE_PASSOS):
-            parada = _passo(contexto)
+            try:
+                parada = _passo(contexto)
+            except LimiteDaApi as erro:
+                return _parada_do_limite(contexto, erro)
             if parada is not None:
                 return parada
         return Parada(id_goal, MotivoDaParada.FALHA, f"O laco passou de {LIMITE_DE_PASSOS} passos sem parar.")
@@ -159,6 +163,7 @@ class Orquestrador:
                 pasta_das_sessoes=pasta / "sessoes", ambiente_da_trava={**AMBIENTE_SEM_CACHE, **instalar_trava(pasta / "trava-do-git")},
                 modelos=self._dependencias.modelos, modo_de_permissao=self._dependencias.modo_de_permissao,
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
+                esperar=self._dependencias.esperar,
             ),
         )
         return ContextoDoGoal(livro, configuracao, sessoes, self._dependencias.telemetria, pasta, opcoes)
@@ -208,6 +213,18 @@ def _etapa_antes_das_fatias(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> E
     if contexto.configuracao.modo == m.MODO_SUPERVISIONADO and not estado.plano_aprovado:
         return lambda c, _: _portao_do_plano(c)
     return None
+
+
+def _parada_do_limite(contexto: ContextoDoGoal, erro: LimiteDaApi) -> Parada:
+    """A API recusou a sessão: a tentativa da fatia em curso não conta, o que ela deixou vai a um .patch, e o laço para."""
+    for fatia in (f for f in contexto.estado().fatias if f.status == m.STATUS_EM_ANDAMENTO):
+        descartar_mudancas(contexto.area, contexto.patch(f"{fatia.id}-t{fatia.tentativas}-limite"))
+        contexto.livro.devolver_tentativa(fatia.id, max(fatia.tentativas - 1, 0))
+    return Parada(
+        contexto.id_goal, MotivoDaParada.LIMITE_DE_USO,
+        f"{erro.mensagem}. Nao e falha do papel: a tentativa em curso nao conta. Retome com "
+        f"`graphow orquestrar --goal {contexto.id_goal}` quando a conta voltar.",
+    )
 
 
 def _parada_do_cancelamento(estado: EstadoDoGoal) -> Parada:

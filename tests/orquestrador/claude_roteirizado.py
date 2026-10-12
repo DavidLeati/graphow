@@ -14,6 +14,9 @@ papel; cada chamada consome a próxima do seu papel. Cada resposta pode:
 - `bash`: os comandos das chamadas da ferramenta Bash que o stream mostra; sem
   ele, os `comandos` que a `saida` declara (o verificador honesto);
 - `morrer`: sai com 1 sem evento `result`, como um processo que caiu;
+- `limite`: o limite de uso da conta, como o Claude Code o mostra (o
+  `rate_limit_event` recusado e o `result` com `usage_limit_reached`), e sai com 1;
+- `sobrecarga`: o `result` com o erro 529 da API, e sai com 1;
 - `levantar`: grava os arquivos e sai com 7 sem responder.
 
 O que cada chamada recebeu (argumentos, pasta, entrada e parte do ambiente) vai
@@ -86,6 +89,17 @@ def _imprimir_chamadas_bash(resposta: dict) -> None:
         print(json.dumps({"type": "assistant", "message": {"content": [chamada]}}), flush=True)
 
 
+def _erro_da_api(sessao: str, resposta: dict) -> int:
+    if resposta.get("limite"):
+        informacao = {"status": "rejected", "resetsAt": 1791812400, "rateLimitType": "five_hour"}
+        print(json.dumps({"type": "rate_limit_event", "rate_limit_info": informacao, "session_id": sessao}), flush=True)
+    erro, status = ("usage_limit_reached", 429) if resposta.get("limite") else ("overloaded_error", 529)
+    print(json.dumps({"type": "result", "subtype": "success", "is_error": True, "session_id": sessao, "result": "API Error",
+                      "total_cost_usd": 0, "num_turns": 1, "duration_ms": 5, "api_error": erro, "api_error_status": status,
+                      "terminal_reason": "api_error"}), flush=True)
+    return 1
+
+
 def main() -> int:
     argv = sys.argv[1:]
     entrada = sys.stdin.buffer.read().decode("utf-8")
@@ -101,6 +115,8 @@ def main() -> int:
     print(json.dumps({"type": "system", "subtype": "init", "session_id": sessao, "model": "claude-teste"}), flush=True)
     if resposta.get("morrer"):
         return 1
+    if resposta.get("limite") or resposta.get("sobrecarga"):
+        return _erro_da_api(sessao, resposta)
     _imprimir_chamadas_bash(resposta)
     saida = resposta.get("saida")
     texto = resposta.get("texto") or (json.dumps(saida) if saida is not None else "")

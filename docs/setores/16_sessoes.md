@@ -10,12 +10,12 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-5 módulos · 533 linhas · 8 classes
+5 módulos · 558 linhas · 8 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
-| [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 172 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
+| [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 197 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 79 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
 | [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 227 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
@@ -45,19 +45,21 @@ O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que responde
 | `TIPO_RESULTADO` | `str` | `'result'` |
 | `TIPO_SISTEMA` | `str` | `'system'` |
 | `SUBTIPO_INICIO` | `str` | `'init'` |
+| `TIPO_LIMITE_DE_USO` | `str` | `'rate_limit_event'` |
+| `STATUS_DO_LIMITE_REJEITADO` | `str` | `'rejected'` |
 | `CHAVES_DO_MODEL_USAGE` | `Mapping[str, str]` | `{'entrada': 'inputTokens', 'saida': 'outputTokens', 'cache_leitura': 'c…` |
 
 ### `LeituraDoStream`
 
 *DTO imutável* — A sessão que o stream abriu e o último resultado dela, quando houve um.
 
-**Campos:** `session_id: str`, `modelo: str`, `resultado: ResultadoDoStream | None`
+**Campos:** `session_id: str`, `modelo: str`, `resultado: ResultadoDoStream | None`, `limite_rejeitado: Mapping[str, Any] | None`
 
 ### `ResultadoDoStream`
 
 *DTO imutável* — Um evento `result`: o fim de uma invocação do `claude -p`.
 
-**Campos:** `session_id: str`, `texto: str`, `is_error: bool`, `subtipo: str`, `custo_usd: float`, `turnos: int`, `duracao_ms: int | None`, `tokens_por_modelo: Mapping[str, UsoDeTokens]`, `saida_estruturada: Any`
+**Campos:** `session_id: str`, `texto: str`, `is_error: bool`, `subtipo: str`, `custo_usd: float`, `turnos: int`, `duracao_ms: int | None`, `tokens_por_modelo: Mapping[str, UsoDeTokens]`, `saida_estruturada: Any`, `erro_da_api: str`, `status_do_erro: int | None`, `razao_do_fim: str`
 
 - `tokens() -> UsoDeTokens` `[property]` — O `modelUsage` somado entre os modelos.
 
