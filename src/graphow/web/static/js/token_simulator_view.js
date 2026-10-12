@@ -10,7 +10,7 @@ import { api } from "./api.js";
 import { debounce, escapeHtml, gravarPreferencia, lerPreferencia } from "./dom.js";
 import { icone } from "./icones.js";
 
-const PAPEIS = ["planejador", "executor", "revisor"];
+const PAPEIS = ["planejador", "executor"];
 const ORCAMENTOS_SUGERIDOS = [200, 500, 1000, 1500, 3000];
 
 export class TokenSimulatorView {
@@ -19,7 +19,8 @@ export class TokenSimulatorView {
     this.state = state;
     this.indice = indice;
     this.acoes = acoes;
-    this.papel = lerPreferencia("simulador_papel", "executor");
+    const salvo = lerPreferencia("simulador_papel", "executor");
+    this.papel = PAPEIS.includes(salvo) ? salvo : "executor";
     this.orcamento = lerPreferencia("simulador_orcamento", 1000);
     this.idCarregado = null;
     this.pedido = 0;

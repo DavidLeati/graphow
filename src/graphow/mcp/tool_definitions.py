@@ -187,7 +187,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "titulo": {"type": "string", "description": "Título da tarefa."},
                 "id_sessao": {"type": "string", "description": "ID da Sessão onde a tarefa é criada."},
                 "descricao": {"type": "string", "default": "", "description": "Descrição detalhada da tarefa."},
-                "criterio_pronto": {"type": "string", "default": "", "description": "Critério de aceitação/pronto: é contra ele que o revisor julga."},
+                "criterio_pronto": {"type": "string", "default": "", "description": "Critério de aceitação/pronto da tarefa: o que a entrega tem de cumprir."},
                 "id_tarefa_pai": {"type": "string", "description": "ID de Task pai caso seja uma sub-tarefa (decompoe). Na tarefa de correção, a tarefa que a revisão rejeitou."},
                 "depende_de": {"type": "string", "description": "ID de Task pré-requisito (depende_de)."},
                 "modelo": {"type": "string", "description": "Modelo que deve executar a tarefa, como 'sonnet' ou 'opus'. Exige motivo_modelo: a escolha fica auditável no log."},
