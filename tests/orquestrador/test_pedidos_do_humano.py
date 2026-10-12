@@ -5,6 +5,7 @@ do limite de ciclos, o humano descartava os bloqueantes e o laço não andava,
 porque lia o veredito velho da verificação, e não o estado do Achado.
 """
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,16 @@ from graphow.orquestrador.pedidos_do_humano import (
 )
 
 from tests.api.test_cli_orquestrar import _executavel, _rodar
-from tests.orquestrador.apoio_laco import BLOQUEANTE_DO_README, Bancada, executor_pronto, montar_bancada, roteiro_completo, verificacao
+from tests.orquestrador.apoio_git import git
+from tests.orquestrador.apoio_laco import (
+    ACOMPANHAMENTO,
+    BLOQUEANTE_DO_README,
+    Bancada,
+    executor_pronto,
+    montar_bancada,
+    roteiro_completo,
+    verificacao,
+)
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 EM_C1: dict[str, Any] = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring", "criterios": ["C1"]}
@@ -122,3 +132,39 @@ def test_pedido_do_humano_nao_se_edita_nem_nasce_de_outro_papel_edge_case(tmp_pa
     assert not submeter(PapelAutor.HUMANO, editar) and not submeter(PapelAutor.ORQUESTRADOR, editar)
     assert not submeter(PapelAutor.ORQUESTRADOR, forjado)
     assert not submeter(PapelAutor.HUMANO, ItemPatch(OperacaoPatch.REMOVE, "/nos/pedido-goal-soma-1"))
+
+
+def test_pendencia_com_crlf_nao_derruba_o_documento_nem_as_saidas_do_humano_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (N2): o teste de aceite falha com a saída CRLF do Windows até a final esgotar; --mais-ciclos corrige e fecha."""
+    roteiro = roteiro_completo()
+    errada = {"soma.py": "def somar(a, b):\n    return 0\n", "verificar.py": "print('ok')\n"}
+    roteiro["executor"] = [executor_pronto(errada), roteiro["executor"][1], *(executor_pronto({"notas.txt": f"t{n}\n"}) for n in (1, 2)),
+                           executor_pronto({"soma.py": "def somar(a, b):\n    return a + b\n"})]
+    roteiro["verificador"] = [verificacao("atende") for _ in range(4)]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+    assert orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.BLOQUEANTES_RESTANTES
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.pendencias
+    assert os.name != "nt" or any("\r\n" in str(p.get("descricao")) for p in estado.pendencias), "a saida do runner veio em CRLF"
+    documento = (tmp_path / "estado" / "goal-soma" / "area" / "docs" / "goals" / "soma.md").read_bytes()
+    assert b"\r" not in documento, "o documento se grava com LF, venha a pendencia com o que vier"
+
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_MAIS_CICLOS, "a soma certa esta pronta", "david", ciclos=1))
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+
+
+def test_achado_com_crlf_na_descricao_sincroniza_o_documento_duas_vezes_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (N2): o acompanhamento com CRLF vira pendência; a sincronização seguinte não regrava nem commita no vazio."""
+    roteiro = roteiro_completo()
+    com_crlf = {**ACOMPANHAMENTO, "descricao": "soma.py poderia ser calc.py\r\nsaida do runner:\r\nOK\r\n"}
+    roteiro["verificador"] = [roteiro["verificador"][0], verificacao("atende", [com_crlf])]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
+    assert "soma.py poderia ser calc.py\nsaida do runner:\nOK" in documento and "\r" not in documento

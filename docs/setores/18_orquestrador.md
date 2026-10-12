@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-40 módulos · 6609 linhas · 60 classes
+40 módulos · 6626 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,7 +21,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 180 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 59 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
-| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 97 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
+| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 117 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 166 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 226 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
@@ -52,7 +52,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 142 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 218 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 215 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 
 ## `orquestrador/aceite_intocado.py`
 
@@ -224,7 +224,9 @@ O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano 
 - `renderizar_documento(id_goal: str, configuracao: m.ConfiguracaoDoGoal, plano: Plano) -> str` — O documento do Goal recém-planejado, sem pendências ainda.
 - `com_aceite(documento: str, linhas: Sequence[str]) -> str` — O documento com a seção dos testes de aceite logo antes das pendências (reescrita, se já havia).
 - `com_pendencias(documento: str, pendencias: Sequence[Mapping[str, Any]]) -> str` — O documento com a seção de pendências reescrita.
-- `escrever_documento(area: Path, slug: str, conteudo: str) -> Path` — Grava o documento na área do Goal e devolve o caminho.
+- `normalizar_quebras(texto: str) -> str` — O texto com toda quebra de linha (CRLF, CR) como LF.
+- `gravar_se_mudou(caminho: Path, conteudo: str) -> bool` — Grava o texto com as quebras normalizadas, só quando ele difere do que está no arquivo; diz se gravou.
+- `escrever_documento(area: Path, slug: str, conteudo: str) -> Path` — Grava o documento na área do Goal, se ele mudou, e devolve o caminho.
 
 ## `orquestrador/entrada_do_goal.py`
 

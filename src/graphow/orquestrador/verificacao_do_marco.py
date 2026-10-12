@@ -30,7 +30,7 @@ from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.briefing import briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
-from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias
+from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
 from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
@@ -209,10 +209,7 @@ def sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping
     caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
     if not caminho.is_file():
         return
-    atual = caminho.read_text(encoding="utf-8")
-    novo = com_pendencias(atual, pendencias)
-    if novo == atual:
+    if not gravar_se_mudou(caminho, com_pendencias(caminho.read_text(encoding="utf-8"), pendencias)) or not contexto.git.mudancas():
         return
-    caminho.write_text(novo, encoding="utf-8", newline="\n")
     assunto = f"Registra as pendencias da verificacao {numero} do Goal {contexto.configuracao.slug}"
     contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))

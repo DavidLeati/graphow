@@ -5,6 +5,12 @@ commitado na branch do Goal, onde o humano o revisa como revisa código. As
 pendências (os acompanhamentos que a verificação achou e os bloqueantes que
 sobraram depois dos dois ciclos de correção) entram numa seção própria, que o
 orquestrador reescreve a cada verificação.
+
+O documento sempre se grava com as quebras de linha normalizadas (LF), e só
+quando o texto normalizado muda: a pendência que traz a saída de um runner do
+Windows (CRLF) fazia o texto lido, que o Python já normaliza, parecer
+diferente do gravado; o orquestrador regravava os mesmos bytes, o git não via
+mudança, e o commit falhava em toda rodada.
 """
 
 from collections.abc import Mapping, Sequence
@@ -89,9 +95,23 @@ def _linha_da_pendencia(item: Mapping[str, Any]) -> str:
            f"Origem: {item.get('origem', '')}{achado}."
 
 
-def escrever_documento(area: Path, slug: str, conteudo: str) -> Path:
-    """Grava o documento na área do Goal e devolve o caminho."""
-    caminho = area / caminho_do_documento(slug)
+def normalizar_quebras(texto: str) -> str:
+    """O texto com toda quebra de linha (CRLF, CR) como LF."""
+    return texto.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def gravar_se_mudou(caminho: Path, conteudo: str) -> bool:
+    """Grava o texto com as quebras normalizadas, só quando ele difere do que está no arquivo; diz se gravou."""
+    novo = normalizar_quebras(conteudo)
+    if caminho.is_file() and normalizar_quebras(caminho.read_text(encoding="utf-8")) == novo:
+        return False
     caminho.parent.mkdir(parents=True, exist_ok=True)
-    caminho.write_text(conteudo, encoding="utf-8", newline="\n")
+    caminho.write_text(novo, encoding="utf-8", newline="\n")
+    return True
+
+
+def escrever_documento(area: Path, slug: str, conteudo: str) -> Path:
+    """Grava o documento na área do Goal, se ele mudou, e devolve o caminho."""
+    caminho = area / caminho_do_documento(slug)
+    gravar_se_mudou(caminho, conteudo)
     return caminho

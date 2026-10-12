@@ -23,7 +23,7 @@ from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
-from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_aceite
+from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_aceite, gravar_se_mudou
 from graphow.orquestrador.esquemas import ESQUEMA_DO_ACEITE, PAPEL_AUTOR_DE_ACEITE
 from graphow.orquestrador.git_do_goal import arquivos_do_commit, commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, gravar_aceite, gravar_aceite_proposto
@@ -142,7 +142,7 @@ def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_a
         return None
     caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
     if caminho.is_file():
-        caminho.write_text(com_aceite(caminho.read_text(encoding="utf-8"), linhas_do_aceite(saida)), encoding="utf-8", newline="\n")
+        gravar_se_mudou(caminho, com_aceite(caminho.read_text(encoding="utf-8"), linhas_do_aceite(saida)))
     provados = ", ".join(criterio.id for criterio in saida.criterios)
     assunto = f"Escreve os testes de aceite do Goal {contexto.configuracao.slug} ({provados})"
     mensagem = mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=id_do_aceite)
