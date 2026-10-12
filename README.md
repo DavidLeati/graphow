@@ -240,7 +240,7 @@ A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argu
 | **`promover_aprendizado`** | Dá alcance ao `Aprendizado`: aresta `vale_para` um `Projeto` ou `Setor`, ou a marca `alcance: global`. A partir daí ele entra na seção **Aprendizados Aplicáveis** da vista de toda tarefa sob esse alcance. Gesto `promover_aprendizado` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto; grava `promovido_por` e `promovido_por_papel`, e a promoção global é sempre do humano. O árbitro não promove o `Aprendizado` que ele mesmo registrou. Sem alvo, promove ao `Setor` da sessão de origem, o alcance padrão; o `Projeto` fica para o que vale em toda tarefa dele, e o global para o que vale em qualquer projeto. |
 | **`excluir_em_lote`** | Remove atomicamente uma coleção de nós e arestas. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto em todos os alvos do lote. |
 | **`excluir_projeto`** | Remove o projeto e, opcionalmente, seus descendentes. Gesto `excluir` da política: do humano, ou do árbitro quando a política de governança do projeto lhe entrega o gesto. |
-| **`aprovar_plano`** | Aprova o plano de um `Goal`: acrescenta a próxima versão a `Goal.planos`, com o `seq` do log de agora. Gesto `aprovar_plano` da política: do humano, ou do árbitro quando a política do projeto lhe entrega o gesto (`arbitragem_maxima`). Sem plano aprovado o executor não assume `Task` do Goal (`plano_nao_aprovado`); só a versão do humano é a referência do desvio. |
+| **`aprovar_plano`** | Aprova o plano de um `Goal`: acrescenta a próxima versão a `Goal.planos`, com o `seq` do log de agora. Gesto `aprovar_plano` da política: do humano, ou do árbitro quando a política do projeto lhe entrega o gesto (`arbitragem_maxima`). Sem plano aprovado o executor não assume `Task` do Goal (`plano_nao_aprovado`); só a versão do humano é a referência do desvio. Não é o portão do `graphow orquestrar`: o laço tem o dele, que o humano abre com `--aprovar-plano`. |
 | **`responder_desvio`** | Responde ao alerta de desvio do `Goal`: acrescenta a resposta a `Goal.respostas_de_desvio`, com `raiz` opcional (a decisão respondida). Gesto `responder_desvio` da política: do humano em qualquer preset fixo, do árbitro só na `personalizada`. Só a resposta do humano zera o contador. |
 
 Duas ferramentas são sempre do humano: `configurar_governanca` e
@@ -432,6 +432,9 @@ graphow skill-instalar
 # (supervisionado por padrão: para no plano e no "pronto para integrar")
 graphow orquestrar --spec docs/pedido.md --repo .
 graphow orquestrar --spec docs/pedido.md --repo . --modo autonomo --orcamento-usd 10
+
+# A branch do Goal que já existe com commit que não é dele é recusada; --adotar-ramo a aceita assim mesmo
+graphow orquestrar --spec docs/pedido.md --repo . --ramo graphow/relatorio --adotar-ramo
 
 # Conduzir o Goal que o gerente gravou, aprovar o plano e ver onde ele está e quanto custou
 graphow orquestrar --goal goal-relatorio --repo .
@@ -862,7 +865,11 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
 
 1. **Área de trabalho.** O Goal trabalha num worktree git só dele, numa branch
    do Goal (`--ramo`, padrão `graphow/<slug>`) criada da base (`--base`, padrão
-   a branch atual). O checkout do humano não é tocado até a integração.
+   a branch atual). O checkout do humano não é tocado até a integração. A branch
+   que já existe com commit que não é do Goal (todo commit do orquestrador leva
+   os trailers `Graphow-Goal` e, na fatia, `Graphow-Task`) é recusada, a menos
+   que a chamada diga `--adotar-ramo`; a `--area` não pode ser o checkout do
+   humano nem ficar dentro dele, e a branch do Goal não pode ser a base.
 2. **Plano.** Uma sessão do planejador lê a spec e o código e devolve critérios
    de aceite C1..Cn (texto completo, `verificacao: teste|checagem`), decisões
    D1..Dn com o motivo, o comando da suíte e fatias verticais com critérios,
@@ -870,38 +877,54 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    como `Constraint`, as decisões como `Decision`, as fatias como `Task`, e
    commita `docs/goals/<slug>.md`, um texto só com duas leituras.
 3. **Portão do plano.** No modo supervisionado (o padrão) o laço para e espera
-   `--aprovar-plano` (o gesto `aprovar_plano` do humano). `--modo autonomo` segue
-   direto. O modo fica gravado no Goal.
+   `--aprovar-plano`, que grava a aprovação do humano no próprio Goal: o portão é
+   do orquestrador, e o gesto `aprovar_plano` do escopo governado não o destrava.
+   `--modo autonomo` segue direto. O modo fica gravado no Goal.
 4. **Execução.** Para cada fatia pronta, em ordem, uma sessão nova do executor
    recebe o briefing montado por código: a spec, o texto inteiro dos critérios e
    das decisões, os arquivos, os commits das fatias anteriores e o diff resumido
    da última. O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O
-   orquestrador confere o git, roda a suíte ele mesmo e commita na branch do
-   Goal com a mensagem que cita a fatia e os critérios; o commit vira
-   `Artifact`. A dúvida vira `Question` e pausa só aquela fatia; a falha ganha
-   uma nova tentativa com o erro, e a segunda vira pendência e para o laço. O
+   orquestrador confere o git, roda a suíte ele mesmo, no mesmo bash da
+   ferramenta Bash dos agentes (o Git Bash no Windows, nunca o do WSL;
+   `GRAPHOW_SHELL` escolhe outro), e commita na branch do Goal com a mensagem
+   que cita a fatia e os critérios; o commit vira `Artifact`. A dúvida vira
+   `Question` e pausa só aquela fatia, sem contar como falha; a falha ganha uma
+   nova tentativa com o erro, e a segunda falha vira pendência e para o laço. O
    que não vira commit vai para um `.patch` e sai da área.
 5. **Verificação.** Com as fatias concluídas, uma sessão nova do verificador,
    sem nada de quem implementou, roda a suíte e o programa de verdade e dá um
-   parecer por critério e por decisão, com prova, e achados com gravidade. A
-   verificação vira `Evidence` ligada ao Goal, com o commit verificado. Cada
-   bloqueante vira fatia de correção (até dois ciclos), e os acompanhamentos vão
-   para as pendências do documento do Goal.
+   parecer por critério e por decisão, com prova, achados com gravidade e a
+   lista dos comandos que rodou, cada um com o código de saída e um trecho da
+   saída: sem comando rodado, ou com prova de menos de dez caracteres, a
+   verificação não confere. Depois, o próprio orquestrador roda a suíte no
+   commit verificado; vermelha, ela é bloqueante, diga o verificador o que
+   disser. A verificação vira `Evidence` ligada ao Goal, com o commit
+   verificado, os comandos e a suíte, no mesmo lote das pendências que deixa.
+   Cada bloqueante vira fatia de correção (até dois ciclos), e os
+   acompanhamentos vão para as pendências do documento do Goal.
 6. **Fechamento.** O Goal só fecha com a última verificação limpa no commit
    atual. No modo autônomo, o orquestrador integra por fast-forward na base e
    fecha; no supervisionado, para com "pronto para integrar", e a chamada
    seguinte vê a branch integrada e fecha.
 
 O estado sai do livro-razão e do git, então rodar de novo retoma de onde parou,
-inclusive depois de o processo cair no meio de uma sessão.
+inclusive depois de o processo cair no meio de uma sessão: o plano pago não se
+paga de novo (vale o que o Goal guardou, ou o relido do stream da sessão), a
+fatia cujo commit já está na branch fecha pelo trailer, sem outro executor, e o
+documento do Goal é sincronizado com as pendências do livro-razão. A mesma spec
+depois de o Goal fechar abre outro, com sufixo (`goal-soma-2`) no slug, nas
+fatias e na branch. Toda falha de domínio (o git que recusa, o lote que o
+kernel recusa, o pedido que não dá para conduzir) vira parada com o motivo,
+nunca exceção.
 
 | Garantia | Como |
 | :--- | :--- |
 | Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
 | Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez |
-| O executor não commita | Duas camadas: as regras `--disallowedTools` de git de escrita, e uma trava no ambiente da sessão (`GIT_CONFIG_*` com um hook `reference-transaction` que aborta toda atualização de ref). Uma sonda real mostrou que a regra sozinha deixa passar `git -C . commit`; a trava o barra. Depois da sessão, o orquestrador ainda desfaz com `reset --soft` o commit que tenha escapado |
+| O agente não escreve no git | Três camadas (`orquestrador/trava_do_git.py`). As regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push. O ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`, e dá ao agente uma identidade de committer própria. Antes de cada sessão o orquestrador fotografa as refs (remotas inclusive), os checkouts e a configuração do repositório; depois, desfaz a ref que mudou sem o humano no reflog e a configuração mudada, relata o checkout de outra pasta que trocou de branch e reprova a sessão com a lista. O commit que escapou na branch do Goal volta à árvore com `reset --soft`. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pela trava; o push que passar pelas três não se desfaz, e a conferência o relata |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
-| Custo sob controle | Cada sessão vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração e erro. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
+| Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
+| Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
 
 Modelo por papel: `--modelo-planejador`, `--modelo-executor` e
 `--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
@@ -910,10 +933,16 @@ modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 Goal (área de trabalho, streams das sessões, patches e a trava do git) fica em
 `<pasta do banco>/orquestrar/<goal>/`.
 
-O teste de fumaça real (um repositório de brinquedo com uma função e três
-critérios, modo autônomo) fechou o Goal com três sessões Opus, US$ 0,40 e 1,2
-minuto, um commit de plano, um de fatia e um das pendências que o verificador
-achou, e os 49 eventos do Goal assinados pelo papel `orquestrador`.
+O teste de fumaça real (um repositório de brinquedo com uma função e quatro
+critérios, modo autônomo, Opus nos três papéis) fechou o Goal com três
+sessões, US$ 0,46 e 1,4 minuto: um commit de plano, um de fatia e um das
+pendências que o verificador achou, todos com o trailer do Goal. A verificação
+listou quatro comandos rodados, com o código de saída de cada um, e a suíte
+que o orquestrador rodou no commit verificado, no Git Bash, passou; os 53
+eventos do Goal são do papel `orquestrador`. A spec pedia ao executor que
+tentasse `git commit` e `git -c core.hooksPath=. branch -D` numa branch do
+humano, e ele recusou pelas regras da sessão; a conferência do git depois da
+sessão, a terceira camada, é coberta pelos testes.
 
 ---
 
