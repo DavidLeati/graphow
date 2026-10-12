@@ -18,7 +18,7 @@ from graphow.context.aprendizados_aplicaveis import (
 )
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
 from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
-from graphow.context.orientacao import montar_secoes_de_decisoes
+from graphow.context.orientacao import montar_secao_das_decisoes_que_governam
 from graphow.context.panorama import FilhoResumido, montar_secao_de_panorama
 from graphow.context.secoes import (
     GrupoDeLinhas,
@@ -44,7 +44,6 @@ ARESTAS_DE_ORIENTACAO: frozenset[TipoAresta] = frozenset({TipoAresta.ORIENTA})
 ARESTAS_DO_TRABALHO: frozenset[TipoAresta] = (
     ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | frozenset({TipoAresta.DECOMPOE})
 )
-ARESTAS_DA_SESSAO: frozenset[TipoAresta] = frozenset({TipoAresta.PRODUZ})
 
 
 @dataclass(frozen=True)
@@ -253,8 +252,8 @@ class PoliticaBase(PoliticaContexto):
 class PoliticaExecutor(PoliticaBase):
     """Executor: a tarefa em mãos, as decisões que a governam e as evidências do trabalho.
 
-    O que a mesma sessão registrou sem ligar à tarefa continua à vista, numa
-    seção à parte que diz que não governa, e é a primeira a cair no orçamento.
+    O que a mesma sessão registrou sem ligar à tarefa não entra: a seção que o
+    mostrava, "Perto Desta Tarefa", saiu na fase 2 (context/orientacao.py).
     """
 
     def _secoes_do_papel(
@@ -262,17 +261,12 @@ class PoliticaExecutor(PoliticaBase):
         alvo: NoGrafo,
         ambiente: AmbienteDoRecorte,
     ) -> tuple[SecaoContexto, ...]:
-        """As decisões que governam, as evidências do trabalho e o contexto que só está perto."""
-        trabalho = self._coletar(alvo, ambiente, ARESTAS_DO_TRABALHO)
-        evidencias = self._filtrar_por_tipo(trabalho, TipoNo.EVIDENCE)
-        citadas = {no.id for no in evidencias}
-        proximos = [
-            no
-            for no in (*trabalho, *self._coletar(alvo, ambiente, ARESTAS_DA_SESSAO))
-            if no.tipo == TipoNo.DECISION or (no.tipo == TipoNo.EVIDENCE and no.id not in citadas)
-        ]
-        governam, contexto = montar_secoes_de_decisoes(alvo, proximos, ambiente.view, ordens=(3, 5))
-        return (governam, montar_secao_de_nos("Evidencias Relacionadas", evidencias, (4, PrioridadeRetencao.APOIO)), contexto)
+        """As decisões que governam e as evidências do trabalho."""
+        evidencias = self._filtrar_por_tipo(self._coletar(alvo, ambiente, ARESTAS_DO_TRABALHO), TipoNo.EVIDENCE)
+        return (
+            montar_secao_das_decisoes_que_governam(alvo, ambiente.view, ordem=3),
+            montar_secao_de_nos("Evidencias Relacionadas", evidencias, (4, PrioridadeRetencao.APOIO)),
+        )
 
 
 class PoliticaPlanejador(PoliticaBase):
@@ -328,9 +322,7 @@ class PoliticaRevisor(PoliticaBase):
     ) -> tuple[SecaoContexto, ...]:
         """Artefatos, evidências e decisões ligados ao alvo por proveniência e orientação."""
         vizinhanca = self._coletar(alvo, ambiente, ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | {TipoAresta.CONTRADIZ})
-        governam, contexto = montar_secoes_de_decisoes(
-            alvo, self._filtrar_por_tipo(vizinhanca, TipoNo.DECISION), ambiente.view, ordens=(5, 6)
-        )
+        governam = montar_secao_das_decisoes_que_governam(alvo, ambiente.view, ordem=5)
         return (
             montar_secao_de_nos(
                 "Artefatos Sob Revisao",
@@ -343,5 +335,4 @@ class PoliticaRevisor(PoliticaBase):
                 (4, PrioridadeRetencao.APOIO),
             ),
             governam,
-            contexto,
         )

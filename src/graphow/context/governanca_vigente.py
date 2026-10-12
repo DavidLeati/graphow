@@ -29,7 +29,7 @@ from graphow.projection.graph_view import GrafoView
 
 TITULO_DA_SECAO_DE_GOVERNANCA: str = "Governanca"
 # Vizinha das restrições, que também dizem o que vale para o alvo; cai antes de
-# tudo, junto do contexto que só está perto (veja `PrioridadeRetencao.CONTEXTO`).
+# tudo, com o que acompanha o alvo sem governá-lo (veja `PrioridadeRetencao.CONTEXTO`).
 ORDEM_DE_EXIBICAO_DA_GOVERNANCA: int = 1
 
 TIPOS_COM_SECAO_DE_GOVERNANCA: frozenset[TipoNo] = frozenset({TipoNo.SESSAO, TipoNo.TASK, TipoNo.GOAL})

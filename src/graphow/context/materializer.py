@@ -6,7 +6,7 @@ from typing import Any
 from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
 from graphow.context.escopo_do_goal import montar_secao_de_escopo
 from graphow.context.governanca_vigente import TIPOS_COM_SECAO_DE_GOVERNANCA, montar_secao_de_governanca
-from graphow.context.orientacao import montar_secoes_de_decisoes
+from graphow.context.orientacao import montar_secao_das_decisoes_que_governam
 from graphow.context.politicas import (
     ARESTAS_DE_ORIENTACAO,
     ARESTAS_DE_PROVENIENCIA,
@@ -90,9 +90,7 @@ class PoliticaArbitro(PoliticaBase):
             if no.obter_propriedade("status", StatusQuestion.ABERTA.value) == StatusQuestion.ABERTA.value
         )
         foco = tarefas[0] if alvo.tipo == TipoNo.QUESTION and tarefas else alvo
-        governam, contexto = montar_secoes_de_decisoes(
-            foco, self._filtrar_por_tipo(vizinhanca, TipoNo.DECISION), ambiente.view, ordens=(6, 7)
-        )
+        governam = montar_secao_das_decisoes_que_governam(foco, ambiente.view, ordem=6)
         return (
             montar_secao_de_nos("Task Bloqueada Pela Duvida", tarefas, (3, PrioridadeRetencao.BLOQUEIOS)),
             montar_secao_de_nos("Duvidas Abertas Em Julgamento", abertas, (4, PrioridadeRetencao.BLOQUEIOS)),
@@ -102,7 +100,6 @@ class PoliticaArbitro(PoliticaBase):
                 (5, PrioridadeRetencao.APOIO),
             ),
             governam,
-            contexto,
         )
 
 

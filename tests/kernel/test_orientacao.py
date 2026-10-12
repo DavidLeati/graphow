@@ -227,7 +227,7 @@ def _tarefa_irma_com_decisao_propria(kernel: WriteKernel) -> None:
 
 
 def test_decisao_da_tarefa_irma_nao_governa_esta_edge_case() -> None:
-    """Caso de borda: nascer na mesma sessão não faz a decisão valer para a tarefa; ela aparece como contexto."""
+    """Caso de borda: nascer na mesma sessão não faz a decisão valer para a tarefa, e ela não entra como "perto"."""
     kernel = _montar_duas_sessoes()
     assert _decidir_na_segunda_sessao(kernel, PapelAutor.PLANEJADOR).sucesso
     _tarefa_irma_com_decisao_propria(kernel)
@@ -236,10 +236,10 @@ def test_decisao_da_tarefa_irma_nao_governa_esta_edge_case() -> None:
 
     assert "[dec]" in _secao(vista, "Decisoes Que Governam Esta Tarefa")
     assert "[dec-irma]" not in _secao(vista, "Decisoes Que Governam Esta Tarefa")
-    assert "[dec-irma]" in _secao(vista, "Perto Desta Tarefa, Sem Governa-la")
+    assert "Perto Desta Tarefa" not in vista
 
 
-def test_contexto_da_sessao_cai_antes_das_decisoes_que_governam_edge_case() -> None:
+def test_muitas_decisoes_da_sessao_nao_empurram_para_fora_a_que_governa_edge_case() -> None:
     """Caso de borda: uma sessão com muitas decisões não empurra para fora a que vale para a tarefa."""
     kernel = _montar_duas_sessoes()
     assert _decidir_na_segunda_sessao(kernel, PapelAutor.PLANEJADOR).sucesso
@@ -252,4 +252,4 @@ def test_contexto_da_sessao_cai_antes_das_decisoes_que_governam_edge_case() -> N
     vista = MaterializadorContexto().materializar(requisicao, kernel.obter_view()).conteudo_formatado
 
     assert "[dec]" in _secao(vista, "Decisoes Que Governam Esta Tarefa")
-    assert "Perto Desta Tarefa, Sem Governa-la" not in vista
+    assert "Perto Desta Tarefa" not in vista and "[dec-00]" not in vista

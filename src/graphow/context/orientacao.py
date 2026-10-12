@@ -6,12 +6,15 @@ de correção, que nasce decomposta da tarefa rejeitada, perdia as decisões da
 original justamente na vista do revisor. As restrições já sobem a hierarquia;
 aqui as decisões fazem o mesmo caminho. Para um Artifact, o trabalho é a Task de
 onde ele deriva.
+
+A vista listava também, numa seção "Perto Desta Tarefa, Sem Governa-la", as
+decisões e evidências da mesma sessão que nada ligava ao alvo. Saiu na fase 2:
+era contexto sem leitor, que a vista do agente carregava sem que governasse
+nada, e o briefing do orquestrador traz por extenso o que governa a fatia.
 """
 
-from collections.abc import Iterable
-
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
-from graphow.context.secoes import PrioridadeRetencao, SecaoContexto, montar_secao_de_nos
+from graphow.context.secoes import PrioridadeRetencao, SecaoContexto
 from graphow.context.substituicao import montar_secao_de_decisoes
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoAresta, TipoNo
@@ -20,33 +23,14 @@ from graphow.projection.graph_view import GrafoView
 # As arestas que sobem do trabalho ao que o contém: a subtarefa ao pai, a Task ao Goal.
 ARESTAS_DE_HERANCA: frozenset[TipoAresta] = frozenset({TipoAresta.DECOMPOE})
 
-# O que está perto sem governar. Separado das decisões que valem, porque uma
-# decisão de outra tarefa listada como "que governa" é pior do que nenhuma.
-TITULO_DO_CONTEXTO: str = "Perto Desta Tarefa, Sem Governa-la (mesma sessao ou so relacionado)"
-
-
-def montar_secoes_de_decisoes(
-    alvo: NoGrafo,
-    proximos: Iterable[NoGrafo],
-    view: GrafoView,
-    *,
-    ordens: tuple[int, int],
-) -> tuple[SecaoContexto, SecaoContexto]:
-    """As decisões que governam o alvo e, noutra seção, o que só está perto dele.
+def montar_secao_das_decisoes_que_governam(alvo: NoGrafo, view: GrafoView, *, ordem: int) -> SecaoContexto:
+    """As decisões que governam o alvo.
 
     Governar é estar ligado por `orienta` ao trabalho do alvo ou a quem o
     contém. Nascer na mesma sessão não é: a vista listava a decisão de uma
-    tarefa irmã como se valesse para esta, e o revisor, que não percorre a
-    sessão, trabalhava com outro conjunto de decisões.
+    tarefa irmã como se valesse para esta.
     """
-    governam = coletar_decisoes_que_orientam(alvo, view)
-    ids_que_governam = {no.id for no in governam}
-    contexto = {no.id: no for no in proximos if no.id not in ids_que_governam and no.id != alvo.id}
-    ordem_das_que_governam, ordem_do_contexto = ordens
-    return (
-        montar_secao_de_decisoes(governam, view, (ordem_das_que_governam, PrioridadeRetencao.DECISOES)),
-        montar_secao_de_nos(TITULO_DO_CONTEXTO, tuple(contexto.values()), (ordem_do_contexto, PrioridadeRetencao.CONTEXTO)),
-    )
+    return montar_secao_de_decisoes(coletar_decisoes_que_orientam(alvo, view), view, (ordem, PrioridadeRetencao.DECISOES))
 
 
 def coletar_decisoes_que_orientam(alvo: NoGrafo, view: GrafoView) -> tuple[NoGrafo, ...]:

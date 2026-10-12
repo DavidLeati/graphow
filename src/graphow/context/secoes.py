@@ -45,9 +45,9 @@ class PrioridadeRetencao(IntEnum):
     BLOQUEIOS = 5
     DECISOES = 6
     APOIO = 7
-    # O que está perto do alvo sem governá-lo: decisões e evidências da mesma
-    # sessão que nada liga à tarefa. Cai antes de tudo, para nunca empurrar
-    # para fora do orçamento as decisões que valem para ela.
+    # O que acompanha o alvo sem governá-lo (a governança vigente, as propostas
+    # fora do Goal). Cai antes de tudo, para nunca empurrar para fora do
+    # orçamento as decisões que valem para ele.
     CONTEXTO = 8
 
 
