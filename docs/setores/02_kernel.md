@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4838 linhas · 34 classes
+30 módulos · 4945 linhas · 34 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,14 +24,14 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 382 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 383 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
-| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 193 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
+| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 294 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
-| [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
+| [`kernel/patch_models.py`](#kernelpatchmodels) | 183 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 270 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
@@ -414,18 +414,23 @@ O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que 
 | `TIPOS_CRIADOS_PELO_ORQUESTRADOR` | `frozenset[TipoNo]` | `frozenset({TipoNo.PROJETO, TipoNo.SETOR, TipoNo.SESSAO, TipoNo.GOAL, Ti…` |
 | `PROPRIEDADES_RESERVADAS_POR_TIPO` | `Mapping[TipoNo, frozenset[str]]` | `{TipoNo.PROJETO: PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO, TipoNo.G…` |
 | `ARESTAS_NEGADAS_AO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.VALE_PARA})` |
+| `ARESTAS_DO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.PRODUZ, TipoAresta.CONTEM, TipoAresta.ESCOPA, Tip…` |
+| `PREFIXO_DA_SESSAO_DO_GOAL` | `str` | `'orq-sessao-'` |
 
 ### `_Lote`
 
-*DTO imutável* — O estado de antes e os nós que o próprio lote cria, que são do orquestrador.
+*DTO imutável* — O estado de antes, o Goal que o lote conduz e o alcance dele, com o que o próprio lote cria e liga.
 
-**Campos:** `estado: GrafoEstado`, `criados: frozenset[str]`
+**Campos:** `estado: GrafoEstado`, `goal: str`, `criados: frozenset[str]`, `produzidos: frozenset[str]`, `contencao: frozenset[str]`, `conduzido: bool`
 
+- `sessao() -> str` `[property]` — A Sessao do orquestrador para o Goal do lote.
 - `e_do_orquestrador(id_no: str) -> bool` — O nó nasce neste lote ou foi criado pelo orquestrador.
+- `dentro(id_no: str) -> bool` — O nó é o Goal do lote, a Sessao dele, algo que ela produz ou a contenção dela.
 
 ### Funções do módulo
 
-- `validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Aprova o lote do orquestrador, salvo a primeira operação fora do alcance dele ou numa reserva do humano.
+- `sessao_do_goal(id_goal: str) -> str` — A Sessao do orquestrador que produz o que ele grava do Goal.
+- `validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Aprova o lote do orquestrador, salvo a primeira operação fora do Goal que ele conduz ou numa reserva do humano.
 
 ## `kernel/pares_de_escopo.py`
 
@@ -444,7 +449,7 @@ Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902).
 
 *DTO imutável* — DTO imutável para dados de criação de PropostaPatch.
 
-**Campos:** `autor: str`, `papel: PapelAutor`, `operacoes: Sequence[ItemPatch]`, `justificativa: str`, `ramo_id: str`, `trace_id: str | None`, `origem: OrigemEvento | None`
+**Campos:** `autor: str`, `papel: PapelAutor`, `operacoes: Sequence[ItemPatch]`, `justificativa: str`, `ramo_id: str`, `trace_id: str | None`, `origem: OrigemEvento | None`, `goal_conduzido: str | None`
 
 ### `ItemPatch`
 
@@ -460,7 +465,7 @@ Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902).
 
 *DTO imutável* — Conjunto de operações de patch submetidas atomicamente por um autor.
 
-**Campos:** `id: str`, `autor: str`, `papel: PapelAutor`, `operacoes: tuple[ItemPatch, ...]`, `justificativa: str`, `ramo_id: str`, `trace_id: str | None`, `origem: OrigemEvento | None`
+**Campos:** `id: str`, `autor: str`, `papel: PapelAutor`, `operacoes: tuple[ItemPatch, ...]`, `justificativa: str`, `ramo_id: str`, `trace_id: str | None`, `origem: OrigemEvento | None`, `goal_conduzido: str | None`
 
 - `criar(dados: DadosPropostaPatch) -> 'PropostaPatch'` — Fábrica para instanciação com geração de ID único a partir do DTO.
 

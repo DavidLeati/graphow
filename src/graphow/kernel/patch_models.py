@@ -43,6 +43,7 @@ class DadosPropostaPatch:
     ramo_id: str = "main"
     trace_id: str | None = None
     origem: OrigemEvento | None = None
+    goal_conduzido: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,9 @@ class PropostaPatch:
     # Declarada quando quem propõe não é nem o humano nem o harness: sem isso,
     # todo patch do motor reativo era gravado como origem "harness".
     origem: OrigemEvento | None = None
+    # O Goal que o lote do papel `orquestrador` conduz: o contrato dele prende o
+    # lote a esse Goal (kernel/papel_do_orquestrador.py). Não vai para o log.
+    goal_conduzido: str | None = None
 
     @classmethod
     def criar(cls, dados: DadosPropostaPatch) -> "PropostaPatch":
@@ -72,6 +76,7 @@ class PropostaPatch:
             ramo_id=dados.ramo_id,
             trace_id=dados.trace_id,
             origem=dados.origem,
+            goal_conduzido=dados.goal_conduzido,
         )
 
 

@@ -81,7 +81,7 @@ class LivroRazaoDoGoal:
         """Submete o lote; a recusa vira `LoteRecusado` com o motivo do kernel."""
         dados = DadosPropostaPatch(
             autor=m.AUTOR_DO_ORQUESTRADOR, papel=PapelAutor.ORQUESTRADOR, operacoes=tuple(operacoes),
-            justificativa=justificativa, ramo_id=self._ramo_id,
+            justificativa=justificativa, ramo_id=self._ramo_id, goal_conduzido=self.id_goal,
         )
         recibo = self._kernel.submeter_patch(PropostaPatch.criar(dados))
         if not recibo.sucesso:

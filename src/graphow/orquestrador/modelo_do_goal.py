@@ -14,6 +14,7 @@ from typing import Any
 
 from graphow.harness.ambiente_padrao import gerar_slug
 from graphow.kernel.papel_do_orquestrador import CAMPO_APROVACAO_DO_PLANO as CAMPO_DA_APROVACAO
+from graphow.kernel.papel_do_orquestrador import sessao_do_goal
 
 AUTOR_DO_ORQUESTRADOR: str = "graphow-orquestrar"
 
@@ -120,8 +121,8 @@ def id_do_setor(slug_do_repositorio: str) -> str:
 
 
 def id_da_sessao(id_goal: str) -> str:
-    """A Sessao do orquestrador que produz o que ele grava do Goal."""
-    return f"orq-sessao-{id_goal}"
+    """A Sessao do orquestrador que produz o que ele grava do Goal (o contrato do papel a reconhece por este nome)."""
+    return sessao_do_goal(id_goal)
 
 
 def id_do_criterio(slug: str, codigo: str) -> str:

@@ -21,8 +21,11 @@ from graphow.kernel.patch_models import (
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 PAPEIS_SEM_POSSE_DE_TAREFA: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})
 # O plano do orquestrador é dele (propriedades próprias do Goal e das Tasks, e o
-# portão `--aprovar-plano`), e as regras do escopo governado, que a fase 4 apaga,
-# não se aplicam às escritas dele. A isenção mora aqui, e não no escopo.
+# portão `--aprovar-plano`), e a ligação de escopo das Tasks, regra do escopo
+# governado que a fase 4 apaga, não se aplica às escritas dele. A isenção vale
+# só para o Goal que o lote conduz, porque o contrato do papel prende o lote a
+# esse Goal (kernel/papel_do_orquestrador.py); a forma das listas do escopo
+# (planos e respostas de desvio) vale para ele como para todos.
 PAPEIS_FORA_DO_ESCOPO_GOVERNADO: frozenset[PapelAutor] = frozenset({PapelAutor.ORQUESTRADOR})
 
 # Arestas que mudam o que uma Task é: do que depende, de onde vem, o que a
@@ -76,11 +79,9 @@ class InvariantGate:
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
         )
+        verificacoes += (lambda: validar_forma_do_escopo(proposta, estado),)
         if proposta.papel not in PAPEIS_FORA_DO_ESCOPO_GOVERNADO:
-            verificacoes += (
-                lambda: validar_forma_do_escopo(proposta, estado),
-                lambda: validar_escopo_das_tarefas(proposta, estrutura),
-            )
+            verificacoes += (lambda: validar_escopo_das_tarefas(proposta, estrutura),)
         for verificar in verificacoes:
             resultado = verificar()
             if not resultado.aprovado:

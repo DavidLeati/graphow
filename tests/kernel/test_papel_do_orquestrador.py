@@ -1,4 +1,4 @@
-"""O papel `orquestrador` pode o que o laço precisa, não pode as reservas do humano, e nenhum MCP o alcança."""
+"""O papel `orquestrador` pode o que o laço precisa no Goal que conduz, e nada fora dele nem nas reservas do humano."""
 
 from collections.abc import Sequence
 from typing import Any
@@ -11,18 +11,23 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.composicao import montar_kernel_em_memoria
-from graphow.kernel.papel_do_orquestrador import validar_escrita_do_orquestrador
+from graphow.kernel.papel_do_orquestrador import sessao_do_goal, validar_escrita_do_orquestrador
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
 from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
 
 ORQUESTRADOR: PapelAutor = PapelAutor.ORQUESTRADOR
+SESSAO: str = sessao_do_goal("goal")
+CONDUCAO: dict[str, Any] = {"orquestracao": {"modo": "autonomo"}}
 
 
-def _submeter(kernel: WriteKernel, operacoes: Sequence[ItemPatch], papel: PapelAutor = ORQUESTRADOR) -> ResultadoSubmissao:
-    """Um lote sob o papel dado."""
+def _submeter(
+    kernel: WriteKernel, operacoes: Sequence[ItemPatch], papel: PapelAutor = ORQUESTRADOR, *, goal: str = "goal"
+) -> ResultadoSubmissao:
+    """Um lote sob o papel dado; o do orquestrador diz o Goal que conduz."""
     autor = "humano-teste" if papel == PapelAutor.HUMANO else "graphow-orquestrar"
-    dados = DadosPropostaPatch(autor=autor, papel=papel, operacoes=tuple(operacoes), justificativa="teste")
+    conduzido = goal if papel == ORQUESTRADOR else None
+    dados = DadosPropostaPatch(autor=autor, papel=papel, operacoes=tuple(operacoes), justificativa="teste", goal_conduzido=conduzido)
     return kernel.submeter_patch(PropostaPatch.criar(dados))
 
 
@@ -44,20 +49,20 @@ def _propriedade(id_no: str, chave: str, valor: object) -> ItemPatch:
     return ItemPatch(OperacaoPatch.REPLACE, f"/nos/{id_no}/propriedades/{chave}", valor)
 
 
-def _produzido(id_no: str, tipo: TipoNo, propriedades: dict[str, Any] | None = None) -> list[ItemPatch]:
-    """O nó de trabalho pendurado na Sessao do orquestrador."""
-    return [_no(id_no, tipo, propriedades), _aresta("sess", id_no, TipoAresta.PRODUZ)]
+def _produzido(id_no: str, tipo: TipoNo, propriedades: dict[str, Any] | None = None, *, sessao: str = SESSAO) -> list[ItemPatch]:
+    """O nó de trabalho pendurado na Sessao do orquestrador para o Goal."""
+    return [_no(id_no, tipo, propriedades), _aresta(sessao, id_no, TipoAresta.PRODUZ)]
 
 
 def _kernel_com_goal_e_fatias() -> WriteKernel:
-    """Projeto, Setor, Sessao, Goal com critério e decisão, e duas fatias, a segunda dependendo da primeira."""
+    """Projeto, Setor, a Sessao do Goal, o Goal conduzido com critério e decisão, e duas fatias."""
     kernel = montar_kernel_em_memoria()
     recibo = _submeter(
         kernel,
         [
             _no("proj", TipoNo.PROJETO), _no("setor", TipoNo.SETOR), _aresta("proj", "setor", TipoAresta.CONTEM),
-            _no("sess", TipoNo.SESSAO, {"status": "ativa"}), _aresta("setor", "sess", TipoAresta.CONTEM),
-            *_produzido("goal", TipoNo.GOAL, {"status": "pendente"}),
+            _no(SESSAO, TipoNo.SESSAO, {"status": "ativa"}), _aresta("setor", SESSAO, TipoAresta.CONTEM),
+            *_produzido("goal", TipoNo.GOAL, {"status": "pendente", **CONDUCAO}),
             *_produzido("crit-1", TipoNo.CONSTRAINT, {"tipo": "criterio_aceite"}), _aresta("crit-1", "goal", TipoAresta.ESCOPA),
             *_produzido("dec-1", TipoNo.DECISION, {"motivo": "pedido do humano"}), _aresta("dec-1", "goal", TipoAresta.ORIENTA),
             *_produzido("f1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "f1", TipoAresta.DECOMPOE),
@@ -92,7 +97,7 @@ def test_orquestrador_grava_o_goal_conclui_fatias_e_fecha_sem_posse_nem_revisor_
         kernel, [*_produzido("ver-1", TipoNo.EVIDENCE, {"veredito": "aprovado", "commit": "abc123"}),
                  _aresta("ver-1", "goal", TipoAresta.DERIVA_DE)],
     )
-    fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido"), _propriedade("sess", "status", "concluida")])
+    fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido"), _propriedade(SESSAO, "status", "concluida")])
 
     assert verificacao.sucesso, verificacao.mensagem
     assert fechamento.sucesso, fechamento.mensagem
@@ -116,11 +121,12 @@ def test_duvida_aberta_pausa_a_fatia_ate_o_humano_responder_nominal() -> None:
     assert _concluir_fatia(kernel, "f1").sucesso
 
 
-def test_regras_do_escopo_governado_nao_valem_para_o_orquestrador_nominal() -> None:
-    """Num Goal com plano aprovado pelo escopo governado, a fatia do orquestrador entra sem ligação de escopo.
+def test_regras_do_escopo_governado_nao_valem_para_o_goal_que_o_orquestrador_conduz_nominal() -> None:
+    """Num Goal conduzido com plano aprovado pelo escopo governado, a fatia do orquestrador entra sem ligação de escopo.
 
-    O plano do orquestrador é dele; a isenção é só do papel orquestrador: o
-    humano que cria a mesma Task sem ligação segue recusado pelo escopo.
+    O plano do orquestrador é dele; a isenção é só do papel orquestrador, no
+    Goal que ele conduz: o humano que cria a mesma Task sem ligação segue
+    recusado pelo escopo.
     """
     kernel = _kernel_com_goal_e_fatias()
     entrada = {"versao": 1, "seq": kernel.obter_view().versao_log, "aprovado_por": "humano-teste", "papel": "humano"}
@@ -163,7 +169,7 @@ def test_reservas_do_humano_ficam_fora_do_contrato_edge_case(operacoes: list[Ite
 
 
 def _kernel_com_nos_do_humano() -> WriteKernel:
-    """O Goal do gerente com uma Decision e uma Constraint do humano, e a Sessao do orquestrador no Setor."""
+    """O Goal do gerente com uma Decision e uma Constraint do humano, ainda não adotado."""
     kernel = montar_kernel_em_memoria()
     humano = [
         _no("proj", TipoNo.PROJETO), _no("setor", TipoNo.SETOR), _aresta("proj", "setor", TipoAresta.CONTEM),
@@ -173,8 +179,15 @@ def _kernel_com_nos_do_humano() -> WriteKernel:
         _no("crit-h", TipoNo.CONSTRAINT, {"tipo": "criterio_aceite"}), _aresta("sess-h", "crit-h", TipoAresta.PRODUZ),
     ]
     assert _submeter(kernel, humano, PapelAutor.HUMANO).sucesso
-    assert _submeter(kernel, [_no("sess", TipoNo.SESSAO), _aresta("setor", "sess", TipoAresta.CONTEM)]).sucesso
     return kernel
+
+
+def _adocao() -> list[ItemPatch]:
+    """Adotar o Goal do gerente: a Sessao do orquestrador no Setor, a spec e a configuração do laço."""
+    return [
+        _no(SESSAO, TipoNo.SESSAO, {"status": "ativa"}), _aresta("setor", SESSAO, TipoAresta.CONTEM),
+        _propriedade("goal", "spec", "texto"), _propriedade("goal", "orquestracao", {"modo": "autonomo"}),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -200,10 +213,10 @@ def test_orquestrador_nao_mexe_no_que_e_do_humano_edge_case(operacao: ItemPatch)
 
 
 def test_adocao_do_goal_do_gerente_abre_o_alcance_do_orquestrador_nominal() -> None:
-    """Adotar grava `spec` e `orquestracao`; depois disso o Goal é conduzido, e o laço o fecha."""
+    """Adotar grava a Sessao, `spec` e `orquestracao`; depois disso o Goal é conduzido, e o laço o fecha."""
     kernel = _kernel_com_nos_do_humano()
 
-    adocao = _submeter(kernel, [_propriedade("goal", "spec", "texto"), _propriedade("goal", "orquestracao", {"modo": "autonomo"})])
+    adocao = _submeter(kernel, _adocao())
     fatia = _submeter(kernel, [*_produzido("f1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "f1", TipoAresta.DECOMPOE)])
     fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido")])
 
@@ -212,10 +225,92 @@ def test_adocao_do_goal_do_gerente_abre_o_alcance_do_orquestrador_nominal() -> N
     assert fechamento.sucesso, fechamento.mensagem
 
 
+def _kernel_com_dois_goals_e_o_humano() -> WriteKernel:
+    """Dois Goals conduzidos no mesmo Setor (A e B, cada um com a Sessao e uma fatia) e um Goal do humano com Decision e Task."""
+    kernel = _kernel_com_nos_do_humano()
+    assert _submeter(kernel, [
+        _no("h-task", TipoNo.TASK, {"status": "pendente"}), _aresta("sess-h", "h-task", TipoAresta.PRODUZ),
+        _aresta("goal", "h-task", TipoAresta.DECOMPOE),
+        _no("h-goal2", TipoNo.GOAL, {"status": "pendente"}), _aresta("sess-h", "h-goal2", TipoAresta.PRODUZ),
+    ], PapelAutor.HUMANO).sucesso
+    for nome in ("a", "b"):
+        id_goal, sessao = f"goal-{nome}", sessao_do_goal(f"goal-{nome}")
+        recibo = _submeter(kernel, [
+            _no(sessao, TipoNo.SESSAO, {"status": "ativa"}), _aresta("setor", sessao, TipoAresta.CONTEM),
+            *_produzido(id_goal, TipoNo.GOAL, {"status": "pendente", **CONDUCAO}, sessao=sessao),
+            *_produzido(f"{id_goal}-dec", TipoNo.DECISION, {"motivo": "plano"}, sessao=sessao),
+            *_produzido(f"{id_goal}-q", TipoNo.QUESTION, {"status": "aberta"}, sessao=sessao),
+            *_produzido(f"{id_goal}-f1", TipoNo.TASK, {"status": "pendente"}, sessao=sessao),
+            _aresta(id_goal, f"{id_goal}-f1", TipoAresta.DECOMPOE),
+        ], goal=id_goal)
+        assert recibo.sucesso, recibo.mensagem
+    return kernel
+
+
+@pytest.mark.parametrize(
+    ("operacoes", "goal", "trecho"),
+    [
+        ([_aresta("goal-a-dec", "dec-h", TipoAresta.SUBSTITUI)], "goal-a", "nao cria aresta 'substitui'"),
+        ([_aresta("goal-a-q", "h-task", TipoAresta.BLOQUEIA)], "goal-a", "'h-task' esta fora do Goal"),
+        ([_aresta("goal-a", "h-task", TipoAresta.DECOMPOE)], "goal-a", "'h-task' esta fora do Goal"),
+        ([_aresta("goal-a-dec", "h-goal2", TipoAresta.ORIENTA)], "goal-a", "'h-goal2' esta fora do Goal"),
+        ([_aresta("goal-a-q", "goal-b-f1", TipoAresta.BLOQUEIA)], "goal-a", "'goal-b-f1' esta fora do Goal"),
+        ([_propriedade("goal-b", "status", "concluido")], "goal-a", "'goal-b' esta fora do Goal"),
+        ([_propriedade("goal-b-f1", "status", "concluido")], "goal-a", "'goal-b-f1' esta fora do Goal"),
+        (_produzido("intruso", TipoNo.NOTE, sessao=sessao_do_goal("goal-b")), "goal-a", "'intruso' nasce fora do Goal"),
+        ([_no("solto", TipoNo.NOTE)], "goal-a", "'solto' nasce fora do Goal"),
+        (_produzido("t-h", TipoNo.TASK, sessao=sessao_do_goal("goal-a")) + [_aresta("h-goal2", "t-h", TipoAresta.DECOMPOE)],
+         "h-goal2", "nao e conduzido pelo orquestrador"),
+    ],
+)
+def test_lote_do_orquestrador_fica_dentro_do_goal_que_conduz_edge_case(operacoes: list[ItemPatch], goal: str, trecho: str) -> None:
+    """Caso de borda: aresta para nó do humano ou de outro Goal, lote do Goal A no Goal B e Goal que ele não conduz."""
+    kernel = _kernel_com_dois_goals_e_o_humano()
+
+    recibo = _submeter(kernel, operacoes, goal=goal)
+
+    assert not recibo.sucesso
+    assert recibo.modo_de_falha == ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL.value
+    assert trecho in recibo.mensagem, recibo.mensagem
+
+
+def test_aresta_que_ja_existe_nao_se_edita_edge_case() -> None:
+    """Caso de borda: trocar a ponta de uma aresta é refazer a ligação; o contrato a recusa antes de qualquer forma."""
+    kernel = _kernel_com_dois_goals_e_o_humano()
+    troca = ItemPatch(OperacaoPatch.REPLACE, "/arestas/decompoe-goal-a-goal-a-f1/destino_id", "h-task")
+    proposta = PropostaPatch.criar(DadosPropostaPatch(autor="graphow-orquestrar", papel=ORQUESTRADOR, operacoes=(troca,), goal_conduzido="goal-a"))
+
+    resultado = validar_escrita_do_orquestrador(proposta, kernel.obter_view().estado)
+
+    assert not resultado.aprovado
+    assert "nao edita aresta" in (resultado.mensagem_erro or "")
+
+
+def test_lote_sem_o_goal_conduzido_e_recusado_edge_case() -> None:
+    """Caso de borda: o lote do orquestrador que não diz o Goal que conduz não passa, nem para o próprio Goal."""
+    kernel = _kernel_com_goal_e_fatias()
+    dados = DadosPropostaPatch(autor="graphow-orquestrar", papel=ORQUESTRADOR, operacoes=(_propriedade("f1", "status", "em_andamento"),))
+
+    recibo = kernel.submeter_patch(PropostaPatch.criar(dados))
+
+    assert not recibo.sucesso
+    assert "diz o Goal que conduz" in recibo.mensagem
+
+
+def test_cada_goal_do_mesmo_setor_segue_no_proprio_lote_nominal() -> None:
+    """Dois Goals conduzidos no mesmo Setor: cada lote fecha a fatia e o Goal dele."""
+    kernel = _kernel_com_dois_goals_e_o_humano()
+
+    for nome in ("a", "b"):
+        id_goal = f"goal-{nome}"
+        recibo = _submeter(kernel, [_propriedade(f"{id_goal}-f1", "status", "concluido"), _propriedade(id_goal, "status", "concluido")], goal=id_goal)
+        assert recibo.sucesso, recibo.mensagem
+
+
 def test_governanca_fica_fora_do_contrato_edge_case() -> None:
     """Caso de borda: o contrato recusa criar a Governanca, que o SchemaGate já recusaria pela forma."""
     proposta = PropostaPatch.criar(
-        DadosPropostaPatch(autor="graphow-orquestrar", papel=ORQUESTRADOR, operacoes=(_no("gov", TipoNo.GOVERNANCA),))
+        DadosPropostaPatch(autor="graphow-orquestrar", papel=ORQUESTRADOR, operacoes=(_no("gov", TipoNo.GOVERNANCA),), goal_conduzido="goal")
     )
 
     resultado = validar_escrita_do_orquestrador(proposta, GrafoEstado())
