@@ -1120,6 +1120,30 @@ quarta saiu limpa. Os três achados que o verificador não ligou a critério
 passaram pela segunda opinião (três sessões sem ferramentas, US$ 0,05) e
 ficaram acompanhamento. Nenhuma Note.
 
+A fumaça da rodada 3 (a mesma calculadora, do estado inicial, com `aceite/` no
+`.gitignore` do projeto, modo autônomo, `--ciclos-de-correcao 0` e US$ 3 de
+orçamento) fechou o Goal pelo caminho do humano, com doze invocações, US$ 1,49
+e 5,9 minutos. Os nove testes de aceite entraram no commit do aceite com
+`git add -f`, apesar do `.gitignore`. Duas retomadas do autor de aceite vieram
+de um defeito do orquestrador, que lia como exceção a linha FAILED que o pytest
+corta na largura do terminal (`- Ass...`), corrigido em seguida. O executor, sem
+`duvida` no schema, registrou oito decisões do agente (cinco nas fatias, três
+na correção), que o `--status` e o documento mostram. Nenhuma das três verificações teve retomada: os comandos de
+cada uma (de três a quatro chamadas Bash, com o código de saída) saíram do
+stream, e eles sondaram 1e308, `nan`, `inf`, `1_000`, dígitos não ASCII e pasta
+com espaço. A final achou dois bloqueantes (o traceback da CLI com valores
+enormes e `nan` aceito como número); sem ciclo, o laço parou, e rodá-lo de novo
+parado não fez commit. O humano descartou o do `nan` e deu um ciclo ao outro: a
+correção rodou no Opus, e a verificação seguinte achou a causa nas funções
+(`mediana` e `media` de 1e308 dão `inf`), com C1 e C2 `parcial`. Descartar esse
+achado não fechou o Goal; o humano retirou C1 e C2, com o motivo, e o Goal
+fechou na verificação final real, no commit do código que é a ponta, com o
+documento listando os critérios retirados. Dos 282 eventos do Goal, os 14 do
+humano são os pedidos e os descartes; o resto é do `orquestrador`. A fumaça
+mostrou mais duas coisas, já corrigidas: a fatia de correção listava só o
+primeiro arquivo que o local do achado cita, e o executor se ateve a ele; e a
+parada da final com critério reprovado não avisava que o descarte não fecha.
+
 ---
 
 ## 📊 Avaliação: Tamanho da Vista contra o Despejo
