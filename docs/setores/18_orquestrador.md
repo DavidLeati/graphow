@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-32 módulos · 5511 linhas · 54 classes
+32 módulos · 5549 linhas · 54 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -34,7 +34,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 109 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
-| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 233 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 252 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 186 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 245 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 305 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -44,7 +44,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 124 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 196 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 215 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 
 ## `orquestrador/aceite_intocado.py`
 
@@ -711,6 +711,8 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 | `PASTAS_DE_CACHE` | `frozenset[str]` | `frozenset({'__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache'…` |
 | `SUFIXOS_DE_CACHE` | `tuple[str, ...]` | `('.pyc', '.pyo')` |
 | `LIMITE_DA_SAIDA_REGISTRADA` | `int` | `600` |
+| `TESTE_DO_COMANDO_DE_ACEITE` | `str` | `'comando_aceite'` |
+| `TESTE_DA_SUITE_COM_O_ACEITE` | `str` | `'suite_e_aceite'` |
 
 ### `AceiteDoCriterio`
 
@@ -724,7 +726,7 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 
 *DTO imutável* — Um teste de aceite rodado pelo orquestrador: o critério, o teste, o comando e como saiu.
 
-**Campos:** `criterio: str`, `teste: str`, `comando: str`, `codigo: int | None`, `saida: str`
+**Campos:** `criterio: str`, `teste: str`, `comando: str`, `codigo: int | None`, `saida: str`, `so_o_codigo: bool`
 
 - `motivo() -> str` `[property]` — Por que o teste não conta como verde (saiu com erro, foi pulado, o runner não disse); vazio quando conta.
 - `passou() -> bool` `[property]` — Saiu com zero e a saída do runner diz que passou, sem pular nada.
@@ -757,6 +759,7 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 - `dentro_do_aceite(caminho: str) -> bool` — O caminho, relativo à raiz, está na pasta dos testes de aceite.
 - `rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None) -> tuple[ExecucaoDeAceite, ...]` — Cada teste de aceite dos critérios dados (todos, sem eles), rodado pelo comando dele.
 - `rodar_o_comando_de_aceite(saida: SaidaDoAceite, rodar: Rodar) -> ExecucaoDeAceite` — O comando que roda todos os testes de aceite, de uma vez.
+- `rodar_a_suite_com_o_aceite(saida: SaidaDoAceite, comando_suite: str, rodar: Rodar) -> ExecucaoDeAceite` — A suíte do projeto e todos os testes de aceite num comando só, com os arquivos de aceite na área.
 - `conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]` — Os testes falham antes da implementação, salvo o do critério que já era atendido; devolve os problemas e as execuções.
 
 ## `orquestrador/saida_do_verificador.py`

@@ -6,8 +6,10 @@ completou (no último marco, a verificação final, todos os critérios e todas 
 decisões, sobre o Goal inteiro), roda a suíte e o programa e sonda as bordas.
 Lista os comandos que rodou, e cada um tem de aparecer nas chamadas Bash do
 stream da sessão. Depois o próprio orquestrador roda nesse commit a suíte do
-plano (sem os testes de aceite) e os testes de aceite dos critérios que o
-marco julga (na final, também o comando de todos), com `aceite/` de volta ao
+plano (sem os testes de aceite) e os testes de aceite dos critérios que os
+marcos até este completaram (os dos marcos anteriores, como regressão; na
+final, também o comando de todos e, num comando só, a suíte com todos os
+testes de aceite), com `aceite/` de volta ao
 commit do aceite e sem configuração de teste solta na área
 (orquestrador/aceite_intocado.py): a suíte vermelha é
 bloqueante, e o teste de aceite vermelho reprova o critério dele e vira Achado
@@ -33,7 +35,14 @@ from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
-from graphow.orquestrador.saida_do_aceite import ExecucaoDeAceite, SaidaDoAceite, rodar_o_comando_de_aceite, rodar_testes
+from graphow.orquestrador.saida_do_aceite import (
+    TESTE_DA_SUITE_COM_O_ACEITE,
+    ExecucaoDeAceite,
+    SaidaDoAceite,
+    rodar_a_suite_com_o_aceite,
+    rodar_o_comando_de_aceite,
+    rodar_testes,
+)
 from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, Verificacao, conferir_verificacao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
@@ -70,35 +79,45 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
 
 
 def _aceite_no_commit(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple[ExecucaoDeAceite, ...]:
-    """Os testes de aceite dos critérios que o marco julga, rodados pelo orquestrador; na final, também o comando de todos."""
+    """Os testes de aceite dos marcos até este, rodados pelo orquestrador; na final, também o comando de todos e a suíte junto."""
     aceite = SaidaDoAceite.do_livro(estado.aceite)
 
     def rodar(comando: str) -> ResultadoDaSuite:
         return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
 
-    execucoes = rodar_testes(aceite, rodar, marco.criterios)
-    final = (rodar_o_comando_de_aceite(aceite, rodar),) if marco.final and execucoes else ()
-    return execucoes + final
+    execucoes = rodar_testes(aceite, rodar, criterios_ate_o_marco(estado, marco))
+    if not (marco.final and execucoes):
+        return execucoes
+    comando_suite = str((estado.plano or {}).get("comando_suite", ""))
+    return (*execucoes, rodar_o_comando_de_aceite(aceite, rodar), rodar_a_suite_com_o_aceite(aceite, comando_suite, rodar))
 
 
 def _com_o_aceite(verificacao: Verificacao, execucoes: Sequence[ExecucaoDeAceite]) -> Verificacao:
     """O teste de aceite vermelho reprova o critério dele, diga o verificador o que disser, e vira Achado bloqueante.
 
-    O comando de todos que falha só vira Achado próprio quando nenhum teste
-    sozinho falhou: senão é a mesma falha, contada duas vezes.
+    O comando de todos, ou a suíte junto com o aceite, que falha só vira
+    Achado próprio quando nenhum teste sozinho falhou, e só o primeiro deles:
+    senão é a mesma falha, contada duas ou três vezes.
     """
     algum_criterio = any(not e.passou for e in execucoes if e.criterio)
-    for execucao in (e for e in execucoes if not e.passou and (e.criterio or not algum_criterio)):
-        situacao = execucao.motivo
-        descricao = f"`{execucao.comando}` nao passou no commit verificado: {situacao}. Fim da saida:\n{execucao.saida[-LIMITE_DO_TRECHO:]}"
-        if execucao.criterio:
-            prova = f"o teste de aceite {execucao.teste} nao passou ({situacao}) quando o orquestrador o rodou"
-            verificacao = verificacao.com_parecer(execucao.criterio, a.VEREDITO_NAO_ATENDE, prova)
-            titulo = f"O teste de aceite {execucao.teste} de {execucao.criterio} falhou"
-            verificacao = verificacao.com_achado_do_orquestrador(titulo, descricao, (execucao.criterio,))
-        else:
-            verificacao = verificacao.com_achado_do_orquestrador("O comando de aceite falhou no commit verificado", descricao)
+    juntos = [] if algum_criterio else [e for e in execucoes if not e.criterio and not e.passou][:1]
+    for execucao in (*(e for e in execucoes if e.criterio and not e.passou), *juntos):
+        verificacao = _com_a_falha(verificacao, execucao)
     return verificacao
+
+
+def _com_a_falha(verificacao: Verificacao, execucao: ExecucaoDeAceite) -> Verificacao:
+    """A execução que não passou como Achado do orquestrador; a do teste de um critério reprova o critério."""
+    situacao = execucao.motivo
+    descricao = f"`{execucao.comando}` nao passou no commit verificado: {situacao}. Fim da saida:\n{execucao.saida[-LIMITE_DO_TRECHO:]}"
+    if not execucao.criterio:
+        juntos = execucao.teste == TESTE_DA_SUITE_COM_O_ACEITE
+        titulo = "A suite e os testes de aceite juntos falharam" if juntos else "O comando de aceite falhou"
+        return verificacao.com_achado_do_orquestrador(f"{titulo} no commit verificado", descricao)
+    prova = f"o teste de aceite {execucao.teste} nao passou ({situacao}) quando o orquestrador o rodou"
+    verificacao = verificacao.com_parecer(execucao.criterio, a.VEREDITO_NAO_ATENDE, prova)
+    titulo = f"O teste de aceite {execucao.teste} de {execucao.criterio} falhou"
+    return verificacao.com_achado_do_orquestrador(titulo, descricao, (execucao.criterio,))
 
 
 def criterios_ate_o_marco(estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple[str, ...]:

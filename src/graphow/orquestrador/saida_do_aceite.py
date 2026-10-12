@@ -35,6 +35,8 @@ PASTA_DO_ACEITE: str = "aceite"
 PASTAS_DE_CACHE: frozenset[str] = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "node_modules"})
 SUFIXOS_DE_CACHE: tuple[str, ...] = (".pyc", ".pyo")
 LIMITE_DA_SAIDA_REGISTRADA: int = 600
+TESTE_DO_COMANDO_DE_ACEITE: str = "comando_aceite"
+TESTE_DA_SUITE_COM_O_ACEITE: str = "suite_e_aceite"
 
 Rodar = Callable[[str], ResultadoDaSuite]
 
@@ -162,10 +164,18 @@ class ExecucaoDeAceite:
     comando: str
     codigo: int | None
     saida: str
+    so_o_codigo: bool = False
 
     @property
     def motivo(self) -> str:
-        """Por que o teste não conta como verde (saiu com erro, foi pulado, o runner não disse); vazio quando conta."""
+        """Por que o teste não conta como verde (saiu com erro, foi pulado, o runner não disse); vazio quando conta.
+
+        O comando que junta a suíte do projeto ao aceite vale pelo código: a
+        suíte pode pular teste por plataforma, e cada teste de aceite já foi
+        lido sozinho.
+        """
+        if self.so_o_codigo:
+            return "" if self.codigo == 0 else ("o tempo acabou" if self.codigo is None else f"saiu com codigo {self.codigo}")
         return por_que_nao_passou(self.comando, self.codigo, self.saida)
 
     @property
@@ -194,14 +204,23 @@ def rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | 
 
 def rodar_o_comando_de_aceite(saida: SaidaDoAceite, rodar: Rodar) -> ExecucaoDeAceite:
     """O comando que roda todos os testes de aceite, de uma vez."""
-    return _execucao("", "comando_aceite", saida.comando_aceite, rodar=rodar)
+    return _execucao("", TESTE_DO_COMANDO_DE_ACEITE, saida.comando_aceite, rodar=rodar)
 
 
-def _execucao(criterio: str, teste: str, comando: str, *, rodar: Rodar) -> ExecucaoDeAceite:
+def rodar_a_suite_com_o_aceite(saida: SaidaDoAceite, comando_suite: str, rodar: Rodar) -> ExecucaoDeAceite:
+    """A suíte do projeto e todos os testes de aceite num comando só, com os arquivos de aceite na área.
+
+    É o que pega a interação que nenhum dos dois mostra sozinho: o teste de
+    aceite que quebra a suíte, a suíte que depende de estar sem eles.
+    """
+    return _execucao("", TESTE_DA_SUITE_COM_O_ACEITE, f"{comando_suite} && {saida.comando_aceite}", rodar=rodar, so_o_codigo=True)
+
+
+def _execucao(criterio: str, teste: str, comando: str, *, rodar: Rodar, so_o_codigo: bool = False) -> ExecucaoDeAceite:
     """Um comando rodado como execução de aceite."""
     resultado = rodar(comando)
     codigo = None if resultado.tempo_esgotado else resultado.codigo
-    return ExecucaoDeAceite(criterio, teste, comando, codigo, resultado.saida)
+    return ExecucaoDeAceite(criterio, teste, comando, codigo, resultado.saida, so_o_codigo)
 
 
 def _vermelho_errado(execucao: ExecucaoDeAceite, motivo: str) -> str:

@@ -128,8 +128,8 @@ def test_executor_que_mexe_no_teste_de_aceite_e_recusado_nominal(tmp_path: Path)
     assert estado is not None and estado.fatias[0].falhas == 1
 
 
-def test_suite_do_plano_roda_sem_os_testes_de_aceite_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: a suíte que falharia vendo aceite/ passa, porque o orquestrador a roda com eles fora; depois eles voltam."""
+def test_suite_do_plano_roda_sem_os_testes_de_aceite_e_a_final_os_junta_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a suíte que falha vendo aceite/ passa nas fatias (roda sem eles), e a final, que junta os dois, a pega."""
     plano = copy.deepcopy(PLANO)
     plano["comando_suite"] = f"{PYTHON} verificar.py && {PYTHON} -c \"import os, sys; sys.exit(os.path.exists('aceite/aceite_c1.py'))\""
     roteiro = _roteiro_limpo()
@@ -138,8 +138,14 @@ def test_suite_do_plano_roda_sem_os_testes_de_aceite_edge_case(tmp_path: Path) -
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
-    assert parada.fechou, parada.mensagem
-    assert (bancada.repositorio / "aceite" / "aceite_c1.py").is_file()
+    assert not parada.fechou
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and [f.falhas for f in estado.fatias[:2]] == [0, 0]
+    final = estado.verificacoes[0]
+    juntos = final.propriedades["aceite_do_orquestrador"][-1]
+    assert juntos["teste"] == "suite_e_aceite" and not juntos["passou"]
+    assert [a.texto("titulo") for a in final.bloqueantes()] == ["A suite e os testes de aceite juntos falharam no commit verificado"]
+    assert (tmp_path / "estado" / "goal-soma" / "area" / "aceite" / "aceite_c1.py").is_file()
 
 
 def test_teste_de_aceite_vermelho_na_verificacao_reprova_o_criterio_que_o_verificador_aprovou_nominal(tmp_path: Path) -> None:
@@ -163,7 +169,7 @@ def test_teste_de_aceite_vermelho_na_verificacao_reprova_o_criterio_que_o_verifi
     assert {p["id"]: p["veredito"] for p in primeira.propriedades["pareceres"]}["C1"] == "nao_atende"
     assert [a.texto("titulo") for a in primeira.bloqueantes()] == ["O teste de aceite test_c1_soma de C1 falhou"]
     assert [f.codigo for f in estado.fatias] == ["F1", "F2", "M1.K1.1"]
-    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True]
+    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True, True]
 
 
 def test_supervisionado_para_depois_do_autor_e_aprova_plano_e_testes_juntos_nominal(tmp_path: Path) -> None:
@@ -224,4 +230,4 @@ def test_teste_de_aceite_pulado_pelo_modulo_do_executor_nao_passa_edge_case(tmp_
     primeira = estado.verificacoes[0]
     assert {p["id"]: p["veredito"] for p in primeira.propriedades["pareceres"]}["C1"] == "nao_atende"
     assert "1 teste(s) foram pulados" in primeira.bloqueantes()[0].texto("descricao")
-    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True]
+    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True, True]

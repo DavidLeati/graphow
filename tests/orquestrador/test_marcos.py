@@ -76,6 +76,38 @@ def test_bloqueante_do_marco_vira_correcao_antes_do_marco_seguinte_nominal(tmp_p
     assert "# Fatia M1.K1.1" in executores[1]["stdin"] and "# Fatia F2" in executores[2]["stdin"]
 
 
+def test_marco_intermediario_roda_de_novo_o_aceite_dos_marcos_anteriores_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (regressão): a fatia de M2 quebra a soma de M1; a verificação de M2 roda o teste de C1 e o reprova."""
+    plano = copy.deepcopy(PLANO)
+    plano["criterios"].append({"id": "C3", "texto": "o README termina com Fim", "verificacao": "checagem"})
+    plano["fatias"].append({"id": "F3", "titulo": "Exemplo final", "objetivo": "README final", "criterios": ["C3"],
+                            "arquivos": ["README.md"], "depende_de": ["F2"], "modelo": "sonnet"})
+    plano["marcos"] = [{"id": "M1", "titulo": "Soma", "fatias": ["F1"]}, {"id": "M2", "titulo": "README", "fatias": ["F2"]},
+                       {"id": "M3", "titulo": "Fim", "fatias": ["F3"]}]
+    roteiro = roteiro_completo()
+    roteiro["planejador"] = [{"saida": plano, "custo": 0.4}]
+    roteiro["aceite"][0]["saida"]["criterios"].append({"id": "C3", "testes": [], "checagem": ["ler o fim do README"], "ja_atendido": ""})
+    quebra = executor_pronto({"README.md": README_COM_EXEMPLO, "soma.py": "def somar(a, b):\n    return a * b\n",
+                              "verificar.py": "print('ok')\n"})
+    roteiro["executor"] = [roteiro["executor"][0], quebra, executor_pronto({"soma.py": "def somar(a, b):\n    return a + b\n"}),
+                           executor_pronto({"README.md": README_COM_EXEMPLO + "Fim.\n"})]
+    roteiro["verificador"] = [verificacao("atende") for _ in range(4)]
+    for resposta in roteiro["verificador"]:
+        resposta["saida"]["criterios"].append({"id": "C3", "veredito": "atende", "prova": "README lido: termina com Fim"})
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    assert [v.marco for v in estado.verificacoes] == ["M1", "M2", "M2", "M3"]
+    do_m2 = estado.verificacoes[1]
+    assert [e["criterio"] for e in do_m2.propriedades["aceite_do_orquestrador"]] == ["C1"]
+    assert {p["id"]: p["veredito"] for p in do_m2.propriedades["pareceres"]}["C1"] == "nao_atende"
+    assert [f.codigo for f in estado.fatias] == ["F1", "F2", "F3", "M2.K1.1"]
+
+
 def test_limite_de_dois_ciclos_por_marco_para_o_goal_com_os_bloqueantes_abertos_edge_case(tmp_path: Path) -> None:
     """Caso de borda: M1 segue com bloqueante depois de dois ciclos; o laço para, os Achados ficam abertos e o kernel não fecha."""
     bloqueante_em_c1 = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring", "criterios": ["C1"]}
