@@ -14,16 +14,24 @@ divide numa fatia por achado (orquestrador/execucao_da_fatia.py), para que os
 que dão para corrigir sejam corrigidos. O que a tentativa agrupada fez não se
 aproveita em parte: a entrega é um commit só, provado pela suíte inteira, e
 não há como saber que pedaço do diff corrige que achado; ela fica no .patch.
+
+Os arquivos da fatia são todos os que o local cita (`cli.py:28; estatistica.py:32`),
+e não só o primeiro: na fumaça real da rodada 3, a correção listava só `cli.py`,
+o executor se ateve a ele, e a verificação seguinte achou a causa em
+`estatistica.py`.
 """
 
 from collections.abc import Iterable, Sequence
 import os
+import re
 from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 
 MAXIMO_POR_FATIA: int = 6
+# Um caminho com extensão no texto do local (`src/x.py`, `C:/x.py`, `.\\x.py`); `1.5` não é caminho.
+CAMINHO_NO_LOCAL: re.Pattern[str] = re.compile(r"(?:[A-Za-z]:)?[\w./\\-]*\w\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 
 
 def normalizar_caminho(caminho: str) -> str:
@@ -63,6 +71,16 @@ def _arquivo_do_local(local: str) -> str:
     return partes[0]
 
 
+def arquivos_do_local(local: str) -> list[str]:
+    """Todos os arquivos que o local cita, na ordem, com a barra para a frente e sem `./`."""
+    primeiro = _arquivo_do_local(local).strip()
+    citados = CAMINHO_NO_LOCAL.findall(local)
+    if primeiro and (" " not in primeiro or not citados):
+        citados.insert(0, primeiro)
+    limpos = (caminho.strip().replace("\\", "/").removeprefix("./") for caminho in citados)
+    return list(dict.fromkeys(caminho for caminho in limpos if caminho))
+
+
 def titulo_da_correcao(grupo: Sequence[AchadoRegistrado]) -> str:
     """O título da fatia: o primeiro achado, e quantos outros ela corrige junto."""
     outros = f" (e mais {len(grupo) - 1})" if len(grupo) > 1 else ""
@@ -73,8 +91,7 @@ def propriedades_da_correcao(grupo: Sequence[AchadoRegistrado]) -> dict[str, Any
     """O objetivo, os critérios, os arquivos e os achados da fatia que corrige o grupo."""
     objetivos = [achado.texto("descricao") + (f" (local: {achado.texto('local')})" if achado.texto("local") else "")
                  for achado in grupo]
-    arquivos = [_arquivo_do_local(local).strip().replace("\\", "/").removeprefix("./")
-                for achado in grupo if (local := achado.texto("local"))]
+    arquivos = [arquivo for achado in grupo for arquivo in arquivos_do_local(achado.texto("local"))]
     return {
         m.CAMPO_OBJETIVO: objetivos[0] if len(grupo) == 1 else "\n".join(f"{n}. {texto}" for n, texto in enumerate(objetivos, 1)),
         m.CAMPO_CRITERIOS: list(dict.fromkeys(c for achado in grupo for c in achado.lista("criterios"))),

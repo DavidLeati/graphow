@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-44 módulos · 7477 linhas · 62 classes
+44 módulos · 7494 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,7 +21,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 140 | Os testes de aceite rodam com a configuração de teste do commit do aceite, mexa o executor no que mexer. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 181 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
-| [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 84 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
+| [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 101 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 69 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 135 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
@@ -228,12 +228,14 @@ As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesm
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `MAXIMO_POR_FATIA` | `int` | `6` |
+| `CAMINHO_NO_LOCAL` | `re.Pattern[str]` | `re.compile('(?:[A-Za-z]:)?[\\w./\\\\-]*\\w\\.[A-Za-z][A-Za-z0-9]{0,7}\\…` |
 
 ### Funções do módulo
 
 - `normalizar_caminho(caminho: str) -> str` — O caminho como o agrupamento o compara: barras para a frente, sem `./` no começo e, no Windows, sem caixa.
 - `area_do_achado(achado: AchadoRegistrado) -> str` — A área em que o achado mora: o arquivo do local, o primeiro critério ou decisão que ele fere, ou ele mesmo.
 - `agrupar_por_area(achados: Iterable[AchadoRegistrado]) -> list[tuple[AchadoRegistrado, ...]]` — Os achados em grupos da mesma área, na ordem em que cada área apareceu, sem repetir achado.
+- `arquivos_do_local(local: str) -> list[str]` — Todos os arquivos que o local cita, na ordem, com a barra para a frente e sem `./`.
 - `titulo_da_correcao(grupo: Sequence[AchadoRegistrado]) -> str` — O título da fatia: o primeiro achado, e quantos outros ela corrige junto.
 - `propriedades_da_correcao(grupo: Sequence[AchadoRegistrado]) -> dict[str, Any]` — O objetivo, os critérios, os arquivos e os achados da fatia que corrige o grupo.
 

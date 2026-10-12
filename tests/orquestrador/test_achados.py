@@ -9,7 +9,7 @@ import pytest
 
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
-from graphow.orquestrador.correcoes import agrupar_por_area, normalizar_caminho
+from graphow.orquestrador.correcoes import agrupar_por_area, normalizar_caminho, propriedades_da_correcao
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DO_ORQUESTRADOR, Achado
@@ -185,6 +185,14 @@ def test_agrupamento_compara_o_caminho_normalizado_edge_case(locais: tuple[str, 
 def test_caixa_do_caminho_nao_separa_no_windows_edge_case() -> None:
     """Caso de borda: no Windows, `Soma.py` e `soma.py` são o mesmo arquivo para o agrupamento."""
     assert normalizar_caminho("./Soma.py") == ("soma.py" if os.name == "nt" else "Soma.py")
+
+
+def test_correcao_lista_todos_os_arquivos_que_o_local_cita_edge_case() -> None:
+    """Caso de borda (fumaça da rodada 3): o local que cita dois arquivos põe os dois na fatia, não só o primeiro."""
+    locais = ("cli.py:28-32 (so except ValueError); estatistica.py:32", ".\\src\\soma.py:3, com 1.5 e 1e308")
+    grupo = [AchadoRegistrado(f"a{n}", "v", "bloqueante", "aberto", {"local": local, "titulo": f"t{n}"}) for n, local in enumerate(locais)]
+
+    assert propriedades_da_correcao(grupo)["arquivos_alvo"] == ["cli.py", "estatistica.py", "src/soma.py"]
 
 
 def test_correcao_agrupada_que_esgota_se_divide_em_uma_por_achado_nominal(tmp_path: Path) -> None:
