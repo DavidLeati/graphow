@@ -154,6 +154,15 @@ def test_verificacao_sem_comando_ou_com_prova_vazia_nao_confere_edge_case(trocas
     assert any(problema.startswith(trecho) for problema in problemas), problemas
 
 
+def test_prova_curta_diz_que_e_curta_e_nao_vazia_edge_case() -> None:
+    """Caso de borda: a prova "." não é vazia; o problema diz o tamanho que falta."""
+    dados = {**copy.deepcopy(VERIFICACAO), "criterios": [{"id": "C1", "veredito": "atende", "prova": "."}]}
+
+    problemas = validar_contra_esquema(dados, ESQUEMA_DA_VERIFICACAO)
+
+    assert "$.criterios[0].prova: texto curto demais (1 caractere(s); o minimo e 10)" in problemas
+
+
 def test_conferencia_recusa_a_verificacao_sem_comandos_mesmo_fora_do_schema_edge_case() -> None:
     """Caso de borda: a leitura tolera a falta de `comandos`, e a conferência a recusa."""
     dados = {chave: valor for chave, valor in copy.deepcopy(VERIFICACAO).items() if chave != "comandos"}

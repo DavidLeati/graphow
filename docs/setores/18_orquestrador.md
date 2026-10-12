@@ -10,11 +10,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-22 módulos · 3513 linhas · 43 classes
+23 módulos · 3594 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 152 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 153 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 160 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
@@ -28,13 +29,13 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 140 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 129 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 283 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 288 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 301 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 121 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
-| [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 180 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
+| [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 182 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
 
 ## `orquestrador/briefing.py`
 
@@ -56,6 +57,21 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 - `briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto: ContextoDaFatia) -> str` — O pedido ao executor da fatia, com tudo o que a governa por extenso.
 - `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador: spec, critérios, decisões, suíte e o commit, sem nada de quem implementou.
 - `pedido_de_correcao_da_saida(problemas: Sequence[str]) -> str` — O que vai à mesma sessão quando a saída dela não conferiu.
+
+## `orquestrador/comandos_do_stream.py`
+
+Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `FERRAMENTA_DO_SHELL` | `str` | `'Bash'` |
+| `PROMPT_DO_SHELL` | `re.Pattern[str]` | `re.compile('^\\$\\s+')` |
+
+### Funções do módulo
+
+- `comandos_bash(caminho: Path) -> tuple[str, ...]` — Os comandos de cada chamada da ferramenta Bash no stream, na ordem; vazio sem stream.
+- `comandos_nao_rodados(declarados: Iterable[str], resultados: Sequence[ResultadoDeSessao]) -> tuple[str, ...]` — Os comandos declarados que não aparecem em chamada Bash nenhuma das invocações dadas.
+- `problema_dos_comandos(faltando: Sequence[str]) -> tuple[str, ...]` — O que volta à sessão quando ela declarou comando que não rodou.
 
 ## `orquestrador/contexto_do_laco.py`
 
@@ -618,7 +634,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 *DTO imutável* — Uma sessão a rodar: o papel, onde, com que briefing e como conferir a saída.
 
-**Campos:** `papel: str`, `id_goal: str`, `pasta: Path`, `briefing: str`, `conferir: Conferencia`, `fatia: str`, `tentativa: int`, `modelo: str`, `orcamento_restante_usd: float`
+**Campos:** `papel: str`, `id_goal: str`, `pasta: Path`, `briefing: str`, `conferir: Conferencia`, `fatia: str`, `tentativa: int`, `modelo: str`, `orcamento_restante_usd: float`, `comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None`
 
 ### `RespostaDePapel`
 

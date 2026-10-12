@@ -52,8 +52,10 @@ def _problemas_de_valor(valor: Any, esquema: Mapping[str, Any], caminho: str) ->
     problemas: list[str] = []
     if "enum" in esquema and valor not in esquema["enum"]:
         problemas.append(f"{caminho}: '{valor}' fora de {list(esquema['enum'])}")
-    if isinstance(valor, str) and len(valor.strip()) < int(esquema.get("minLength", 0)):
-        problemas.append(f"{caminho}: texto vazio")
+    minimo = int(esquema.get("minLength", 0))
+    if isinstance(valor, str) and len(valor.strip()) < minimo:
+        curto = f"texto curto demais ({len(valor.strip())} caractere(s); o minimo e {minimo})"
+        problemas.append(f"{caminho}: {'texto vazio' if not valor.strip() else curto}")
     return problemas
 
 

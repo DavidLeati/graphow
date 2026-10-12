@@ -2,6 +2,7 @@
 
 Com as fatias concluídas, uma sessão nova do verificador confere a entrega no
 commit atual e lista os comandos que rodou, com o código e um trecho da saída;
+cada comando declarado tem de aparecer nas chamadas Bash do stream da sessão;
 depois o próprio orquestrador roda a suíte do plano nesse commit, e a suíte
 vermelha é bloqueante, diga o verificador o que disser. A verificação vira
 Evidence ligada ao Goal, com os comandos e a suíte; cada bloqueante vira
@@ -102,6 +103,7 @@ def _sessao_do_verificador(contexto: ContextoDoGoal, estado: EstadoDoGoal, head:
             papel=PAPEL_VERIFICADOR, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=len(estado.verificacoes) + 1,
             briefing=briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base)),
             conferir=lambda dados: conferir_verificacao(Verificacao.de_json(dados), criterios, decisoes),
+            comandos_declarados=lambda dados: [str(comando.get("comando", "")) for comando in dados.get("comandos", [])],
             orcamento_restante_usd=contexto.restante(),
         )
     )

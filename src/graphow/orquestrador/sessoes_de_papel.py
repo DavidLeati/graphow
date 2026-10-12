@@ -11,9 +11,11 @@ Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o
 que era: o que o agente mexeu no git do clone é desfeito e vai na resposta
 como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
 
-A saída é conferida contra o schema e contra o sentido. A que não confere
-volta à mesma sessão (`--resume`) com a lista de problemas, uma vez; falhando
-de novo, o papel falhou. Cada invocação vira uma linha de telemetria, fora do
+A saída é conferida contra o schema e contra o sentido e, no papel que declara
+os comandos que rodou (o verificador), contra as chamadas Bash do stream da
+sessão (orquestrador/comandos_do_stream.py). A que não confere volta à mesma
+sessão (`--resume`) com a lista de problemas, uma vez; falhando de novo, o
+papel falhou. Cada invocação vira uma linha de telemetria, fora do
 grafo, que nasce `em_andamento` antes de a sessão abrir e fecha com o
 resultado; o stream de cada invocação tem nome próprio, e a refeita não
 apaga o da anterior. A linha que ficou em andamento porque o orquestrador
@@ -29,6 +31,7 @@ import secrets
 from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
+from graphow.orquestrador.comandos_do_stream import comandos_nao_rodados, problema_dos_comandos
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_EXECUTOR,
@@ -87,6 +90,7 @@ class PedidoDePapel:
     tentativa: int = 1
     modelo: str = ""
     orcamento_restante_usd: float = 0.0
+    comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -120,13 +124,13 @@ class SessoesDePapel:
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão, e a retomada com os problemas quando a saída não confere."""
         primeira = self._invocar(pedido, pedido.briefing, "")
-        dados, problemas = ler_saida(primeira, pedido)
+        dados, problemas = _conferida(pedido, (primeira,))
         if not problemas:
             return RespostaDePapel(dados, (), (primeira,))
         if not primeira.session_id or primeira.tempo_esgotado:
             return RespostaDePapel(None, problemas, (primeira,))
         segunda = self._invocar(pedido, pedido_de_correcao_da_saida(problemas), primeira.session_id)
-        dados, problemas = ler_saida(segunda, pedido)
+        dados, problemas = _conferida(pedido, (primeira, segunda))
         return RespostaDePapel(None if problemas else dados, problemas, (primeira, segunda))
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
@@ -152,6 +156,15 @@ class SessoesDePapel:
         resultado = self._executor.rodar(pedido_de_sessao)
         self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
         return resultado
+
+
+def _conferida(pedido: PedidoDePapel, resultados: Sequence[ResultadoDeSessao]) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]:
+    """A saída da última invocação conferida e, quando o papel declara comandos, conferida contra o stream da sessão."""
+    dados, problemas = ler_saida(resultados[-1], pedido)
+    if dados is None or pedido.comandos_declarados is None:
+        return dados, problemas
+    faltando = problema_dos_comandos(comandos_nao_rodados(pedido.comandos_declarados(dados), resultados))
+    return (None, faltando) if faltando else (dados, ())
 
 
 def _marca_da_invocacao() -> str:

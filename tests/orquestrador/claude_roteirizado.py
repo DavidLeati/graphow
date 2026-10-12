@@ -11,6 +11,8 @@ papel; cada chamada consome a próxima do seu papel. Cada resposta pode:
   git inclusive); o código e a saída de erro de cada um vão para o registro;
 - `custo`: o custo desta invocação; numa sessão retomada o resultado traz o
   acumulado, como o Claude Code faz;
+- `bash`: os comandos das chamadas da ferramenta Bash que o stream mostra; sem
+  ele, os `comandos` que a `saida` declara (o verificador honesto);
 - `morrer`: sai com 1 sem evento `result`, como um processo que caiu;
 - `levantar`: grava os arquivos e sai com 7 sem responder.
 
@@ -76,6 +78,14 @@ def _executar(resposta: dict) -> list[dict]:
     return feitos
 
 
+def _imprimir_chamadas_bash(resposta: dict) -> None:
+    saida = resposta.get("saida") if isinstance(resposta.get("saida"), dict) else {}
+    declarados = [str(item.get("comando", "")) for item in saida.get("comandos", []) if isinstance(item, dict)]
+    for indice, comando in enumerate(resposta.get("bash", declarados)):
+        chamada = {"type": "tool_use", "id": f"toolu_{indice}", "name": "Bash", "input": {"command": comando}}
+        print(json.dumps({"type": "assistant", "message": {"content": [chamada]}}), flush=True)
+
+
 def main() -> int:
     argv = sys.argv[1:]
     entrada = sys.stdin.buffer.read().decode("utf-8")
@@ -91,6 +101,7 @@ def main() -> int:
     print(json.dumps({"type": "system", "subtype": "init", "session_id": sessao, "model": "claude-teste"}), flush=True)
     if resposta.get("morrer"):
         return 1
+    _imprimir_chamadas_bash(resposta)
     saida = resposta.get("saida")
     texto = resposta.get("texto") or (json.dumps(saida) if saida is not None else "")
     uso = {"claude-teste": {"inputTokens": 10, "outputTokens": 5, "cacheReadInputTokens": 100, "cacheCreationInputTokens": 20}}
