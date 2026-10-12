@@ -74,10 +74,33 @@ ACOMPANHAMENTO: dict[str, Any] = {
 }
 
 
+ACEITE_C1: str = (
+    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.insert(0, ".")\nfrom soma import somar\n\n\n'
+    "def test_c1_soma():\n    assert somar(2, 3) == 5\n\n\ntest_c1_soma()\nprint('aceite ok')\n"
+)
+COMANDO_ACEITE: str = f'"{sys.executable}" aceite/aceite_c1.py'
+
+
+def autor_de_aceite(ja_atendido: str = "", **campos: Any) -> dict[str, Any]:
+    """Uma resposta do autor de aceite: o teste de C1 em aceite/ (vermelho com a soma errada) e a checagem de C2."""
+    saida = {
+        "resumo": "teste de C1 e checagem de C2",
+        "comando_aceite": COMANDO_ACEITE,
+        "criterios": [
+            {"id": "C1", "testes": [{"arquivo": "aceite/aceite_c1.py", "nome": "test_c1_soma", "comando": COMANDO_ACEITE}],
+             "checagem": [], "ja_atendido": ja_atendido},
+            {"id": "C2", "testes": [], "checagem": ["abrir o README.md e achar um exemplo de somar com o resultado"],
+             "ja_atendido": ""},
+        ],
+    }
+    return {"saida": saida, "arquivos": {"aceite/aceite_c1.py": ACEITE_C1}, "custo": 0.2, **campos}
+
+
 def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
-    """Plano, duas fatias, verificação com bloqueante, correção e verificação limpa."""
+    """Plano, aceite, duas fatias, verificação com bloqueante, correção e verificação limpa."""
     return {
         "planejador": [{"saida": copy.deepcopy(PLANO), "custo": 0.4}],
+        "aceite": [autor_de_aceite()],
         "executor": [
             executor_pronto({"soma.py": SOMA_CERTA, "verificar.py": VERIFICAR}),
             executor_pronto({"README.md": "# brinquedo\nUse somar(a, b).\n"}),

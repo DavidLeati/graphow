@@ -1,9 +1,10 @@
 """O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão.
 
-Cada passo relê o estado do livro-razão e do git e decide: planejar, parar no
-portão do plano (modo supervisionado), executar a próxima fatia pronta, parar
-na pendência ou na dúvida que espera o humano, verificar, abrir correções ou
-fechar. Por isso rodar de novo retoma de onde parou, inclusive depois de o
+Cada passo relê o estado do livro-razão e do git e decide: planejar, escrever
+os testes de aceite, parar no portão do plano e dos testes (modo
+supervisionado), executar a próxima fatia pronta do marco atual, parar na
+pendência ou na dúvida que espera o humano, verificar o marco, abrir correções
+ou fechar. Por isso rodar de novo retoma de onde parou, inclusive depois de o
 processo morrer no meio de uma sessão. Toda falha de domínio (o kernel que
 recusa um lote, o git que recusa um comando, a sessão que não abre) vira uma
 parada legível, e não uma exceção no meio da chamada.
@@ -15,6 +16,7 @@ from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.autor_de_aceite import escrever_aceite
 from graphow.orquestrador.contexto_do_laco import (
     ContextoDoGoal,
     DependenciasDoLaco,
@@ -38,6 +40,7 @@ from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.planejamento import planejar
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
+from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
 from graphow.orquestrador.trava_do_git import instalar_trava
 from graphow.orquestrador.verificacao_do_goal import verificar_ou_fechar
 from graphow.projection.graph_view import GrafoView
@@ -69,16 +72,16 @@ class Orquestrador:
             return _parada_de_falha(id_goal, erro)
 
     def aprovar_plano(self, id_goal: str, autor: str) -> str:
-        """O portão do plano do orquestrador: o humano grava a aprovação no Goal, com o commit do documento.
+        """O portão do plano do orquestrador: o humano aprova junto o plano e os testes de aceite, no commit deles.
 
         É do orquestrador, e não o gesto `aprovar_plano` do escopo governado:
-        o laço não depende das regras que a fase 4 apaga.
+        o laço não depende das regras que a fase 4 apaga. A aprovação guarda o
+        commit dos testes de aceite, e só vale para ele.
         """
         estado = ler_estado(self._view(), id_goal)
-        if estado is None or estado.plano is None:
-            raise PedidoInvalido("o Goal ainda nao tem plano para aprovar", {"id_goal": id_goal})
-        documento = estado.plano.get("documento", {})
-        aprovacao = {"papel": PapelAutor.HUMANO.value, "por": autor, "documento": documento.get("commit", "")}
+        if estado is None or estado.plano is None or estado.aceite is None:
+            raise PedidoInvalido("o Goal ainda nao tem o plano e os testes de aceite para aprovar", {"id_goal": id_goal})
+        aprovacao = {"papel": PapelAutor.HUMANO.value, "por": autor, "documento": str(estado.aceite.get("commit", ""))}
         dados = DadosPropostaPatch(
             autor=autor, papel=PapelAutor.HUMANO, justificativa=f"Aprovacao do plano do Goal {id_goal}",
             operacoes=(propriedade(id_goal, m.CAMPO_APROVACAO_DO_PLANO, aprovacao),),
@@ -86,7 +89,7 @@ class Orquestrador:
         recibo = self._dependencias.kernel.submeter_patch(PropostaPatch.criar(dados))
         if not recibo.sucesso:
             raise PedidoInvalido("a aprovacao do plano foi recusada", {"id_goal": id_goal, "motivo": recibo.mensagem})
-        return f"Plano do Goal {id_goal} aprovado por {autor} (documento em {str(aprovacao['documento'])[:12]})."
+        return f"Plano e testes de aceite do Goal {id_goal} aprovados por {autor} (em {str(aprovacao['documento'])[:12]})."
 
     def _view(self) -> GrafoView:
         """O grafo agora."""
@@ -135,7 +138,7 @@ class Orquestrador:
             self._dependencias.executor,
             self._dependencias.telemetria,
             ConfiguracaoDasSessoes(
-                pasta_das_sessoes=pasta / "sessoes", ambiente_da_trava=instalar_trava(pasta / "trava-do-git"),
+                pasta_das_sessoes=pasta / "sessoes", ambiente_da_trava={**AMBIENTE_SEM_CACHE, **instalar_trava(pasta / "trava-do-git")},
                 modelos=self._dependencias.modelos, modo_de_permissao=self._dependencias.modo_de_permissao,
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
             ),
@@ -151,13 +154,10 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
         return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"O Goal {contexto.id_goal} esta fechado.")
     if estado.plano is None:
         return planejar(contexto, estado)
+    if estado.aceite is None:
+        return escrever_aceite(contexto, estado)
     if contexto.configuracao.modo == m.MODO_SUPERVISIONADO and not estado.plano_aprovado:
-        return Parada(
-            contexto.id_goal,
-            MotivoDaParada.AGUARDANDO_APROVACAO,
-            f"O plano espera aprovacao: leia docs/goals/{contexto.configuracao.slug}.md na branch {contexto.configuracao.ramo} "
-            f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`.",
-        )
+        return _portao_do_plano(contexto)
     marco = estado.marco_atual()
     prontas = estado.prontas(marco)
     if prontas:
@@ -171,6 +171,18 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
     if sem_como_rodar:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"As fatias {', '.join(sem_como_rodar)} do marco {marco.id} nao tem como rodar.")
     return verificar_ou_fechar(contexto, estado, marco)
+
+
+def _portao_do_plano(contexto: ContextoDoGoal) -> Parada:
+    """A parada do modo supervisionado: o humano aprova junto o plano e os testes de aceite."""
+    configuracao = contexto.configuracao
+    return Parada(
+        contexto.id_goal,
+        MotivoDaParada.AGUARDANDO_APROVACAO,
+        f"O plano e os testes de aceite esperam aprovacao (isto e o que vai provar que o Goal esta pronto): leia "
+        f"docs/goals/{configuracao.slug}.md e a pasta aceite/ na branch {configuracao.ramo} "
+        f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`.",
+    )
 
 
 def _parada_de_falha(id_goal: str, erro: GraphowError) -> Parada:

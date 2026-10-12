@@ -31,6 +31,11 @@ CAMPO_PLANO: str = a.CAMPO_PLANO
 # plano: a retomada a reaproveita em vez de pagar outra sessão.
 CAMPO_PLANO_PROPOSTO: str = "plano_proposto"
 CAMPO_CICLOS: str = "ciclos_de_correcao"
+# Os testes de aceite: o commit, o comando que roda só eles, os arquivos que o
+# executor não toca e o aceite de cada critério. E a saída conferida do autor
+# de aceite, gravada antes do commit para a retomada não pagar outra sessão.
+CAMPO_ACEITE: str = "aceite"
+CAMPO_ACEITE_PROPOSTO: str = "aceite_proposto"
 CAMPO_PENDENCIAS: str = "pendencias"
 CAMPO_INTEGRADO_EM: str = "integrado_em"
 # A ponta da branch do Goal como o orquestrador a viu no git: o commit e o commit
@@ -147,6 +152,11 @@ def id_do_criterio(slug: str, codigo: str) -> str:
 def id_da_decisao(slug: str, codigo: str) -> str:
     """A Decision de uma decisão registrada pelo plano."""
     return f"dec-{slug}-{codigo.lower()}"
+
+
+def id_do_aceite(id_goal: str) -> str:
+    """O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele."""
+    return f"aceite-{id_goal}"
 
 
 def id_da_verificacao(id_goal: str, numero: int) -> str:

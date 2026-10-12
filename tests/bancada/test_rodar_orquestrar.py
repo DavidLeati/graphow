@@ -30,8 +30,11 @@ def _roteiro() -> dict[str, list[dict[str, Any]]]:
                     "arquivos": ["ENTREGA.md"], "depende_de": [], "modelo": "opus"}],
         "marcos": [{"id": "M1", "titulo": "Entrega", "fatias": ["F1"]}],
     }
+    aceite = {"resumo": "checagens", "comando_aceite": "true", "criterios": [
+        {"id": codigo, "testes": [], "checagem": ["ler ENTREGA.md e o README"], "ja_atendido": ""} for codigo in ("C1", "C2")]}
     return {
         "planejador": [{"saida": plano, "custo": 0.4}],
+        "aceite": [{"saida": aceite, "custo": 0.1}],
         "executor": [executor_pronto({"ENTREGA.md": "feito\n"})],
         "verificador": [verificacao("atende")],
     }
@@ -55,16 +58,16 @@ def test_orquestrar_roda_na_semente_integra_na_branch_de_entrega_e_mede_as_sesso
     parada = json.loads((execucao / "orquestrar.json").read_text(encoding="utf-8"))
     assert codigo == 0, gravado["erro"]
     assert (gravado["arquitetura"], gravado["erro"], parada["motivo"]) == ("orquestrar", "", "fechado")
-    assert gravado["metricas"]["custo_usd"] == 1.2
-    assert gravado["metricas"]["commits"] == 2
+    assert gravado["metricas"]["custo_usd"] == 1.3
+    assert gravado["metricas"]["commits"] == 3
     assert gravado["entrega"]["ramo_existe"] is True
     assert any("Entrega das operações" in linha for linha in parada["status"])
     assert "\ufffd" not in (execucao / "orquestrar.json").read_bytes().decode("utf-8")
-    assert len(gravado["sessoes"]) == 3
+    assert len(gravado["sessoes"]) == 4
     projeto = Bancada().projeto("api-tarefas")
     repositorio = execucao / "api-tarefas"
     assert git(repositorio, "rev-parse", "entrega").strip() == git(repositorio, "rev-parse", "main").strip()
-    assert git(repositorio, "rev-parse", "entrega~2").strip() == projeto.semente.commit
+    assert git(repositorio, "rev-parse", "entrega~3").strip() == projeto.semente.commit
 
 
 def test_orquestrar_esta_no_registro_padrao_nominal() -> None:

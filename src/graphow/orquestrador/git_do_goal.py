@@ -107,6 +107,12 @@ class GitDoGoal:
         """As linhas do `status --porcelain`: o que está fora de commit, ignorados de fora."""
         return tuple(linha for linha in self.rodar("status", "--porcelain").splitlines() if linha.strip())
 
+    def caminhos_mudados(self) -> tuple[str, ...]:
+        """Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um."""
+        linhas = self.rodar("-c", "core.quotepath=false", "status", "--porcelain", "--untracked-files=all").splitlines()
+        caminhos = (parte.strip().strip('"') for linha in linhas if len(linha) > 3 for parte in linha[3:].split(" -> "))
+        return tuple(dict.fromkeys(caminho for caminho in caminhos if caminho))
+
     def e_ancestral(self, antes: str, depois: str) -> bool:
         """`antes` está na história de `depois` (ou é ele)."""
         return self.tentar("merge-base", "--is-ancestor", antes, depois).codigo == 0

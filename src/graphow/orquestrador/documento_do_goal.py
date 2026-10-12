@@ -16,6 +16,7 @@ from graphow.orquestrador.saidas import Plano
 
 PASTA_DOS_DOCUMENTOS: str = "docs/goals"
 TITULO_DAS_PENDENCIAS: str = "## Pendencias"
+TITULO_DO_ACEITE: str = "## Testes de aceite"
 
 
 def caminho_do_documento(slug: str) -> str:
@@ -62,6 +63,14 @@ def _tabela_do_plano(plano: Plano) -> list[str]:
             for f in plano.fatias
         ),
     ]
+
+
+def com_aceite(documento: str, linhas: Sequence[str]) -> str:
+    """O documento com a seção dos testes de aceite logo antes das pendências (reescrita, se já havia)."""
+    corpo, separador, resto = documento.partition(f"\n{TITULO_DAS_PENDENCIAS}\n")
+    corpo = corpo.split(f"\n{TITULO_DO_ACEITE}\n")[0].rstrip("\n")
+    secao = "\n".join([TITULO_DO_ACEITE, "", *linhas])
+    return f"{corpo}\n\n{secao}\n" + (f"\n{TITULO_DAS_PENDENCIAS}\n{resto}" if separador else "")
 
 
 def com_pendencias(documento: str, pendencias: Sequence[Mapping[str, Any]]) -> str:

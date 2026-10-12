@@ -1,4 +1,4 @@
-"""Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem.
+"""Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem.
 
 Vão à sessão pelo `--json-schema` e voltam a ser conferidos em código
 (orquestrador/validacao_json.py) antes de qualquer gravação. Sem `description`
@@ -13,9 +13,11 @@ from typing import Any
 from graphow.core import aceite as a
 
 PAPEL_PLANEJADOR: str = "planejador"
+# O autor de aceite: uma sessão separada do executor, depois do plano, que escreve os testes de aceite.
+PAPEL_AUTOR_DE_ACEITE: str = "aceite"
 PAPEL_EXECUTOR: str = "executor"
 PAPEL_VERIFICADOR: str = "verificador"
-PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_EXECUTOR, PAPEL_VERIFICADOR)
+PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_VERIFICADOR)
 # Os prompts de papel moram no pacote e vão à sessão por `--append-system-prompt-file`:
 # nada é instalado em ~/.claude para o orquestrador funcionar.
 PASTA_DOS_PROMPTS: Path = Path(__file__).parent / "prompts"
@@ -80,6 +82,14 @@ ESQUEMA_DO_PLANO: dict[str, Any] = _objeto(
     opcionais=("fora_do_escopo",),
 )
 
+TESTE_DE_ACEITE: dict[str, Any] = _objeto({"arquivo": TEXTO, "nome": TEXTO, "comando": TEXTO})
+ACEITE_DO_CRITERIO: dict[str, Any] = _objeto(
+    {"id": TEXTO, "testes": _lista_de(TESTE_DE_ACEITE), "checagem": LISTA_DE_TEXTOS, "ja_atendido": TEXTO_LIVRE}
+)
+ESQUEMA_DO_ACEITE: dict[str, Any] = _objeto(
+    {"resumo": TEXTO, "comando_aceite": TEXTO, "criterios": _lista_de(ACEITE_DO_CRITERIO, 1)}
+)
+
 ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
     {
         "status": {"type": "string", "enum": list(STATUS_DO_EXECUTOR)},
@@ -119,6 +129,7 @@ ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
 
 ESQUEMA_POR_PAPEL: Mapping[str, Mapping[str, Any]] = {
     PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO,
+    PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_ACEITE,
     PAPEL_EXECUTOR: ESQUEMA_DA_EXECUCAO,
     PAPEL_VERIFICADOR: ESQUEMA_DA_VERIFICACAO,
 }

@@ -14,6 +14,8 @@ ambiente não diz outro); a que não for UTF-8 é lida na página de código da
 máquina, para o acento não virar caractere de substituição.
 """
 
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 import locale
 import os
@@ -34,6 +36,10 @@ LIMITE_DA_SAIDA: int = 20000
 BYTES_DE_CONTINUACAO: bytes = bytes(range(0x80, 0xC0))
 # O fim da saída que vai para a Evidence da verificação e para o bloqueante da suíte vermelha.
 LIMITE_DO_TRECHO: int = 2000
+# Rodar testes não deixa cache na área: o bytecode e o cache do pytest virariam
+# arquivo do commit do orquestrador, e o dos testes de aceite, arquivo que o
+# executor "mexeu" ao rodar a suíte. Vale para a suíte e para as sessões.
+AMBIENTE_SEM_CACHE: dict[str, str] = {"PYTHONDONTWRITEBYTECODE": "1", "PYTEST_ADDOPTS": "-p no:cacheprovider"}
 
 
 @dataclass(frozen=True)
@@ -89,7 +95,7 @@ def _bash_do_path() -> Path | None:
 
 def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limite_s: float = TEMPO_LIMITE_DA_SUITE_S) -> ResultadoDaSuite:
     """Roda o comando na área, no shell dos agentes, e devolve o resultado."""
-    ambiente = {"PYTHONIOENCODING": "utf-8", **os.environ, VARIAVEL_DO_BANCO: str(banco_descartavel)}
+    ambiente = {"PYTHONIOENCODING": "utf-8", **AMBIENTE_SEM_CACHE, **os.environ, VARIAVEL_DO_BANCO: str(banco_descartavel)}
     shell = shell_dos_agentes()
     argumentos: str | list[str] = [str(shell), "-c", comando] if shell is not None else comando
     descricao = descrever_shell(shell)
@@ -107,6 +113,31 @@ def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limi
         saida, _ = processo.communicate()
         return ResultadoDaSuite(comando, processo.returncode, _texto(saida), tempo_esgotado=True, shell=descricao)
     return ResultadoDaSuite(comando, processo.returncode, _texto(saida), shell=descricao)
+
+
+@contextmanager
+def arquivos_ocultos(area: Path, arquivos: Sequence[str], guarda: Path) -> Iterator[None]:
+    """Tira da área os arquivos dados enquanto o bloco roda e os devolve depois, mesmo se o bloco falhar.
+
+    É como a suíte do plano roda sem os testes de aceite: eles provam os
+    critérios do Goal inteiro e ficam vermelhos até a fatia que os atende, e
+    rodar a suíte com eles reprovaria toda fatia antes dessa. Se o processo
+    cair no meio, os arquivos estão no commit do aceite e voltam no próximo
+    descarte da área.
+    """
+    movidos: list[str] = []
+    try:
+        for relativo in arquivos:
+            origem = area / relativo
+            if origem.is_file():
+                (guarda / relativo).parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(origem), str(guarda / relativo))
+                movidos.append(relativo)
+        yield
+    finally:
+        for relativo in movidos:
+            (area / relativo).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(guarda / relativo), str(area / relativo))
 
 
 def _texto(saida: bytes | None) -> str:

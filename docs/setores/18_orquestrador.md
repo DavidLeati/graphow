@@ -10,35 +10,47 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-26 módulos · 4148 linhas · 47 classes
+29 módulos · 4777 linhas · 52 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 186 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 135 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 236 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 176 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
-| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 87 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
+| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 96 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 129 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 361 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 140 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 179 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 115 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
+| [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 79 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 121 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 178 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 339 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 190 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 358 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 252 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 164 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 174 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 212 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 186 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 241 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 301 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 303 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 113 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
-| [`orquestrador/suite.py`](#orquestradorsuite) | 121 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
+| [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 104 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 153 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 191 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+
+## `orquestrador/autor_de_aceite.py`
+
+O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro.
+
+### Funções do módulo
+
+- `escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — Os testes de aceite já pagos, ou uma sessão do autor; commita e grava, ou diz por que não deu.
+- `linhas_do_aceite(saida: SaidaDoAceite) -> list[str]` — A seção dos testes de aceite no documento do Goal: o comando e o que prova cada critério.
 
 ## `orquestrador/briefing.py`
 
@@ -58,6 +70,7 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 
 - `briefing_do_planejador(estado: EstadoDoGoal, spec: str, tem_fixados: bool) -> str` — O pedido ao planejador: a spec inteira e onde está o repositório.
 - `briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto: ContextoDaFatia) -> str` — O pedido ao executor da fatia, com tudo o que a governa por extenso.
+- `briefing_do_autor_de_aceite(estado: EstadoDoGoal) -> str` — O pedido ao autor de aceite: a spec, os critérios com o tipo de verificação, as decisões e a suíte.
 - `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou.
 - `pedido_de_correcao_da_saida(problemas: Sequence[str]) -> str` — O que vai à mesma sessão quando a saída dela não conferiu.
 
@@ -142,11 +155,13 @@ O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano 
 | :--- | :--- | :--- |
 | `PASTA_DOS_DOCUMENTOS` | `str` | `'docs/goals'` |
 | `TITULO_DAS_PENDENCIAS` | `str` | `'## Pendencias'` |
+| `TITULO_DO_ACEITE` | `str` | `'## Testes de aceite'` |
 
 ### Funções do módulo
 
 - `caminho_do_documento(slug: str) -> str` — O caminho do documento do Goal, relativo à raiz do repositório.
 - `renderizar_documento(id_goal: str, configuracao: m.ConfiguracaoDoGoal, plano: Plano) -> str` — O documento do Goal recém-planejado, sem pendências ainda.
+- `com_aceite(documento: str, linhas: Sequence[str]) -> str` — O documento com a seção dos testes de aceite logo antes das pendências (reescrita, se já havia).
 - `com_pendencias(documento: str, pendencias: Sequence[Mapping[str, Any]]) -> str` — O documento com a seção de pendências reescrita.
 - `escrever_documento(area: Path, slug: str, conteudo: str) -> Path` — Grava o documento na área do Goal e devolve o caminho.
 
@@ -186,14 +201,15 @@ De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente q
 
 ## `orquestrador/esquemas.py`
 
-Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem.
+Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `PAPEL_PLANEJADOR` | `str` | `'planejador'` |
+| `PAPEL_AUTOR_DE_ACEITE` | `str` | `'aceite'` |
 | `PAPEL_EXECUTOR` | `str` | `'executor'` |
 | `PAPEL_VERIFICADOR` | `str` | `'verificador'` |
-| `PAPEIS` | `tuple[str, ...]` | `(PAPEL_PLANEJADOR, PAPEL_EXECUTOR, PAPEL_VERIFICADOR)` |
+| `PAPEIS` | `tuple[str, ...]` | `(PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_VERIFIC…` |
 | `PASTA_DOS_PROMPTS` | `Path` | `Path(__file__).parent / 'prompts'` |
 | `LIMITE_DO_PROMPT_BYTES` | `int` | `5 * 1024` |
 | `VERIFICACOES_DE_CRITERIO` | `tuple[str, ...]` | `a.VERIFICACOES_DE_CRITERIO` |
@@ -211,12 +227,15 @@ Os schemas da saída de cada papel: o que o planejador, o executor e o verificad
 | `FATIA` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'objetivo': TEXTO, 'criterios': …` |
 | `MARCO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'fatias': LISTA_DE_TEXTOS})` |
 | `ESQUEMA_DO_PLANO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'comando_suite': TEXTO, 'criterios': _lista_d…` |
+| `TESTE_DE_ACEITE` | `dict[str, Any]` | `_objeto({'arquivo': TEXTO, 'nome': TEXTO, 'comando': TEXTO})` |
+| `ACEITE_DO_CRITERIO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'testes': _lista_de(TESTE_DE_ACEITE), 'checagem':…` |
+| `ESQUEMA_DO_ACEITE` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'comando_aceite': TEXTO, 'criterios': _lista_…` |
 | `ESQUEMA_DA_EXECUCAO` | `dict[str, Any]` | `_objeto({'status': {'type': 'string', 'enum': list(STATUS_DO_EXECUTOR)}…` |
 | `PARECER` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'veredito': {'type': 'string', 'enum': list(VERED…` |
 | `COMANDO_RODADO` | `dict[str, Any]` | `_objeto({'comando': TEXTO, 'codigo': {'type': 'integer'}, 'saida': TEXT…` |
 | `ACHADO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
 | `ESQUEMA_DA_VERIFICACAO` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'comandos': _lista_de(COMANDO_RODADO, 1), 'cr…` |
-| `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_EXECUTOR: ESQUEMA_DA_EXECUCA…` |
+| `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_…` |
 
 ### Funções do módulo
 
@@ -288,6 +307,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `ramo_atual() -> str` — A branch do HEAD; vazio com o HEAD destacado.
 - `ramo_existe(ramo: str) -> bool` — A branch local existe.
 - `mudancas() -> tuple[str, ...]` — As linhas do `status --porcelain`: o que está fora de commit, ignorados de fora.
+- `caminhos_mudados() -> tuple[str, ...]` — Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um.
 - `e_ancestral(antes: str, depois: str) -> bool` — `antes` está na história de `depois` (ou é ele).
 - `arquivos_entre(antes: str, depois: str) -> tuple[str, ...]` — Os arquivos que mudaram de um commit ao outro.
 - `resumo_do_diff(antes: str, depois: str) -> str` — O `diff --stat` entre os dois commits, cortado para caber no briefing.
@@ -335,6 +355,23 @@ A verificação gravada no livro-razão: a Evidence, um nó Achado por problema,
 
 - `gravar_verificacao(livro: LivroRazaoDoGoal, registro: RegistroDaVerificacao) -> str` — Grava a verificação inteira num lote; devolve o id da Evidence.
 
+## `orquestrador/gravacao_do_aceite.py`
+
+Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal.
+
+### `AceiteParaGravar`
+
+*DTO imutável* — O aceite conferido e commitado: a saída do autor, o commit, os arquivos, as execuções e o nó de cada critério.
+
+**Campos:** `saida: SaidaDoAceite`, `commit: str`, `arquivos: tuple[str, ...]`, `execucoes: Sequence[Mapping[str, Any]]`, `nos: Mapping[str, str]`
+
+- `em_json() -> dict[str, Any]` — O aceite como propriedade do Goal.
+
+### Funções do módulo
+
+- `gravar_aceite_proposto(livro: LivroRazaoDoGoal, proposto: Mapping[str, Any] | None) -> None` — A saída conferida do autor e as execuções vermelhas, no Goal, antes do commit: a retomada a reaproveita.
+- `gravar_aceite(livro: LivroRazaoDoGoal, pedido: AceiteParaGravar) -> None` — O Artifact do commit dos testes, a ligação de cada critério aos seus testes e o aceite no Goal, num lote.
+
 ## `orquestrador/gravacao_do_plano.py`
 
 O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só.
@@ -363,7 +400,7 @@ O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, 
 
 - `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda; a falha de domínio vira parada.
 - `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar; a falha de domínio vira parada.
-- `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano grava a aprovação no Goal, com o commit do documento.
+- `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano aprova junto o plano e os testes de aceite, no commit deles.
 
 ## `orquestrador/leitura_do_goal.py`
 
@@ -399,6 +436,8 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 
 - `configuracao() -> m.ConfiguracaoDoGoal | None` `[property]` — A configuração do laço, quando o orquestrador já conduz o Goal.
 - `plano() -> Mapping[str, Any] | None` `[property]` — O plano gravado, quando já há.
+- `aceite() -> Mapping[str, Any] | None` `[property]` — Os testes de aceite gravados (commit, comando, arquivos e o aceite de cada critério), quando já há.
+- `arquivos_protegidos() -> tuple[str, ...]` — Os arquivos dos testes de aceite: o executor não os toca, e a suíte do plano roda sem eles.
 - `fechado() -> bool` `[property]` — O Goal já fechou.
 - `ciclos_de_correcao() -> int` `[property]` — Quantos ciclos de correção a verificação já abriu.
 - `pendencias() -> list[dict[str, Any]]` `[property]` — As pendências gravadas no Goal.
@@ -508,6 +547,8 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_PLANO` | `str` | `a.CAMPO_PLANO` |
 | `CAMPO_PLANO_PROPOSTO` | `str` | `'plano_proposto'` |
 | `CAMPO_CICLOS` | `str` | `'ciclos_de_correcao'` |
+| `CAMPO_ACEITE` | `str` | `'aceite'` |
+| `CAMPO_ACEITE_PROPOSTO` | `str` | `'aceite_proposto'` |
 | `CAMPO_PENDENCIAS` | `str` | `'pendencias'` |
 | `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
 | `CAMPO_PONTA_DO_RAMO` | `str` | `a.CAMPO_PONTA_DO_RAMO` |
@@ -565,6 +606,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 - `id_da_sessao(id_goal: str) -> str` — A Sessao do orquestrador que produz o que ele grava do Goal (o contrato do papel a reconhece por este nome).
 - `id_do_criterio(slug: str, codigo: str) -> str` — O Criterio de um critério de aceite criado pelo plano (na fase 1, uma Constraint com o mesmo id).
 - `id_da_decisao(slug: str, codigo: str) -> str` — A Decision de uma decisão registrada pelo plano.
+- `id_do_aceite(id_goal: str) -> str` — O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele.
 - `id_da_verificacao(id_goal: str, numero: int) -> str` — A Evidence da verificação de número dado do Goal.
 - `id_do_achado(id_goal: str, numero: int, indice: int) -> str` — O Achado de índice dado da verificação de número dado.
 - `id_da_fatia(slug: str, codigo: str) -> str` — A Task de uma fatia do plano ou de uma correção.
@@ -576,6 +618,62 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 ### Funções do módulo
 
 - `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
+
+## `orquestrador/saida_do_aceite.py`
+
+A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PASTA_DO_ACEITE` | `str` | `'aceite'` |
+| `PASTAS_DE_CACHE` | `frozenset[str]` | `frozenset({'__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache'…` |
+| `SUFIXOS_DE_CACHE` | `tuple[str, ...]` | `('.pyc', '.pyo')` |
+| `LIMITE_DA_SAIDA_REGISTRADA` | `int` | `600` |
+
+### `AceiteDoCriterio`
+
+*DTO imutável* — O que prova um critério: os testes, a checagem e, quando o código já o atendia, por quê.
+
+**Campos:** `id: str`, `testes: tuple[TesteDeAceite, ...]`, `checagem: tuple[str, ...]`, `ja_atendido: str`
+
+- `em_json() -> dict[str, Any]` — O aceite do critério para o livro-razão.
+
+### `ExecucaoDeAceite`
+
+*DTO imutável* — Um teste de aceite rodado pelo orquestrador: o critério, o teste, o comando e como saiu.
+
+**Campos:** `criterio: str`, `teste: str`, `comando: str`, `codigo: int | None`, `saida: str`
+
+- `passou() -> bool` `[property]` — Saiu com zero.
+- `em_json() -> dict[str, Any]` — A execução para o livro-razão.
+
+### `SaidaDoAceite`
+
+*DTO imutável* — O que o autor de aceite devolveu.
+
+**Campos:** `resumo: str`, `comando_aceite: str`, `criterios: tuple[AceiteDoCriterio, ...]`
+
+- `de_json(dados: Mapping[str, Any]) -> 'SaidaDoAceite'` — A saída como o autor a devolveu, já conferida pelo schema.
+- `do_livro(aceite: Mapping[str, Any] | None) -> 'SaidaDoAceite'` — Os testes de aceite como o Goal os guarda; vazio quando ainda não há.
+- `do_criterio(id_criterio: str) -> AceiteDoCriterio | None` — O aceite de um critério, pelo código.
+- `testes() -> Iterable[tuple[AceiteDoCriterio, TesteDeAceite]]` — Cada teste com o critério que ele prova.
+
+### `TesteDeAceite`
+
+*DTO imutável* — Um teste de aceite: o arquivo, o nome e o comando que roda só ele.
+
+**Campos:** `arquivo: str`, `nome: str`, `comando: str`
+
+- `em_json() -> dict[str, str]` — O teste para o livro-razão.
+
+### Funções do módulo
+
+- `conferir_forma(saida: SaidaDoAceite, criterios: Mapping[str, str], area: Path) -> tuple[str, ...]` — Uma entrada por critério do plano, o teste certo para o critério `teste`, a checagem para o `checagem` e tudo em aceite/.
+- `e_cache(caminho: str) -> bool` — O caminho é de cache que a execução dos testes deixa (bytecode, cache do pytest, dependências instaladas).
+- `dentro_do_aceite(caminho: str) -> bool` — O caminho, relativo à raiz, está na pasta dos testes de aceite.
+- `rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None) -> tuple[ExecucaoDeAceite, ...]` — Cada teste de aceite dos critérios dados (todos, sem eles), rodado pelo comando dele.
+- `rodar_o_comando_de_aceite(saida: SaidaDoAceite, rodar: Rodar) -> ExecucaoDeAceite` — O comando que roda todos os testes de aceite, de uma vez.
+- `conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]` — Os testes falham antes da implementação, salvo o do critério que já era atendido; devolve os problemas e as execuções.
 
 ## `orquestrador/saida_do_verificador.py`
 
@@ -701,7 +799,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `FERRAMENTAS_POR_PAPEL` | `Mapping[str, tuple[str, ...]]` | `{PAPEL_PLANEJADOR: ('Bash', 'Read', 'Glob', 'Grep'), PAPEL_EXECUTOR: ('…` |
+| `FERRAMENTAS_POR_PAPEL` | `Mapping[str, tuple[str, ...]]` | `{PAPEL_PLANEJADOR: ('Bash', 'Read', 'Glob', 'Grep'), PAPEL_AUTOR_DE_ACE…` |
 | `MODO_DE_PERMISSAO_PADRAO` | `str` | `'bypassPermissions'` |
 | `MODELO_PADRAO` | `str` | `'opus'` |
 | `FONTES_DE_CONFIGURACAO` | `str` | `'project'` |
@@ -781,6 +879,7 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 | `LIMITE_DA_SAIDA` | `int` | `20000` |
 | `BYTES_DE_CONTINUACAO` | `bytes` | `bytes(range(128, 192))` |
 | `LIMITE_DO_TRECHO` | `int` | `2000` |
+| `AMBIENTE_SEM_CACHE` | `dict[str, str]` | `{'PYTHONDONTWRITEBYTECODE': '1', 'PYTEST_ADDOPTS': '-p no:cacheprovider…` |
 
 ### `ResultadoDaSuite`
 
@@ -796,6 +895,7 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 - `shell_dos_agentes() -> Path | None` — O bash em que a ferramenta Bash das sessões roda; None quando a máquina não tem um.
 - `descrever_shell(shell: Path | None) -> str` — O shell da suíte em palavras, para o briefing e para o resultado.
 - `rodar_suite(area: Path, comando: str, banco_descartavel: Path) -> ResultadoDaSuite` — Roda o comando na área, no shell dos agentes, e devolve o resultado.
+- `arquivos_ocultos(area: Path, arquivos: Sequence[str], guarda: Path) -> Iterator[None]` — Tira da área os arquivos dados enquanto o bloco roda e os devolve depois, mesmo se o bloco falhar.
 
 ## `orquestrador/trava_do_git.py`
 

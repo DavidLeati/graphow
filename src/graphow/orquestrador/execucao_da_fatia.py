@@ -2,8 +2,10 @@
 
 O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
-trava), roda a suíte ele mesmo e só então commita na branch do Goal, com a
-mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
+trava), recusa a fatia que alterou, apagou ou moveu um teste de aceite, roda a
+suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
+vermelhos até a fatia que os atende) e só então commita na branch do Goal, com
+a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
 ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
 pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
@@ -25,7 +27,7 @@ from graphow.orquestrador.git_do_goal import (
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
-from graphow.orquestrador.suite import rodar_suite
+from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
 
 STATUS_PRONTO: str = "pronto"
 STATUS_DUVIDA: str = "duvida"
@@ -79,17 +81,30 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         return None
     if saida.status != STATUS_PRONTO:
         return _falhou(contexto, tentativa, f"o executor devolveu {saida.status}: {saida.resumo}")
-    plano = contexto.estado().plano or {}
-    suite = rodar_suite(
-        contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
-        tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s,
-    )
+    estado = contexto.estado()
+    mexidos = sorted(set(contexto.git.caminhos_mudados()) & set(estado.arquivos_protegidos()))
+    if mexidos:
+        return _falhou(contexto, tentativa, _mexeu_no_aceite(mexidos))
+    plano = estado.plano or {}
+    with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
+        suite = rodar_suite(
+            contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
+            tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s,
+        )
     if not suite.passou:
         return _falhou(contexto, tentativa, suite.descrever())
     commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
                                   achado=fatia.texto(m.CAMPO_ACHADO))
     return None
+
+
+def _mexeu_no_aceite(mexidos: list[str]) -> str:
+    """O erro da fatia que alterou, apagou ou moveu teste de aceite."""
+    return (
+        f"a fatia alterou, apagou ou moveu os testes de aceite {', '.join(mexidos)}: o executor nao os toca, eles provam os "
+        "criterios e foram escritos antes, por outra sessao. Se um teste de aceite esta errado, devolva `duvida` com o porque."
+    )
 
 
 def _falhou(contexto: ContextoDoGoal, tentativa: Tentativa, erro: str) -> Parada | None:

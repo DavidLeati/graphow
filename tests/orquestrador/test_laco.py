@@ -20,6 +20,7 @@ from tests.orquestrador.apoio_laco import (
     Bancada,
     ExecutorQueCai,
     Queda,
+    autor_de_aceite,
     executor_pronto,
     montar_bancada,
     roteiro_completo,
@@ -56,6 +57,7 @@ def test_modo_autonomo_planeja_executa_corrige_verifica_e_integra_nominal(comple
         "Fatia M1.K1.1: README sem exemplo (C2)",
         "Fatia F2: Uso no README (C2)",
         "Fatia F1: Funcao somar (C1)",
+        "Escreve os testes de aceite do Goal soma (C1, C2)",
         "Planeja o Goal soma: Soma de dois numeros",
         "Estado inicial",
     ]
@@ -76,7 +78,7 @@ def test_sessoes_rodam_sem_mcp_com_schema_prompt_do_pacote_e_git_travado_nominal
 
     chamadas = bancada.chamadas()
 
-    assert [c["papel"] for c in chamadas] == ["planejador", "executor", "executor", "verificador", "executor", "verificador"]
+    assert [c["papel"] for c in chamadas] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "verificador"]
     for chamada in chamadas:
         argv = chamada["argv"]
         assert "--strict-mcp-config" in argv and "--json-schema" in argv
@@ -86,9 +88,9 @@ def test_sessoes_rodam_sem_mcp_com_schema_prompt_do_pacote_e_git_travado_nominal
         assert chamada["ambiente"]["GIT_CONFIG_KEY_0"] == "core.hooksPath"
         assert chamada["tem_claude"] is False
         assert "mcp__graphow" not in " ".join(argv)
-    executor = chamadas[1]["argv"]
+    executor = chamadas[2]["argv"]
     assert executor[executor.index("--tools") + 1] == "Bash,Read,Edit,Write,Glob,Grep"
-    assert "Edit" not in chamadas[3]["argv"][chamadas[3]["argv"].index("--tools") + 1]
+    assert "Edit" not in chamadas[4]["argv"][chamadas[4]["argv"].index("--tools") + 1]
 
 
 def test_briefing_do_executor_traz_criterios_decisoes_e_o_que_ja_foi_entregue_nominal(completo: tuple[Bancada, Parada]) -> None:
@@ -114,13 +116,13 @@ def test_telemetria_registra_cada_sessao_com_custo_fora_do_grafo_nominal(complet
     totais = bancada.telemetria.totais("goal-soma")
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
 
-    assert [r.papel for r in registros] == ["planejador", "executor", "executor", "verificador", "executor", "verificador"]
-    assert registros[1].fatia == "task-soma-f1" and registros[1].session_id
-    assert round(totais.custo_usd, 2) == 2.30
+    assert [r.papel for r in registros] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "verificador"]
+    assert registros[2].fatia == "task-soma-f1" and registros[2].session_id
+    assert round(totais.custo_usd, 2) == 2.50
     assert not [no for no in bancada.kernel.obter_view().listar_todos_os_nos() if no.tipo.value == "Run"]
     assert estado is not None
     linhas = "\n".join(formatar_status(estado, registros))
-    assert "Sessoes: 6 invocacao(oes) em 6 sessao(oes) | US$ 2.30" in linhas
+    assert "Sessoes: 7 invocacao(oes) em 7 sessao(oes) | US$ 2.50" in linhas
 
 
 def test_modo_supervisionado_para_no_plano_e_no_pronto_para_integrar_nominal(tmp_path: Path) -> None:
@@ -154,7 +156,7 @@ def test_queda_no_meio_da_fatia_retoma_com_nova_tentativa_nominal(tmp_path: Path
     bancada = montar_bancada(tmp_path, roteiro)
 
     with pytest.raises(Queda):
-        bancada.orquestrador(executor=ExecutorQueCai(bancada.executor, 2)).iniciar_da_spec(
+        bancada.orquestrador(executor=ExecutorQueCai(bancada.executor, 3)).iniciar_da_spec(
             bancada.spec, bancada.repositorio, AUTONOMO
         )
     parada = bancada.orquestrador().rodar("goal-soma", AUTONOMO)
@@ -218,7 +220,7 @@ def test_saida_invalida_volta_a_mesma_sessao_uma_vez_edge_case(tmp_path: Path) -
     assert "nao conferiu" in retomada["stdin"] and "talvez" in retomada["stdin"]
     registros = bancada.telemetria.listar("goal-soma")
     assert [r.retomada for r in registros if r.fatia == "task-soma-f1"] == [False, True]
-    assert round(bancada.telemetria.totais("goal-soma").custo_usd, 2) == 2.30
+    assert round(bancada.telemetria.totais("goal-soma").custo_usd, 2) == 2.50
 
 
 def test_duas_falhas_viram_pendencia_e_o_laco_para_edge_case(tmp_path: Path) -> None:
@@ -234,7 +236,7 @@ def test_duas_falhas_viram_pendencia_e_o_laco_para_edge_case(tmp_path: Path) -> 
     assert "AssertionError" in bancada.chamadas("executor")[1]["stdin"]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and [f.codigo for f in estado.bloqueadas()] == ["F1"]
-    assert _assuntos(bancada.repositorio, "graphow/soma")[0].startswith("Planeja o Goal")
+    assert _assuntos(bancada.repositorio, "graphow/soma")[0].startswith("Escreve os testes de aceite")
     assert GitDoGoal(Path(estado.configuracao.area)).mudancas() == ()
 
 
@@ -325,6 +327,10 @@ def test_goal_do_gerente_com_criterio_como_no_usa_o_texto_e_a_verificacao_do_hum
     """F2.6: o Criterio do gerente vale como ele o escreveu; o planejador que o reescreve não muda o nó nem o plano."""
     roteiro = roteiro_completo()
     roteiro["planejador"][0]["saida"]["criterios"][0]["texto"] = "somar devolve a soma"
+    so_checagem = autor_de_aceite()
+    for item in so_checagem["saida"]["criterios"]:
+        item["testes"], item["checagem"] = [], ["abrir o arquivo e conferir"]
+    roteiro["aceite"] = [so_checagem]
     bancada = montar_bancada(tmp_path, roteiro)
     _goal_do_gerente(bancada, criterio="Criterio")
 

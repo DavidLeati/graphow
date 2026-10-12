@@ -34,6 +34,7 @@ from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
 from graphow.orquestrador.comandos_do_stream import comandos_nao_rodados, problema_dos_comandos
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
+    PAPEL_AUTOR_DE_ACEITE,
     PAPEL_EXECUTOR,
     PAPEL_PLANEJADOR,
     PAPEL_VERIFICADOR,
@@ -54,6 +55,7 @@ from graphow.storage.telemetria_de_sessoes import (
 
 FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_AUTOR_DE_ACEITE: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
     PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
     PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"),
 }

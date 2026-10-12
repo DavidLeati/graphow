@@ -164,6 +164,17 @@ class EstadoDoGoal:
         return dados if isinstance(dados, Mapping) else None
 
     @property
+    def aceite(self) -> Mapping[str, Any] | None:
+        """Os testes de aceite gravados (commit, comando, arquivos e o aceite de cada critério), quando já há."""
+        dados = self.propriedades.get(m.CAMPO_ACEITE)
+        return dados if isinstance(dados, Mapping) else None
+
+    def arquivos_protegidos(self) -> tuple[str, ...]:
+        """Os arquivos dos testes de aceite: o executor não os toca, e a suíte do plano roda sem eles."""
+        arquivos = (self.aceite or {}).get("arquivos")
+        return tuple(str(arquivo) for arquivo in arquivos) if isinstance(arquivos, list) else ()
+
+    @property
     def fechado(self) -> bool:
         """O Goal já fechou."""
         return self.status == m.STATUS_CONCLUIDO
@@ -256,9 +267,17 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
 
 
 def _plano_aprovado_pelo_humano(goal: NoGrafo) -> bool:
-    """O portão do plano do orquestrador: a aprovação que o humano gravou no Goal."""
+    """O portão do plano do orquestrador: a aprovação que o humano gravou no Goal, dos testes de aceite que estão nele.
+
+    O humano aprova junto o plano e os testes de aceite. A aprovação de um
+    commit que não é o dos testes de aceite gravados (a do plano de antes da
+    fase 2, que não tinha testes) não vale para eles.
+    """
     aprovacao = goal.obter_propriedade(m.CAMPO_APROVACAO_DO_PLANO)
-    return isinstance(aprovacao, Mapping) and aprovacao.get("papel") == PapelAutor.HUMANO.value
+    aceite = goal.obter_propriedade(m.CAMPO_ACEITE)
+    alvo = aceite.get("commit") if isinstance(aceite, Mapping) else None
+    humano = isinstance(aprovacao, Mapping) and aprovacao.get("papel") == PapelAutor.HUMANO.value
+    return humano and (alvo is None or aprovacao.get("documento") == alvo)
 
 
 def _fatias(view: GrafoView, id_goal: str) -> tuple[FatiaRegistrada, ...]:

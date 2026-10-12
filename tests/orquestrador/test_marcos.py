@@ -47,7 +47,7 @@ def test_cada_marco_tem_o_verificador_dele_e_o_ultimo_e_o_final_nominal(tmp_path
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     assert parada.fechou, parada.mensagem
-    assert [c["papel"] for c in bancada.chamadas()] == ["planejador", "executor", "verificador", "executor", "verificador"]
+    assert [c["papel"] for c in bancada.chamadas()] == ["planejador", "aceite", "executor", "verificador", "executor", "verificador"]
     do_marco, final = (chamada["stdin"] for chamada in bancada.chamadas("verificador"))
     assert "verificacao do marco M1 (Soma), fatias F1" in do_marco
     assert "- C1 (teste)" in do_marco and "- C2 (checagem)" not in do_marco

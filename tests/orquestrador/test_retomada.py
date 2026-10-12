@@ -27,6 +27,7 @@ from tests.orquestrador.apoio_laco import (
     Bancada,
     ExecutorQueCai,
     Queda,
+    autor_de_aceite,
     executor_pronto,
     montar_bancada,
     verificacao,
@@ -40,6 +41,7 @@ def roteiro_farto(vezes: int = 6) -> dict[str, list[dict[str, Any]]]:
     """Respostas de sobra para cada papel: o teste conta quantas foram usadas."""
     return {
         "planejador": [{"saida": copy.deepcopy(PLANO), "custo": 0.4} for _ in range(vezes)],
+        "aceite": [autor_de_aceite() for _ in range(vezes)],
         "executor": [executor_pronto(dict(TUDO)) for _ in range(vezes)],
         "verificador": [verificacao("atende") for _ in range(vezes)],
     }
@@ -108,7 +110,9 @@ def test_queda_logo_depois_da_sessao_do_planejador_rele_o_stream_nominal(
 
 def test_mesma_spec_depois_do_goal_fechado_abre_outro_goal_com_o_proprio_slug_nominal(tmp_path: Path) -> None:
     """O segundo Goal da mesma spec tem slug, fatias e branch próprios e fecha também."""
-    bancada = montar_bancada(tmp_path, roteiro_farto(12))
+    roteiro = roteiro_farto(12)
+    roteiro["aceite"][1] = autor_de_aceite(ja_atendido="o Goal anterior da mesma spec ja entregou somar na base")
+    bancada = montar_bancada(tmp_path, roteiro)
     primeira = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     segunda = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
@@ -257,7 +261,7 @@ def test_queda_depois_da_sessao_deixa_a_linha_e_o_stream_e_a_retomada_recupera_o
     """A linha nasce antes da sessão; a queda a deixa em andamento; a retomada lê o custo do stream e não o sobrescreve."""
     bancada = montar_bancada(tmp_path, roteiro_farto())
     with pytest.raises(Queda):
-        bancada.orquestrador(executor=ExecutorQueCai(bancada.executor, 4)).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+        bancada.orquestrador(executor=ExecutorQueCai(bancada.executor, 5)).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
     em_andamento = [registro for registro in bancada.telemetria.listar("goal-soma") if registro.estado == "em_andamento"]
     assert [registro.papel for registro in em_andamento] == ["verificador"]
 
@@ -268,4 +272,4 @@ def test_queda_depois_da_sessao_deixa_a_linha_e_o_stream_e_a_retomada_recupera_o
     assert len({registro.arquivo_stream for registro in verificacoes}) == 2
     assert all(Path(registro.arquivo_stream).is_file() for registro in verificacoes)
     totais = bancada.telemetria.totais("goal-soma")
-    assert (round(totais.custo_usd, 2), totais.custos_desconhecidos, totais.em_andamento) == (2.0, 0, 0)
+    assert (round(totais.custo_usd, 2), totais.custos_desconhecidos, totais.em_andamento) == (2.2, 0, 0)
