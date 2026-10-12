@@ -9,9 +9,9 @@
 
 O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre pessoas e agentes autônomos de Inteligência Artificial.
 
-Desde a fase 1 da reestruturação, **quem coordena é código**: `graphow orquestrar` conduz um `Goal` num laço que planeja, executa, verifica e fecha, e os LLMs entram só onde há julgamento, cada um numa sessão `claude -p` nova (o planejador, um executor por fatia e o verificador adversarial). Nenhum agente escreve no grafo: cada um devolve JSON validado por schema, e o orquestrador grava o livro-razão (com o papel `orquestrador`) e commita cada fatia numa branch do Goal. O grafo é o livro-razão da intenção do humano, das decisões e das verificações; o MCP fica para a sessão do humano, onde o gerente alinha a demanda.
+Desde a fase 1 da reestruturação, **quem coordena é código**: `graphow orquestrar` conduz um `Goal` num laço que planeja, escreve os testes de aceite, executa, verifica e fecha, e os LLMs entram só onde há julgamento, cada um numa sessão `claude -p` nova (o planejador, o autor de aceite, um executor por fatia, o revisor da fatia de risco e o verificador adversarial de cada marco). Desde a fase 2, **o aceite está no centro**: o que prova que o Goal está pronto é escrito antes da implementação, por quem não implementa, atacado por um verificador em contexto novo a cada marco, e o kernel recusa fechar o Goal sem essa prova no commit atual. Nenhum agente escreve no grafo: cada um devolve JSON validado por schema, e o orquestrador grava o livro-razão (com o papel `orquestrador`) e commita cada fatia numa branch do Goal. O grafo é o livro-razão da intenção do humano, das decisões e das verificações; o MCP fica para a sessão do humano, onde o gerente alinha a demanda.
 
-O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a revisão confere a entrega contra o critério de pronto. A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, integração de ramos, colisões de migrations) entra como caso, quando a entrega é código.
+O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a verificação confere a entrega contra os critérios de aceite (o critério de `checagem` é provado por uma lista que o verificador executa, e não por teste). A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, integração de ramos, colisões de migrations) entra como caso, quando a entrega é código.
 
 A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
 1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
@@ -75,13 +75,15 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Decision`**: Decisão arquitetural ou técnica aprovada.
 - **`Question`**: Dúvida ou ambiguidade que **bloqueia** uma tarefa.
 - **`Constraint`**: Restrição inviolável que escopa objetivos e tarefas.
+- **`Criterio`**: Critério de aceite do `Goal` (ontologia 1.7.0): código (`C1`), texto completo, tipo de verificação (`teste` ou `checagem`) e o estado que as verificações lhe dão (`pendente`, `atende`, `parcial`, `nao_atende`), com os testes de aceite que o provam.
+- **`Achado`**: Problema que uma verificação achou, com a prova, o local e os critérios ou decisões que ele fere (`fere`). A gravidade é decidida por código: bloqueante quando fere algo, acompanhamento quando não. Nunca vira `Note`.
 - **`Artifact`**: Entregável concreto de código, documento ou configuração.
 - **`Evidence`**: Dado empírico, benchmark ou prova que justifica decisões.
 - **`Run`**: Registro de execução e telemetria de um modelo de IA.
 - **`Note`**: Anotação livre, aviso reativo ou contexto efêmero. Com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada.
 - **`Aprendizado`**: Memória de longo prazo, o que sobrevive ao projeto. Nasce com origem obrigatória (`deriva_de`) e só alcança outros projetos quando é promovido (`vale_para`, pelo humano ou pelo árbitro conforme a política; `alcance: global`, sempre pelo humano).
 
-### 3. Matriz de Arestas Permitidas (13 Tipos)
+### 3. Matriz de Arestas Permitidas (14 Tipos)
 
 Cada tipo de aresta tem **dono declarado**, e criar não é o mesmo poder que
 remover: qualquer agente abre uma escalação com `bloqueia`, e só o humano a
@@ -99,8 +101,9 @@ portão, e um teste de estrutura confere que nenhum tipo ficou sem dono.
 | **`justifica`** | `Evidence` $\rightarrow$ `Decision` | humano, planejador, executor, revisor | Fundamentação empírica de decisões. |
 | **`contradiz`** | `Evidence` $\rightarrow$ `Decision` / `Evidence` / `Aprendizado` | humano, executor, revisor | Registro de evidência conflitante; num `Aprendizado`, pedido de revisão. |
 | **`substitui`** | `Decision` $\rightarrow$ `Decision`, `Task` $\rightarrow$ `Task`, `Aprendizado` $\rightarrow$ `Aprendizado` | humano, planejador; entre `Aprendizado`s também executor e revisor | Evolução e invalidação histórica. Entre aprendizados é consolidação: um que substitui vários. O substituído fica no grafo, marcado; a vista carrega só o vigente, e a linha do substituto diz quem ele absorveu. |
-| **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task` | **humano**, ou o árbitro com `constraint` | Restrição mandatória sobre a execução. |
-| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Evidence` $\rightarrow$ `Artifact` / `Task`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | humano, executor, revisor | Proveniência de artefatos, da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| **`escopa`** | `Constraint` $\rightarrow$ `Goal` / `Task`; `Criterio` $\rightarrow$ `Goal` | **humano**, ou o árbitro com `constraint` | Restrição mandatória sobre a execução; do `Criterio`, o critério de aceite do Goal. |
+| **`fere`** | `Achado` $\rightarrow$ `Criterio` / `Decision` | **humano** (e o orquestrador, pelo contrato dele) | O critério ou a decisão que o achado toca: é por ela que o código o faz bloqueante. Nem a estrutura ilimitada a abre a agentes. |
+| **`deriva_de`** | `Artifact` $\rightarrow$ `Task` / `Artifact`; `Evidence` $\rightarrow$ `Artifact` / `Task`; `Note` $\rightarrow$ `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` $\rightarrow$ `Evidence` / `Decision` / `Note` / `Artifact` / `Task`; `Achado` $\rightarrow$ `Evidence`; `Task` $\rightarrow$ `Achado`; `Artifact` $\rightarrow$ `Criterio` | humano, executor, revisor | Proveniência de artefatos, do achado (a verificação que o achou), da fatia de correção (o achado que ela corrige), do commit dos testes de aceite (o critério que eles provam), da evidência que avalia um trabalho, de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | **`vale_para`** | `Aprendizado` $\rightarrow$ `Projeto` / `Setor` | **humano**, ou o árbitro com `promover_aprendizado` | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. Nem a estrutura ilimitada a abre a agentes comuns. |
 | **`orienta`** | `Decision` $\rightarrow$ `Task` / `Goal` | humano, planejador | A decisão que vale para a tarefa ou o objetivo, herdada pela decomposição. Chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão. O executor não a cria nem a remove: não mexe no que governa a própria tarefa. |
 
@@ -113,7 +116,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Também confere a política de governança declarada (`preset` e `personalizada` do nó `Governanca` e da propriedade `governanca` do `Projeto`): preset ou gesto desconhecido, valor fora do domínio do gesto e um segundo nó `Governanca` com id diferente de `governanca-global` caem com `estrutura_incompleta`, e nenhuma aresta toca o `Governanca`. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro, e a `Task` de ação externa é dele a menos que a política a entregue ao executor.
-   - **`orquestrador`**: O laço do `graphow orquestrar`, único escritor do Goal que conduz, com contrato próprio (`kernel/papel_do_orquestrador.py`): cria a hierarquia do Goal, o Goal, os critérios (`Constraint`), as decisões, as fatias (`Task`), as dúvidas (`Question` aberta), os commits (`Artifact`), as verificações (`Evidence` ligada ao Goal) e as notas; conclui fatia e fecha o Goal sem posse nem veredito por `Task`. Cada lote dele diz o Goal que conduz e fica preso a ele (o Goal, a Sessao `orq-sessao-<id>`, o que ela produz e a contenção acima dela): não escreve noutro Goal, não liga nó dele a nó do humano ou de outro Goal e não edita aresta. Nunca cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele.
+   - **`orquestrador`**: O laço do `graphow orquestrar`, único escritor do Goal que conduz, com contrato próprio (`kernel/papel_do_orquestrador.py`): cria a hierarquia do Goal, o Goal, os critérios (`Criterio`), os achados (`Achado`), as decisões, as fatias (`Task`), as dúvidas (`Question` aberta), os commits (`Artifact`), as verificações (`Evidence` ligada ao Goal) e as notas; conclui fatia e fecha o Goal sem posse nem veredito por `Task`. Cada lote dele diz o Goal que conduz e fica preso a ele (o Goal, a Sessao `orq-sessao-<id>`, o que ela produz e a contenção acima dela): não escreve noutro Goal, não liga nó dele a nó do humano ou de outro Goal e não edita aresta. Nunca cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele.
    - Os papéis de agente abaixo (planejador, executor, revisor, árbitro) seguem como contratos do kernel, para o log antigo e para quem escreve em processo; desde a fase 1 nenhum servidor abre com eles, e a fase 4 os reduz.
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu, sempre localizada (no arquivo ou na fonte); decompõe, ordena e diz com `orienta` onde cada decisão vale. Concluir `Task` exige veredito aprovado, como para todo agente.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas, alterar constraints, trocar a `entrega` de uma `Task` e, salvo quando a política lhe entrega o gesto `acao_externa`, assumir ou entregar a `Task` de ação externa.
@@ -147,6 +150,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
    - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano, o orquestrador (cujo Goal só fecha com a verificação do Goal limpa no commit atual) e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
+   - **Fechamento com a Prova:** O `Goal` conduzido pelo orquestrador, ou com `Criterio` ligado, só vai para `concluido` quando a última verificação dele é a final (sobre o Goal inteiro), limpa, feita no commit do código que o Goal grava como ponta da branch (`ponta_do_ramo`; o commit que só muda o documento do Goal não conta), com parecer `atende` para cada critério e nenhum `Achado` bloqueante sem resolver; sem isso o lote cai com `fechamento_sem_verificacao_limpa`. Vale para todo papel, o humano inclusive (`kernel/fechamento_do_goal.py`).
    - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio. O humano e o orquestrador, único escritor do Goal que conduz, ficam fora da regra.
    - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor, e isso inclui criar ou remover as arestas que redefinem a tarefa (`depende_de`, `decompoe`, `orienta`, `escopa`, `substitui`). `bloqueia` e `deriva_de` seguem livres: a escalação e a proveniência continuam chegando à tarefa travada.
 4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
@@ -309,7 +313,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 17 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dezesseis gestos, os presets, a herança e a regra do veredito.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 18 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dezesseis gestos, os presets, a herança e a regra do veredito.
 
 ---
 
@@ -837,17 +841,22 @@ faz esse trabalho com ele, na sessão principal:
    (muitos pontos, vários Goals, em geral sob um Setor próprio).
 2. **Alinhar.** Pergunta só o que muda a conclusão, separa fato de hipótese e
    não avança de etapa sem o humano dizer que segue.
-3. **Propor.** Mostra o rascunho inteiro: Goal, critérios de aceite,
-   Constraints, Decisions com o motivo, o que ficou em aberto e o que ficou fora.
-4. **Gravar.** Pela conexão `humano` da sessão, num `propor_patch`. As Decisions
-   orientam o Goal e descem a toda a decomposição.
+3. **Propor.** Mostra o rascunho inteiro: Goal, critérios de aceite (cada um
+   verificável, com as bordas que o humano decidiu e o tipo de verificação,
+   `teste` ou `checagem`), Constraints, Decisions com o motivo, o que ficou em
+   aberto e o que ficou fora.
+4. **Gravar.** Pela conexão `humano` da sessão, num `propor_patch`: cada
+   critério num nó `Criterio` que escopa o Goal (`codigo`, `texto`,
+   `verificacao`) e cada decisão numa `Decision` com o texto inteiro e o motivo.
+   As Decisions orientam o Goal e descem a toda a decomposição.
 5. **Entregar** o Goal ao `graphow orquestrar --goal <id> --repo <pasta>` e, ao
    fim, **revisar** a entrega contra o que foi decidido. O orquestrador monta a
    spec dos nós que o gerente gravou, com o texto inteiro de cada critério e de
-   cada decisão.
+   cada decisão, e grava o critério do humano como ele o escreveu: o planejador
+   não o reescreve.
 
 O gerente não é um papel novo do kernel: ele propõe e o humano decide, então
-Goal e Constraint continuam sendo gestos do humano. Quando ele grava é uma
+Goal, Criterio e Constraint continuam sendo gestos do humano. Quando ele grava é uma
 propriedade operacional do Projeto, `gravacao_do_gerente`, na aba Configurações: `apos_aprovacao` (o padrão) só grava depois de o humano
 aprovar o rascunho; `durante_alinhamento` grava cada Decision, Constraint ou
 Evidence assim que o humano a confirma na conversa.
@@ -880,46 +889,79 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    humano nem ficar dentro dele, e a branch do Goal não pode ser a base.
 2. **Plano.** Uma sessão do planejador lê a spec e o código e devolve critérios
    de aceite C1..Cn (texto completo, `verificacao: teste|checagem`), decisões
-   D1..Dn com o motivo, o comando da suíte e fatias verticais com critérios,
-   arquivos, dependências e modelo sugerido. O orquestrador grava os critérios
-   como `Constraint`, as decisões como `Decision`, as fatias como `Task`, e
-   commita `docs/goals/<slug>.md`, um texto só com duas leituras.
-3. **Portão do plano.** No modo supervisionado (o padrão) o laço para e espera
-   `--aprovar-plano`, que grava a aprovação do humano no próprio Goal: o portão é
-   do orquestrador, e o gesto `aprovar_plano` do escopo governado não o destrava.
-   `--modo autonomo` segue direto. O modo fica gravado no Goal.
-4. **Execução.** Para cada fatia pronta, em ordem, uma sessão nova do executor
-   recebe o briefing montado por código: a spec, o texto inteiro dos critérios e
-   das decisões, os arquivos, os commits das fatias anteriores e o diff resumido
-   da última. O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O
-   orquestrador confere o git, roda a suíte ele mesmo, no mesmo bash da
-   ferramenta Bash dos agentes (o Git Bash no Windows, nunca o do WSL;
-   `GRAPHOW_SHELL` escolhe outro), e commita na branch do Goal com a mensagem
-   que cita a fatia e os critérios; o commit vira `Artifact`. A dúvida vira
-   `Question` e pausa só aquela fatia, sem contar como falha; a falha ganha uma
-   nova tentativa com o erro, e a segunda falha vira pendência e para o laço. O
-   que não vira commit vai para um `.patch` e sai da área.
-5. **Verificação.** Com as fatias concluídas, uma sessão nova do verificador,
-   sem nada de quem implementou, roda a suíte e o programa de verdade e dá um
-   parecer por critério e por decisão, com prova, achados com gravidade e a
-   lista dos comandos que rodou, cada um com o código de saída e um trecho da
-   saída: sem comando rodado, ou com prova de menos de dez caracteres, a
-   verificação não confere, e cada comando declarado tem de aparecer numa
-   chamada da ferramenta Bash do stream da sessão (o que não aparece volta à
-   mesma sessão uma vez, como o JSON inválido). Depois, o próprio orquestrador roda a suíte no
-   commit verificado; vermelha, ela é bloqueante, diga o verificador o que
-   disser. A verificação vira `Evidence` ligada ao Goal, com o commit
-   verificado, os comandos e a suíte, no mesmo lote das pendências que deixa.
-   Cada bloqueante vira fatia de correção (até dois ciclos), e os
-   acompanhamentos vão para as pendências do documento do Goal.
-6. **Fechamento.** O Goal só fecha com a última verificação limpa no commit
-   atual. No modo autônomo, o orquestrador integra por fast-forward na base e
-   fecha; no supervisionado, para com "pronto para integrar", e a chamada
-   seguinte vê a branch integrada e fecha.
+   D1..Dn com o motivo, o comando da suíte, fatias verticais com critérios,
+   arquivos, dependências, modelo sugerido e, quando pedem julgamento de
+   domínio ou atravessam partes, a marca de `risco`, e os marcos que agrupam as
+   fatias (um marco entrega critérios verificáveis; o último é a verificação
+   final). O orquestrador grava os critérios como nós `Criterio`, as decisões
+   como `Decision`, as fatias como `Task`, e commita `docs/goals/<slug>.md`, um
+   texto só com duas leituras. No Goal que o gerente gravou, o critério do humano
+   vale como ele o escreveu, diga o planejador o que disser.
+3. **Aceite primeiro.** Uma sessão nova do autor de aceite, que não é o
+   executor, escreve em arquivos novos de `aceite/` os testes executáveis de
+   cada critério `teste` (cada um cita o código do critério) e a lista de
+   checagem de cada critério `checagem`. O orquestrador confere a forma, recusa
+   o que o autor mexeu fora de `aceite/` e roda cada teste: todos falham antes
+   da implementação, salvo o do critério que o código já atendia, com a
+   justificativa; o teste que já passa sem ela volta ao autor, porque não prova
+   nada. Conferido, os testes vão num commit, e cada `Criterio` ganha a ligação
+   aos seus testes.
+4. **Portão do plano e dos testes.** No modo supervisionado (o padrão) o laço
+   para depois do autor de aceite e espera `--aprovar-plano`: o humano aprova
+   junto o plano e o que vai provar que o Goal está pronto, e a aprovação vale
+   para o commit desses testes. O portão é do orquestrador, e o gesto
+   `aprovar_plano` do escopo governado não o destrava. `--modo autonomo` segue
+   direto. O modo fica gravado no Goal.
+5. **Execução, marco a marco.** Para cada fatia pronta do marco atual, uma
+   sessão nova do executor recebe o briefing montado por código: a spec, o texto
+   inteiro dos critérios (com os testes de aceite que os provam) e das decisões,
+   os arquivos, os commits das fatias anteriores e o diff resumido da última; na
+   fatia de correção, o achado inteiro e o pedido de escrever o teste de
+   regressão antes. O executor implementa e devolve `pronto`, `duvida` ou
+   `falhou`. O orquestrador confere o git, recusa a fatia que alterou, apagou
+   ou moveu um teste de aceite (se o teste está errado, o caminho é a dúvida),
+   roda a suíte ele mesmo, sem os testes de aceite, no mesmo bash da ferramenta
+   Bash dos agentes (o Git Bash no Windows, nunca o do WSL; `GRAPHOW_SHELL`
+   escolhe outro), passa a fatia de risco (a marcada, ou a que já falhou uma
+   vez) por uma sessão nova de revisão, que julga o diff contra os critérios
+   dela antes do commit, e commita na branch do Goal com a mensagem que cita a
+   fatia e os critérios; o commit vira `Artifact`. Nas outras fatias não há
+   revisão. A dúvida vira `Question` e pausa só aquela fatia, sem contar como
+   falha; a falha ganha uma nova tentativa com o erro, e a segunda falha vira
+   pendência e para o laço. O que não vira commit vai para um `.patch` e sai da
+   área.
+6. **Verificação por marco.** Com as fatias do marco concluídas, uma sessão
+   nova do verificador, sem nada de quem implementou, roda a suíte, os testes de
+   aceite e o programa de verdade, executa as checagens, sonda as bordas que os
+   critérios implicam (negativo, zero, vazio, enorme, codificação, Unicode,
+   concorrência, Windows, código de saída, idioma) e dá um parecer por critério
+   que o marco julga (na final, todos, e todas as decisões), com prova, os
+   achados e a lista dos comandos que rodou, cada um com o código de saída e
+   um trecho da saída: sem comando rodado, ou com prova de menos de dez
+   caracteres, a verificação não confere, e cada comando declarado tem de
+   aparecer numa chamada da ferramenta Bash do stream da sessão (o que não
+   aparece volta à mesma sessão uma vez). Depois, o próprio orquestrador roda a
+   suíte e os testes de aceite no commit verificado: a suíte vermelha é
+   bloqueante, e o teste de aceite vermelho reprova o critério dele, diga o
+   verificador o que disser. **A gravidade é do código**: o verificador diz, por
+   achado, os critérios e as decisões que ele toca, e o achado que toca algum é
+   bloqueante, sem exceção, mesmo o defeito que já existia; só o que não toca
+   nada é acompanhamento (a severidade que o verificador sugere fica gravada,
+   informativa). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
+   pendências. Cada bloqueante vira fatia de correção que deriva dele (até dois
+   ciclos por marco; esgotado, o laço para e ele segue aberto), e o
+   acompanhamento fica como pendência do Goal, no documento e no `--status`.
+7. **Fechamento.** O Goal só fecha com a verificação final limpa no commit
+   atual, e é o kernel que recusa o resto (`fechamento_sem_verificacao_limpa`).
+   No modo autônomo, o orquestrador integra por fast-forward na base e fecha; no
+   supervisionado, para com "pronto para integrar", e a chamada seguinte vê a
+   branch integrada e fecha.
 
 O estado sai do livro-razão e do git, então rodar de novo retoma de onde parou,
 inclusive depois de o processo cair no meio de uma sessão: o plano pago não se
-paga de novo (vale o que o Goal guardou, ou o relido do stream da sessão), a
+paga de novo (vale o que o Goal guardou, ou o relido do stream da sessão), nem
+os testes de aceite (a saída conferida do autor vai ao Goal antes do commit), a
 fatia cujo commit já está na branch fecha pelo trailer, sem outro executor, e o
 documento do Goal é sincronizado com as pendências do livro-razão. A mesma spec
 depois de o Goal fechar abre outro, com sufixo (`goal-soma-2`) no slug, nas
@@ -936,8 +978,8 @@ nunca exceção.
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
 | Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
 
-Modelo por papel: `--modelo-planejador`, `--modelo-executor` e
-`--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
+Modelo por papel: `--modelo-planejador`, `--modelo-aceite`, `--modelo-executor`,
+`--modelo-revisor` e `--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
 modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 `--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
 Goal (o clone da área, os streams das sessões, os patches e a trava do git) fica
@@ -945,14 +987,18 @@ em `<pasta do banco>/orquestrar/<goal>/`; o clone sai quando o Goal fecha, e a
 branch do Goal fica no repositório do humano. A área de uma versão anterior, que
 era um worktree, dá lugar ao clone na chamada seguinte.
 
-O teste de fumaça real (um repositório de brinquedo com uma função e quatro
-critérios, modo autônomo, Opus nos três papéis, área num clone) fechou o Goal
-com três sessões, US$ 0,40 e 1,1 minuto: um commit de plano, um de fatia e um
-das pendências que o verificador achou, todos com o trailer do Goal, levados à
-branch do Goal no repositório e integrados por fast-forward. Os comandos que o
-verificador declarou apareceram nas chamadas Bash do stream na primeira
-resposta. Durante a sessão do executor o humano commitou numa outra branch do
-repositório dele e criou uma tag anotada; os dois ficaram como ele os deixou.
+O teste de fumaça real da fase 2 (um repositório de brinquedo com `media` e
+`mediana`, cinco critérios `teste` e um `checagem`, modo autônomo, Opus em todos
+os papéis) fechou o Goal com quatro sessões, US$ 0,89 e 2,8 minutos: o plano
+num marco só, o final; o autor de aceite escreveu 24 testes em `aceite/`, e o
+orquestrador viu cada um vermelho antes da implementação; o executor fez a
+fatia, a suíte do plano rodou sem os testes de aceite, e na verificação os 24
+voltaram verdes, rodados pelo orquestrador. O verificador achou um problema que
+não toca critério (inteiros enormes levantam `OverflowError`), que virou `Achado`
+de acompanhamento e pendência, sem Note. Os seis nós `Criterio` terminaram
+`atende`, e o lote que fechou o Goal veio depois da verificação final, feita no
+commit do código que é a ponta da branch (o commit seguinte só registrou a
+pendência no documento). Os 113 eventos do Goal são do papel `orquestrador`.
 
 ---
 
