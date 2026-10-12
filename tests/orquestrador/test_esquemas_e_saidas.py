@@ -15,13 +15,12 @@ from graphow.orquestrador.esquemas import (
     PAPEIS,
     caminho_do_prompt,
 )
+from graphow.orquestrador.saida_do_verificador import Verificacao, conferir_verificacao
 from graphow.orquestrador.saidas import (
     IdsFixados,
     Plano,
     SaidaDoExecutor,
-    Verificacao,
     conferir_plano,
-    conferir_verificacao,
 )
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 
@@ -48,8 +47,8 @@ VERIFICACAO: dict[str, Any] = {
     "criterios": [{"id": "C1", "veredito": "atende", "prova": "pytest 2 passed"},
                   {"id": "C2", "veredito": "parcial", "prova": "README sem exemplo"}],
     "decisoes": [{"id": "D1", "veredito": "atende", "prova": "sem import externo"}],
-    "achados": [{"gravidade": "acompanhamento", "titulo": "nome", "descricao": "renomear", "local": "soma.py:1",
-                 "criterios": []}],
+    "achados": [{"titulo": "nome", "descricao": "renomear", "prova": "soma.py:1 lido, nome generico", "local": "soma.py:1",
+                 "criterios": [], "decisoes": [], "severidade": "baixa"}],
 }
 
 
@@ -136,7 +135,7 @@ def test_verificacao_sem_parecer_de_um_criterio_e_recusada_edge_case() -> None:
     problemas = conferir_verificacao(Verificacao.de_json(dados), ("C1", "C2"), ("D1",))
 
     assert "falta o parecer do criterio C2" in problemas
-    assert "o achado 'nome' cita C7, que nao e criterio nem decisao do plano" in problemas
+    assert "o achado 'nome' toca C7, que nao e criterio nem decisao desta verificacao" in problemas
 
 
 @pytest.mark.parametrize(

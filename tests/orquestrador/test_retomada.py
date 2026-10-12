@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from graphow.orquestrador import planejamento
+from graphow.orquestrador import planejamento, verificacao_do_goal
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.git_do_goal import remover_area
 from graphow.orquestrador.leitura_do_goal import ler_estado
@@ -241,7 +241,7 @@ def test_queda_entre_a_verificacao_e_o_documento_nao_perde_o_acompanhamento_nomi
     roteiro = roteiro_farto()
     roteiro["verificador"] = [verificacao("atende", [ACOMPANHAMENTO]) for _ in range(3)]
     bancada = montar_bancada(tmp_path, roteiro)
-    monkeypatch.setattr(LivroRazaoDoGoal, "gravar_verificacao", cai_depois_uma_vez(LivroRazaoDoGoal.gravar_verificacao))
+    monkeypatch.setattr(verificacao_do_goal, "gravar_verificacao", cai_depois_uma_vez(verificacao_do_goal.gravar_verificacao))
 
     motivo = _rodar_com_queda(bancada)
 

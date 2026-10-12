@@ -64,12 +64,12 @@ def verificacao(c2: str = "atende", achados: list[dict[str, Any]] | None = None)
 
 
 BLOQUEANTE_DO_README: dict[str, Any] = {
-    "gravidade": "bloqueante", "titulo": "README sem exemplo", "descricao": "falta um exemplo de somar",
-    "local": "README.md:1", "criterios": ["C2"],
+    "titulo": "README sem exemplo", "descricao": "falta um exemplo de somar", "prova": "README.md lido: nenhum exemplo",
+    "local": "README.md:1", "criterios": ["C2"], "decisoes": [], "severidade": "alta",
 }
 ACOMPANHAMENTO: dict[str, Any] = {
-    "gravidade": "acompanhamento", "titulo": "nome do modulo", "descricao": "soma.py poderia ser calc.py",
-    "local": "soma.py:1", "criterios": [],
+    "titulo": "nome do modulo", "descricao": "soma.py poderia ser calc.py", "prova": "soma.py:1 lido, nome generico",
+    "local": "soma.py:1", "criterios": [], "decisoes": [], "severidade": "baixa",
 }
 
 

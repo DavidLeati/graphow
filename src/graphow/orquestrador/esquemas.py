@@ -10,6 +10,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from graphow.core import aceite as a
+
 PAPEL_PLANEJADOR: str = "planejador"
 PAPEL_EXECUTOR: str = "executor"
 PAPEL_VERIFICADOR: str = "verificador"
@@ -19,11 +21,11 @@ PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_EXECUTOR, PAPEL_VERIFICADOR)
 PASTA_DOS_PROMPTS: Path = Path(__file__).parent / "prompts"
 LIMITE_DO_PROMPT_BYTES: int = 5 * 1024
 
-VERIFICACOES_DE_CRITERIO: tuple[str, ...] = ("teste", "checagem")
+VERIFICACOES_DE_CRITERIO: tuple[str, ...] = a.VERIFICACOES_DE_CRITERIO
 MODELOS_SUGERIDOS: tuple[str, ...] = ("opus", "sonnet", "haiku")
 STATUS_DO_EXECUTOR: tuple[str, ...] = ("pronto", "duvida", "falhou")
-VEREDITOS_DE_CRITERIO: tuple[str, ...] = ("atende", "parcial", "nao_atende")
-GRAVIDADES: tuple[str, ...] = ("bloqueante", "acompanhamento")
+VEREDITOS_DE_CRITERIO: tuple[str, ...] = a.VEREDITOS_DE_CRITERIO
+SEVERIDADES: tuple[str, ...] = ("alta", "media", "baixa")
 
 # A prova de um parecer diz o comando e o que se viu, ou o arquivo:linha: "." não é prova.
 TAMANHO_MINIMO_DA_PROVA: int = 10
@@ -90,13 +92,17 @@ PARECER: dict[str, Any] = _objeto(
     {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": PROVA}
 )
 COMANDO_RODADO: dict[str, Any] = _objeto({"comando": TEXTO, "codigo": {"type": "integer"}, "saida": TEXTO})
+# A gravidade não vem do verificador: o código a decide pelo que o achado toca
+# (orquestrador/saida_do_verificador.py). A severidade é a opinião dele, informativa.
 ACHADO: dict[str, Any] = _objeto(
     {
-        "gravidade": {"type": "string", "enum": list(GRAVIDADES)},
         "titulo": TEXTO,
         "descricao": TEXTO,
+        "prova": PROVA,
         "local": TEXTO_LIVRE,
         "criterios": LISTA_DE_TEXTOS,
+        "decisoes": LISTA_DE_TEXTOS,
+        "severidade": {"type": "string", "enum": list(SEVERIDADES)},
     }
 )
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(

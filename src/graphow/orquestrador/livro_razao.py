@@ -2,15 +2,17 @@
 
 Cada passo do laço vira um lote só, que os quatro portões conferem como
 qualquer outro: o Goal e a Sessao que o produz, o plano (critérios como
-Constraint, decisões como Decision, fatias como Task com as dependências), o
+Criterio, decisões como Decision, fatias como Task com as dependências), o
 início e o fim de cada tentativa, a dúvida que pausa uma fatia, o commit como
-Artifact, a verificação como Evidence ligada ao Goal e as fatias de correção.
+Artifact, a ponta da branch do Goal e as fatias de correção, que derivam do
+Achado que corrigem. A verificação, com os Achados dela, é gravada por
+orquestrador/gravacao_da_verificacao.py.
 Um lote recusado é defeito do orquestrador, e não do agente: vira erro com o
 motivo do kernel, e o laço para.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from graphow.core.exceptions import GraphowError
@@ -18,8 +20,9 @@ from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.saidas import Achado, SaidaDoExecutor, Verificacao
-from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite
+from graphow.core import aceite as a
+from graphow.orquestrador.leitura_do_goal import AchadoRegistrado
+from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
 
 RAMO_PADRAO: str = "main"
@@ -58,40 +61,6 @@ class GoalNovo:
     spec: str
     configuracao: m.ConfiguracaoDoGoal
     nome_do_repositorio: str
-
-
-@dataclass(frozen=True)
-class RegistroDaVerificacao:
-    """O que a Evidence de uma verificação guarda: o número, o commit verificado, o parecer e o que o orquestrador rodou."""
-
-    numero: int
-    verificacao: Verificacao
-    commit: str
-    commit_do_codigo: str
-    suite: ResultadoDaSuite
-    nos: Mapping[str, str] = field(default_factory=dict)
-    pendencias: Sequence[Mapping[str, Any]] = ()
-    ciclo: int = 0
-    final: bool = True
-
-    def propriedades(self) -> dict[str, Any]:
-        """As propriedades da Evidence; cada parecer leva o nó do critério ou da decisão que julga."""
-        verificacao, suite = self.verificacao, self.suite
-        return {
-            "acao": m.ACAO_DA_VERIFICACAO,
-            m.CAMPO_VEREDITO: m.VEREDITO_COM_BLOQUEANTE if verificacao.bloqueantes() else m.VEREDITO_LIMPO,
-            m.CAMPO_NUMERO: self.numero, m.CAMPO_FINAL: self.final,
-            m.CAMPO_COMMIT: self.commit, m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo, m.CAMPO_CICLO: self.ciclo,
-            "fonte": "graphow orquestrar: sessao do verificador",
-            "resumo": verificacao.resumo,
-            "comandos": [comando.em_json() for comando in verificacao.comandos],
-            "suite_do_orquestrador": {"comando": suite.comando, "shell": suite.shell, "codigo": suite.codigo, "passou": suite.passou,
-                                      "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
-            m.CAMPO_PARECERES: [{"id": p.id, "no": self.nos.get(p.id, ""), "veredito": p.veredito, "prova": p.prova}
-                                for p in (*verificacao.criterios, *verificacao.decisoes)],
-            "bloqueantes": [achado.em_json() for achado in verificacao.bloqueantes()],
-            "acompanhamentos": [achado.em_json() for achado in verificacao.acompanhamentos()],
-        }
 
 
 class LivroRazaoDoGoal:
@@ -173,8 +142,14 @@ class LivroRazaoDoGoal:
             f"Tentativa {tentativa} da fatia {id_task}",
         )
 
-    def concluir_fatia(self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "") -> None:
-        """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git."""
+    def concluir_fatia(
+        self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "", achado: str = ""
+    ) -> None:
+        """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
+
+        Na fatia de correção, o Achado que ela corrige passa a corrigido no mesmo
+        lote: resolvido, só quando a verificação seguinte do marco sair limpa.
+        """
         id_artefato = f"art-{id_task}-t{tentativa}"
         propriedades = {
             m.CAMPO_COMMIT: commit, "arquivos": list(saida.arquivos), "resumo": saida.resumo, "testes": list(saida.testes),
@@ -186,6 +161,7 @@ class LivroRazaoDoGoal:
                 aresta(id_artefato, id_task, TipoAresta.DERIVA_DE),
                 propriedade(id_task, m.CAMPO_COMMIT, commit),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_CONCLUIDO),
+                *([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO)] if achado else []),
             ],
             f"Fatia {id_task} concluida em {commit[:12]}",
         )
@@ -234,41 +210,27 @@ class LivroRazaoDoGoal:
         )
         return id_questao
 
-    def gravar_verificacao(self, registro: "RegistroDaVerificacao") -> str:
-        """A verificação vira Evidence ligada ao Goal, com os comandos do verificador e a suíte que o orquestrador
-        rodou no commit verificado, no mesmo lote da lista de pendências que ela deixa; devolve o id."""
-        id_evidencia = f"ver-{self.id_goal}-{registro.numero}"
-        verificacao = registro.verificacao
-        bloqueantes = verificacao.bloqueantes()
-        rotulo = f"Verificacao {registro.numero} em {registro.commit[:12]}: " + (f"{len(bloqueantes)} bloqueante(s)" if bloqueantes else "limpa")
-        self.gravar(
-            [*self.produzido(id_evidencia, TipoNo.EVIDENCE, rotulo, propriedades=registro.propriedades()),
-             aresta(id_evidencia, self.id_goal, TipoAresta.DERIVA_DE),
-             propriedade(self.id_goal, m.CAMPO_PENDENCIAS, [dict(item) for item in registro.pendencias])],
-            f"Verificacao {registro.numero} do Goal {self.id_goal}",
-        )
-        return id_evidencia
-
     def gravar_ponta(self, ponta: Mapping[str, str]) -> None:
         """A ponta da branch do Goal como o git a tem agora: o commit e o commit do código."""
         commit = str(ponta.get(m.CAMPO_COMMIT, ""))
         self.gravar([propriedade(self.id_goal, m.CAMPO_PONTA_DO_RAMO, dict(ponta))], f"Ponta da branch do Goal {self.id_goal} em {commit[:12]}")
 
-    def criar_correcoes(self, id_evidencia: str, achados: Sequence[Achado], *, ciclo: int, ordem: int) -> None:
-        """Cada bloqueante vira uma fatia de correção, que diz por `corrige` de que verificação nasceu."""
+    def criar_correcoes(self, id_evidencia: str, achados: Sequence[AchadoRegistrado], *, ciclo: int, ordem: int) -> None:
+        """Cada Achado bloqueante vira uma fatia de correção, que deriva dele e diz de que verificação nasceu."""
         slug = self.view().obter_no(self.id_goal).obter_propriedade(m.CAMPO_ORQUESTRACAO, {}).get("slug", self.id_goal)
         operacoes: list[ItemPatch] = []
         for indice, achado in enumerate(achados, start=1):
             codigo = f"K{ciclo}.{indice}"
             id_task = m.id_da_fatia(slug, codigo)
+            local = achado.texto("local")
             propriedades = {
                 m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo, m.CAMPO_ORDEM: ordem + indice,
-                m.CAMPO_OBJETIVO: f"{achado.descricao}" + (f" (local: {achado.local})" if achado.local else ""),
-                m.CAMPO_CRITERIOS: list(achado.criterios), m.CAMPO_ARQUIVOS_ALVO: [achado.local.split(":")[0]] if achado.local else [],
-                m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_TENTATIVAS: 0,
+                m.CAMPO_OBJETIVO: achado.texto("descricao") + (f" (local: {local})" if local else ""),
+                m.CAMPO_CRITERIOS: list(achado.lista("criterios")), m.CAMPO_ARQUIVOS_ALVO: [local.split(":")[0]] if local else [],
+                m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_ACHADO: achado.id, m.CAMPO_TENTATIVAS: 0,
             }
-            operacoes += self.produzido(id_task, TipoNo.TASK, f"Corrige: {achado.titulo}", propriedades=propriedades)
-            operacoes.append(aresta(self.id_goal, id_task, TipoAresta.DECOMPOE))
+            operacoes += self.produzido(id_task, TipoNo.TASK, f"Corrige: {achado.texto('titulo')}", propriedades=propriedades)
+            operacoes += [aresta(self.id_goal, id_task, TipoAresta.DECOMPOE), aresta(id_task, achado.id, TipoAresta.DERIVA_DE)]
         operacoes.append(propriedade(self.id_goal, m.CAMPO_CICLOS, ciclo))
         self.gravar(operacoes, f"Ciclo {ciclo} de correcao do Goal {self.id_goal}")
 

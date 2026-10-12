@@ -337,8 +337,9 @@ def test_goal_do_gerente_com_criterio_como_no_usa_o_texto_e_a_verificacao_do_hum
     assert estado.plano["criterios"][0] == {"id": "C1", "texto": "somar(2, 3) devolve 5", "verificacao": "checagem", "no": "crit-calc-1"}
     no = bancada.kernel.obter_view().obter_no("crit-calc-1")
     assert no is not None and no.obter_propriedade("texto") == "somar(2, 3) devolve 5"
+    assert no.obter_propriedade("estado") == "atende", "o estado do Criterio do humano vem das verificacoes"
     novo = bancada.kernel.obter_view().obter_no("crit-calc-c2")
-    assert novo is not None and novo.tipo.value == "Criterio" and novo.obter_propriedade("estado") == "pendente"
+    assert novo is not None and novo.tipo.value == "Criterio" and novo.obter_propriedade("estado") == "atende"
 
 
 def test_goal_do_gerente_sem_repositorio_e_recusado_edge_case(tmp_path: Path) -> None:

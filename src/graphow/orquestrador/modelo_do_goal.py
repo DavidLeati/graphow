@@ -60,6 +60,8 @@ CAMPO_COMMIT: str = a.CAMPO_COMMIT
 # Na fatia de correção: a Evidence de verificação de onde ela nasceu. Nome próprio,
 # e não o `corrige` do escopo governado: o laço não depende das regras dele.
 CAMPO_CORRIGE: str = "corrige_verificacao"
+# Na fatia de correção: o Achado bloqueante que ela corrige (a Task deriva dele).
+CAMPO_ACHADO: str = "achado"
 CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 
 # Na Question e na Evidence.
@@ -142,6 +144,16 @@ def id_do_criterio(slug: str, codigo: str) -> str:
 def id_da_decisao(slug: str, codigo: str) -> str:
     """A Decision de uma decisão registrada pelo plano."""
     return f"dec-{slug}-{codigo.lower()}"
+
+
+def id_da_verificacao(id_goal: str, numero: int) -> str:
+    """A Evidence da verificação de número dado do Goal."""
+    return f"ver-{id_goal}-{numero}"
+
+
+def id_do_achado(id_goal: str, numero: int, indice: int) -> str:
+    """O Achado de índice dado da verificação de número dado."""
+    return f"achado-{id_goal}-v{numero}-{indice}"
 
 
 def id_da_fatia(slug: str, codigo: str) -> str:

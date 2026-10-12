@@ -23,7 +23,7 @@ def formatar_status(estado: EstadoDoGoal, registros: Sequence[SessaoRegistrada])
     linhas.append(_linha_do_plano(estado))
     linhas.extend(["Fatias:", *(_linha_da_fatia(fatia) for fatia in estado.fatias)] if estado.fatias else [])
     linhas.extend(
-        ["Verificacoes:", *(f"  {v.id}: {v.veredito} em {v.commit[:12]} ({len(v.lista('bloqueantes'))} bloqueante(s))"
+        ["Verificacoes:", *(f"  {v.id}: {v.veredito} em {v.commit[:12]} ({len(v.bloqueantes())} bloqueante(s))"
                             for v in estado.verificacoes)] if estado.verificacoes else []
     )
     pendencias = estado.pendencias

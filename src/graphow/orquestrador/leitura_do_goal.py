@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
@@ -74,6 +75,31 @@ class FatiaRegistrada:
 
 
 @dataclass(frozen=True)
+class AchadoRegistrado:
+    """Um nó Achado de uma verificação do Goal: a gravidade que o código decidiu, o estado e o que ele é."""
+
+    id: str
+    verificacao: str
+    gravidade: str
+    estado: str
+    propriedades: Mapping[str, Any]
+
+    def texto(self, chave: str) -> str:
+        """Uma propriedade de texto do achado."""
+        return str(self.propriedades.get(chave) or "")
+
+    def lista(self, chave: str) -> tuple[str, ...]:
+        """Uma propriedade de lista de textos do achado."""
+        valor = self.propriedades.get(chave)
+        return tuple(str(item) for item in valor) if isinstance(valor, list) else ()
+
+    @property
+    def bloqueante(self) -> bool:
+        """O código o decidiu bloqueante."""
+        return self.gravidade == a.GRAVIDADE_BLOQUEANTE
+
+
+@dataclass(frozen=True)
 class VerificacaoRegistrada:
     """Uma verificação do Goal: em que commit, com que veredito e o que achou."""
 
@@ -83,16 +109,17 @@ class VerificacaoRegistrada:
     ciclo: int
     propriedades: Mapping[str, Any]
     commit_do_codigo: str = ""
+    achados: tuple[AchadoRegistrado, ...] = ()
+
+    def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
+        """Os nós Achado bloqueantes desta verificação."""
+        return tuple(achado for achado in self.achados if achado.bloqueante)
 
     @property
     def limpa(self) -> bool:
         """Sem bloqueante."""
         return self.veredito == m.VEREDITO_LIMPO
 
-    def lista(self, chave: str) -> list[dict[str, Any]]:
-        """Os bloqueantes ou os acompanhamentos gravados."""
-        valor = self.propriedades.get(chave)
-        return [dict(item) for item in valor if isinstance(item, Mapping)] if isinstance(valor, list) else []
 
 
 @dataclass(frozen=True)
@@ -135,6 +162,10 @@ class EstadoDoGoal:
         """As pendências gravadas no Goal."""
         valor = self.propriedades.get(m.CAMPO_PENDENCIAS)
         return [dict(item) for item in valor if isinstance(item, Mapping)] if isinstance(valor, list) else []
+
+    def achado(self, id_achado: str) -> AchadoRegistrado | None:
+        """O nó Achado de qualquer verificação do Goal, pelo id."""
+        return next((achado for v in self.verificacoes for achado in v.achados if achado.id == id_achado), None)
 
     @property
     def ultima_verificacao(self) -> VerificacaoRegistrada | None:
@@ -231,8 +262,20 @@ def _verificacoes(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada,
             ciclo=int(e.obter_propriedade(m.CAMPO_CICLO) or 0),
             propriedades=e.propriedades,
             commit_do_codigo=str(e.obter_propriedade(m.CAMPO_COMMIT_DO_CODIGO) or ""),
+            achados=_achados(view, e.id),
         )
         for e in ordenadas
+    )
+
+
+def _achados(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegistrado, ...]:
+    """Os nós Achado que derivam da verificação, na ordem dos ids."""
+    origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_evidencia, TipoAresta.DERIVA_DE))
+    nos = sorted((no for no in origens if no is not None and no.tipo == TipoNo.ACHADO), key=lambda no: (no.ordem.seq_criacao, no.id))
+    return tuple(
+        AchadoRegistrado(no.id, id_evidencia, str(no.obter_propriedade(a.CAMPO_GRAVIDADE) or ""),
+                         str(no.obter_propriedade(a.CAMPO_ESTADO) or ""), no.propriedades)
+        for no in nos
     )
 
 

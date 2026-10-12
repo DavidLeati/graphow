@@ -12,7 +12,7 @@ from graphow.orquestrador import modelo_do_goal as m, verificacao_do_goal
 from graphow.orquestrador.comandos_do_stream import comandos_nao_rodados
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
-from graphow.orquestrador.saidas import TITULO_DA_SUITE_VERMELHA
+from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA
 from graphow.orquestrador.suite import ResultadoDaSuite
 from graphow.sessoes.leitura_stream import LeituraDoStream
 from graphow.sessoes.sessao_claude import ResultadoDeSessao
@@ -49,7 +49,9 @@ def test_suite_vermelha_no_commit_verificado_reprova_a_verificacao_que_dizia_ate
     assert parada.fechou, parada.mensagem
     primeira, segunda = _evidencia(bancada, 1), _evidencia(bancada, 2)
     assert primeira["veredito"] == m.VEREDITO_COM_BLOQUEANTE
-    assert [achado["titulo"] for achado in primeira["bloqueantes"]] == [TITULO_DA_SUITE_VERMELHA]
+    achados = [bancada.kernel.obter_view().obter_no(id_achado) for id_achado in primeira["achados"]]
+    assert [(no.obter_propriedade("titulo"), no.obter_propriedade("gravidade")) for no in achados] == [
+        (TITULO_DA_SUITE_VERMELHA, "bloqueante")]
     assert primeira["suite_do_orquestrador"]["codigo"] == 1 and not primeira["suite_do_orquestrador"]["passou"]
     assert segunda["suite_do_orquestrador"]["passou"] and segunda["comandos"][0]["codigo"] == 0
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")

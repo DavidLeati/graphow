@@ -11,8 +11,10 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.gravacao_do_plano import PlanoParaGravar, gravar_plano
 from graphow.orquestrador.leitura_do_goal import ler_estado
-from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, LoteRecusado, RegistroDaVerificacao
-from graphow.orquestrador.saidas import Plano, SaidaDoExecutor, Verificacao
+from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
+from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, LoteRecusado
+from graphow.orquestrador.saida_do_verificador import Verificacao
+from graphow.orquestrador.saidas import Plano, SaidaDoExecutor
 from graphow.orquestrador.suite import ResultadoDaSuite
 
 from tests.orquestrador.test_esquemas_e_saidas import PLANO, VERIFICACAO
@@ -64,8 +66,10 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     pendencia = {"gravidade": "acompanhamento", "titulo": "nome", "descricao": "d", "origem": "verificacao 1"}
     suite = ResultadoDaSuite("python verificar.py", 0, "ok")
     nos = _nos_do_plano(kernel)
-    id_evidencia = livro.gravar_verificacao(RegistroDaVerificacao(1, verificacao, "c0ffee2", "c0ffee2", suite, nos, [pendencia]))
-    livro.criar_correcoes(id_evidencia, verificacao.bloqueantes(), ciclo=1, ordem=2)
+    id_evidencia = gravar_verificacao(livro, RegistroDaVerificacao(1, verificacao, "c0ffee2", "c0ffee2", suite, nos, [pendencia]))
+    estado = ler_estado(kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.ultima_verificacao is not None
+    livro.criar_correcoes(id_evidencia, estado.ultima_verificacao.bloqueantes(), ciclo=1, ordem=2)
     estado = ler_estado(kernel.obter_view(), "goal-soma")
 
     assert estado is not None
@@ -79,7 +83,8 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     livro.concluir_fatia(correcao.id, 1, commit="c0ffee3", saida=saida)
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "criterios": [
         {"id": "C1", "veredito": "atende", "prova": "ok"}, {"id": "C2", "veredito": "atende", "prova": "ok"}]})
-    livro.gravar_verificacao(RegistroDaVerificacao(2, limpa, "c0ffee3", "c0ffee3", suite, nos, ciclo=1))
+    gravar_verificacao(livro, RegistroDaVerificacao(2, limpa, "c0ffee3", "c0ffee3", suite, nos, ciclo=1,
+                                                    resolver=("achado-goal-soma-v1-1",)))
     livro.gravar_ponta({"commit": "c0ffee3", "commit_do_codigo": "c0ffee3"})
     livro.fechar("c0ffee3")
     final = ler_estado(kernel.obter_view(), "goal-soma")
@@ -98,7 +103,7 @@ def test_kernel_recusa_fechar_com_a_verificacao_de_um_commit_antigo_edge_case() 
     kernel, livro = _livro_com_plano()
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "achados": [], "criterios": [
         {"id": "C1", "veredito": "atende", "prova": "ok"}, {"id": "C2", "veredito": "atende", "prova": "ok"}]})
-    livro.gravar_verificacao(RegistroDaVerificacao(1, limpa, "c0ffee1", "c0ffee1", ResultadoDaSuite("s", 0, "ok"), _nos_do_plano(kernel)))
+    gravar_verificacao(livro, RegistroDaVerificacao(1, limpa, "c0ffee1", "c0ffee1", ResultadoDaSuite("s", 0, "ok"), _nos_do_plano(kernel)))
     livro.gravar_ponta({"commit": "c0ffee9", "commit_do_codigo": "c0ffee9"})
 
     with pytest.raises(LoteRecusado) as recusa:

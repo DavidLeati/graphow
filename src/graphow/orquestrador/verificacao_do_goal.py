@@ -20,9 +20,11 @@ a queda entre o lote e o commit do documento não perde acompanhamento.
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_CICLOS_DE_CORRECAO, ContextoDoGoal, MotivoDaParada, Parada
@@ -36,9 +38,9 @@ from graphow.orquestrador.git_do_goal import (
     mensagem_do_orquestrador,
     remover_area,
 )
+from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, VerificacaoRegistrada
-from graphow.orquestrador.livro_razao import RegistroDaVerificacao
-from graphow.orquestrador.saidas import Achado, Verificacao, conferir_verificacao
+from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, Verificacao, conferir_verificacao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, rodar_suite
 
@@ -83,15 +85,21 @@ def _verificar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
     suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                         tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
     verificacao = Verificacao.de_json(dados)
-    verificacao = verificacao if suite.passou else verificacao.com_a_suite_vermelha(suite.descrever()[-LIMITE_DO_TRECHO:])
-    numero = len(estado.verificacoes) + 1
-    pendencias = _pendencias_depois(estado, verificacao, numero=numero)
-    contexto.livro.gravar_verificacao(RegistroDaVerificacao(
-        numero=numero, verificacao=verificacao, commit=head, commit_do_codigo=contexto.commit_do_codigo(), suite=suite,
-        nos=_nos_do_plano(plano), pendencias=pendencias, ciclo=estado.ciclos_de_correcao,
-    ))
-    _sincronizar_documento(contexto, pendencias, numero=numero)
+    if not suite.passou:
+        verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
+    registro = RegistroDaVerificacao(
+        numero=len(estado.verificacoes) + 1, verificacao=verificacao, commit=head, commit_do_codigo=contexto.commit_do_codigo(),
+        suite=suite, nos=_nos_do_plano(plano), ciclo=estado.ciclos_de_correcao, resolver=_corrigidos(estado),
+    )
+    registro = replace(registro, pendencias=_pendencias_depois(estado, registro, contexto.id_goal))
+    gravar_verificacao(contexto.livro, registro)
+    _sincronizar_documento(contexto, registro.pendencias, numero=registro.numero)
     return None
+
+
+def _corrigidos(estado: EstadoDoGoal) -> tuple[str, ...]:
+    """Os Achados que uma correção já entregou e que a verificação limpa resolve."""
+    return tuple(achado.id for v in estado.verificacoes for achado in v.achados if achado.estado == a.ESTADO_CORRIGIDO)
 
 
 def _nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
@@ -120,13 +128,26 @@ def _sessao_do_verificador(contexto: ContextoDoGoal, estado: EstadoDoGoal, head:
     return resposta.dados
 
 
-def _pendencias_depois(estado: EstadoDoGoal, verificacao: Verificacao, *, numero: int) -> list[dict[str, Any]]:
-    """As pendências das fatias e os acompanhamentos (e os bloqueantes, se não há mais ciclo) desta verificação."""
+def _pendencias_depois(estado: EstadoDoGoal, registro: RegistroDaVerificacao, id_goal: str) -> list[dict[str, Any]]:
+    """As pendências de antes, mais os acompanhamentos desta verificação (e os bloqueantes, se não há mais ciclo), sem repetir.
+
+    O acompanhamento que uma verificação anterior achou continua pendência,
+    ache-o a seguinte ou não; o mesmo título no mesmo local não entra duas vezes.
+    """
     sem_ciclo = estado.ciclos_de_correcao >= MAXIMO_DE_CICLOS_DE_CORRECAO
-    achados = [*verificacao.acompanhamentos(), *(verificacao.bloqueantes() if sem_ciclo else ())]
-    origem = f"verificacao {numero}"
-    novas = [{**achado.em_json(), "origem": origem} for achado in achados]
-    return [item for item in estado.pendencias if item.get("gravidade") == "pendencia"] + novas
+    novas = [
+        {**achado.em_json(), "achado": id_achado, "origem": f"verificacao {registro.numero}"}
+        for id_achado, achado in registro.achados(id_goal)
+        if sem_ciclo or achado.gravidade == a.GRAVIDADE_ACOMPANHAMENTO
+    ]
+    vistas: set[tuple[str, str]] = set()
+    pendencias: list[dict[str, Any]] = []
+    for item in [*estado.pendencias, *novas]:
+        chave = (str(item.get("titulo", "")).strip().lower(), str(item.get("local", "")).strip())
+        if chave not in vistas:
+            vistas.add(chave)
+            pendencias.append(dict(item))
+    return pendencias
 
 
 def _sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]], *, numero: int) -> None:
@@ -145,15 +166,15 @@ def _sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mappin
 
 def _corrigir(contexto: ContextoDoGoal, estado: EstadoDoGoal, ultima: VerificacaoRegistrada) -> Parada | None:
     """Os bloqueantes viram fatias de correção, enquanto houver ciclo; sem ciclo, o laço para."""
-    bloqueantes = [Achado(str(a.get("gravidade", "bloqueante")), str(a.get("titulo", "")), str(a.get("descricao", "")),
-                          str(a.get("local", "")), tuple(a.get("criterios") or ())) for a in ultima.lista("bloqueantes")]
+    bloqueantes = ultima.bloqueantes()
     if estado.ciclos_de_correcao >= MAXIMO_DE_CICLOS_DE_CORRECAO:
-        titulos = "; ".join(achado.titulo for achado in bloqueantes)
+        titulos = "; ".join(achado.texto("titulo") for achado in bloqueantes)
         return Parada(
             contexto.id_goal,
             MotivoDaParada.BLOQUEANTES_RESTANTES,
             f"Depois de {MAXIMO_DE_CICLOS_DE_CORRECAO} ciclos de correcao a verificacao {ultima.id} ainda tem "
-            f"{len(bloqueantes)} bloqueante(s): {titulos}. Eles estao nas pendencias do Goal; o Goal fica aberto.",
+            f"{len(bloqueantes)} bloqueante(s): {titulos}. Eles seguem como Achados abertos e nas pendencias do Goal; "
+            "o Goal fica aberto, e o kernel nao o fecha enquanto houver bloqueante aberto.",
         )
     ordem = max((fatia.ordem for fatia in estado.fatias), default=0)
     contexto.livro.criar_correcoes(ultima.id, bloqueantes, ciclo=estado.ciclos_de_correcao + 1, ordem=ordem)

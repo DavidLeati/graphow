@@ -3,20 +3,16 @@
 O schema garante a forma; aqui se garante o sentido: ids únicos, fatia que
 cobre critério que existe, dependência que aponta fatia do plano e não fecha
 ciclo, todo critério coberto, os critérios e as decisões que o humano já fixou
-mantidos, a dúvida com pergunta e a verificação que dá parecer sobre cada
-critério e lista os comandos que rodou. Saída que não confere volta à mesma
+mantidos e a dúvida com pergunta. A saída do verificador mora em
+orquestrador/saida_do_verificador.py. Saída que não confere volta à mesma
 sessão com a lista de problemas, uma vez (orquestrador/sessoes_de_papel.py).
 """
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Any
 
-VEREDITO_QUE_ATENDE: str = "atende"
-GRAVIDADE_BLOQUEANTE: str = "bloqueante"
-GRAVIDADE_ACOMPANHAMENTO: str = "acompanhamento"
 STATUS_DUVIDA: str = "duvida"
-TITULO_DA_SUITE_VERMELHA: str = "A suite do plano falhou no commit verificado"
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -177,112 +173,3 @@ class SaidaDoExecutor:
     def conferir(self) -> tuple[str, ...]:
         """A dúvida precisa da pergunta."""
         return ("status duvida sem a pergunta em 'duvida'",) if self.status == STATUS_DUVIDA and not self.duvida else ()
-
-
-@dataclass(frozen=True)
-class Parecer:
-    """O veredito do verificador sobre um critério ou uma decisão, com a prova."""
-
-    id: str
-    veredito: str
-    prova: str
-
-
-@dataclass(frozen=True)
-class Achado:
-    """Um problema que o verificador achou, com a gravidade e o que ele fere."""
-
-    gravidade: str
-    titulo: str
-    descricao: str
-    local: str = ""
-    criterios: tuple[str, ...] = ()
-
-    def em_json(self) -> dict[str, Any]:
-        """O achado para gravar na Evidence."""
-        return {"gravidade": self.gravidade, "titulo": self.titulo, "descricao": self.descricao,
-                "local": self.local, "criterios": list(self.criterios)}
-
-
-@dataclass(frozen=True)
-class ComandoRodado:
-    """Um comando que o verificador rodou: o que, com que código saiu e um trecho do que imprimiu."""
-
-    comando: str
-    codigo: int
-    saida: str
-
-    def em_json(self) -> dict[str, Any]:
-        """O comando para gravar na Evidence."""
-        return {"comando": self.comando, "codigo": self.codigo, "saida": self.saida}
-
-
-def _comandos(valor: object) -> tuple[ComandoRodado, ...]:
-    """Os comandos rodados do JSON; a falta deles é problema da conferência, não da leitura."""
-    itens = valor if isinstance(valor, list) else []
-    return tuple(ComandoRodado(str(c["comando"]).strip(), int(c["codigo"]), str(c["saida"]).strip()) for c in itens)
-
-
-@dataclass(frozen=True)
-class Verificacao:
-    """O que o verificador devolveu do Goal inteiro."""
-
-    resumo: str
-    criterios: tuple[Parecer, ...]
-    decisoes: tuple[Parecer, ...] = ()
-    achados: tuple[Achado, ...] = field(default_factory=tuple)
-    comandos: tuple[ComandoRodado, ...] = ()
-
-    @classmethod
-    def de_json(cls, dados: Mapping[str, Any]) -> "Verificacao":
-        """A verificação como o verificador a devolveu."""
-        def parecer(item: Mapping[str, Any]) -> Parecer:
-            return Parecer(str(item["id"]).strip(), str(item["veredito"]), str(item["prova"]).strip())
-
-        return cls(
-            resumo=str(dados["resumo"]).strip(),
-            criterios=tuple(parecer(item) for item in dados["criterios"]),
-            decisoes=tuple(parecer(item) for item in dados["decisoes"]),
-            achados=tuple(
-                Achado(str(a["gravidade"]), str(a["titulo"]).strip(), str(a["descricao"]).strip(),
-                       str(a.get("local", "")).strip(), _textos(a.get("criterios")))
-                for a in dados["achados"]
-            ),
-            comandos=_comandos(dados.get("comandos")),
-        )
-
-    def com_a_suite_vermelha(self, descricao: str) -> "Verificacao":
-        """A verificação com o bloqueante da suíte que o orquestrador rodou no commit verificado e viu falhar."""
-        return replace(self, achados=(*self.achados, Achado(GRAVIDADE_BLOQUEANTE, TITULO_DA_SUITE_VERMELHA, descricao)))
-
-    def bloqueantes(self) -> tuple[Achado, ...]:
-        """Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum cita, um sintético."""
-        declarados = tuple(achado for achado in self.achados if achado.gravidade == GRAVIDADE_BLOQUEANTE)
-        citados = {id_c for achado in declarados for id_c in achado.criterios}
-        sinteticos = tuple(
-            Achado(GRAVIDADE_BLOQUEANTE, f"{parecer.id} {parecer.veredito}", parecer.prova, "", (parecer.id,))
-            for parecer in (*self.criterios, *self.decisoes)
-            if parecer.veredito != VEREDITO_QUE_ATENDE and parecer.id not in citados
-        )
-        return declarados + sinteticos
-
-    def acompanhamentos(self) -> tuple[Achado, ...]:
-        """Os achados que não ferem critério nem decisão."""
-        return tuple(achado for achado in self.achados if achado.gravidade == GRAVIDADE_ACOMPANHAMENTO)
-
-
-def conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]:
-    """Um parecer por critério e por decisão do plano, achado que cita só o que existe e ao menos um comando rodado."""
-    dados = [parecer.id for parecer in verificacao.criterios]
-    dadas = [parecer.id for parecer in verificacao.decisoes]
-    conhecidos = {*criterios, *decisoes}
-    return (
-        *(() if verificacao.comandos else ("a verificacao nao lista nenhum comando rodado em 'comandos'",)),
-        *(f"falta o parecer do criterio {id_c}" for id_c in criterios if id_c not in dados),
-        *(f"falta o parecer da decisao {id_d}" for id_d in decisoes if id_d not in dadas),
-        *_repetidos("parecer", dados + dadas),
-        *(
-            f"o achado '{achado.titulo}' cita {id_c}, que nao e criterio nem decisao do plano"
-            for achado in verificacao.achados for id_c in achado.criterios if id_c not in conhecidos
-        ),
-    )
