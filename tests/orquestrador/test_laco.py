@@ -197,6 +197,7 @@ def test_duvida_pausa_so_a_fatia_e_a_resposta_volta_no_briefing_nominal(tmp_path
     assert "Inteiros ou decimais?" in pausado.mensagem
     assert ultimo_antes_da_resposta == "Fatia F2: Uso no README (C2)"
     assert "Resposta: So inteiros" in bancada.chamadas("executor")[2]["stdin"]
+    assert "tentativa pausada tinha mudado" in bancada.chamadas("executor")[2]["stdin"]
     assert not (bancada.repositorio / "rascunho.py").exists()
     assert fechado.motivo == MotivoDaParada.FECHADO, fechado.mensagem
 

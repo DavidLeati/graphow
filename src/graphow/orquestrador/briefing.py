@@ -105,8 +105,12 @@ def _diff(diff: str) -> str:
 
 
 def _respostas(fatia: FatiaRegistrada) -> list[str]:
-    """Cada dúvida que o humano respondeu, com a resposta."""
-    return [f"- Pergunta: {d.pergunta}\n  Resposta: {d.resposta or '(sem texto)'}" for d in fatia.duvidas if not d.aberta]
+    """Cada dúvida que o humano respondeu, com a resposta, e onde está o que a tentativa pausada tinha feito."""
+    respostas = [f"- Pergunta: {d.pergunta}\n  Resposta: {d.resposta or '(sem texto)'}" for d in fatia.duvidas if not d.aberta]
+    patch = fatia.texto(m.CAMPO_PATCH)
+    if respostas and patch and not fatia.texto(m.CAMPO_ULTIMO_ERRO):
+        respostas.append(f"O que a tentativa pausada tinha mudado foi descartado da area e guardado em {patch} (pode ler).")
+    return respostas
 
 
 def _falha_anterior(fatia: FatiaRegistrada) -> list[str]:
