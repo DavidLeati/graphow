@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**18 alas · 278 módulos · 38002 linhas · 512 classes**
+**18 alas · 278 módulos · 38031 linhas · 512 classes**
 
 ---
 
@@ -62,7 +62,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
 | 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 12 | 1332 | 38 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 30 | 4779 | 33 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 30 | 4789 | 33 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 13 | 1699 | 38 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 23 | 3742 | 40 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
@@ -78,7 +78,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 | 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 5 | 533 | 8 |
 | 17 | [Bancada de Medição](setores/17_bancada.md) | `graphow.bancada` | 13 | 1751 | 25 |
-| 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 20 | 2798 | 38 |
+| 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 20 | 2817 | 38 |
 
 ### Missão de cada ala
 

@@ -11,7 +11,8 @@ revisor por Task, que a verificação do Goal substitui.
 Ficam com o humano as reservas que o laço nunca precisa, e o contrato as recusa
 explicitamente: a `Governanca` e a política ou a autonomia do Projeto, o
 alcance de um Aprendizado (promover), o plano aprovado e as respostas de desvio
-do Goal (`aprovar_plano` e `responder_desvio`), e encerrar uma Question, que é
+do Goal (`aprovar_plano` e `responder_desvio`), a aprovação do plano do próprio
+orquestrador (`aprovacao_do_plano`, o portão do humano), e encerrar uma Question, que é
 responder ao que o executor perguntou. O orquestrador também não remove nada:
 o livro-razão dele só cresce. Nenhum servidor MCP abre sessão com este papel
 (mcp/identidade_sessao.py), e é por isso que ele pode ser largo.
@@ -31,6 +32,8 @@ from graphow.kernel.matriz_papeis import (
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 
 PORTAO: str = "RoleGate"
+# O portão do plano do `graphow orquestrar`, no Goal: só o humano o escreve.
+CAMPO_APROVACAO_DO_PLANO: str = "aprovacao_do_plano"
 SEGMENTOS_DO_ELEMENTO: int = 2
 SEGMENTOS_DA_PROPRIEDADE: int = 4
 CAMPO_STATUS: str = "status"
@@ -54,7 +57,7 @@ TIPOS_CRIADOS_PELO_ORQUESTRADOR: frozenset[TipoNo] = frozenset(
 # O que cada tipo guarda que só o humano escreve, nem na criação nem depois.
 PROPRIEDADES_RESERVADAS_POR_TIPO: Mapping[TipoNo, frozenset[str]] = {
     TipoNo.PROJETO: PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO,
-    TipoNo.GOAL: frozenset({CAMPO_PLANOS, CAMPO_RESPOSTAS_DE_DESVIO}),
+    TipoNo.GOAL: frozenset({CAMPO_PLANOS, CAMPO_RESPOSTAS_DE_DESVIO, CAMPO_APROVACAO_DO_PLANO}),
     TipoNo.APRENDIZADO: PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
 }
 

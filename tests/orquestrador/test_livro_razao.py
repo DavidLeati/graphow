@@ -67,7 +67,7 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     assert [fatia.codigo for fatia in estado.prontas()] == ["K1.1"]
     assert estado.ciclos_de_correcao == 1
     correcao = estado.fatias[-1]
-    assert correcao.texto("corrige") == id_evidencia
+    assert correcao.texto(m.CAMPO_CORRIGE) == id_evidencia
     livro.iniciar_tentativa(correcao.id, 1)
     livro.concluir_fatia(correcao.id, 1, commit="c0ffee3", saida=saida)
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "criterios": [

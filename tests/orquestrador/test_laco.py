@@ -327,3 +327,24 @@ def test_goal_do_gerente_sem_repositorio_e_recusado_edge_case(tmp_path: Path) ->
 
     with pytest.raises(PedidoInvalido):
         bancada.orquestrador().rodar("goal-calc", AUTONOMO)
+
+
+def test_goal_com_plano_aprovado_pelo_escopo_governado_segue_o_portao_do_orquestrador_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o `aprovar_plano` antigo do escopo não aprova o plano do orquestrador nem barra as fatias dele."""
+    from graphow.mcp.ferramentas_escopo import FerramentasEscopo
+    from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
+    from graphow.mcp.submissao import ContextoFerramentaMCP
+
+    bancada = montar_bancada(tmp_path, roteiro_completo())
+    _goal_do_gerente(bancada)
+    antigo = FerramentasEscopo(ContextoFerramentaMCP(bancada.kernel, IdentidadeSessaoMCP.criar("david", "humano")))
+    assert antigo.aprovar_plano({"id_goal": "goal-calc"})["sucesso"]
+    orquestrador = bancada.orquestrador()
+
+    no_portao = orquestrador.rodar("goal-calc", OpcoesDoLaco(), bancada.repositorio)
+    orquestrador.aprovar_plano("goal-calc", "david")
+    fechado = orquestrador.rodar("goal-calc", OpcoesDoLaco(modo="autonomo"))
+
+    assert no_portao.motivo == MotivoDaParada.AGUARDANDO_APROVACAO, no_portao.mensagem
+    assert fechado.fechou, fechado.mensagem
+    assert len(bancada.chamadas("planejador")) == 1

@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-20 módulos · 2798 linhas · 38 classes
+20 módulos · 2817 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,10 +21,10 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 142 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 228 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 188 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 236 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 195 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 241 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 251 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 128 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 135 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 87 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 203 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -265,7 +265,7 @@ O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, 
 
 - `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda.
 - `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar.
-- `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano pelo humano: o mesmo gesto `aprovar_plano` que o MCP do humano expõe.
+- `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano grava a aprovação no Goal, com o commit do documento.
 
 ### `PedidoInvalido` (GraphowError)
 
@@ -391,6 +391,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_CICLOS` | `str` | `'ciclos_de_correcao'` |
 | `CAMPO_PENDENCIAS` | `str` | `'pendencias'` |
 | `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
+| `CAMPO_APROVACAO_DO_PLANO` | `str` | `CAMPO_DA_APROVACAO` |
 | `CAMPO_STATUS` | `str` | `'status'` |
 | `CAMPO_FATIA` | `str` | `'fatia'` |
 | `CAMPO_OBJETIVO` | `str` | `'objetivo'` |
@@ -403,7 +404,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_PATCH` | `str` | `'patch_da_tentativa'` |
 | `CAMPO_PENDENCIA` | `str` | `'pendencia'` |
 | `CAMPO_COMMIT` | `str` | `'commit'` |
-| `CAMPO_CORRIGE` | `str` | `'corrige'` |
+| `CAMPO_CORRIGE` | `str` | `'corrige_verificacao'` |
 | `CAMPO_CRITERIO_PRONTO` | `str` | `'criterio_pronto'` |
 | `CAMPO_PERGUNTA` | `str` | `'pergunta'` |
 | `CAMPO_RESPOSTA` | `str` | `'resposta'` |

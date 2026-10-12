@@ -11,9 +11,7 @@ from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor
-from graphow.mcp.ferramentas_escopo import FerramentasEscopo
-from graphow.mcp.identidade_sessao import IdentidadeSessaoMCP
-from graphow.mcp.submissao import ContextoFerramentaMCP
+from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import (
     ORCAMENTO_PADRAO_USD,
@@ -77,15 +75,24 @@ class Orquestrador:
         return Parada(id_goal, MotivoDaParada.FALHA, f"O laco passou de {LIMITE_DE_PASSOS} passos sem parar.")
 
     def aprovar_plano(self, id_goal: str, autor: str) -> str:
-        """O portão do plano pelo humano: o mesmo gesto `aprovar_plano` que o MCP do humano expõe."""
+        """O portão do plano do orquestrador: o humano grava a aprovação no Goal, com o commit do documento.
+
+        É do orquestrador, e não o gesto `aprovar_plano` do escopo governado:
+        o laço não depende das regras que a fase 4 apaga.
+        """
         estado = ler_estado(self._view(), id_goal)
         if estado is None or estado.plano is None:
             raise PedidoInvalido("o Goal ainda nao tem plano para aprovar", {"id_goal": id_goal})
-        identidade = IdentidadeSessaoMCP.criar(autor, PapelAutor.HUMANO.value)
-        resposta = FerramentasEscopo(ContextoFerramentaMCP(self._dependencias.kernel, identidade)).aprovar_plano({"id_goal": id_goal})
-        if not resposta.get("sucesso"):
-            raise PedidoInvalido("a aprovacao do plano foi recusada", {"id_goal": id_goal, "motivo": str(resposta.get("mensagem"))})
-        return f"Plano do Goal {id_goal} aprovado por {autor} (versao {resposta.get('versao')})."
+        documento = estado.plano.get("documento", {})
+        aprovacao = {"papel": PapelAutor.HUMANO.value, "por": autor, "documento": documento.get("commit", "")}
+        dados = DadosPropostaPatch(
+            autor=autor, papel=PapelAutor.HUMANO, justificativa=f"Aprovacao do plano do Goal {id_goal}",
+            operacoes=(propriedade(id_goal, m.CAMPO_APROVACAO_DO_PLANO, aprovacao),),
+        )
+        recibo = self._dependencias.kernel.submeter_patch(PropostaPatch.criar(dados))
+        if not recibo.sucesso:
+            raise PedidoInvalido("a aprovacao do plano foi recusada", {"id_goal": id_goal, "motivo": recibo.mensagem})
+        return f"Plano do Goal {id_goal} aprovado por {autor} (documento em {str(aprovacao['documento'])[:12]})."
 
     def _view(self) -> GrafoView:
         """O grafo agora."""
@@ -169,7 +176,7 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
             contexto.id_goal,
             MotivoDaParada.AGUARDANDO_APROVACAO,
             f"O plano espera aprovacao: leia docs/goals/{contexto.configuracao.slug}.md na branch {contexto.configuracao.ramo} "
-            f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano` (ou pelo gesto aprovar_plano).",
+            f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`.",
         )
     prontas = estado.prontas()
     if prontas:

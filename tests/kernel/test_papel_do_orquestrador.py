@@ -116,22 +116,25 @@ def test_duvida_aberta_pausa_a_fatia_ate_o_humano_responder_nominal() -> None:
     assert _concluir_fatia(kernel, "f1").sucesso
 
 
-def test_correcao_depois_do_plano_aprovado_entra_pela_verificacao_rejeitada_nominal() -> None:
-    """Com o plano aprovado pelo humano, a Task de correção vale por `corrige` na Evidence rejeitada."""
+def test_regras_do_escopo_governado_nao_valem_para_o_orquestrador_nominal() -> None:
+    """Num Goal com plano aprovado pelo escopo governado, a fatia do orquestrador entra sem ligação de escopo.
+
+    O plano do orquestrador é dele; a isenção é só do papel orquestrador: o
+    humano que cria a mesma Task sem ligação segue recusado pelo escopo.
+    """
     kernel = _kernel_com_goal_e_fatias()
     entrada = {"versao": 1, "seq": kernel.obter_view().versao_log, "aprovado_por": "humano-teste", "papel": "humano"}
     aprovacao = ItemPatch(OperacaoPatch.REPLACE, "/nos/goal/propriedades/planos", [entrada])
     assert _submeter(kernel, [aprovacao], PapelAutor.HUMANO).sucesso
-    rejeitada = [*_produzido("ver-1", TipoNo.EVIDENCE, {"veredito": "rejeitado"}), _aresta("ver-1", "goal", TipoAresta.DERIVA_DE)]
-    assert _submeter(kernel, rejeitada).sucesso
 
-    sem_ligacao = _submeter(kernel, [*_produzido("c-1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "c-1", TipoAresta.DECOMPOE)])
-    correcao = _submeter(
-        kernel, [*_produzido("c-2", TipoNo.TASK, {"status": "pendente", "corrige": "ver-1"}), _aresta("goal", "c-2", TipoAresta.DECOMPOE)]
+    do_orquestrador = _submeter(kernel, [*_produzido("c-1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "c-1", TipoAresta.DECOMPOE)])
+    do_humano = _submeter(
+        kernel, [*_produzido("c-2", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "c-2", TipoAresta.DECOMPOE)], PapelAutor.HUMANO
     )
 
-    assert not sem_ligacao.sucesso
-    assert correcao.sucesso, correcao.mensagem
+    assert do_orquestrador.sucesso, do_orquestrador.mensagem
+    assert not do_humano.sucesso
+    assert do_humano.modo_de_falha == ModoFalhaMAST.LIGACAO_DE_ESCOPO_AUSENTE.value
 
 
 @pytest.mark.parametrize(
@@ -143,6 +146,7 @@ def test_correcao_depois_do_plano_aprovado_entra_pela_verificacao_rejeitada_nomi
         [_propriedade("proj", "nivel_autonomia", "ilimitado")],
         [_propriedade("goal", "planos", [])],
         [_propriedade("goal", "respostas_de_desvio", [])],
+        [_propriedade("goal", "aprovacao_do_plano", {"papel": "humano", "por": "orquestrador"})],
         [ItemPatch(OperacaoPatch.REMOVE, "/nos/f2")],
         [ItemPatch(OperacaoPatch.REMOVE, "/arestas/depende_de-f2-f1")],
     ],

@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from graphow.harness.ambiente_padrao import gerar_slug
+from graphow.kernel.papel_do_orquestrador import CAMPO_APROVACAO_DO_PLANO as CAMPO_DA_APROVACAO
 
 AUTOR_DO_ORQUESTRADOR: str = "graphow-orquestrar"
 
@@ -27,6 +28,10 @@ CAMPO_PLANO: str = "plano"
 CAMPO_CICLOS: str = "ciclos_de_correcao"
 CAMPO_PENDENCIAS: str = "pendencias"
 CAMPO_INTEGRADO_EM: str = "integrado_em"
+# O portão do plano do orquestrador: quem aprovou, com que papel e em que commit
+# do documento do Goal. Só o humano o escreve (`--aprovar-plano`); o contrato do
+# papel orquestrador o recusa (kernel/papel_do_orquestrador.py).
+CAMPO_APROVACAO_DO_PLANO: str = CAMPO_DA_APROVACAO
 CAMPO_STATUS: str = "status"
 
 # Na Task de cada fatia.
@@ -41,7 +46,9 @@ CAMPO_ULTIMO_ERRO: str = "ultimo_erro"
 CAMPO_PATCH: str = "patch_da_tentativa"
 CAMPO_PENDENCIA: str = "pendencia"
 CAMPO_COMMIT: str = "commit"
-CAMPO_CORRIGE: str = "corrige"
+# Na fatia de correção: a Evidence de verificação de onde ela nasceu. Nome próprio,
+# e não o `corrige` do escopo governado: o laço não depende das regras dele.
+CAMPO_CORRIGE: str = "corrige_verificacao"
 CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 
 # Na Question e na Evidence.

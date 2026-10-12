@@ -2,9 +2,9 @@
 
 `--spec <arquivo.md> --repo <pasta>` cria o Goal da spec e roda; `--goal <id>`
 roda ou retoma um Goal que já existe (o do gerente pede `--repo` na primeira
-vez). `--aprovar-plano` é o portão do modo supervisionado: aprova pelo mesmo
-gesto `aprovar_plano` do humano e segue o laço. `--status` só lê. O estado de
-cada Goal (área de trabalho, streams das sessões, patches e a trava do git)
+vez). `--aprovar-plano` é o portão do modo supervisionado: o humano grava a
+aprovação no próprio Goal (o portão é do orquestrador, e não do escopo
+governado) e o laço segue. `--status` só lê. O estado de cada Goal (área de trabalho, streams das sessões, patches e a trava do git)
 fica em `<pasta do banco>/orquestrar/<goal>/`.
 
 Sai com 0 quando o Goal fecha (ou no status), com 3 quando o laço para num
@@ -51,7 +51,7 @@ def registrar_comando_de_orquestrar(
     alvo.add_argument("--goal", help="ID de um Goal que ja existe (do gerente ou de uma chamada anterior): roda ou retoma")
     acao = parser.add_mutually_exclusive_group()
     acao.add_argument("--status", action="store_true", help="So mostra onde o Goal esta e quanto as sessoes custaram")
-    acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano (gesto aprovar_plano do humano) e segue")
+    acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano do Goal (portao do humano) e segue")
     parser.add_argument("--repo", default="", help="Repositorio git do trabalho (padrao: o diretorio atual)")
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--ramo", default="", help="Branch do Goal (padrao: graphow/<slug>)")

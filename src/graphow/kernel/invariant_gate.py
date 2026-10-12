@@ -20,6 +20,10 @@ from graphow.kernel.patch_models import (
 
 SEGMENTOS_DE_ELEMENTO_INTEIRO: int = 2
 PAPEIS_SEM_POSSE_DE_TAREFA: frozenset[PapelAutor] = frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})
+# O plano do orquestrador é dele (propriedades próprias do Goal e das Tasks, e o
+# portão `--aprovar-plano`), e as regras do escopo governado, que a fase 4 apaga,
+# não se aplicam às escritas dele. A isenção mora aqui, e não no escopo.
+PAPEIS_FORA_DO_ESCOPO_GOVERNADO: frozenset[PapelAutor] = frozenset({PapelAutor.ORQUESTRADOR})
 
 # Arestas que mudam o que uma Task é: do que depende, de onde vem, o que a
 # governa, o que a restringe, o que ela substitui e, no escopo governado, o que
@@ -71,9 +75,12 @@ class InvariantGate:
             lambda: self._validar_bloqueio_questoes(proposta, estrutura.antes),
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
-            lambda: validar_forma_do_escopo(proposta, estado),
-            lambda: validar_escopo_das_tarefas(proposta, estrutura),
         )
+        if proposta.papel not in PAPEIS_FORA_DO_ESCOPO_GOVERNADO:
+            verificacoes += (
+                lambda: validar_forma_do_escopo(proposta, estado),
+                lambda: validar_escopo_das_tarefas(proposta, estrutura),
+            )
         for verificar in verificacoes:
             resultado = verificar()
             if not resultado.aprovado:

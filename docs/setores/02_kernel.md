@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4779 linhas · 33 classes
+30 módulos · 4789 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,12 +24,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 375 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 382 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
-| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 141 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
+| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 144 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
@@ -268,6 +268,7 @@ Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invari
 | :--- | :--- | :--- |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
 | `PAPEIS_SEM_POSSE_DE_TAREFA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.HUMANO, PapelAutor.ORQUESTRADOR})` |
+| `PAPEIS_FORA_DO_ESCOPO_GOVERNADO` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.ORQUESTRADOR})` |
 | `ARESTAS_QUE_REDEFINEM_A_TAREFA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.DEPENDE_DE, TipoAresta.DECOMPOE, TipoAresta.ORIEN…` |
 | `VINCULO_DE_TRABALHO` | `str` | `"'produz' vinda de uma Sessao"` |
 | `VINCULO_ESPERADO` | `Mapping[TipoNo, str]` | `{TipoNo.SETOR: "'contem' vinda de um Projeto", TipoNo.SESSAO: "'contem'…` |
@@ -404,6 +405,7 @@ O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `PORTAO` | `str` | `'RoleGate'` |
+| `CAMPO_APROVACAO_DO_PLANO` | `str` | `'aprovacao_do_plano'` |
 | `SEGMENTOS_DO_ELEMENTO` | `int` | `2` |
 | `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
 | `CAMPO_STATUS` | `str` | `'status'` |

@@ -11,9 +11,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.core.models import NoGrafo
-from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
+from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.projection.escopo_plano import plano_vigente
 from graphow.projection.graph_view import GrafoView
 
 STATUS_NA_FILA: frozenset[str] = frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})
@@ -168,8 +167,14 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
         propriedades=goal.propriedades,
         fatias=_fatias(view, id_goal),
         verificacoes=_verificacoes(view, id_goal),
-        plano_aprovado=plano_vigente(view, id_goal) is not None,
+        plano_aprovado=_plano_aprovado_pelo_humano(goal),
     )
+
+
+def _plano_aprovado_pelo_humano(goal: NoGrafo) -> bool:
+    """O portão do plano do orquestrador: a aprovação que o humano gravou no Goal."""
+    aprovacao = goal.obter_propriedade(m.CAMPO_APROVACAO_DO_PLANO)
+    return isinstance(aprovacao, Mapping) and aprovacao.get("papel") == PapelAutor.HUMANO.value
 
 
 def _fatias(view: GrafoView, id_goal: str) -> tuple[FatiaRegistrada, ...]:
