@@ -4,7 +4,13 @@ from pathlib import Path
 import sqlite3
 
 from graphow.kernel.composicao import abrir_kernel_sqlite
-from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria, SessaoRegistrada, totalizar
+from graphow.storage.telemetria_de_sessoes import (
+    ESTADO_CONCLUIDA,
+    ESTADO_EM_ANDAMENTO,
+    RepositorioTelemetria,
+    SessaoRegistrada,
+    totalizar,
+)
 
 TOKENS: dict[str, int] = {"entrada": 10, "saida": 5, "cache_leitura": 100, "cache_criacao": 20, "total": 135}
 
@@ -73,3 +79,52 @@ def test_goals_nao_se_misturam_edge_case() -> None:
 
     assert repositorio.totais("goal-a").custo_usd == 0.5
     assert [registro.id_goal for registro in repositorio.listar("goal-b")] == ["goal-b"]
+
+
+def test_retomada_que_morreu_sem_custo_nao_zera_o_que_a_sessao_ja_tinha_dito_edge_case() -> None:
+    """Caso de borda: a primeira invocação disse 0.5, o `--resume` morreu sem `result`; valem 0.5 e um desconhecido."""
+    registros = (
+        _registro(custo_usd=0.5),
+        _registro(custo_usd=None, tokens=None, turnos=None, retomada=True, is_error=True, erro="sem evento result"),
+    )
+
+    totais = totalizar(registros)
+
+    assert (totais.sessoes, totais.custo_usd, totais.custos_desconhecidos, totais.tokens) == (1, 0.5, 1, 135)
+
+
+def test_linha_nasce_em_andamento_e_e_atualizada_no_fim_nominal() -> None:
+    """A linha existe antes de a sessão terminar; o fim reescreve a mesma linha."""
+    repositorio = RepositorioTelemetria(sqlite3.connect(":memory:"))
+    aberta = _registro(session_id="", fim="", duracao_s=0.0, custo_usd=None, tokens=None, estado=ESTADO_EM_ANDAMENTO)
+
+    id_linha = repositorio.registrar(aberta)
+    durante = repositorio.totais("goal-a")
+    repositorio.atualizar(id_linha, _registro())
+
+    assert (durante.em_andamento, durante.custos_desconhecidos) == (1, 1)
+    (linha,) = repositorio.listar("goal-a")
+    assert (linha.id_linha, linha.estado, linha.custo_usd) == (id_linha, ESTADO_CONCLUIDA, 0.5)
+
+
+def test_banco_de_antes_da_coluna_estado_ganha_a_coluna_ao_abrir_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a tabela criada pela versão anterior não tem `estado`; abrir a acrescenta, e o antigo vale concluído."""
+    caminho = tmp_path / "antigo.db"
+    conexao = sqlite3.connect(caminho)
+    conexao.execute(
+        "CREATE TABLE telemetria_de_sessoes (id INTEGER PRIMARY KEY AUTOINCREMENT, id_goal TEXT NOT NULL, "
+        "papel TEXT NOT NULL, fatia TEXT NOT NULL DEFAULT '', tentativa INTEGER NOT NULL DEFAULT 1, "
+        "session_id TEXT NOT NULL DEFAULT '', retomada INTEGER NOT NULL DEFAULT 0, modelo TEXT NOT NULL DEFAULT '', "
+        "inicio TEXT NOT NULL DEFAULT '', fim TEXT NOT NULL DEFAULT '', duracao_s REAL NOT NULL DEFAULT 0, "
+        "custo_usd REAL, tokens_json TEXT, turnos INTEGER, codigo_saida INTEGER, tempo_esgotado INTEGER NOT NULL DEFAULT 0, "
+        "is_error INTEGER NOT NULL DEFAULT 0, erro TEXT NOT NULL DEFAULT '', arquivo_stream TEXT NOT NULL DEFAULT '', "
+        "comando_json TEXT NOT NULL DEFAULT '[]');"
+    )
+    conexao.execute("INSERT INTO telemetria_de_sessoes (id_goal, papel, custo_usd) VALUES ('goal-a', 'executor', 1.25);")
+    conexao.commit()
+    conexao.close()
+
+    repositorio = RepositorioTelemetria(sqlite3.connect(caminho))
+
+    (antigo,) = repositorio.listar("goal-a")
+    assert (antigo.estado, antigo.custo_usd) == (ESTADO_CONCLUIDA, 1.25)

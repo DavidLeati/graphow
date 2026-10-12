@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-21 módulos · 3146 linhas · 42 classes
+21 módulos · 3199 linhas · 42 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,15 +22,15 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 286 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 172 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 173 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 261 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 133 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 283 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 232 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 283 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
-| [`orquestrador/status.py`](#orquestradorstatus) | 73 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
+| [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 66 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 183 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
@@ -638,7 +638,9 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 - `argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]` — O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
 - `ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]` — O JSON da sessão conferido, ou os problemas: o `structured_output`, senão o texto final como JSON.
 - `saida_conferida_da_telemetria(registros: Sequence[SessaoRegistrada], papel: str, problemas: Conferencia) -> Mapping[str, Any] | None` — A saída mais nova do papel, relida do stream gravado, que passa na conferência; None sem nenhuma.
-- `registro_da_invocacao(pedido: PedidoDePapel, resultado: ResultadoDeSessao) -> SessaoRegistrada` — A invocação como linha de telemetria.
+- `registro_em_andamento(pedido: PedidoDePapel, arquivo: Path) -> SessaoRegistrada` — A linha da invocação antes de a sessão abrir: quem, onde e desde quando.
+- `com_o_resultado(aberta: SessaoRegistrada, resultado: ResultadoDeSessao) -> SessaoRegistrada` — A linha da invocação com o fim dela; a sessão retomada que morreu sem dizer o id fica com o id retomado.
+- `recuperar_sessoes_em_andamento(telemetria: RepositorioTelemetria, id_goal: str) -> int` — As linhas que ficaram em andamento porque o orquestrador caiu; devolve quantas recuperou.
 - `resultados_da_telemetria(registros: Sequence[SessaoRegistrada]) -> tuple[ResultadoDeSessao, ...]` — As invocações relidas dos streams gravados, como a bancada as mede.
 
 ## `orquestrador/spec_do_goal.py`

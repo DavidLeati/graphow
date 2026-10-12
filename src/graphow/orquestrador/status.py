@@ -67,6 +67,7 @@ def _descrever(totais: TotaisDeTelemetria) -> str:
     """Invocações, sessões, custo, tokens e minutos."""
     desconhecidos = f" (+{totais.custos_desconhecidos} sem custo)" if totais.custos_desconhecidos else ""
     erros = f", {totais.com_erro} com erro" if totais.com_erro else ""
+    erros += f", {totais.em_andamento} em andamento" if totais.em_andamento else ""
     return (
         f"{totais.invocacoes} invocacao(oes) em {totais.sessoes} sessao(oes){erros} | US$ {totais.custo_usd:.2f}{desconhecidos} | "
         f"{totais.tokens} tokens | {totais.duracao_s / SEGUNDOS_POR_MINUTO:.1f} min"

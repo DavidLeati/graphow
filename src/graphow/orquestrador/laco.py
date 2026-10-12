@@ -37,7 +37,7 @@ from graphow.orquestrador.git_do_goal import AreaDoGoal, instalar_trava, prepara
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.planejamento import planejar
-from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel
+from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.verificacao_do_goal import verificar_ou_fechar
 from graphow.projection.graph_view import GrafoView
 
@@ -129,6 +129,7 @@ class Orquestrador:
             livro, estado, pedido_de_adocao(estado, opcoes, repositorio=repositorio, pasta_de_estado=pasta_de_estado)
         )
         configuracao = atualizar_configuracao(livro, configuracao, opcoes)
+        recuperar_sessoes_em_andamento(self._dependencias.telemetria, estado.id_goal)
         pasta = pasta_de_estado / estado.id_goal
         sessoes = SessoesDePapel(
             self._dependencias.executor,

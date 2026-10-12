@@ -11,14 +11,18 @@ Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
 A saída é conferida contra o schema e contra o sentido. A que não confere
 volta à mesma sessão (`--resume`) com a lista de problemas, uma vez; falhando
 de novo, o papel falhou. Cada invocação vira uma linha de telemetria, fora do
-grafo.
+grafo, que nasce `em_andamento` antes de a sessão abrir e fecha com o
+resultado; o stream de cada invocação tem nome próprio, e a refeita não
+apaga o da anterior. A linha que ficou em andamento porque o orquestrador
+caiu é recuperada do stream na chamada seguinte.
 """
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 import json
 from pathlib import Path
+import secrets
 from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
@@ -34,7 +38,13 @@ from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao, em_iso
-from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria, SessaoRegistrada
+from graphow.storage.telemetria_de_sessoes import (
+    ESTADO_CONCLUIDA,
+    ESTADO_EM_ANDAMENTO,
+    ESTADO_RECUPERADA,
+    RepositorioTelemetria,
+    SessaoRegistrada,
+)
 
 FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"),
@@ -115,14 +125,16 @@ class SessoesDePapel:
         return RespostaDePapel(None if problemas else dados, problemas, (primeira, segunda))
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
-        """Uma invocação de `claude -p`, registrada na telemetria."""
+        """Uma invocação de `claude -p`: a linha de telemetria nasce em andamento e fecha com o resultado."""
         sufixo = "-retomada" if retomar else ""
         nome = "-".join(parte for parte in (pedido.papel, pedido.fatia, f"t{pedido.tentativa}") if parte) + sufixo
+        arquivo = self._configuracao.pasta_das_sessoes / f"{nome}-{_marca_da_invocacao()}.jsonl"
+        modelo = pedido.modelo or self.modelo_do_papel(pedido.papel)
         pedido_de_sessao = PedidoDeSessao(
             prompt=prompt,
             pasta=pedido.pasta,
-            arquivo_stream=self._configuracao.pasta_das_sessoes / f"{nome}.jsonl",
-            modelo=pedido.modelo or self.modelo_do_papel(pedido.papel),
+            arquivo_stream=arquivo,
+            modelo=modelo,
             modo_de_permissao=self._configuracao.modo_de_permissao,
             retomar=retomar,
             banco_graphow=self._configuracao.banco_dos_hooks,
@@ -130,9 +142,16 @@ class SessoesDePapel:
             argumentos_extras=argumentos_do_papel(pedido.papel, pedido.orcamento_restante_usd),
             ambiente_extra=self._configuracao.ambiente_da_trava,
         )
+        aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
+        id_linha = self._telemetria.registrar(aberta)
         resultado = self._executor.rodar(pedido_de_sessao)
-        self._telemetria.registrar(registro_da_invocacao(pedido, resultado, retomada=bool(retomar)))
+        self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
         return resultado
+
+
+def _marca_da_invocacao() -> str:
+    """O instante e um sufixo aleatório: a invocação refeita não sobrescreve o stream da anterior."""
+    return f"{datetime.now():%Y%m%dT%H%M%S}-{secrets.token_hex(2)}"
 
 
 def argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]:
@@ -202,31 +221,63 @@ def _json_do_texto(texto: str) -> dict[str, Any] | None:
     return valor if isinstance(valor, dict) else None
 
 
-def registro_da_invocacao(pedido: PedidoDePapel, resultado: ResultadoDeSessao, *, retomada: bool) -> SessaoRegistrada:
-    """A invocação como linha de telemetria."""
-    tokens = resultado.tokens
+def registro_em_andamento(pedido: PedidoDePapel, arquivo: Path, *, retomar: str, modelo: str) -> SessaoRegistrada:
+    """A linha da invocação antes de a sessão abrir: quem, onde e desde quando."""
     return SessaoRegistrada(
         id_goal=pedido.id_goal, papel=pedido.papel, fatia=pedido.fatia, tentativa=pedido.tentativa,
-        session_id=resultado.session_id, retomada=retomada, modelo=resultado.leitura.modelo,
+        session_id=retomar, retomada=bool(retomar), modelo=modelo, inicio=em_iso(datetime.now().astimezone()),
+        arquivo_stream=str(arquivo), estado=ESTADO_EM_ANDAMENTO,
+    )
+
+
+def com_o_resultado(aberta: SessaoRegistrada, resultado: ResultadoDeSessao) -> SessaoRegistrada:
+    """A linha da invocação com o fim dela; a sessão retomada que morreu sem dizer o id fica com o id retomado."""
+    tokens = resultado.tokens
+    return replace(
+        aberta, session_id=resultado.session_id or aberta.session_id, modelo=resultado.leitura.modelo or aberta.modelo,
         inicio=em_iso(resultado.inicio), fim=em_iso(resultado.fim), duracao_s=resultado.duracao_s,
         custo_usd=resultado.custo_usd, tokens=tokens.em_dicionario() if tokens else None, turnos=resultado.turnos,
         codigo_saida=resultado.codigo_saida, tempo_esgotado=resultado.tempo_esgotado, is_error=resultado.is_error,
         erro=resultado.motivo_do_erro, arquivo_stream=str(resultado.arquivo_stream), comando=resultado.comando,
+        estado=ESTADO_CONCLUIDA,
+    )
+
+
+def recuperar_sessoes_em_andamento(telemetria: RepositorioTelemetria, id_goal: str) -> int:
+    """As linhas que ficaram em andamento porque o orquestrador caiu; devolve quantas recuperou.
+
+    A invocação cujo stream chegou ao `result` ganha o custo, os tokens e o id
+    dele; a que não chegou fica em andamento, com o custo desconhecido.
+    """
+    recuperadas = 0
+    for registro in telemetria.listar(id_goal):
+        relido = _relido(registro) if registro.estado == ESTADO_EM_ANDAMENTO else None
+        if relido is not None and relido.leitura.resultado is not None:
+            erro = "recuperada do stream: o orquestrador parou antes de registrar o fim"
+            linha = replace(com_o_resultado(registro, relido), estado=ESTADO_RECUPERADA, codigo_saida=None,
+                            is_error=relido.leitura.resultado.is_error, erro=erro)
+            telemetria.atualizar(registro.id_linha, linha)
+            recuperadas += 1
+    return recuperadas
+
+
+def _relido(registro: SessaoRegistrada) -> ResultadoDeSessao:
+    """A invocação relida do stream gravado; sem fim registrado, o fim é a última escrita do stream."""
+    caminho = Path(registro.arquivo_stream)
+    leitura = LeituraDoStream()
+    inicio = registro.inicio or em_iso(datetime.now().astimezone())
+    fim = registro.fim or inicio
+    if caminho.is_file():
+        with caminho.open(encoding="utf-8", errors="replace") as stream:
+            leitura = ler_stream(stream)
+        fim = registro.fim or em_iso(datetime.fromtimestamp(caminho.stat().st_mtime).astimezone())
+    return ResultadoDeSessao(
+        comando=registro.comando, arquivo_stream=caminho, inicio=datetime.fromisoformat(inicio),
+        fim=datetime.fromisoformat(fim), codigo_saida=registro.codigo_saida, tempo_esgotado=registro.tempo_esgotado,
+        leitura=leitura,
     )
 
 
 def resultados_da_telemetria(registros: Sequence[SessaoRegistrada]) -> tuple[ResultadoDeSessao, ...]:
     """As invocações relidas dos streams gravados, como a bancada as mede."""
-    resultados: list[ResultadoDeSessao] = []
-    for registro in registros:
-        caminho = Path(registro.arquivo_stream)
-        leitura = LeituraDoStream()
-        if caminho.is_file():
-            with caminho.open(encoding="utf-8", errors="replace") as stream:
-                leitura = ler_stream(stream)
-        resultados.append(ResultadoDeSessao(
-            comando=registro.comando, arquivo_stream=caminho, inicio=datetime.fromisoformat(registro.inicio),
-            fim=datetime.fromisoformat(registro.fim), codigo_saida=registro.codigo_saida,
-            tempo_esgotado=registro.tempo_esgotado, leitura=leitura,
-        ))
-    return tuple(resultados)
+    return tuple(_relido(registro) for registro in registros)

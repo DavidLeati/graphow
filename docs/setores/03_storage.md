@@ -10,7 +10,7 @@ Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões d
 
 ## Inventário
 
-13 módulos · 1699 linhas · 38 classes
+13 módulos · 1746 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,7 +25,7 @@ Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões d
 | [`storage/reparo_sequencia.py`](#storagereparosequencia) | 236 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
 | [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 89 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
 | [`storage/sqlite_store.py`](#storagesqlitestore) | 261 | Implementação SQLite append-only do repositório de eventos. |
-| [`storage/telemetria_de_sessoes.py`](#storagetelemetriadesessoes) | 174 | A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela própria do banco. |
+| [`storage/telemetria_de_sessoes.py`](#storagetelemetriadesessoes) | 221 | A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela própria do banco. |
 
 ## `storage/composicao.py`
 
@@ -408,6 +408,11 @@ A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela próp
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `DDL_TABELA_TELEMETRIA` | `str` | `"\n CREATE TABLE IF NOT EXISTS telemetria_de_sessoes (\n id INTEGER PRI…` |
+| `ESTADO_EM_ANDAMENTO` | `str` | `'em_andamento'` |
+| `ESTADO_CONCLUIDA` | `str` | `'concluida'` |
+| `ESTADO_RECUPERADA` | `str` | `'recuperada'` |
+| `COLUNA_DO_ESTADO` | `str` | `'estado'` |
+| `DDL_COLUNA_DO_ESTADO` | `str` | `f"ALTER TABLE telemetria_de_sessoes ADD COLUMN {COLUNA_DO_ESTADO} TEXT …` |
 | `DDL_INDICE_DO_GOAL` | `str` | `'CREATE INDEX IF NOT EXISTS idx_telemetria_goal ON telemetria_de_sessoe…` |
 | `COLUNAS` | `tuple[str, ...]` | `('id_goal', 'papel', 'fatia', 'tentativa', 'session_id', 'retomada', 'm…` |
 | `CHAVE_DO_TOTAL_DE_TOKENS` | `str` | `'total'` |
@@ -416,7 +421,8 @@ A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela próp
 
 *serviço* — A tabela de telemetria numa conexão SQLite: a do banco de eventos, ou uma própria nos testes.
 
-- `registrar(registro: SessaoRegistrada) -> None` — Acrescenta a invocação; a tabela só cresce.
+- `registrar(registro: SessaoRegistrada) -> int` — Acrescenta a invocação e devolve o id da linha.
+- `atualizar(id_linha: int, registro: SessaoRegistrada) -> None` — Reescreve a linha da invocação: a que nasceu em andamento recebe o fim dela.
 - `listar(id_goal: str) -> tuple[SessaoRegistrada, ...]` — As invocações do Goal, na ordem em que foram registradas.
 - `totais(id_goal: str) -> TotaisDeTelemetria` — Os totais do Goal inteiro.
 
@@ -424,7 +430,7 @@ A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela próp
 
 *DTO imutável* — Uma invocação de `claude -p` do orquestrador, como a tabela a guarda.
 
-**Campos:** `id_goal: str`, `papel: str`, `fatia: str`, `tentativa: int`, `session_id: str`, `retomada: bool`, `modelo: str`, `inicio: str`, `fim: str`, `duracao_s: float`, `custo_usd: float | None`, `tokens: Mapping[str, int] | None`, `turnos: int | None`, `codigo_saida: int | None`, `tempo_esgotado: bool`, `is_error: bool`, `erro: str`, `arquivo_stream: str`, `comando: tuple[str, ...]`
+**Campos:** `id_goal: str`, `papel: str`, `fatia: str`, `tentativa: int`, `session_id: str`, `retomada: bool`, `modelo: str`, `inicio: str`, `fim: str`, `duracao_s: float`, `custo_usd: float | None`, `tokens: Mapping[str, int] | None`, `turnos: int | None`, `codigo_saida: int | None`, `tempo_esgotado: bool`, `is_error: bool`, `erro: str`, `arquivo_stream: str`, `comando: tuple[str, ...]`, `estado: str`, `id_linha: int`
 
 - `tokens_total() -> int | None` `[property]` — A soma das quatro categorias, quando o resultado as disse.
 - `em_linha() -> tuple[Any, ...]` — Os valores na ordem das colunas.
@@ -434,9 +440,9 @@ A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela próp
 
 *DTO imutável* — O que as sessões de um Goal (ou de um papel dele) custaram, com o que não se sabe à parte.
 
-**Campos:** `invocacoes: int`, `sessoes: int`, `custo_usd: float`, `custos_desconhecidos: int`, `tokens: int`, `duracao_s: float`, `com_erro: int`
+**Campos:** `invocacoes: int`, `sessoes: int`, `custo_usd: float`, `custos_desconhecidos: int`, `tokens: int`, `duracao_s: float`, `com_erro: int`, `em_andamento: int`
 
 ### Funções do módulo
 
-- `totalizar(registros: Sequence[SessaoRegistrada]) -> TotaisDeTelemetria` — Soma por sessão a última invocação dela (o custo e os tokens acumulam no `--resume`).
+- `totalizar(registros: Sequence[SessaoRegistrada]) -> TotaisDeTelemetria` — Soma por sessão o último custo e os últimos tokens que ela declarou (eles acumulam no `--resume`).
 
