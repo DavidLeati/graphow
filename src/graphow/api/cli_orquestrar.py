@@ -85,7 +85,7 @@ def _registrar_pedidos_do_humano(acao: argparse._MutuallyExclusiveGroup, parser:
     acao.add_argument("--refazer-aceite", metavar="CRITERIO", default="", help="O autor de aceite refaz os testes do criterio (pede --motivo)")
     acao.add_argument("--retirar-criterio", metavar="CRITERIO", default="",
                       help="Tira o criterio da conta do fechamento (pede --motivo): a unica saida para fechar com ele reprovado")
-    parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar, recusar, refazer)")
+    parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar, recusar, refazer, retirar)")
 
 
 def _registrar_opcoes_do_git(parser: argparse.ArgumentParser) -> None:
