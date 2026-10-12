@@ -16,6 +16,7 @@ from tests.orquestrador.apoio_laco import (
     executor_pronto,
     montar_bancada,
     roteiro_completo,
+    segunda_opiniao,
     verificacao,
 )
 
@@ -126,3 +127,38 @@ def test_gravidade_vem_do_que_o_achado_toca_e_nao_da_severidade_edge_case() -> N
     assert Achado.de_json({**base, "decisoes": ["D1"], "severidade": "baixa"}).gravidade == "bloqueante"
     assert Achado.de_json({**base, "severidade": "alta"}).gravidade == "acompanhamento"
     assert Achado("suite", "vermelha", origem=ORIGEM_DO_ORQUESTRADOR).gravidade == "bloqueante"
+
+
+def test_segunda_opiniao_que_cita_o_criterio_torna_o_achado_bloqueante_nominal(tmp_path: Path) -> None:
+    """Acompanhamento 4: o achado sem citação vai a uma sessão curta; ela diz que fere C2, e ele vira bloqueante e correção."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("atende", [ACOMPANHAMENTO]), verificacao("atende")]
+    roteiro["segunda_opiniao"] = [segunda_opiniao("C2")]
+    roteiro["executor"].append(executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # calc\n"}))
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    achado = estado.verificacoes[0].achados[0]
+    assert achado.bloqueante and achado.lista("criterios") == ("C2",) and achado.texto("segunda_opiniao") == "fere C2"
+    pedido = bancada.chamadas("segunda_opiniao")[0]["stdin"]
+    assert "- C2: o README explica como usar somar" in pedido and "soma.py poderia ser calc.py" in pedido
+    assert [r.papel for r in bancada.telemetria.listar("goal-soma")].count("segunda_opiniao") == 1
+
+
+def test_segunda_opiniao_que_nao_responde_nao_rebaixa_o_achado_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: sem a segunda opinião, os dois não concordaram, e o achado sem citação fica bloqueante."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("atende", [ACOMPANHAMENTO]), verificacao("atende")]
+    roteiro["segunda_opiniao"] = [{"texto": "nao sei", "erro": True}]
+    roteiro["executor"].append(executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # calc\n"}))
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    achado = estado.verificacoes[0].achados[0]
+    assert achado.bloqueante and "sem acordo" in achado.texto("segunda_opiniao")

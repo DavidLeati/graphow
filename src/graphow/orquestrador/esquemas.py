@@ -19,7 +19,10 @@ PAPEL_EXECUTOR: str = "executor"
 # O revisor da fatia de risco, e só dela: julga o diff antes do commit.
 PAPEL_REVISOR: str = "revisor"
 PAPEL_VERIFICADOR: str = "verificador"
-PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_REVISOR, PAPEL_VERIFICADOR)
+# A sessão curta, sem ferramentas, que diz o que o achado sem citação fere (orquestrador/segunda_opiniao.py).
+PAPEL_SEGUNDA_OPINIAO: str = "segunda_opiniao"
+PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_REVISOR, PAPEL_VERIFICADOR,
+                           PAPEL_SEGUNDA_OPINIAO)
 # Os prompts de papel moram no pacote e vão à sessão por `--append-system-prompt-file`:
 # nada é instalado em ~/.claude para o orquestrador funcionar.
 PASTA_DOS_PROMPTS: Path = Path(__file__).parent / "prompts"
@@ -146,12 +149,15 @@ ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
     }
 )
 
+ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto({"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "motivo": TEXTO})
+
 ESQUEMA_POR_PAPEL: Mapping[str, Mapping[str, Any]] = {
     PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO,
     PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_ACEITE,
     PAPEL_EXECUTOR: ESQUEMA_DA_EXECUCAO,
     PAPEL_REVISOR: ESQUEMA_DA_REVISAO,
     PAPEL_VERIFICADOR: ESQUEMA_DA_VERIFICACAO,
+    PAPEL_SEGUNDA_OPINIAO: ESQUEMA_DA_SEGUNDA_OPINIAO,
 }
 
 

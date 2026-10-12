@@ -44,6 +44,7 @@ from graphow.orquestrador.saida_do_aceite import (
     rodar_testes,
 )
 from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, Verificacao, conferir_verificacao
+from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
 
@@ -62,7 +63,8 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
-    verificacao = _so_o_que_o_marco_julga(Verificacao.de_json(dados), estado, marco)
+    verificacao = com_a_segunda_opiniao(contexto, _so_o_que_o_marco_julga(Verificacao.de_json(dados), estado, marco),
+                                        textos=_textos_julgaveis(estado, marco))
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
     execucoes = _aceite_no_commit(contexto, estado, marco)
@@ -126,6 +128,14 @@ def criterios_ate_o_marco(estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple
     ids = [item.id for item in marcos]
     ate = marcos[: ids.index(marco.id) + 1] if marco.id in ids else (marco,)
     return tuple(dict.fromkeys(criterio for item in ate for criterio in item.criterios))
+
+
+def _textos_julgaveis(estado: EstadoDoGoal, marco: MarcoRegistrado) -> dict[str, str]:
+    """O texto de cada critério que os marcos até este completaram e de cada decisão do plano, pelo código."""
+    plano = estado.plano or {}
+    validos = set(criterios_ate_o_marco(estado, marco))
+    criterios = {str(c["id"]): str(c.get("texto", "")) for c in plano.get("criterios", []) if str(c["id"]) in validos}
+    return {**criterios, **{str(d["id"]): str(d.get("texto", "")) for d in plano.get("decisoes", [])}}
 
 
 def decisoes_do_plano(estado: EstadoDoGoal) -> tuple[str, ...]:

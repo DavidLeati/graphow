@@ -121,6 +121,12 @@ def revisao(veredito: str = "aprovado", **campos: Any) -> dict[str, Any]:
     return {"saida": {"veredito": veredito, "resumo": "diff lido e testes rodados", "problemas": problemas}, "custo": 0.2, **campos}
 
 
+def segunda_opiniao(*criterios: str, **campos: Any) -> dict[str, Any]:
+    """Uma resposta da segunda opinião sobre o achado sem citação: os critérios que ele fere (nenhum, sem argumentos)."""
+    motivo = "fere " + ", ".join(criterios) if criterios else "e so gosto: ninguem pediu"
+    return {"saida": {"criterios": list(criterios), "decisoes": [], "motivo": motivo}, "custo": 0.01, **campos}
+
+
 def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
     """Plano, aceite, duas fatias, verificação com bloqueante, correção e verificação limpa."""
     return {
@@ -133,6 +139,7 @@ def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
         ],
         "verificador": [verificacao("parcial", [BLOQUEANTE_DO_README]), verificacao("atende", [ACOMPANHAMENTO])],
         "revisor": [revisao() for _ in range(3)],
+        "segunda_opiniao": [segunda_opiniao() for _ in range(6)],
     }
 
 

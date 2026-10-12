@@ -39,6 +39,7 @@ from graphow.orquestrador.esquemas import (
     PAPEL_EXECUTOR,
     PAPEL_PLANEJADOR,
     PAPEL_REVISOR,
+    PAPEL_SEGUNDA_OPINIAO,
     PAPEL_VERIFICADOR,
     caminho_do_prompt,
 )
@@ -62,6 +63,7 @@ FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
     PAPEL_REVISOR: ("Bash", "Read", "Glob", "Grep"),
     PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_SEGUNDA_OPINIAO: (),
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"
 MODELO_PADRAO: str = "opus"
@@ -69,7 +71,7 @@ MODELO_PADRAO: str = "opus"
 RECUOS_DO_ERRO_DA_API_S: tuple[float, ...] = (30.0, 120.0, 300.0)
 # Escrever testes de aceite não pede o Opus: na bancada, o autor custou de US$ 1,35 a
 # 2,15 por Goal, a maior parte em saída. O padrão dele é o Sonnet; `--modelo-aceite` muda.
-MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {"aceite": "sonnet"}
+MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {"aceite": "sonnet", "segunda_opiniao": "sonnet"}
 
 
 def modelo_padrao(papel: str) -> str:

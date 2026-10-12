@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-39 módulos · 6507 linhas · 60 classes
+40 módulos · 6601 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 59 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 97 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 160 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 166 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 226 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 68 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
@@ -42,16 +42,17 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 267 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 187 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 189 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 247 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 339 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 74 | A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 341 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 105 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 142 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 208 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 218 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 
 ## `orquestrador/aceite_intocado.py`
 
@@ -270,6 +271,7 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `PAPEL_EXECUTOR` | `str` | `'executor'` |
 | `PAPEL_REVISOR` | `str` | `'revisor'` |
 | `PAPEL_VERIFICADOR` | `str` | `'verificador'` |
+| `PAPEL_SEGUNDA_OPINIAO` | `str` | `'segunda_opiniao'` |
 | `PAPEIS` | `tuple[str, ...]` | `(PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_REVISOR…` |
 | `PASTA_DOS_PROMPTS` | `Path` | `Path(__file__).parent / 'prompts'` |
 | `LIMITE_DO_PROMPT_BYTES` | `int` | `5 * 1024` |
@@ -298,6 +300,7 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `COMANDO_RODADO` | `dict[str, Any]` | `_objeto({'comando': TEXTO, 'codigo': {'type': 'integer'}, 'saida': TEXT…` |
 | `ACHADO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
 | `ESQUEMA_DA_VERIFICACAO` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'comandos': _lista_de(COMANDO_RODADO, 1), 'cr…` |
+| `ESQUEMA_DA_SEGUNDA_OPINIAO` | `dict[str, Any]` | `_objeto({'criterios': LISTA_DE_TEXTOS, 'decisoes': LISTA_DE_TEXTOS, 'mo…` |
 | `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_…` |
 
 ### Funções do módulo
@@ -940,10 +943,10 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 
 *DTO imutável* — Um problema achado na verificação: o que é, a prova, onde, o que ele toca e de quem veio.
 
-**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`
+**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`, `segunda_opiniao: str`, `sem_acordo: bool`
 
 - `toca() -> tuple[str, ...]` `[property]` — Os critérios e as decisões que o achado toca, sem repetir.
-- `gravidade() -> str` `[property]` — Bloqueante quando toca critério ou decisão, ou quando foi o orquestrador quem viu falhar; senão acompanhamento.
+- `gravidade() -> str` `[property]` — Bloqueante quando toca critério ou decisão, quando o orquestrador viu falhar ou quando a segunda opinião não concordou.
 - `em_json() -> dict[str, Any]` — O achado para a lista de pendências e para o nó Achado.
 - `de_json(dados: Mapping[str, Any]) -> 'Achado'` — O achado como o verificador o devolveu.
 
@@ -1043,6 +1046,19 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 
 - `conferir_plano(plano: Plano, fixados: IdsFixados) -> tuple[str, ...]` — Os problemas de sentido do plano; vazio quando ele pode ser gravado.
 
+## `orquestrador/segunda_opiniao.py`
+
+A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MOTIVO_SEM_RESPOSTA` | `str` | `'a segunda opiniao nao respondeu: sem acordo, o achado nao se rebaixa'` |
+
+### Funções do módulo
+
+- `com_a_segunda_opiniao(contexto: ContextoDoGoal, verificacao: Verificacao) -> Verificacao` — A verificação com cada achado sem citação julgado de novo, numa sessão própria, contra os critérios e decisões dados.
+- `briefing_da_segunda_opiniao(achado: Achado, textos: Mapping[str, str]) -> str` — O pedido: os critérios e as decisões com o texto, e o achado inteiro.
+
 ## `orquestrador/sessoes_de_papel.py`
 
 A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria.
@@ -1053,7 +1069,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 | `MODO_DE_PERMISSAO_PADRAO` | `str` | `'bypassPermissions'` |
 | `MODELO_PADRAO` | `str` | `'opus'` |
 | `RECUOS_DO_ERRO_DA_API_S` | `tuple[float, ...]` | `(30.0, 120.0, 300.0)` |
-| `MODELOS_PADRAO_POR_PAPEL` | `Mapping[str, str]` | `{'aceite': 'sonnet'}` |
+| `MODELOS_PADRAO_POR_PAPEL` | `Mapping[str, str]` | `{'aceite': 'sonnet', 'segunda_opiniao': 'sonnet'}` |
 | `FONTES_DE_CONFIGURACAO` | `str` | `'project'` |
 | `ORCAMENTO_MINIMO_DA_SESSAO_USD` | `float` | `0.05` |
 

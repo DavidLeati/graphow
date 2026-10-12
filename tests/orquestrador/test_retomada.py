@@ -31,6 +31,7 @@ from tests.orquestrador.apoio_laco import (
     executor_pronto,
     montar_bancada,
     revisao,
+    segunda_opiniao,
     verificacao,
 )
 
@@ -46,6 +47,7 @@ def roteiro_farto(vezes: int = 6) -> dict[str, list[dict[str, Any]]]:
         "revisor": [revisao() for _ in range(vezes)],
         "executor": [executor_pronto(dict(TUDO)) for _ in range(vezes)],
         "verificador": [verificacao("atende") for _ in range(vezes)],
+        "segunda_opiniao": [segunda_opiniao() for _ in range(vezes)],
     }
 
 

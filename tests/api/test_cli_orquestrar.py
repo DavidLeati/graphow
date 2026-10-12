@@ -55,7 +55,7 @@ def test_orquestrar_da_spec_fecha_o_goal_e_o_status_mostra_o_custo_nominal(tmp_p
     assert (tmp_path / "dados" / "orquestrar" / "goal-soma" / "sessoes").is_dir()
     assert codigo_do_status == 0
     assert status[1].startswith("Goal goal-soma: Soma de dois numeros [fechado]")
-    assert any(linha.startswith("Sessoes: 7 invocacao(oes)") and "US$ 2.50" in linha for linha in status)
+    assert any(linha.startswith("Sessoes: 8 invocacao(oes)") and "US$ 2.51" in linha for linha in status)
 
 
 def test_status_de_goal_que_nao_existe_sai_com_1_edge_case(tmp_path: Path) -> None:

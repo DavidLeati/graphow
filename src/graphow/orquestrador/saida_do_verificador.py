@@ -53,6 +53,8 @@ class Achado:
     decisoes: tuple[str, ...] = ()
     severidade: str = ""
     origem: str = ORIGEM_DO_VERIFICADOR
+    segunda_opiniao: str = ""
+    sem_acordo: bool = False
 
     @property
     def toca(self) -> tuple[str, ...]:
@@ -61,8 +63,8 @@ class Achado:
 
     @property
     def gravidade(self) -> str:
-        """Bloqueante quando toca critério ou decisão, ou quando foi o orquestrador quem viu falhar; senão acompanhamento."""
-        if self.toca or self.origem == ORIGEM_DO_ORQUESTRADOR:
+        """Bloqueante quando toca critério ou decisão, quando o orquestrador viu falhar ou quando a segunda opinião não concordou."""
+        if self.toca or self.origem == ORIGEM_DO_ORQUESTRADOR or self.sem_acordo:
             return a.GRAVIDADE_BLOQUEANTE
         return a.GRAVIDADE_ACOMPANHAMENTO
 
@@ -70,7 +72,7 @@ class Achado:
         """O achado para a lista de pendências e para o nó Achado."""
         return {"gravidade": self.gravidade, "titulo": self.titulo, "descricao": self.descricao, "prova": self.prova,
                 "local": self.local, "criterios": list(self.criterios), "decisoes": list(self.decisoes),
-                "severidade": self.severidade, "origem": self.origem}
+                "severidade": self.severidade, "origem": self.origem, "segunda_opiniao": self.segunda_opiniao}
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Achado":
