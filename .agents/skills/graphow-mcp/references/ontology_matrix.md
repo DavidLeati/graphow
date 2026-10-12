@@ -37,7 +37,7 @@ Camada de trabalho:
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | humano; árbitro, se a política lhe entrega `responder_questao` (e não a da Question que ele abriu) |
 | `justifica` | `Evidence`→`Decision` | humano, planejador, executor, revisor, árbitro | humano, planejador, executor, revisor, árbitro |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence`, `Evidence`→`Aprendizado` | humano, executor, revisor | humano, executor, revisor |
-| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Evidence`→`Artifact`, `Evidence`→`Task`, `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
+| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Evidence`→`Artifact`, `Evidence`→`Task`, `Evidence`→`Goal` (a verificação do Goal), `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
 | `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | humano; árbitro, se a política lhe entrega `constraint` | humano; árbitro, idem |
 | `vale_para` | `Aprendizado`→`Projeto`, `Aprendizado`→`Setor` | humano; árbitro, se a política lhe entrega `promover_aprendizado` (e não o Aprendizado que ele registrou) | humano; árbitro, idem |
 | `orienta` | `Decision`→`Task`, `Decision`→`Goal` | humano, planejador | humano, planejador |
@@ -58,6 +58,7 @@ Num projeto de autonomia estrita:
 - `executor`: `Artifact`, `Evidence`, `Decision`, `Question`, `Note`, `Aprendizado`.
 - `revisor`: `Evidence`, `Question`, `Note`, `Aprendizado`. Registra `Aprendizado` quem detém `deriva_de`, a aresta de origem que ele exige.
 - `sistema`, a identidade do harness: `Run`, `Sessao` e, quando o hook roda sem `--setor`, o ambiente padrão da memória (o `Projeto` com o nome do repositório e o `Setor` `Memoria`). Nada do grafo de trabalho.
+- `orquestrador`, a identidade do `graphow orquestrar`: grava o livro-razão do Goal que conduz (o Goal e a Sessao dele, critérios como `Constraint`, decisões, fatias como `Task`, dúvidas como `Question` aberta, commits como `Artifact`, verificações como `Evidence` ligada ao Goal) e fecha fatia e Goal sem posse nem veredito por Task. Não cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele. As arestas dele não seguem a tabela acima: o contrato é `kernel/papel_do_orquestrador.py`.
 - `arbitro`: `Evidence`, `Decision` e `Note`. O resto vem da política do projeto do alvo: `Constraint` com o gesto `constraint`, e os demais tipos sob `estrutura: ilimitado`. Não cria `Governanca` nem `Projeto`.
 - `humano`: todos os 14.
 

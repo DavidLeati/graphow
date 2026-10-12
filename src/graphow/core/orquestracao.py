@@ -63,9 +63,9 @@ VEREDITO_REJEITADO: str = "rejeitado"
 CAMPO_TRIAGEM: str = "triagem"
 TRIAGEM_FORA_DA_TRILHA: str = "fora_da_trilha"
 
-# Na Decision do condutor que aceita a entrega depois da segunda reprovação,
-# quando nenhum critério não atendido é bloqueante: é por ela que a medição
-# conta os aceites pelo teto de correções.
+# Na Decision que aceita a entrega depois da segunda reprovação, quando nenhum
+# critério não atendido é bloqueante (o condutor da orquestração por LLM a
+# gravava): é por ela que a medição conta os aceites pelo teto de correções.
 CAMPO_ACAO: str = "acao"
 ACAO_ACEITE_APOS_REPROVACAO: str = "aceite_apos_reprovacao"
 

@@ -2,8 +2,9 @@
 
 Junta as três metades: o grafo diz o ramo base, os globs e os caminhos que o
 Goal toca; o git diz o que o ramo base ganhou desde o merge-base; o cruzamento
-puro diz o que colide. O condutor roda o comando ao situar a rodada e, com
-colisão, não despacha tarefa nos caminhos de colisão: quem integra é o humano.
+puro diz o que colide. O condutor da orquestração por LLM (que saiu na fase 1)
+rodava o comando ao situar a rodada; a fase 3 troca a conferência pelo rebase
+do orquestrador antes do merge. Quem integra com colisão é o humano.
 
 O código de saída segue o de `docs-gerar --conferir`: 0 quando não há o que
 apontar, inclusive sem `ramo_base` resolvido, 1 quando há colisão. O 2 diz que

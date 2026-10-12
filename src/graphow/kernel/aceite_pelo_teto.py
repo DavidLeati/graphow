@@ -1,7 +1,8 @@
 """O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado.
 
 Depois da segunda reprovação, quando nenhum critério não atendido é bloqueante,
-o condutor aceita a entrega com uma Decision de ação `aceite_apos_reprovacao`.
+o planejador (o condutor da orquestração por LLM, que saiu na fase 1) aceitava a
+entrega com uma Decision de ação `aceite_apos_reprovacao`.
 O kernel não deixa o executor se declarar aceito nem deixa o aceite virar um
 veredito falso do revisor: a Decision precisa orientar a Task, ter sido criada
 por quem pode aceitar (planejador, humano ou árbitro, pela proveniência do nó)

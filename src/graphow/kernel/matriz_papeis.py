@@ -66,8 +66,8 @@ TIPOS_LIBERADOS_POR_GESTO: Mapping[TipoNo, Gesto] = {TipoNo.CONSTRAINT: Gesto.CO
 # quem julga o escreve, e só o veredito de quem julga conta para o fechar. Sem
 # isso o executor criava a própria aprovação, ou trocava a do revisor.
 PAPEIS_QUE_JULGAM: frozenset[PapelAutor] = frozenset({PapelAutor.REVISOR, PapelAutor.HUMANO, PapelAutor.ARBITRO})
-# O aceite pelo teto de correções é do condutor (planejador), do humano ou do
-# árbitro: o executor que fecha a Task não decide aceitar a própria entrega.
+# O aceite pelo teto de correções é do planejador, do humano ou do árbitro: o
+# executor que fecha a Task não decide aceitar a própria entrega.
 PAPEIS_QUE_ACEITAM_A_ENTREGA: frozenset[PapelAutor] = frozenset(
     {PapelAutor.PLANEJADOR, PapelAutor.HUMANO, PapelAutor.ARBITRO}
 )

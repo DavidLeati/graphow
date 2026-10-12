@@ -9,10 +9,11 @@ Sem consumo, o Run grava por quê (`motivo_sem_consumo`). Antes todo caso virava
 o mesmo None, e o Run sem tokens não dizia se faltou o id do agente, o caminho,
 o arquivo ou a leitura: cada causa pede um conserto diferente.
 
-A cota do plano entra pelo mesmo caminho. A raiz a escreve no despacho do
-condutor, e o Run dele grava a do início da rodada; ela a escreve de novo ao
-parar o laço, e o Run da sessão grava a do fim. Um executor despachado pelo
-condutor não recebe a linha, e o Run dele fica sem cota.
+A cota do plano entra pelo mesmo caminho. Na orquestração por LLM, que saiu na
+fase 1, a raiz a escrevia no despacho do condutor, e o Run dele gravava a do
+início da rodada; ela a escrevia de novo ao parar o laço, e o Run da sessão
+gravava a do fim. A leitura segue para quem escrever a linha, e para o log
+antigo que `orquestracao-medir` ainda mede.
 """
 
 from pathlib import Path

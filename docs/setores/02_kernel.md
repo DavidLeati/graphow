@@ -10,11 +10,11 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4778 linhas · 33 classes
+30 módulos · 4779 linhas · 33 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 40 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
+| [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 41 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
 | [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |

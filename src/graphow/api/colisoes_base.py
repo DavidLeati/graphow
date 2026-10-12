@@ -37,8 +37,9 @@ class Colisao:
 def normalizar_caminho(caminho: str) -> str:
     """O caminho relativo à raiz do repositório como o git o escreve: barra normal e sem `./` na frente.
 
-    O `arquivos_alvo` é escrito à mão pelo condutor, às vezes com a barra do
-    Windows, e o git sempre devolve a barra normal.
+    O `arquivos_alvo` era escrito à mão pelo condutor da orquestração por LLM
+    (que saiu na fase 1), às vezes com a barra do Windows, e o git sempre
+    devolve a barra normal.
     """
     limpo = caminho.strip().replace("\\", "/")
     while limpo.startswith("./"):

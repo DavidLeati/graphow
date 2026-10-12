@@ -1,6 +1,6 @@
 # Cookbook de JSON Patch (RFC 6902)
 
-Patches prontos para `propor_patch`, por papel. Nenhum deles declara o papel do autor: ele é fixado na abertura da sessão MCP (`graphow mcp --papel <papel>`) e qualquer chamada que o traga nos argumentos é recusada.
+Patches prontos para `propor_patch`, por papel. Nenhum deles declara o papel do autor: ele é fixado na abertura da sessão MCP e qualquer chamada que o traga nos argumentos é recusada. O servidor só abre como `humano` desde a fase 1; os patches dos outros papéis mostram os contratos que o kernel aplica, para quem escreve em processo e para ler o log antigo.
 
 ## planejador: decompor em tarefas com dependência
 

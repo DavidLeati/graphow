@@ -181,7 +181,7 @@ def _registrar_comando_de_orquestracao(
         "--por-rodada",
         action="store_true",
         help=(
-            "Acrescenta a cada Goal uma linha por rodada do condutor: minutos, tarefas concluidas, "
+            "Acrescenta a cada Goal uma linha por rodada do condutor (orquestracao anterior a fase 1): minutos, tarefas concluidas, "
             "vereditos e tokens na janela dela e a variacao de cota. Vale com ou sem --goal"
         ),
     )
@@ -215,8 +215,7 @@ def _registrar_comando_de_colisoes(
 ) -> None:
     """Registra a conferência do Goal contra o ramo base em que ele vai ser integrado.
 
-    Lê o banco e roda git no repositório, sem escrever em nenhum dos dois: o
-    condutor só pode rodar comandos de leitura.
+    Lê o banco e roda git no repositório, sem escrever em nenhum dos dois.
     """
     parser_colisoes = subparsers.add_parser(
         "base-colisoes",

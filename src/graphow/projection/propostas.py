@@ -4,7 +4,7 @@ Uma descoberta que não atende a nenhum critério de aceite não vira Task: vira
 Note `acao: proposta_fora_do_goal`, e o humano a fecha mudando o `status` para
 `aceita` ou `descartada`. Esta projeção lê as que seguem abertas, com o Projeto
 ancestral, a origem (`deriva_de`, ou a propriedade `origens` quando quem propõe é o planejador, que não é dono da aresta) e a sessão que a produziu. Nunca entra na fila
-do condutor nem na vista do planejador.
+de trabalho nem na vista do planejador.
 
 O Projeto sai do rastreio do kernel, o mesmo que decide a política de governança:
 uma busca própria por arestas de entrada poderia achar outro Projeto.

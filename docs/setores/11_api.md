@@ -10,7 +10,7 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2010 linhas · 20 classes
+13 módulos · 2011 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,10 +19,10 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 255 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_orquestrar.py`](#apicliorquestrar) | 157 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
-| [`api/cli_parser.py`](#apicliparser) | 381 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 380 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
-| [`api/colisoes_base.py`](#apicolisoesbase) | 95 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
-| [`api/conferencia_base.py`](#apiconferenciabase) | 100 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
+| [`api/colisoes_base.py`](#apicolisoesbase) | 96 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
+| [`api/conferencia_base.py`](#apiconferenciabase) | 101 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
 | [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
 | [`api/git_ramo_base.py`](#apigitramobase) | 107 | O que o ramo base ganhou desde que o ramo do Goal saiu dele, perguntado ao git. |
 | [`api/sse_transport.py`](#apissetransport) | 36 | Transporte de eventos para visualizadores de Canvas via SSE / AG-UI Protocol. |

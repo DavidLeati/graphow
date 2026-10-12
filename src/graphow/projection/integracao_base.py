@@ -2,7 +2,7 @@
 
 Num goal real, o ramo base ganhou migrations com os mesmos números que o Goal
 usava, e só se soube no merge, dias depois: a renumeração levou duas horas.
-Para conferir cedo, o condutor precisa saber em que ramo o trabalho vai ser
+Para conferir cedo, quem conduz o Goal precisa saber em que ramo o trabalho vai ser
 integrado e que caminhos colidem sem tocar o mesmo arquivo. O humano grava as
 duas propriedades no Goal, no Setor ou no Projeto, e o Goal herda cada uma do
 primeiro que a tiver.

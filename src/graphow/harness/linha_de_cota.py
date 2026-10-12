@@ -3,7 +3,8 @@
 A raiz lê o uso do plano depois de cada rodada e nada disso ficava gravado: a
 análise de um goal real refez a conta à mão, rodada por rodada. A raiz não
 escreve no grafo, e é bom que continue assim. Ela passa a escrever a leitura
-em texto, no despacho do condutor e na mensagem em que para o laço, e o harness,
+em texto, no despacho do condutor e na mensagem em que para o laço (a
+orquestração por LLM, que saiu na fase 1), e o harness,
 que já lê as transcrições, grava os números no Run.
 
 O formato é de gente, então a leitura é tolerante: o `%` é opcional, a vírgula

@@ -10,12 +10,12 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 
 ## Inventário
 
-15 módulos · 1804 linhas · 20 classes
+15 módulos · 1806 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`harness/ambiente_padrao.py`](#harnessambientepadrao) | 205 | O ambiente padrão da memória: o Projeto do repositório e o Setor `Memoria` dentro dele. |
-| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 83 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
+| [`harness/consumo_do_disparo.py`](#harnessconsumododisparo) | 84 | O que cada disparo do hook acrescenta ao Run: o consumo lido da transcrição e quem executou. |
 | [`harness/convention_adapter.py`](#harnessconventionadapter) | 87 | Adaptador de fallback baseado em convenção de chamada explícita. |
 | [`harness/entrada_hook.py`](#harnessentradahook) | 130 | Leitura do JSON que o ambiente entrega na entrada padrão do hook. |
 | [`harness/forma_da_transcricao.py`](#harnessformadatranscricao) | 207 | A forma do contexto de uma execução: quanto cada turno carregou, o que as ferramentas devolveram, onde parou e o que leu. |
@@ -23,7 +23,7 @@ Ponto de entrada para hooks de ambiente registrarem sessões e execuções, sob 
 | [`harness/identidade_harness.py`](#harnessidentidadeharness) | 30 | Identidade sob a qual um harness registra sessões e execuções no grafo. |
 | [`harness/interfaces.py`](#harnessinterfaces) | 43 | Interface abstrata para adaptadores de ciclo de vida do harness. |
 | [`harness/leitura_por_shell.py`](#harnessleituraporshell) | 110 | Os caminhos que um comando de shell lê, tirados do texto do comando por heurística conservadora. |
-| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 55 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
+| [`harness/linha_de_cota.py`](#harnesslinhadecota) | 56 | A linha `Cota: 5h <n>%, semana <n>%` que a raiz escreve, lida de volta da transcrição. |
 | [`harness/repositorio.py`](#harnessrepositorio) | 60 | Do diretório de trabalho ao nome do projeto: o repositório é a unidade natural da memória. |
 | [`harness/retomada.py`](#harnessretomada) | 197 | A vista de retomada: o que o hook de início imprime para o agente ler antes de trabalhar. |
 | [`harness/servico_harness.py`](#harnessservicoharness) | 176 | Serviço que liga os hooks do ambiente ao grafo: abre, marca e fecha a execução. |
