@@ -351,3 +351,24 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   `atende` para cada critério e nenhum `Achado` bloqueante fora de `resolvido`
   ou `descartado`. Vale para todo papel, o humano inclusive, e recusa com
   `fechamento_sem_verificacao_limpa` (kernel/fechamento_do_goal.py).
+- **O livro do aceite não se reescreve** (kernel/livro_do_aceite.py, para todo
+  papel, o humano inclusive). A verificação do Goal só o `orquestrador` a cria,
+  com `numero` inteiro, `final` e `veredito` válidos, e depois ninguém a edita,
+  remove nem desliga. O `Achado` só o `orquestrador` cria, derivando no mesmo
+  lote da verificação ou da revisão de risco que o achou; ele não se remove,
+  só o `estado` muda e só pelas transições do livro: `aberto` para `corrigido`
+  (orquestrador, com `commit_da_correcao`), `aberto` ou `corrigido` para
+  `resolvido` (orquestrador) e para `descartado` (humano, com
+  `motivo_do_descarte`); nada volta a `aberto`. O `Criterio` não se remove, o que
+  as verificações e o aceite lhe dão é do orquestrador, a ligação dele ao Goal
+  conduzido é do orquestrador e não sai, e `fere` é do orquestrador. No Goal,
+  `ponta_do_ramo`, `orquestracao`, `plano` e `aceite` são do orquestrador. O Goal
+  do aceite só vai a `concluido` pelo orquestrador, num lote em que o
+  fechamento é a única mudança (o status e `integrado_em` do Goal e o status da
+  Sessao dele); o humano o põe em `cancelado`, com `motivo_do_cancelamento`.
+  Recusa com `alteracao_do_livro_do_aceite`.
+- **A última verificação** é a mais nova no log, não a de maior número. Ela é
+  limpa com veredito `aprovado`, ou quando todo Achado bloqueante dela foi
+  resolvido ou descartado pelo humano; o critério sem `atende` vale quando todo
+  Achado dela que o fere foi descartado; o `Criterio` que uma Decision do humano
+  tirou do plano (`retirado`) sai da conta.

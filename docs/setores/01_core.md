@@ -10,16 +10,16 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 
 ## Inventário
 
-13 módulos · 1426 linhas · 38 classes
+13 módulos · 1453 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`core/aceite.py`](#coreaceite) | 74 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
+| [`core/aceite.py`](#coreaceite) | 98 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
 | [`core/composicao_governanca.py`](#corecomposicaogovernanca) | 61 | Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva. |
 | [`core/escopo.py`](#coreescopo) | 33 | Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem. |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
-| [`core/falhas.py`](#corefalhas) | 88 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
+| [`core/falhas.py`](#corefalhas) | 91 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
 | [`core/governanca.py`](#coregovernanca) | 380 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
@@ -66,6 +66,7 @@ O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escre
 | `CAMPO_CHECAGEM` | `str` | `'checagem'` |
 | `CAMPO_JA_ATENDIDO` | `str` | `'ja_atendido'` |
 | `CAMPO_COMMIT_DO_ACEITE` | `str` | `'commit_do_aceite'` |
+| `CAMPO_RETIRADO` | `str` | `'retirado'` |
 | `PROPRIEDADES_DERIVADAS_DO_CRITERIO` | `frozenset[str]` | `frozenset({CAMPO_ESTADO, CAMPO_TESTES_DE_ACEITE, CAMPO_CHECAGEM, CAMPO_…` |
 | `CAMPO_GRAVIDADE` | `str` | `'gravidade'` |
 | `GRAVIDADE_BLOQUEANTE` | `str` | `'bloqueante'` |
@@ -77,6 +78,16 @@ O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escre
 | `ESTADO_DESCARTADO` | `str` | `'descartado'` |
 | `ESTADO_DO_ACOMPANHAMENTO` | `str` | `'pendente'` |
 | `ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE` | `frozenset[str]` | `frozenset({ESTADO_RESOLVIDO, ESTADO_DESCARTADO})` |
+| `ACAO_DA_REVISAO_DE_RISCO` | `str` | `'revisao_de_risco'` |
+| `CAMPO_COMMIT_DA_CORRECAO` | `str` | `'commit_da_correcao'` |
+| `CAMPO_MOTIVO_DO_DESCARTE` | `str` | `'motivo_do_descarte'` |
+| `CAMPO_ACEITE` | `str` | `'aceite'` |
+| `CAMPO_STATUS` | `str` | `'status'` |
+| `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
+| `PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL` | `frozenset[str]` | `frozenset({CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEI…` |
+| `STATUS_CONCLUIDO` | `str` | `'concluido'` |
+| `STATUS_CANCELADO` | `str` | `'cancelado'` |
+| `CAMPO_MOTIVO_DO_CANCELAMENTO` | `str` | `'motivo_do_cancelamento'` |
 
 ## `core/composicao_governanca.py`
 

@@ -162,7 +162,8 @@ class LivroRazaoDoGoal:
                 aresta(id_artefato, id_task, TipoAresta.DERIVA_DE),
                 propriedade(id_task, m.CAMPO_COMMIT, commit),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_CONCLUIDO),
-                *([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO)] if achado else []),
+                *([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO), propriedade(achado, a.CAMPO_COMMIT_DA_CORRECAO, commit)]
+                  if achado else []),
             ],
             f"Fatia {id_task} concluida em {commit[:12]}",
         )

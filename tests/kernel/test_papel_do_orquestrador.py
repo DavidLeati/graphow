@@ -223,10 +223,12 @@ def test_adocao_do_goal_do_gerente_abre_o_alcance_do_orquestrador_nominal() -> N
 
     adocao = _submeter(kernel, _adocao())
     fatia = _submeter(kernel, [*_produzido("f1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "f1", TipoAresta.DECOMPOE)])
-    fechamento = _submeter(kernel, [*_prova_do_fechamento(), _propriedade("goal", "status", "concluido")])
+    prova = _submeter(kernel, _prova_do_fechamento())
+    fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido")])
 
     assert adocao.sucesso, adocao.mensagem
     assert fatia.sucesso, fatia.mensagem
+    assert prova.sucesso, prova.mensagem
     assert fechamento.sucesso, fechamento.mensagem
 
 
@@ -308,9 +310,9 @@ def test_cada_goal_do_mesmo_setor_segue_no_proprio_lote_nominal() -> None:
 
     for nome in ("a", "b"):
         id_goal = f"goal-{nome}"
-        operacoes = [_propriedade(f"{id_goal}-f1", "status", "concluido"), *_prova_do_fechamento(id_goal, sessao_do_goal(id_goal)),
-                     _propriedade(id_goal, "status", "concluido")]
-        recibo = _submeter(kernel, operacoes, goal=id_goal)
+        operacoes = [_propriedade(f"{id_goal}-f1", "status", "concluido"), *_prova_do_fechamento(id_goal, sessao_do_goal(id_goal))]
+        assert _submeter(kernel, operacoes, goal=id_goal).sucesso
+        recibo = _submeter(kernel, [_propriedade(id_goal, "status", "concluido")], goal=id_goal)
         assert recibo.sucesso, recibo.mensagem
 
 

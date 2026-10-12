@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-30 módulos · 4987 linhas · 53 classes
+30 módulos · 4988 linhas · 53 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -28,7 +28,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 123 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 190 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 358 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 266 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 267 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 178 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 109 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |

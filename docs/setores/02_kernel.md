@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-32 módulos · 5214 linhas · 34 classes
+33 módulos · 5566 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,13 +20,14 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/execucao_sem_plano.py`](#kernelexecucaosemplano) | 54 | O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado). |
-| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 191 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
+| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 241 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
 | [`kernel/forma_do_escopo.py`](#kernelformadoescopo) | 191 | A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 385 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 387 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
+| [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 300 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
@@ -160,6 +161,7 @@ O Goal só fecha com a prova: a verificação final limpa no commit atual, todo 
 | `CAMPO_STATUS` | `str` | `'status'` |
 | `SEGMENTOS_DE_ELEMENTO_INTEIRO` | `int` | `2` |
 | `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+| `SEQ_DO_LOTE` | `int` | `2 ** 62` |
 
 ### Funções do módulo
 
@@ -309,6 +311,35 @@ A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado)
 ### Funções do módulo
 
 - `validar_escopo_das_tarefas(proposta: PropostaPatch, estrutura: EstruturaAposLote) -> ResultadoValidacao` — Confere as ligações de escopo das Tasks e Decisions que o lote cria e, ligado, o teto de expansão.
+
+## `kernel/livro_do_aceite.py`
+
+O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PORTAO` | `str` | `'InvariantGate'` |
+| `SEGMENTOS_DO_ELEMENTO` | `int` | `2` |
+| `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
+| `ORQUESTRADOR` | `PapelAutor` | `PapelAutor.ORQUESTRADOR` |
+| `ACOES_DE_ONDE_ACHADO_DERIVA` | `frozenset[str]` | `frozenset({a.ACAO_DA_VERIFICACAO, a.ACAO_DA_REVISAO_DE_RISCO})` |
+| `TRANSICOES_DO_ACHADO` | `Mapping[tuple[str, str], PapelAutor]` | `{(a.ESTADO_ABERTO, a.ESTADO_CORRIGIDO): ORQUESTRADOR, (a.ESTADO_ABERTO,…` |
+| `EXIGENCIA_DA_TRANSICAO` | `Mapping[str, str]` | `{a.ESTADO_CORRIGIDO: a.CAMPO_COMMIT_DA_CORRECAO, a.ESTADO_DESCARTADO: a…` |
+| `CHAVES_DA_TRANSICAO` | `frozenset[str]` | `frozenset(EXIGENCIA_DA_TRANSICAO.values())` |
+
+### `_Lote`
+
+*DTO imutável* — O lote e o estado de antes: o papel, os nós criados nele e as propriedades que ele escreve.
+
+**Campos:** `papel: PapelAutor`, `estado: GrafoEstado`, `criados: Mapping[str, Mapping[str, Any]]`, `escritas: Mapping[tuple[str, str], Any]`, `arestas_novas: tuple[Mapping[str, Any], ...]`, `operacoes: tuple[ItemPatch, ...]`
+
+- `tipo(id_no: str) -> TipoNo | None` — O tipo do nó, existente ou criado no lote.
+- `propriedades(id_no: str) -> Mapping[str, Any]` — As propriedades do nó antes do lote, ou as de criação.
+- `escrito(id_no: str, chave: str) -> Any` — O valor que o lote escreve na propriedade, ou o que ela já tinha.
+
+### Funções do módulo
+
+- `validar_livro_do_aceite(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Recusa a primeira operação que reescreve o livro do aceite ou o escreve com o papel errado.
 
 ## `kernel/localizacao.py`
 

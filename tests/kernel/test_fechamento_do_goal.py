@@ -85,11 +85,18 @@ def _fechar(kernel: WriteKernel, papel: PapelAutor = PapelAutor.ORQUESTRADOR) ->
     return _submeter(kernel, [FECHAR], papel)
 
 
+def _mover(id_achado: str, estado: str, **extra: str) -> list[ItemPatch]:
+    """A transição do estado do Achado, com o que ela exige no mesmo lote."""
+    return [_propriedade(id_achado, "estado", estado), *(_propriedade(id_achado, chave, valor) for chave, valor in extra.items())]
+
+
 def test_goal_fecha_com_a_verificacao_final_limpa_na_ponta_nominal() -> None:
     """Verificação final, limpa, no commit do código da ponta, com C1 atende e o bloqueante resolvido."""
     kernel = _kernel_com_goal()
-    assert _submeter(kernel, [*_verificacao(1, final=False, veredito="rejeitado", c1="parcial"),
-                              *_achado("achado-1", "ver-1", "resolvido"), *_verificacao(2)]).sucesso
+    for lote in ([*_verificacao(1, final=False, veredito="rejeitado", c1="parcial"), *_achado("achado-1", "ver-1", "aberto")],
+                 _mover("achado-1", "corrigido", commit_da_correcao="cod123"), _mover("achado-1", "resolvido"), _verificacao(2)):
+        recibo = _submeter(kernel, lote)
+        assert recibo.sucesso, recibo.mensagem
 
     recibo = _fechar(kernel)
 
@@ -97,31 +104,29 @@ def test_goal_fecha_com_a_verificacao_final_limpa_na_ponta_nominal() -> None:
 
 
 @pytest.mark.parametrize(
-    ("operacoes", "motivo"),
+    ("lotes", "motivo"),
     [
         ([], "nao tem verificacao"),
-        (_verificacao(1, final=False), "nao e a final"),
-        (_verificacao(1, veredito="rejeitado"), "nao e limpa"),
-        (_verificacao(1, commit_do_codigo="antigo"), "ponta da branch do Goal esta em cod123"),
-        (_verificacao(1, c1="parcial"), "o criterio crit-1 esta 'parcial'"),
-        ([*_verificacao(1), *_achado("achado-1", "ver-1", "aberto")], "o achado bloqueante achado-1 esta 'aberto'"),
-        ([*_verificacao(1), *_achado("achado-1", "ver-1", "corrigido")], "o achado bloqueante achado-1 esta 'corrigido'"),
-        ([*_verificacao(2), *_verificacao(1, final=False)], None),
+        ([_verificacao(1, final=False)], "nao e a final"),
+        ([_verificacao(1, veredito="rejeitado")], "nao e limpa"),
+        ([_verificacao(1, commit_do_codigo="antigo")], "ponta da branch do Goal esta em cod123"),
+        ([_verificacao(1, c1="parcial")], "o criterio crit-1 esta 'parcial'"),
+        ([[*_verificacao(1), *_achado("achado-1", "ver-1", "aberto")]], "o achado bloqueante achado-1 esta 'aberto'"),
+        ([[*_verificacao(1), *_achado("achado-1", "ver-1", "aberto")], _mover("achado-1", "corrigido", commit_da_correcao="x")],
+         "o achado bloqueante achado-1 esta 'corrigido'"),
+        ([_verificacao(2), _verificacao(1, final=False)], "a ultima verificacao (ver-1) nao e a final"),
     ],
     ids=["sem-verificacao", "nao-final", "com-bloqueante", "commit-antigo", "criterio-parcial", "achado-aberto",
-         "achado-so-corrigido", "final-mais-nova-vence"],
+         "achado-so-corrigido", "ordem-do-log-vence-o-numero"],
 )
-def test_kernel_recusa_fechar_sem_a_prova_edge_case(operacoes: list[ItemPatch], motivo: str | None) -> None:
-    """Caso de borda: cada falta da prova recusa o lote que fecha o Goal, com o motivo."""
+def test_kernel_recusa_fechar_sem_a_prova_edge_case(lotes: list[list[ItemPatch]], motivo: str) -> None:
+    """Caso de borda: cada falta da prova recusa o lote que fecha o Goal, com o motivo; a última é a do log, não a de maior número."""
     kernel = _kernel_com_goal()
-    if operacoes:
-        assert _submeter(kernel, operacoes).sucesso
+    for lote in lotes:
+        assert _submeter(kernel, lote).sucesso
 
     recibo = _fechar(kernel)
 
-    if motivo is None:
-        assert recibo.sucesso, recibo.mensagem
-        return
     assert not recibo.sucesso
     assert recibo.modo_de_falha == ModoFalhaMAST.FECHAMENTO_SEM_VERIFICACAO_LIMPA.value
     assert motivo in recibo.mensagem
@@ -134,7 +139,7 @@ def test_humano_tambem_nao_fecha_sem_a_prova_edge_case() -> None:
 
     recibo = _fechar(kernel, PapelAutor.HUMANO)
 
-    assert not recibo.sucesso and "ponta da branch" in recibo.mensagem
+    assert not recibo.sucesso and "so o orquestrador conclui o Goal do aceite" in recibo.mensagem
 
 
 def test_goal_sem_ponta_nao_fecha_edge_case() -> None:
@@ -151,7 +156,8 @@ def test_acompanhamento_e_bloqueante_descartado_nao_impedem_o_fechamento_edge_ca
     """Caso de borda: o acompanhamento é pendência, não prova que falta; o bloqueante que o humano descartou saiu."""
     kernel = _kernel_com_goal()
     assert _submeter(kernel, [*_verificacao(1), *_achado("achado-1", "ver-1", "pendente", "acompanhamento"),
-                              *_achado("achado-2", "ver-1", "descartado")]).sucesso
+                              *_achado("achado-2", "ver-1", "aberto")]).sucesso
+    assert _submeter(kernel, _mover("achado-2", "descartado", motivo_do_descarte="o humano aceita"), PapelAutor.HUMANO).sucesso
 
     recibo = _fechar(kernel)
 

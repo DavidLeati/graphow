@@ -54,8 +54,12 @@ CAMPO_TESTES_DE_ACEITE: str = "testes_de_aceite"
 CAMPO_CHECAGEM: str = "checagem"
 CAMPO_JA_ATENDIDO: str = "ja_atendido"
 CAMPO_COMMIT_DO_ACEITE: str = "commit_do_aceite"
+# O Criterio que um replanejamento pedido pelo humano tirou do plano: a
+# Decision do humano que o tirou e o motivo. O kernel o deixa fora do fechamento
+# só quando a Decision é do humano.
+CAMPO_RETIRADO: str = "retirado"
 PROPRIEDADES_DERIVADAS_DO_CRITERIO: frozenset[str] = frozenset(
-    {CAMPO_ESTADO, CAMPO_TESTES_DE_ACEITE, CAMPO_CHECAGEM, CAMPO_JA_ATENDIDO, CAMPO_COMMIT_DO_ACEITE}
+    {CAMPO_ESTADO, CAMPO_TESTES_DE_ACEITE, CAMPO_CHECAGEM, CAMPO_JA_ATENDIDO, CAMPO_COMMIT_DO_ACEITE, CAMPO_RETIRADO}
 )
 
 # O Achado: a gravidade que o código decide, e o estado. O bloqueante nasce
@@ -72,3 +76,23 @@ ESTADO_RESOLVIDO: str = "resolvido"
 ESTADO_DESCARTADO: str = "descartado"
 ESTADO_DO_ACOMPANHAMENTO: str = "pendente"
 ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE: frozenset[str] = frozenset({ESTADO_RESOLVIDO, ESTADO_DESCARTADO})
+
+# A revisão da fatia de risco: a Evidence de onde derivam os Achados dela.
+ACAO_DA_REVISAO_DE_RISCO: str = "revisao_de_risco"
+# As transições do Achado que dizem por quê: o commit da correção (do
+# orquestrador) e o motivo do descarte (do humano).
+CAMPO_COMMIT_DA_CORRECAO: str = "commit_da_correcao"
+CAMPO_MOTIVO_DO_DESCARTE: str = "motivo_do_descarte"
+
+# No Goal: o que só o orquestrador escreve (a ponta, a condução, o plano e os
+# testes de aceite), e o fechamento. O humano não conclui o Goal do aceite: ele
+# o cancela, com o motivo.
+CAMPO_ACEITE: str = "aceite"
+CAMPO_STATUS: str = "status"
+CAMPO_INTEGRADO_EM: str = "integrado_em"
+PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL: frozenset[str] = frozenset(
+    {CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEITE}
+)
+STATUS_CONCLUIDO: str = "concluido"
+STATUS_CANCELADO: str = "cancelado"
+CAMPO_MOTIVO_DO_CANCELAMENTO: str = "motivo_do_cancelamento"
