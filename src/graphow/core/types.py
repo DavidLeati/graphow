@@ -24,6 +24,13 @@ class TipoNo(str, Enum):
     EVIDENCE = "Evidence"
     RUN = "Run"
     NOTE = "Note"
+    # O aceite no centro (ontologia 1.7.0): o critério de aceite é nó próprio,
+    # com o tipo de verificação e o estado que as verificações lhe dão, e o
+    # achado de uma verificação também, com a gravidade que o código decide.
+    # Antes o critério era uma Constraint com `tipo: criterio_aceite` e o achado
+    # ia para uma lista na Evidence ou para uma Note que ninguém lia.
+    CRITERIO = "Criterio"
+    ACHADO = "Achado"
 
     # Memória de longo prazo: o que sobrevive ao projeto. Nasce na sessão que o
     # destilou, aponta obrigatoriamente para a origem por `deriva_de` e só
@@ -58,6 +65,9 @@ class TipoAresta(str, Enum):
     ACOMPANHA = "acompanha"
     INTEGRA = "integra"
     DESFAZ = "desfaz"
+    # O achado aponta o critério ou a decisão que ele fere: é por ela que o
+    # código decide que o achado é bloqueante, e não pelo que o verificador diz.
+    FERE = "fere"
 
 
 class PapelAutor(str, Enum):

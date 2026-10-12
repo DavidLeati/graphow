@@ -22,7 +22,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 3. **Imutabilidade e Evolução**:
    - Nenhum nó ou aresta é destruído fisicamente; modificações geram novos eventos de patch.
    - Informações obsoletas são conectadas via arestas `substitui` ou `contradiz`.
-   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.6.0`: o papel `orquestrador`, o laço em código do `graphow orquestrar` que grava o livro-razão do Goal no lugar dos agentes, e `deriva_de` de `Evidence` para `Goal`, a verificação do Goal inteiro (seção 4); a `1.5.0` trouxe o escopo governado, com as arestas `motivada_por`, `acompanha`, `integra` e `desfaz` e os gestos e leituras de desvio (seção 5.7); a `1.4.0` deu à localização da `Evidence` a forma de fonte genérica; a `1.3.0` trouxe o tipo `Governanca` e o papel `arbitro`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
+   - **Versão do vocabulário** (`VERSAO_ONTOLOGIA`, atualmente `1.7.0`: o aceite no centro, com os tipos `Criterio` e `Achado` e a aresta `fere` (seção 6); a `1.6.0` trouxe o papel `orquestrador`, o laço em código do `graphow orquestrar` que grava o livro-razão do Goal no lugar dos agentes, e `deriva_de` de `Evidence` para `Goal`, a verificação do Goal inteiro (seção 4); a `1.5.0` trouxe o escopo governado, com as arestas `motivada_por`, `acompanha`, `integra` e `desfaz` e os gestos e leituras de desvio (seção 5.7); a `1.4.0` deu à localização da `Evidence` a forma de fonte genérica; a `1.3.0` trouxe o tipo `Governanca` e o papel `arbitro`): cada evento do log declara sob qual versão desta especificação foi escrito. `core/ontologia.py` deriva uma assinatura dos termos em vigor, e um teste exige que a versão declarada acompanhe qualquer mudança de tipo, papel, origem ou status. Eventos anteriores à introdução do campo são lidos como versão `0`.
 
 ---
 
@@ -50,6 +50,8 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Evidence` | Fato observado no mundo (trecho lido num arquivo ou numa fonte, retorno de busca, saída de verificação, prova de um envio). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. | `planejador` (só leitura localizada), `executor`, `revisor`, `arbitro` |
 | `Run` | Registro de uma execução de agente (modelo, tokens, latência). | `sistema` |
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor`, `arbitro` |
+| `Criterio` | Critério de aceite do Goal, com `escopa` para ele: `codigo` (`C1`...), `texto` completo, `verificacao` (`teste` ou `checagem`) e `estado` (`pendente`, `atende`, `parcial`, `nao_atende`), que as verificações do orquestrador lhe dão. O orquestrador grava nele também os testes de aceite (`testes_de_aceite`), a lista de checagem e, quando o código já o atendia, a justificativa (`ja_atendido`). Substitui a `Constraint` com `tipo: criterio_aceite`, que os Goals antigos seguem lendo. | `humano` (o gerente); `orquestrador`, no Goal que conduz |
+| `Achado` | Problema que uma verificação do orquestrador achou: `titulo`, `descricao`, `prova`, `local` (arquivo:linha), os critérios e as decisões que ele toca (arestas `fere`), a `severidade` que o verificador sugeriu (informativa) e a `gravidade` que o código decide: `bloqueante` quando fere critério ou decisão, `acompanhamento` quando não fere nada. O bloqueante nasce `aberto`, fica `corrigido` quando a fatia de correção entrega e `resolvido` quando a verificação seguinte sai limpa; o acompanhamento fica `pendente`, como pendência do Goal. Nunca vira `Note`. | `orquestrador`; `humano` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista; promovido, guarda `promovido_por` e `promovido_por_papel`. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
 
 ### 2.3 Propriedades da Orquestração
@@ -100,8 +102,9 @@ Não são termos da ontologia. O `SchemaGate` confere `id` e `tipo` de um nó no
 | `orienta` | `Decision` → `Task` / `Goal` | A decisão que vale para a tarefa ou o objetivo. Como as restrições, desce pela decomposição em qualquer profundidade: a do `Goal` vale para toda tarefa dele, e a tarefa de correção herda as da tarefa que corrige. Chega à vista de quem executa e de quem revisa, mesmo tomada noutra sessão. |
 | `contradiz` | `Evidence` → `Decision` / `Evidence` / `Aprendizado` | Aponta divergência ou refutação empírica; num `Aprendizado`, sinaliza que ele precisa de revisão. |
 | `substitui` | `Decision` → `Decision`, `Task` → `Task`, `Aprendizado` → `Aprendizado` | Substituição evolutiva de definição anterior. O substituído segue visível, marcado. |
-| `escopa` | `Constraint` → `Goal` / `Task` | Aplicação de restrição obrigatória. |
-| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Evidence` → `Artifact` / `Task` / `Decision` / `Evidence` / `Question`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task` | Proveniência de artefatos, da evidência que avalia um trabalho (e, nos pares `Evidence` → `Decision` / `Evidence` / `Question`, que só o humano e o revisor criam, o veredito de escopo sobre a raiz de uma cadeia), de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
+| `escopa` | `Constraint` → `Goal` / `Task`; `Criterio` → `Goal` | Aplicação de restrição obrigatória; do `Criterio`, o critério de aceite do Goal. |
+| `fere` | `Achado` → `Criterio` / `Decision` | O critério ou a decisão que o achado toca: é por ela que o código decide que ele é bloqueante. |
+| `deriva_de` | `Artifact` → `Task` / `Artifact`; `Evidence` → `Artifact` / `Task` / `Decision` / `Evidence` / `Question`; `Note` → `Task` / `Decision` / `Evidence` / `Artifact`; `Aprendizado` → `Evidence` / `Decision` / `Note` / `Artifact` / `Task`; `Achado` → `Evidence` (a verificação que o achou); `Task` → `Achado` (a fatia de correção); `Artifact` → `Criterio` (o commit dos testes de aceite) | Proveniência de artefatos, da evidência que avalia um trabalho (e, nos pares `Evidence` → `Decision` / `Evidence` / `Question`, que só o humano e o revisor criam, o veredito de escopo sobre a raiz de uma cadeia), de notas reativas, da condensação de uma sessão e da origem de um aprendizado. |
 | `vale_para` | `Aprendizado` → `Projeto` / `Setor` | Alcance de um aprendizado promovido: entra na vista de toda tarefa sob esse contêiner. |
 | `motivada_por` | `Task` → `Decision` / `Evidence` / `Task` / `Question`; `Decision` → `Decision` / `Evidence` / `Task` / `Question` | De que decisão, achado, trabalho ou dúvida a `Task` nasceu; a `Decision` que nasce de outra decisão ou de um achado liga a cadeia pelo mesmo vínculo. Subir `motivada_por` até um nó sem `motivada_por` saindo dele dá a raiz da cadeia (seção 5.7). |
 | `acompanha` | `Task` → `Evidence` | A `Task` de acompanhamento de uma reprovação cujo aceite o árbitro registrou. |
@@ -133,15 +136,16 @@ nunca tira (seção 5).
 | `vale_para` | `humano` | `humano` | Criar e remover, de um `Aprendizado` a um `Projeto` ou `Setor`: `arbitro`, com `promover_aprendizado` (e nunca o `Aprendizado` que ele registrou) |
 | `orienta` | `humano`, `planejador` | `humano`, `planejador` | Criar: todo agente, sob `estrutura: ilimitado` |
 | `motivada_por`, `acompanha`, `integra`, `desfaz` | `humano`, `planejador` | `humano` | Criar: todo agente, sob `estrutura: ilimitado` |
+| `fere` | `humano` | `humano` | - |
 
 As quatro arestas do escopo governado se criam como `decompoe` e `orienta`, mas
 só o humano as retira: retirar o vínculo apagaria a prova de que o trabalho
 nasceu de algo. Estão entre as arestas que redefinem uma `Task` travada, então
 numa `Task` com posse só o dono do lock as cria ou remove.
 
-Nem o `estrutura: ilimitado` abre `escopa` ou `vale_para` a um agente: a
+Nem o `estrutura: ilimitado` abre `escopa`, `vale_para` ou `fere` a um agente: a
 primeira amarra a restrição ao trabalho, a segunda promove memória de agente a
-memória de todos. Essas duas só se abrem ao árbitro, pelo gesto próprio. E
+memória de todos, e a terceira decide que um achado é bloqueante. Essas duas só se abrem ao árbitro, pelo gesto próprio. E
 nenhuma aresta toca o nó `Governanca`: o `SchemaGate` recusa com
 `par_de_aresta_invalido`.
 
@@ -167,7 +171,7 @@ outras colunas, e a `governanca_maxima` é exatamente isso.
 | `revisor` | `Evidence`, `Question`, `Note`, `Aprendizado` | Status de revisão da `Task` cuja posse detém | Encerrar `Question`, promover `Aprendizado` | Só `estrutura: ilimitado` |
 | `arbitro` | `Evidence`, `Decision`, `Note` | O `status` da `Question` (`respondida` ou `descartada`), do `Goal` (`concluido`) e da `Sessao`, e a posse alheia, cada um com o gesto da política | Criar `Task`, `Governanca` ou `Projeto`, promover global, alterar a governança, encerrar a `Question` que abriu, promover o `Aprendizado` que registrou | `responder_questao`, `promover_aprendizado` (Setor e Projeto), `constraint`, `excluir`, `fechar_goal`, `encerrar_sessao`, `liberar_posse_alheia`, `aprovar_plano`, e todos os tipos de nó menos `Constraint`, `Governanca` e `Projeto` sob `estrutura: ilimitado` |
 | `sistema` | `Run`, `Sessao`, e `Projeto` e `Setor` do ambiente padrão da memória | Métricas de execução e a própria `Sessao` | Criar ou alterar nós semânticos de trabalho | Encerrar a `Sessao` que abriu vale sempre, sem política |
-| `orquestrador` | `Projeto`, `Setor`, `Sessao`, `Goal`, `Task`, `Decision`, `Constraint`, `Question` aberta, `Artifact`, `Evidence`, `Note` | Tudo o que o laço grava do Goal que conduz: o status das fatias (sem posse e sem veredito de revisão por `Task`), o fechamento do `Goal` e da própria `Sessao` | `Governanca`, a `governanca` e o `nivel_autonomia` do `Projeto`, `Aprendizado` e o alcance dele, `Goal.planos` e `respostas_de_desvio`, encerrar `Question`, remover qualquer nó ou aresta, editar aresta, e escrever ou ligar fora do Goal que o lote conduz (o Goal, a Sessao `orq-sessao-<id>`, o que ela produz e a contenção dela) | Não lê a política: tem contrato próprio (`kernel/papel_do_orquestrador.py`), e nenhum servidor MCP abre com ele. A isenção da ligação de escopo vale só no Goal que o lote conduz |
+| `orquestrador` | `Projeto`, `Setor`, `Sessao`, `Goal`, `Task`, `Decision`, `Constraint`, `Criterio`, `Achado`, `Question` aberta, `Artifact`, `Evidence`, `Note` | Tudo o que o laço grava do Goal que conduz: o status das fatias (sem posse e sem veredito de revisão por `Task`), o fechamento do `Goal` e da própria `Sessao` | `Governanca`, a `governanca` e o `nivel_autonomia` do `Projeto`, `Aprendizado` e o alcance dele, `Goal.planos` e `respostas_de_desvio`, encerrar `Question`, remover qualquer nó ou aresta, editar aresta, e escrever ou ligar fora do Goal que o lote conduz (o Goal, a Sessao `orq-sessao-<id>`, o que ela produz e a contenção dela) | Não lê a política: tem contrato próprio (`kernel/papel_do_orquestrador.py`), e nenhum servidor MCP abre com ele. A isenção da ligação de escopo vale só no Goal que o lote conduz |
 
 ### 4.1 O Que Nenhum Agente Faz, Por Nenhum Caminho
 
@@ -318,3 +322,22 @@ em `core/escopo.py`.
 - **Leituras.** `limiar_desvio_por_raiz` (K, padrão 3), `limiar_desvio_por_goal` (M, padrão 5) e `teto_expansao` (padrão 0, desligado), inteiros com a composição mais restritiva da seção 5.3.
 - **Falhas.** `ligacao_de_escopo_ausente` (a `Task` nova não diz de que nasceu) e `plano_nao_aprovado` (o `Goal` não tem plano aprovado), da categoria `verificacao_de_tarefa`; `orcamento_de_escopo_esgotado` (o `teto_expansao` foi atingido), da categoria `design_do_sistema`.
 - **Cadência.** O valor `desvio` de `cadencia`, em que a orquestração por LLM devolvia a palavra quando um gatilho de desvio disparava; a cadência saiu na fase 1.
+
+---
+
+## 6. Aceite no Centro
+
+A ontologia `1.7.0` põe no grafo o que prova que um Goal está pronto. O
+vocabulário de propriedades que o kernel e o orquestrador dividem mora em
+`core/aceite.py`.
+
+- **Critério.** O nó `Criterio` escopa o `Goal`. O gerente o grava com `codigo`,
+  `texto` e `verificacao`; o orquestrador grava os que o planejador escreveu e,
+  em todos, o `estado` que cada verificação lhe dá, os testes de aceite que o
+  autor de aceite escreveu e a lista de checagem do critério `checagem`. No
+  `Criterio` do humano o orquestrador só escreve essas propriedades derivadas.
+- **Achado.** O nó `Achado` deriva da verificação que o achou e fere, por `fere`,
+  o critério ou a decisão que ele toca. A gravidade é do código: o achado que
+  fere algo é `bloqueante`, sem exceção, e o que não fere nada é
+  `acompanhamento`. O bloqueante vira fatia de correção (`Task` que deriva do
+  `Achado`); o acompanhamento fica como pendência do Goal.

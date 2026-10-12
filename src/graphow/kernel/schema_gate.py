@@ -22,6 +22,7 @@ from graphow.kernel.forma_e_identidade import (
     validar_identidade,
 )
 from graphow.kernel.pares_de_escopo import PARES_DE_ARESTAS_DO_ESCOPO, PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO
+from graphow.kernel.pares_do_aceite import PARES_DO_ACEITE, juntar_pares
 from graphow.kernel.patch_models import (
     ItemPatch,
     OperacaoPatch,
@@ -44,7 +45,8 @@ class SchemaGate:
     entrada nas duas, e o teste de estrutura recusa qualquer tipo sem dono.
     """
 
-    PARES_ARESTAS_PERMITIDOS: Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]] = {
+    # Os pares do aceite no centro (Criterio, Achado e `fere`) vêm de kernel/pares_do_aceite.py.
+    PARES_ARESTAS_PERMITIDOS: Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]] = juntar_pares({
         TipoAresta.CONTEM: frozenset({(TipoNo.PROJETO, TipoNo.SETOR), (TipoNo.SETOR, TipoNo.SESSAO)}),
         TipoAresta.PRODUZ: frozenset({
             (TipoNo.SESSAO, TipoNo.GOAL),
@@ -116,7 +118,7 @@ class SchemaGate:
             *PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO,
         }),
         **PARES_DE_ARESTAS_DO_ESCOPO,
-    }
+    }, PARES_DO_ACEITE)
 
     def validar(self, proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
         """Avalia todas as operações do patch contra o schema da ontologia."""

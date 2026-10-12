@@ -63,6 +63,8 @@
   --color-run: #8b5cf6;
   --color-note: #64748b;
   --color-aprendizado: #d97706;
+  --color-criterio: #84cc16;
+  --color-achado: #dc2626;
   --color-governanca: #ec4899;
 
   /* Ontological Edge Colors */
@@ -84,6 +86,7 @@
   --edge-acompanha: #14b8a6;
   --edge-integra: #6366f1;
   --edge-desfaz: #f59e0b;
+  --edge-fere: #dc2626;
 
   /* Typography Stacks */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;

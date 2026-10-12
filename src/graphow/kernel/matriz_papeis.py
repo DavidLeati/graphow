@@ -17,7 +17,12 @@ from graphow.kernel.pares_de_escopo import PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO
 # O Governanca guarda a política que decide o que os agentes podem fazer: um
 # agente que a escrevesse desligaria todos os portões. Só o humano a cria,
 # edita e remove, em qualquer projeto, inclusive sob autonomia ilimitada.
-TIPOS_EXCLUSIVOS_DO_HUMANO: frozenset[TipoNo] = frozenset({TipoNo.CONSTRAINT, TipoNo.GOVERNANCA})
+# O Criterio é o que o humano pediu, e o Achado é o que a verificação do
+# orquestrador achou: nenhum agente os cria nem os edita, nem sob estrutura
+# ilimitada. O orquestrador tem contrato próprio (kernel/papel_do_orquestrador.py).
+TIPOS_EXCLUSIVOS_DO_HUMANO: frozenset[TipoNo] = frozenset(
+    {TipoNo.CONSTRAINT, TipoNo.GOVERNANCA, TipoNo.CRITERIO, TipoNo.ACHADO}
+)
 TIPOS_EDITAVEIS_PELO_SISTEMA: frozenset[TipoNo] = frozenset({TipoNo.RUN, TipoNo.SESSAO})
 
 # Apagar a dúvida é a forma mais direta de encerrá-la sem resposta. Constraint já
@@ -175,6 +180,9 @@ DONOS_POR_TIPO_DE_ARESTA: Mapping[TipoAresta, DonosDeAresta] = {
     TipoAresta.ACOMPANHA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
     TipoAresta.INTEGRA: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
     TipoAresta.DESFAZ: DonosDeAresta(adicao=HUMANO_E_PLANEJADOR, remocao=SO_HUMANO),
+    # Dizer que critério ou decisão um achado fere é o que o torna bloqueante:
+    # é do humano e do orquestrador, que tem contrato próprio, e de agente nenhum.
+    TipoAresta.FERE: DonosDeAresta(adicao=SO_HUMANO, remocao=SO_HUMANO),
 }
 
 # Arestas cujo dono, além da tabela por papel, é decidido por um gesto da
@@ -232,9 +240,9 @@ DONOS_POR_PAR_DE_ARESTA: Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeArest
 # solto e a autonomia voltaria a ser inerte. O que a marcação nunca entrega é a
 # camada de governança: `escopa` amarra Constraint ao trabalho, retirar um
 # `bloqueia` encerraria a escalação ao humano, e `vale_para` promoveria memória
-# de agente a memória de todos.
+# de agente a memória de todos. E `fere` decide que um achado é bloqueante.
 ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA: frozenset[TipoAresta] = frozenset(
-    {TipoAresta.ESCOPA, TipoAresta.VALE_PARA}
+    {TipoAresta.ESCOPA, TipoAresta.VALE_PARA, TipoAresta.FERE}
 )
 
 

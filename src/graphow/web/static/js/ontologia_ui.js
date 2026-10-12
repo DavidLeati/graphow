@@ -10,7 +10,7 @@
 export const TIPOS_CONTEINER = ["Projeto", "Setor", "Sessao"];
 
 // Ordem de leitura dentro de uma sessão: intenção, trabalho, bloqueio, decisão, prova.
-export const ORDEM_DE_TRABALHO = ["Goal", "Task", "Question", "Decision", "Constraint", "Evidence", "Artifact", "Run", "Note", "Aprendizado"];
+export const ORDEM_DE_TRABALHO = ["Goal", "Criterio", "Task", "Question", "Decision", "Constraint", "Evidence", "Achado", "Artifact", "Run", "Note", "Aprendizado"];
 
 const APRESENTACAO_DOS_TIPOS = {
   Projeto: { nome: "Projeto", plural: "Projetos", icone: "briefcase", descricao: "Raiz macro da iniciativa" },
@@ -22,6 +22,8 @@ const APRESENTACAO_DOS_TIPOS = {
   Decision: { nome: "Decision", plural: "Decisions", icone: "scale", descricao: "Decisão arquitetural ou técnica" },
   Question: { nome: "Question", plural: "Questions", icone: "help-circle", descricao: "Dúvida que bloqueia uma tarefa" },
   Constraint: { nome: "Constraint", plural: "Constraints", icone: "shield", descricao: "Restrição inviolável" },
+  Criterio: { nome: "Critério", plural: "Critérios", icone: "list-checks", descricao: "Critério de aceite do Goal, com o estado que as verificações lhe dão" },
+  Achado: { nome: "Achado", plural: "Achados", icone: "bug", descricao: "Problema que uma verificação achou: bloqueante quando fere critério ou decisão" },
   Artifact: { nome: "Artifact", plural: "Artifacts", icone: "package", descricao: "Entregável concreto" },
   Evidence: { nome: "Evidence", plural: "Evidences", icone: "flask", descricao: "Dado empírico que justifica decisões" },
   Run: { nome: "Run", plural: "Runs", icone: "activity", descricao: "Execução e telemetria de um agente" },
@@ -61,6 +63,7 @@ const LEITURA_DAS_ARESTAS = {
   acompanha: { saida: "acompanha", entrada: "acompanhada por", descricao: "Tarefa que acompanha a reprovação aceita pelo árbitro" },
   integra: { saida: "integra", entrada: "integrada por", descricao: "Tarefa que integra a entrega de outra" },
   desfaz: { saida: "desfaz", entrada: "desfeita por", descricao: "Tarefa que desfaz uma decisão substituída ou revogada" },
+  fere: { saida: "fere", entrada: "ferido por", descricao: "Achado que fere o critério ou a decisão: por isso ele é bloqueante" },
 };
 
 export function lerAresta(tipo) {

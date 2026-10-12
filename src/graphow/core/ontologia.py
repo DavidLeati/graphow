@@ -40,7 +40,14 @@ from graphow.core.types import (
 # 1.6.0: entra o papel `orquestrador`, o laço em código do `graphow orquestrar`
 # que grava o livro-razão do Goal no lugar dos agentes, e `deriva_de` passa a
 # admitir a Evidence que verifica um Goal inteiro.
-VERSAO_ONTOLOGIA: str = "1.6.0"
+# 1.7.0: entra o aceite no centro. Os tipos `Criterio` (o critério de aceite,
+# que escopa o Goal, com o tipo de verificação e o estado que as verificações
+# lhe dão) e `Achado` (o problema que uma verificação achou, com a gravidade que
+# o código decide), e a aresta `fere`, do achado ao critério ou à decisão que
+# ele toca. `deriva_de` passa a admitir o achado que deriva da verificação, a
+# fatia de correção que deriva do achado e o commit dos testes de aceite que
+# deriva do critério. A Constraint `criterio_aceite` dos Goals antigos segue legível.
+VERSAO_ONTOLOGIA: str = "1.7.0"
 
 # As arestas pelas quais um nó contém outro. Existem três recortes divergentes
 # de "hierarquia" espalhados pelo código — `politicas` usa {decompoe, produz},
@@ -77,4 +84,4 @@ def calcular_assinatura_da_ontologia() -> str:
 
 # Fixada à mão de propósito: alterar o vocabulário sem tocar aqui derruba o teste
 # de qualidade, e a decisão de subir a versão volta a ser de quem mexeu.
-ASSINATURA_DECLARADA: str = "5a6203841921"
+ASSINATURA_DECLARADA: str = "2ab238f00215"

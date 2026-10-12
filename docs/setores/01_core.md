@@ -6,14 +6,15 @@
 
 **Pacote:** `graphow.core`
 
-Vocabulário da ontologia (versão 1.6.0: o papel orquestrador, que grava o livro-razão do Goal no lugar dos agentes, sobre o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Criterio e Achado e a aresta fere, sobre o papel orquestrador da 1.6.0, que grava o livro-razão do Goal no lugar dos agentes, o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 ## Inventário
 
-12 módulos · 1332 linhas · 38 classes
+13 módulos · 1423 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`core/aceite.py`](#coreaceite) | 74 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
 | [`core/composicao_governanca.py`](#corecomposicaogovernanca) | 61 | Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva. |
 | [`core/escopo.py`](#coreescopo) | 33 | Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem. |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
@@ -22,9 +23,60 @@ Vocabulário da ontologia (versão 1.6.0: o papel orquestrador, que grava o livr
 | [`core/governanca.py`](#coregovernanca) | 380 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
-| [`core/ontologia.py`](#coreontologia) | 80 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
+| [`core/ontologia.py`](#coreontologia) | 87 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
 | [`core/orquestracao.py`](#coreorquestracao) | 88 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
-| [`core/types.py`](#coretypes) | 132 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+| [`core/types.py`](#coretypes) | 142 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
+
+## `core/aceite.py`
+
+O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DA_VERIFICACAO` | `str` | `'verificacao_do_goal'` |
+| `CAMPO_ACAO` | `str` | `'acao'` |
+| `CAMPO_NUMERO` | `str` | `'numero'` |
+| `CAMPO_MARCO` | `str` | `'marco'` |
+| `CAMPO_FINAL` | `str` | `'final'` |
+| `CAMPO_VEREDITO` | `str` | `'veredito'` |
+| `CAMPO_COMMIT` | `str` | `'commit'` |
+| `CAMPO_COMMIT_DO_CODIGO` | `str` | `'commit_do_codigo'` |
+| `CAMPO_PARECERES` | `str` | `'pareceres'` |
+| `CAMPO_NO_DO_PARECER` | `str` | `'no'` |
+| `VEREDITO_LIMPO` | `str` | `'aprovado'` |
+| `VEREDITO_COM_BLOQUEANTE` | `str` | `'rejeitado'` |
+| `CAMPO_PONTA_DO_RAMO` | `str` | `'ponta_do_ramo'` |
+| `CAMPO_PLANO` | `str` | `'plano'` |
+| `CAMPO_CRITERIOS_DO_PLANO` | `str` | `'criterios'` |
+| `CAMPO_CONDUCAO` | `str` | `'orquestracao'` |
+| `CAMPO_CODIGO` | `str` | `'codigo'` |
+| `CAMPO_TEXTO` | `str` | `'texto'` |
+| `CAMPO_VERIFICACAO` | `str` | `'verificacao'` |
+| `CAMPO_ESTADO` | `str` | `'estado'` |
+| `VERIFICACAO_POR_TESTE` | `str` | `'teste'` |
+| `VERIFICACAO_POR_CHECAGEM` | `str` | `'checagem'` |
+| `VERIFICACOES_DE_CRITERIO` | `tuple[str, ...]` | `(VERIFICACAO_POR_TESTE, VERIFICACAO_POR_CHECAGEM)` |
+| `ESTADO_PENDENTE` | `str` | `'pendente'` |
+| `VEREDITO_QUE_ATENDE` | `str` | `'atende'` |
+| `VEREDITO_PARCIAL` | `str` | `'parcial'` |
+| `VEREDITO_NAO_ATENDE` | `str` | `'nao_atende'` |
+| `VEREDITOS_DE_CRITERIO` | `tuple[str, ...]` | `(VEREDITO_QUE_ATENDE, VEREDITO_PARCIAL, VEREDITO_NAO_ATENDE)` |
+| `ESTADOS_DO_CRITERIO` | `tuple[str, ...]` | `(ESTADO_PENDENTE, *VEREDITOS_DE_CRITERIO)` |
+| `CAMPO_TESTES_DE_ACEITE` | `str` | `'testes_de_aceite'` |
+| `CAMPO_CHECAGEM` | `str` | `'checagem'` |
+| `CAMPO_JA_ATENDIDO` | `str` | `'ja_atendido'` |
+| `CAMPO_COMMIT_DO_ACEITE` | `str` | `'commit_do_aceite'` |
+| `PROPRIEDADES_DERIVADAS_DO_CRITERIO` | `frozenset[str]` | `frozenset({CAMPO_ESTADO, CAMPO_TESTES_DE_ACEITE, CAMPO_CHECAGEM, CAMPO_…` |
+| `CAMPO_GRAVIDADE` | `str` | `'gravidade'` |
+| `GRAVIDADE_BLOQUEANTE` | `str` | `'bloqueante'` |
+| `GRAVIDADE_ACOMPANHAMENTO` | `str` | `'acompanhamento'` |
+| `GRAVIDADES` | `tuple[str, ...]` | `(GRAVIDADE_BLOQUEANTE, GRAVIDADE_ACOMPANHAMENTO)` |
+| `ESTADO_ABERTO` | `str` | `'aberto'` |
+| `ESTADO_CORRIGIDO` | `str` | `'corrigido'` |
+| `ESTADO_RESOLVIDO` | `str` | `'resolvido'` |
+| `ESTADO_DESCARTADO` | `str` | `'descartado'` |
+| `ESTADO_DO_ACOMPANHAMENTO` | `str` | `'pendente'` |
+| `ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE` | `frozenset[str]` | `frozenset({ESTADO_RESOLVIDO, ESTADO_DESCARTADO})` |
 
 ## `core/composicao_governanca.py`
 
@@ -317,11 +369,11 @@ Versão declarada do vocabulário da ontologia e a impressão digital que a chec
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `VERSAO_ONTOLOGIA` | `str` | `'1.6.0'` |
+| `VERSAO_ONTOLOGIA` | `str` | `'1.7.0'` |
 | `ARESTAS_DE_CONTENCAO` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.CONTEM, TipoAresta.PRODUZ, TipoAresta.DECOMPOE})` |
 | `VERSAO_ONTOLOGIA_DESCONHECIDA` | `str` | `'0'` |
 | `TAMANHO_DA_ASSINATURA` | `int` | `12` |
-| `ASSINATURA_DECLARADA` | `str` | `'5a6203841921'` |
+| `ASSINATURA_DECLARADA` | `str` | `'2ab238f00215'` |
 
 ### Funções do módulo
 

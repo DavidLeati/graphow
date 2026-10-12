@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**18 alas · 281 módulos · 39045 linhas · 518 classes**
+**18 alas · 283 módulos · 39212 linhas · 518 classes**
 
 ---
 
@@ -61,8 +61,8 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 | # | Ala | Pacote | Módulos | Linhas | Classes |
 | ---: | :--- | :--- | ---: | ---: | ---: |
-| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 12 | 1332 | 38 |
-| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 30 | 4945 | 34 |
+| 01 | [Núcleo Ontológico](setores/01_core.md) | `graphow.core` | 13 | 1423 | 38 |
+| 02 | [Kernel de Escrita (PatchBoard)](setores/02_kernel.md) | `graphow.kernel` | 31 | 5021 | 34 |
 | 03 | [Persistência Append-Only](setores/03_storage.md) | `graphow.storage` | 13 | 1746 | 38 |
 | 04 | [Projeção Determinística](setores/04_projection.md) | `graphow.projection` | 23 | 3742 | 40 |
 | 05 | [Motor Reativo](setores/05_reactive.md) | `graphow.reactive` | 10 | 937 | 14 |
@@ -82,7 +82,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 
 ### Missão de cada ala
 
-**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.6.0: o papel orquestrador, que grava o livro-razão do Goal no lugar dos agentes, sobre o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
+**01. Núcleo Ontológico** — Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Criterio e Achado e a aresta fere, sobre o papel orquestrador da 1.6.0, que grava o livro-razão do Goal no lugar dos agentes, o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.
 
 **02. Kernel de Escrita (PatchBoard)** — Os quatro portões de governança, a conversão de JSON Patch em eventos e o commit transacional. Único caminho de mutação do estado compartilhado. O RoleGate decide cada gesto pela política de governança do Projeto do alvo (humano ou árbitro, a mais restritiva quando o nó tem mais de um Projeto), mantém sempre humanos a promoção global e a configuração da governança, e o InvariantGate só deixa um agente concluir uma Task com veredito de revisão aprovado, em qualquer preset. O papel orquestrador, que nenhum servidor MCP alcança, tem contrato próprio: grava o Goal que conduz sem posse nem veredito por Task e nunca toca as reservas do humano.
 

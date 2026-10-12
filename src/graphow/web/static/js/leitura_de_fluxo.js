@@ -30,6 +30,8 @@ const ANCORAS = {
   Question: [["bloqueia", "origem"]],
   Decision: [["orienta", "origem"]],
   Constraint: [["escopa", "origem"]],
+  Criterio: [["escopa", "origem"]],
+  Achado: [["deriva_de", "origem"], ["fere", "origem"]],
   Artifact: [["deriva_de", "origem"]],
   Evidence: [["deriva_de", "origem"], ["justifica", "origem"], ["contradiz", "origem"]],
   Note: [["deriva_de", "origem"]],

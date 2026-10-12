@@ -54,8 +54,8 @@ const OCUPACAO_ESPERADA = 0.14;
 // Ordem de leitura dentro de uma camada ou grade: nós do mesmo tipo ficam
 // juntos, na ordem em que o trabalho costuma andar, e depois pela criação.
 const ORDEM_DOS_TIPOS = [
-  "Projeto", "Setor", "Sessao", "Goal", "Constraint", "Question",
-  "Task", "Decision", "Evidence", "Artifact", "Note", "Aprendizado", "Run",
+  "Projeto", "Setor", "Sessao", "Goal", "Criterio", "Constraint", "Question",
+  "Task", "Decision", "Evidence", "Achado", "Artifact", "Note", "Aprendizado", "Run",
 ];
 
 /**

@@ -140,6 +140,8 @@ export class Minimap {
       Run: "#8b5cf6",
       Note: "#64748b",
       Aprendizado: "#d97706",
+      Criterio: "#84cc16",
+      Achado: "#dc2626",
       Projeto: "#3b82f6",
       Setor: "#6366f1",
       Sessao: "#a855f7",

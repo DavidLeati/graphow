@@ -27,7 +27,7 @@ DEFINICOES_DE_SETOR: tuple[DefinicaoSetor, ...] = (
         1,
         "core",
         "Núcleo Ontológico",
-        "Vocabulário da ontologia (versão 1.6.0: o papel orquestrador, que grava o livro-razão do Goal no lugar dos agentes, sobre o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.",
+        "Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Criterio e Achado e a aresta fere, sobre o papel orquestrador da 1.6.0, que grava o livro-razão do Goal no lugar dos agentes, o escopo governado da 1.5.0, o tipo Governanca, o papel arbitro e a Evidence localizada por fonte genérica), modelos imutáveis do grafo, eventos do log, os modos de falha da taxonomia MAST, a hierarquia de exceções de domínio e a política de governança pura (gestos, presets, herança global para projeto e composição pela mais restritiva). Não depende de nenhum outro setor.",
     ),
     DefinicaoSetor(
         2,

@@ -21,6 +21,13 @@ do humano, o Setor e o Projeto dele ficam como estão. É por o lote estar preso
 ao Goal conduzido que a isenção do escopo governado (kernel/invariant_gate.py)
 vale só para esse Goal.
 
+Os critérios e as decisões do Goal (o que escopa ou orienta o Goal) entram no
+alcance por uma porta estreita, mesmo quando o gerente os gravou: o achado da
+verificação pode ferir um deles (`fere`), e o commit dos testes de aceite pode
+derivar de um critério (`deriva_de`). No Critério do humano o orquestrador
+escreve só o que as verificações e o aceite lhe dão (o estado, os testes, a
+checagem); o código, o texto e o tipo de verificação continuam do humano.
+
 Ficam com o humano as reservas que o laço nunca precisa, e o contrato as recusa
 explicitamente: a `Governanca` e a política ou a autonomia do Projeto, o
 alcance de um Aprendizado (promover), o plano aprovado e as respostas de desvio
@@ -36,6 +43,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from graphow.core.aceite import PROPRIEDADES_DERIVADAS_DO_CRITERIO
 from graphow.core.escopo import CAMPO_PLANOS, CAMPO_RESPOSTAS_DE_DESVIO
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado, NoGrafo
@@ -70,6 +78,8 @@ TIPOS_CRIADOS_PELO_ORQUESTRADOR: frozenset[TipoNo] = frozenset(
         TipoNo.ARTIFACT,
         TipoNo.EVIDENCE,
         TipoNo.NOTE,
+        TipoNo.CRITERIO,
+        TipoNo.ACHADO,
     }
 )
 
@@ -86,9 +96,16 @@ ARESTAS_NEGADAS_AO_ORQUESTRADOR: frozenset[TipoAresta] = frozenset({TipoAresta.V
 ARESTAS_DO_ORQUESTRADOR: frozenset[TipoAresta] = frozenset(
     {
         TipoAresta.PRODUZ, TipoAresta.CONTEM, TipoAresta.ESCOPA, TipoAresta.ORIENTA, TipoAresta.DECOMPOE,
-        TipoAresta.DEPENDE_DE, TipoAresta.DERIVA_DE, TipoAresta.BLOQUEIA,
+        TipoAresta.DEPENDE_DE, TipoAresta.DERIVA_DE, TipoAresta.BLOQUEIA, TipoAresta.FERE,
     }
 )
+# As arestas que chegam a um critério ou a uma decisão do Goal fora da Sessao do
+# orquestrador, e o tipo do nó a que cada uma pode chegar.
+ARESTAS_ATE_O_QUE_GOVERNA_O_GOAL: Mapping[str, frozenset[TipoNo]] = {
+    TipoAresta.FERE.value: frozenset({TipoNo.CRITERIO, TipoNo.DECISION}),
+    TipoAresta.DERIVA_DE.value: frozenset({TipoNo.CRITERIO}),
+}
+ARESTAS_QUE_GOVERNAM_O_GOAL: frozenset[str] = frozenset({TipoAresta.ESCOPA.value, TipoAresta.ORIENTA.value})
 PREFIXO_DA_SESSAO_DO_GOAL: str = "orq-sessao-"
 
 
@@ -107,6 +124,7 @@ class _Lote:
     produzidos: frozenset[str]
     contencao: frozenset[str]
     conduzido: bool
+    governam: frozenset[str] = frozenset()
 
     @property
     def sessao(self) -> str:
@@ -152,7 +170,8 @@ def _montar_lote(proposta: PropostaPatch, estado: GrafoEstado, goal: str) -> _Lo
     goal_existente = estado.nos.get(goal)
     adota = any(item.path == f"/nos/{goal}/propriedades/{CAMPO_DA_CONDUCAO}" for item in proposta.operacoes)
     conduzido = goal in criados or adota or (goal_existente is not None and CAMPO_DA_CONDUCAO in goal_existente.propriedades)
-    return _Lote(estado, goal, criados, produzidos, _acima(sessao, arestas), conduzido)
+    governam = frozenset(origem for tipo, origem, destino in arestas if tipo in ARESTAS_QUE_GOVERNAM_O_GOAL and destino == goal)
+    return _Lote(estado, goal, criados, produzidos, _acima(sessao, arestas), conduzido, governam)
 
 
 def _arestas_novas(proposta: PropostaPatch) -> Iterable[tuple[str, str, str]]:
@@ -194,6 +213,8 @@ def _motivo_da_recusa(segmentos: Sequence[str], item: ItemPatch, lote: _Lote) ->
         return ""
     if no.tipo == TipoNo.GOVERNANCA:
         return "a Governanca e do humano"
+    if _derivada_do_criterio_do_goal(no, segmentos, lote):
+        return ""
     return (
         _motivo_fora_do_goal(no.id, lote, "esta")
         or _motivo_de_alcance(no, segmentos, lote)
@@ -226,6 +247,18 @@ def _motivo_de_alcance(no: NoGrafo, segmentos: Sequence[str], lote: _Lote) -> st
     return f"o orquestrador so edita os nos que criou e o Goal que conduz; '{no.id}' ({no.tipo.value}) e de {papel}"
 
 
+def _derivada_do_criterio_do_goal(no: NoGrafo, segmentos: Sequence[str], lote: _Lote) -> bool:
+    """A escrita é de uma propriedade derivada (estado, testes, checagem) de um Critério que escopa o Goal do lote."""
+    chave = segmentos[-1] if len(segmentos) == SEGMENTOS_DA_PROPRIEDADE else ""
+    return no.tipo == TipoNo.CRITERIO and no.id in lote.governam and chave in PROPRIEDADES_DERIVADAS_DO_CRITERIO
+
+
+def _chega_ao_que_governa_o_goal(tipo: str, destino: str, lote: _Lote) -> bool:
+    """A aresta `fere` ou `deriva_de` chega a um critério (ou, a `fere`, a uma decisão) que escopa ou orienta o Goal."""
+    no = lote.estado.nos.get(destino)
+    return no is not None and destino in lote.governam and no.tipo in ARESTAS_ATE_O_QUE_GOVERNA_O_GOAL.get(tipo, frozenset())
+
+
 def _motivo_na_aresta(segmentos: Sequence[str], item: ItemPatch, lote: _Lote) -> str:
     """A aresta nova é das que o laço usa, com as duas pontas no Goal do lote; a que já existe não se edita."""
     if item.op != OperacaoPatch.ADD or len(segmentos) != SEGMENTOS_DO_ELEMENTO:
@@ -236,7 +269,8 @@ def _motivo_na_aresta(segmentos: Sequence[str], item: ItemPatch, lote: _Lote) ->
         return f"a aresta '{tipo}' promove memoria, e promover e do humano"
     if tipo not in {usada.value for usada in ARESTAS_DO_ORQUESTRADOR}:
         return f"o orquestrador nao cria aresta '{tipo}': o livro-razao do Goal nao a usa"
-    fora = next((ponta for ponta in (origem, destino) if not lote.dentro(ponta)), "")
+    governa = _chega_ao_que_governa_o_goal(tipo, destino, lote)
+    fora = next((ponta for ponta in (origem, destino) if not lote.dentro(ponta) and not (governa and ponta == destino)), "")
     if fora:
         return f"a aresta {tipo} liga {origem} a {destino}, e '{fora}' esta fora do Goal que o lote conduz ({lote.goal})"
     if tipo == TipoAresta.PRODUZ.value and origem != lote.sessao:

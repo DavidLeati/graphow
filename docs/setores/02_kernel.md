@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4945 linhas · 34 classes
+31 módulos · 5021 linhas · 34 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,17 +27,18 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 383 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
-| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
+| [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
-| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 294 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
+| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 328 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
+| [`kernel/pares_do_aceite.py`](#kernelparesdoaceite) | 32 | Pares de tipos das arestas do aceite no centro (ontologia 1.7.0), apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 183 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 270 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 379 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
-| [`kernel/schema_gate.py`](#kernelschemagate) | 387 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
+| [`kernel/schema_gate.py`](#kernelschemagate) | 389 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
 | [`kernel/teto_de_expansao.py`](#kerneltetodeexpansao) | 61 | O teto de expansão (D6 do escopo governado): recusa por contagem, só quando a política liga. |
 | [`kernel/veredito_de_fechamento.py`](#kernelvereditodefechamento) | 123 | Quem fecha uma Task precisa de revisão aprovada: a regra do kernel, fora da política. |
@@ -335,7 +336,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `TIPOS_EXCLUSIVOS_DO_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.GOVERNANCA})` |
+| `TIPOS_EXCLUSIVOS_DO_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.GOVERNANCA, TipoNo.CRITERIO, TipoN…` |
 | `TIPOS_EDITAVEIS_PELO_SISTEMA` | `frozenset[TipoNo]` | `frozenset({TipoNo.RUN, TipoNo.SESSAO})` |
 | `TIPOS_CUJA_REMOCAO_EXIGE_HUMANO` | `frozenset[TipoNo]` | `frozenset({TipoNo.CONSTRAINT, TipoNo.QUESTION, TipoNo.APRENDIZADO})` |
 | `PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO` | `frozenset[str]` | `frozenset({'alcance'})` |
@@ -358,7 +359,7 @@ Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo.
 | `PARES_DO_GESTO_PROMOVER_APRENDIZADO` | `frozenset[tuple[TipoNo, TipoNo]]` | `frozenset({(TipoNo.APRENDIZADO, TipoNo.SETOR), (TipoNo.APRENDIZADO, Tip…` |
 | `HUMANO_E_REVISOR` | `frozenset[PapelAutor]` | `SO_HUMANO | {PapelAutor.REVISOR}` |
 | `DONOS_POR_PAR_DE_ARESTA` | `Mapping[tuple[TipoAresta, TipoNo, TipoNo], DonosDeAresta]` | `{(TipoAresta.SUBSTITUI, TipoNo.APRENDIZADO, TipoNo.APRENDIZADO): DonosD…` |
-| `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA})` |
+| `ARESTAS_NEGADAS_SOB_AUTONOMIA_ILIMITADA` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.ESCOPA, TipoAresta.VALE_PARA, TipoAresta.FERE})` |
 
 ### `DonosDeAresta`
 
@@ -415,13 +416,15 @@ O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que 
 | `PROPRIEDADES_RESERVADAS_POR_TIPO` | `Mapping[TipoNo, frozenset[str]]` | `{TipoNo.PROJETO: PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO, TipoNo.G…` |
 | `ARESTAS_NEGADAS_AO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.VALE_PARA})` |
 | `ARESTAS_DO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.PRODUZ, TipoAresta.CONTEM, TipoAresta.ESCOPA, Tip…` |
+| `ARESTAS_ATE_O_QUE_GOVERNA_O_GOAL` | `Mapping[str, frozenset[TipoNo]]` | `{TipoAresta.FERE.value: frozenset({TipoNo.CRITERIO, TipoNo.DECISION}), …` |
+| `ARESTAS_QUE_GOVERNAM_O_GOAL` | `frozenset[str]` | `frozenset({TipoAresta.ESCOPA.value, TipoAresta.ORIENTA.value})` |
 | `PREFIXO_DA_SESSAO_DO_GOAL` | `str` | `'orq-sessao-'` |
 
 ### `_Lote`
 
 *DTO imutável* — O estado de antes, o Goal que o lote conduz e o alcance dele, com o que o próprio lote cria e liga.
 
-**Campos:** `estado: GrafoEstado`, `goal: str`, `criados: frozenset[str]`, `produzidos: frozenset[str]`, `contencao: frozenset[str]`, `conduzido: bool`
+**Campos:** `estado: GrafoEstado`, `goal: str`, `criados: frozenset[str]`, `produzidos: frozenset[str]`, `contencao: frozenset[str]`, `conduzido: bool`, `governam: frozenset[str]`
 
 - `sessao() -> str` `[property]` — A Sessao do orquestrador para o Goal do lote.
 - `e_do_orquestrador(id_no: str) -> bool` — O nó nasce neste lote ou foi criado pelo orquestrador.
@@ -440,6 +443,18 @@ Pares de tipos das arestas do escopo governado, apartados para o SchemaGate cabe
 | :--- | :--- | :--- |
 | `PARES_DE_DERIVA_DO_VEREDITO_DE_ESCOPO` | `Set[tuple[TipoNo, TipoNo]]` | `frozenset({(TipoNo.EVIDENCE, TipoNo.DECISION), (TipoNo.EVIDENCE, TipoNo…` |
 | `PARES_DE_ARESTAS_DO_ESCOPO` | `Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]]` | `{TipoAresta.MOTIVADA_POR: frozenset({(TipoNo.TASK, TipoNo.DECISION), (T…` |
+
+## `kernel/pares_do_aceite.py`
+
+Pares de tipos das arestas do aceite no centro (ontologia 1.7.0), apartados para o SchemaGate caber no limite do arquivo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PARES_DO_ACEITE` | `Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]]` | `{TipoAresta.PRODUZ: frozenset({(TipoNo.SESSAO, TipoNo.CRITERIO), (TipoN…` |
+
+### Funções do módulo
+
+- `juntar_pares(base: Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]], extras: Mapping[TipoAresta, Set[tuple[TipoNo, TipoNo]]]) -> dict[TipoAresta, frozenset[tuple[TipoNo, TipoNo]]]` — A tabela de pares com os extras somados aos pares de cada tipo de aresta.
 
 ## `kernel/patch_models.py`
 
