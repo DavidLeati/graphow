@@ -12,6 +12,7 @@ parada legível, e não uma exceção no meio da chamada.
 
 from pathlib import Path
 
+from graphow.core import aceite as a
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
@@ -116,6 +117,8 @@ class Orquestrador:
             raise GoalInexistente("Goal nao encontrado no livro-razao", {"id_goal": id_goal})
         if estado.fechado:
             return Parada(id_goal, MotivoDaParada.FECHADO, f"O Goal {id_goal} ja esta fechado.")
+        if estado.cancelado:
+            return _parada_do_cancelamento(estado)
         contexto = self._contexto(estado, opcoes, repositorio)
         preparar_area(contexto.area_do_goal)
         for _ in range(LIMITE_DE_PASSOS):
@@ -152,6 +155,8 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
     estado = contexto.estado()
     if estado.fechado:
         return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"O Goal {contexto.id_goal} esta fechado.")
+    if estado.cancelado:
+        return _parada_do_cancelamento(estado)
     if estado.plano is None:
         return planejar(contexto, estado)
     if estado.aceite is None:
@@ -171,6 +176,12 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
     if sem_como_rodar:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"As fatias {', '.join(sem_como_rodar)} do marco {marco.id} nao tem como rodar.")
     return verificar_ou_fechar(contexto, estado, marco)
+
+
+def _parada_do_cancelamento(estado: EstadoDoGoal) -> Parada:
+    """O humano cancelou o Goal: o laço não o conduz mais."""
+    motivo = str(estado.propriedades.get(a.CAMPO_MOTIVO_DO_CANCELAMENTO, ""))
+    return Parada(estado.id_goal, MotivoDaParada.CANCELADO, f"O Goal {estado.id_goal} foi cancelado pelo humano: {motivo}")
 
 
 def _portao_do_plano(contexto: ContextoDoGoal) -> Parada:

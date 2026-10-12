@@ -80,6 +80,9 @@ def _fechar(contexto: ContextoDoGoal) -> Parada:
     configuracao = contexto.configuracao
     repositorio = Path(configuracao.repositorio)
     head = contexto.git.head()
+    andou = _branch_andou(repositorio, configuracao.ramo, head)
+    if andou:
+        return Parada(contexto.id_goal, MotivoDaParada.FALHA, andou)
     if configuracao.modo == m.MODO_AUTONOMO:
         try:
             integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base)
@@ -93,6 +96,23 @@ def _fechar(contexto: ContextoDoGoal) -> Parada:
         MotivoDaParada.PRONTO_PARA_INTEGRAR,
         f"Pronto para integrar: a verificacao limpa vale para {head[:12]}. Integre com "
         f"`git -C \"{repositorio}\" merge --ff-only {configuracao.ramo}` (na base {configuracao.base}) e rode de novo para fechar.",
+    )
+
+
+def _branch_andou(repositorio: Path, ramo: str, head: str) -> str:
+    """A branch do Goal no repositório do humano não é mais a ponta que a verificação viu; vazio quando é.
+
+    O fechamento confere a ponta real no git, e não só a que o livro-razão
+    guarda: o commit que o humano fez na branch do Goal depois da verificação
+    entraria na base sem ter sido verificado.
+    """
+    real = GitDoGoal(repositorio).tentar("rev-parse", "--verify", "--quiet", f"refs/heads/{ramo}").saida.strip()
+    if real == head:
+        return ""
+    return (
+        f"A branch {ramo} no repositorio esta em {real[:12] or '(nenhum commit)'}, e a verificacao final valeu para "
+        f"{head[:12]}: alguem a mudou fora do orquestrador depois da verificacao. O Goal nao fecha; volte a branch a "
+        f"{head[:12]}, ou cancele o Goal com `--cancelar --motivo`."
     )
 
 

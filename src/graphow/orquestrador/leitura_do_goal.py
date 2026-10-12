@@ -180,6 +180,11 @@ class EstadoDoGoal:
         return self.status == m.STATUS_CONCLUIDO
 
     @property
+    def cancelado(self) -> bool:
+        """O humano cancelou o Goal."""
+        return self.status == a.STATUS_CANCELADO
+
+    @property
     def ciclos_de_correcao(self) -> int:
         """Quantos ciclos de correção a verificação já abriu."""
         valor = self.propriedades.get(m.CAMPO_CICLOS)

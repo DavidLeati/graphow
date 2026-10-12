@@ -37,6 +37,7 @@ class MotivoDaParada(str, Enum):
     """Por que o laço devolveu a palavra."""
 
     FECHADO = "fechado"
+    CANCELADO = "cancelado"
     AGUARDANDO_APROVACAO = "aguardando_aprovacao"
     AGUARDANDO_RESPOSTA = "aguardando_resposta"
     PENDENCIA = "pendencia"
