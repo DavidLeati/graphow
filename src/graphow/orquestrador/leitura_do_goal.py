@@ -57,8 +57,14 @@ class FatiaRegistrada:
 
     @property
     def tentativas(self) -> int:
-        """Quantas sessões de executor a fatia já abriu."""
+        """Quantas sessões de executor a fatia já abriu, dúvidas inclusive."""
         valor = self.propriedades.get(m.CAMPO_TENTATIVAS)
+        return valor if isinstance(valor, int) and not isinstance(valor, bool) else 0
+
+    @property
+    def falhas(self) -> int:
+        """Quantas tentativas falharam (a saída inválida, a suíte vermelha, a sessão interrompida); a dúvida não conta."""
+        valor = self.propriedades.get(m.CAMPO_FALHAS)
         return valor if isinstance(valor, int) and not isinstance(valor, bool) else 0
 
     @property

@@ -129,3 +129,35 @@ def test_falha_do_git_vira_parada_e_nao_excecao_edge_case(tmp_path: Path) -> Non
 
     assert parada.motivo == MotivoDaParada.FALHA
     assert "FalhaDoGitDoGoal" in parada.mensagem
+
+
+def test_duas_duvidas_respondidas_nao_gastam_as_tentativas_nominal(tmp_path: Path) -> None:
+    """A fatia pergunta duas vezes, o humano responde as duas, e ela ainda roda e fecha: dúvida não é falha."""
+    from graphow.core.types import PapelAutor
+    from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
+
+    roteiro = roteiro_farto()
+    duvida = {"saida": {"status": "duvida", "resumo": "parei", "arquivos": [], "testes": [], "duvida": "Inteiros?"}, "custo": 0.1}
+    roteiro["executor"] = [copy.deepcopy(duvida), copy.deepcopy(duvida), *roteiro["executor"]]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+
+    def responder() -> None:
+        estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+        assert estado is not None and estado.fatias[0].duvida_aberta is not None
+        id_questao = estado.fatias[0].duvida_aberta.id
+        resposta = PropostaPatch.criar(DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, justificativa="r", operacoes=(
+            ItemPatch(OperacaoPatch.REPLACE, f"/nos/{id_questao}/propriedades/status", "respondida"),
+            ItemPatch(OperacaoPatch.REPLACE, f"/nos/{id_questao}/propriedades/resposta", "sim"))))
+        assert bancada.kernel.submeter_patch(resposta).sucesso
+
+    primeira = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    responder()
+    segunda = orquestrador.rodar("goal-soma", AUTONOMO)
+    responder()
+    terceira = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert (primeira.motivo, segunda.motivo) == (MotivoDaParada.AGUARDANDO_RESPOSTA, MotivoDaParada.AGUARDANDO_RESPOSTA)
+    assert terceira.fechou, terceira.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and (estado.fatias[0].tentativas, estado.fatias[0].falhas) == (3, 0)

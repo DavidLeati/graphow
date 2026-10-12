@@ -74,7 +74,8 @@ def briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto:
     plano = estado.plano or {}
     return _juntar([
         f"# Fatia {fatia.codigo} do Goal {estado.id_goal}: {fatia.titulo}",
-        f"Tentativa {contexto.tentativa} de 2. Pasta: a area de trabalho do Goal, na branch dele.",
+        f"Sessao {contexto.tentativa} desta fatia; {fatia.falhas} falha(s) ate agora (na segunda, a fatia vira pendencia). "
+        "Pasta: a area de trabalho do Goal, na branch dele.",
         _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), _correcao(estado, fatia)]),
         _bloco("Criterios que esta fatia cobre", _criterios(plano, fatia.lista(m.CAMPO_CRITERIOS))),
         _bloco("Todos os criterios do Goal (contexto)", _criterios(plano)),

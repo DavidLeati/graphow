@@ -155,8 +155,8 @@ class LivroRazaoDoGoal:
             f"Fatia {id_task} concluida em {commit[:12]}",
         )
 
-    def registrar_falha(self, id_task: str, tentativa: int, *, erro: str, patch: str) -> None:
-        """A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro para a próxima."""
+    def registrar_falha(self, id_task: str, tentativa: int, *, erro: str, patch: str, falhas: int) -> None:
+        """A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas."""
         id_nota = f"nota-{id_task}-t{tentativa}"
         propriedades = {"acao": m.ACAO_DA_TENTATIVA, "erro": erro, m.CAMPO_PATCH: patch, m.CAMPO_TENTATIVAS: tentativa}
         self.gravar(
@@ -165,6 +165,7 @@ class LivroRazaoDoGoal:
                 aresta(id_nota, id_task, TipoAresta.DERIVA_DE),
                 propriedade(id_task, m.CAMPO_ULTIMO_ERRO, erro),
                 propriedade(id_task, m.CAMPO_PATCH, patch),
+                propriedade(id_task, m.CAMPO_FALHAS, falhas),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_PENDENTE),
             ],
             f"Tentativa {tentativa} da fatia {id_task} falhou",

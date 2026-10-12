@@ -22,7 +22,8 @@ from graphow.sessoes.pedido import TEMPO_LIMITE_PADRAO_S
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
 from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria
 
-MAXIMO_DE_TENTATIVAS: int = 2
+# Quantas falhas a fatia admite: a segunda a torna pendência. Dúvida não é falha.
+MAXIMO_DE_FALHAS: int = 2
 MAXIMO_DE_CICLOS_DE_CORRECAO: int = 2
 ORCAMENTO_PADRAO_USD: float = 30.0
 

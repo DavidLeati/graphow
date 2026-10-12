@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
-from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_TENTATIVAS, ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
 from graphow.orquestrador.git_do_goal import commitar, descartar_mudancas, restaurar_head
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
@@ -37,13 +37,13 @@ class Tentativa:
 
 def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Parada | None:
     """Roda uma tentativa da fatia; a parada diz por que o laço não segue."""
-    numero = fatia.tentativas + 1
     if fatia.status == m.STATUS_EM_ANDAMENTO:
         _registrar_interrupcao(contexto, fatia)
         estado = contexto.estado()
         fatia = next(registrada for registrada in estado.fatias if registrada.id == fatia.id)
-    if numero > MAXIMO_DE_TENTATIVAS:
-        return _virar_pendencia(contexto, fatia, "as tentativas acabaram sem a fatia fechar")
+    if fatia.falhas >= MAXIMO_DE_FALHAS:
+        return _virar_pendencia(contexto, fatia, f"falhou {fatia.falhas} vezes; a ultima: {fatia.texto(m.CAMPO_ULTIMO_ERRO)[:500]}")
+    numero = fatia.tentativas + 1
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
@@ -88,10 +88,11 @@ def _falhou(contexto: ContextoDoGoal, tentativa: Tentativa, erro: str) -> Parada
     """A tentativa falhou: o que ela deixou vai para um .patch; na segunda, a fatia vira pendência."""
     fatia = tentativa.fatia
     patch = _guardar(contexto, fatia, f"t{tentativa.numero}")
-    contexto.livro.registrar_falha(fatia.id, tentativa.numero, erro=erro, patch=patch)
-    if tentativa.numero < MAXIMO_DE_TENTATIVAS:
+    falhas = fatia.falhas + 1
+    contexto.livro.registrar_falha(fatia.id, tentativa.numero, erro=erro, patch=patch, falhas=falhas)
+    if falhas < MAXIMO_DE_FALHAS:
         return None
-    return _virar_pendencia(contexto, fatia, f"falhou {tentativa.numero} vezes; a ultima: {erro[:500]}")
+    return _virar_pendencia(contexto, fatia, f"falhou {falhas} vezes; a ultima: {erro[:500]}")
 
 
 def _virar_pendencia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, motivo: str) -> Parada:
@@ -111,7 +112,7 @@ def _registrar_interrupcao(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> 
     """A tentativa que estava em andamento quando o laço parou conta como falha, e a área volta ao commit."""
     patch = _guardar(contexto, fatia, f"t{fatia.tentativas}-interrompida")
     erro = "a tentativa anterior foi interrompida no meio (o orquestrador parou antes de ela terminar)"
-    contexto.livro.registrar_falha(fatia.id, fatia.tentativas, erro=erro, patch=patch)
+    contexto.livro.registrar_falha(fatia.id, fatia.tentativas, erro=erro, patch=patch, falhas=fatia.falhas + 1)
 
 
 def _guardar(contexto: ContextoDoGoal, fatia: FatiaRegistrada, sufixo: str) -> str:

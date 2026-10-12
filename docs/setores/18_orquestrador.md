@@ -10,22 +10,22 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-21 módulos · 2989 linhas · 40 classes
+21 módulos · 3000 linhas · 40 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 146 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 146 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 147 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 147 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 114 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 115 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 142 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 143 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 234 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 172 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 241 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 255 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 138 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 256 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 126 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 232 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -62,7 +62,7 @@ O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orça
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `MAXIMO_DE_TENTATIVAS` | `int` | `2` |
+| `MAXIMO_DE_FALHAS` | `int` | `2` |
 | `MAXIMO_DE_CICLOS_DE_CORRECAO` | `int` | `2` |
 | `ORCAMENTO_PADRAO_USD` | `float` | `30.0` |
 
@@ -343,7 +343,8 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 
 - `texto(chave: str) -> str` — Uma propriedade de texto da fatia.
 - `lista(chave: str) -> tuple[str, ...]` — Uma propriedade de lista de textos da fatia.
-- `tentativas() -> int` `[property]` — Quantas sessões de executor a fatia já abriu.
+- `tentativas() -> int` `[property]` — Quantas sessões de executor a fatia já abriu, dúvidas inclusive.
+- `falhas() -> int` `[property]` — Quantas tentativas falharam (a saída inválida, a suíte vermelha, a sessão interrompida); a dúvida não conta.
 - `duvida_aberta() -> DuvidaRegistrada | None` `[property]` — A dúvida que pausa a fatia, quando há.
 
 ### `VerificacaoRegistrada`
@@ -389,7 +390,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `gravar_plano_proposto(dados: Mapping[str, Any]) -> None` — A saída conferida do planejador no Goal, antes de qualquer passo que possa cair no meio.
 - `iniciar_tentativa(id_task: str, tentativa: int) -> None` — A fatia entra em andamento, com a tentativa contada antes de a sessão abrir.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
-- `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro para a próxima.
+- `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
 - `gravar_verificacao(numero: int, verificacao: Verificacao) -> str` — A verificação vira Evidence ligada ao Goal, com o commit verificado; devolve o id dela.
@@ -433,6 +434,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_MODELO` | `str` | `'modelo'` |
 | `CAMPO_ORDEM` | `str` | `'ordem'` |
 | `CAMPO_TENTATIVAS` | `str` | `'tentativas'` |
+| `CAMPO_FALHAS` | `str` | `'falhas'` |
 | `CAMPO_ULTIMO_ERRO` | `str` | `'ultimo_erro'` |
 | `CAMPO_PATCH` | `str` | `'patch_da_tentativa'` |
 | `CAMPO_PENDENCIA` | `str` | `'pendencia'` |

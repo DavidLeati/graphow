@@ -102,7 +102,7 @@ def test_segunda_falha_vira_pendencia_do_goal_edge_case() -> None:
     """Caso de borda: a fatia bloqueada sai da fila e a pendência fica no Goal."""
     kernel, livro = _livro_com_plano()
     livro.iniciar_tentativa("task-soma-f1", 1)
-    livro.registrar_falha("task-soma-f1", 1, erro="suite vermelha", patch="t1.patch")
+    livro.registrar_falha("task-soma-f1", 1, erro="suite vermelha", patch="t1.patch", falhas=1)
     livro.iniciar_tentativa("task-soma-f1", 2)
     livro.marcar_pendencia("task-soma-f1", "falhou duas vezes", [{"origem": "task-soma-f1", "titulo": "falhou duas vezes"}])
 
