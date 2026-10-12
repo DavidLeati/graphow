@@ -372,3 +372,14 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   resolvido ou descartado pelo humano; o critério sem `atende` vale quando todo
   Achado dela que o fere foi descartado; o `Criterio` que uma Decision do humano
   tirou do plano (`retirado`) sai da conta.
+- **O pedido do humano** ao laço é uma `Decision` com `acao_do_humano`
+  (`descartar_achado`, `mais_ciclos`, `cancelar`, `recusar_plano`,
+  `refazer_aceite`), o `goal`, o `alvo` e o `motivo`, produzida pela Sessao do
+  orquestrador do Goal, por onde ele entra no laço, e com a proveniência do
+  humano. Só o humano a cria, e ninguém a edita nem a remove. O Goal guarda os
+  pedidos que o laço atendeu (`pedidos_atendidos`) e os planos recusados
+  (`planos_recusados`), ambos do orquestrador; o `Criterio` que o plano novo
+  não traz mais fica `retirado`, com a Decision do pedido que recusou o plano.
+- **A revisão de risco** que rejeita a fatia grava cada problema como `Achado`
+  que deriva da Evidence dela, com a gravidade do código; a revisão seguinte
+  da fatia que aprova resolve os bloqueantes que ela abriu.

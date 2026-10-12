@@ -445,6 +445,13 @@ graphow orquestrar --goal goal-relatorio --repo .
 graphow orquestrar --goal goal-relatorio --aprovar-plano
 graphow orquestrar --goal goal-relatorio --status
 
+# As saídas do humano, cada uma uma Decision dele, sempre com o motivo
+graphow orquestrar --goal goal-relatorio --recusar-plano --motivo "o README fica para outro Goal"
+graphow orquestrar --goal goal-relatorio --refazer-aceite C3 --motivo "o teste exige ponto, a spec aceita virgula"
+graphow orquestrar --goal goal-relatorio --descartar-achado achado-goal-relatorio-v4-1 --motivo "aceito o risco"
+graphow orquestrar --goal goal-relatorio --mais-ciclos 1 --motivo "falta so a borda do CRLF"
+graphow orquestrar --goal goal-relatorio --cancelar --motivo "o pedido mudou"
+
 # Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
 # Sem --setor, a sessão nasce no ambiente padrão do repositório em que o comando roda
 graphow harness --fase inicio --sessao sess-01 --modelo opus-5
@@ -899,13 +906,20 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    vale como ele o escreveu, diga o planejador o que disser.
 3. **Aceite primeiro.** Uma sessão nova do autor de aceite, que não é o
    executor, escreve em arquivos novos de `aceite/` os testes executáveis de
-   cada critério `teste` (cada um cita o código do critério) e a lista de
-   checagem de cada critério `checagem`. O orquestrador confere a forma, recusa
-   o que o autor mexeu fora de `aceite/` e roda cada teste: todos falham antes
-   da implementação, salvo o do critério que o código já atendia, com a
-   justificativa; o teste que já passa sem ela volta ao autor, porque não prova
-   nada. Conferido, os testes vão num commit, e cada `Criterio` ganha a ligação
-   aos seus testes.
+   cada critério `teste` (de um a três por critério, cada um cita o código do
+   critério) e a lista de checagem de cada critério `checagem`. O orquestrador
+   confere a forma, recusa o que o autor mexeu fora de `aceite/` e roda cada
+   teste lendo a saída do runner (pytest, unittest, node:test, jest, vitest,
+   mocha; `orquestrador/resultado_de_teste.py`): antes da implementação, cada
+   um tem de falhar numa asserção dele, com o nome dele na saída, e o erro de
+   import ou de coleta, o comando que não existe, o nome errado e o teste
+   pulado voltam ao autor; o que já passa precisa da justificativa
+   (`ja_atendido`, que vale só para os testes que já passam). O que não confere
+   volta à mesma sessão até duas vezes; esgotadas, a parada indica
+   `--refazer-aceite`. Conferido, os testes vão num commit, e cada `Criterio`
+   ganha a ligação aos seus testes. O autor roda no Sonnet por padrão, e o JSON
+   dele leva um modelo de comando (`comando_do_teste`) em vez de um comando por
+   teste.
 4. **Portão do plano e dos testes.** No modo supervisionado (o padrão) o laço
    para depois do autor de aceite e espera `--aprovar-plano`: o humano aprova
    junto o plano e o que vai provar que o Goal está pronto, e a aprovação vale
@@ -926,7 +940,16 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    vez) por uma sessão nova de revisão, que julga o diff contra os critérios
    dela antes do commit, e commita na branch do Goal com a mensagem que cita a
    fatia e os critérios; o commit vira `Artifact`. Nas outras fatias não há
-   revisão. A dúvida vira `Question` e pausa só aquela fatia, sem contar como
+   revisão, e o problema da revisão que rejeita vira `Achado` da revisão (com a
+   gravidade do código), e não Note. **O aceite fica intocado**
+   (`orquestrador/aceite_intocado.py`): a fatia que mexe em `aceite/` (o
+   arquivo ignorado pelo git inclusive) é recusada; a que muda a configuração
+   de teste (conftest, pytest.ini, a seção de teste do pyproject e do
+   setup.cfg, tox.ini, os scripts de teste do package.json, jest, vitest,
+   mocha, sitecustomize, `.pth`, um `pytest.py` na raiz) é recusada salvo
+   quando o plano declarou o arquivo nela, e aí vai à revisão de risco; as
+   flags `skip-worktree` e `assume-unchanged` do índice saem e reprovam a
+   tentativa (`git update-index` está nas regras negadas). A dúvida vira `Question` e pausa só aquela fatia, sem contar como
    falha; a falha ganha uma nova tentativa com o erro, e a segunda falha vira
    pendência e para o laço. O que não vira commit vai para um `.patch` e sai da
    área.
@@ -940,23 +963,55 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    um trecho da saída: sem comando rodado, ou com prova de menos de dez
    caracteres, a verificação não confere, e cada comando declarado tem de
    aparecer numa chamada da ferramenta Bash do stream da sessão (o que não
-   aparece volta à mesma sessão uma vez). Depois, o próprio orquestrador roda a
-   suíte e os testes de aceite no commit verificado: a suíte vermelha é
-   bloqueante, e o teste de aceite vermelho reprova o critério dele, diga o
-   verificador o que disser. **A gravidade é do código**: o verificador diz, por
+   aparece volta à mesma sessão uma vez). Depois, o próprio orquestrador roda,
+   no commit verificado, com `aceite/` de volta ao commit do aceite e sem
+   configuração de teste solta, a suíte e os testes de aceite dos critérios que
+   os marcos até este completaram (os dos anteriores, como regressão; na final,
+   também todos de uma vez e a suíte junto com eles, num comando só): a suíte
+   vermelha é bloqueante, e o teste de aceite que não passa (o pulado e o xfail
+   inclusive) reprova o critério dele, diga o verificador o que disser. **A gravidade é do código**: o verificador diz, por
    achado, os critérios e as decisões que ele toca, e o achado que toca algum é
-   bloqueante, sem exceção, mesmo o defeito que já existia; só o que não toca
-   nada é acompanhamento (a severidade que o verificador sugere fica gravada,
-   informativa). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   bloqueante, sem exceção, mesmo o defeito que já existia; o que ele deixa sem
+   citação vai a uma segunda opinião, uma sessão curta sem ferramentas (Sonnet,
+   só os critérios, as decisões e o achado), e só fica acompanhamento se ela
+   também não citar nada (sem resposta, os dois não concordaram, e ele é
+   bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
-   pendências. Cada bloqueante vira fatia de correção que deriva dele (até dois
-   ciclos por marco; esgotado, o laço para e ele segue aberto), e o
+   pendências. Os bloqueantes viram fatias de correção que derivam deles, os do
+   mesmo arquivo (ou, sem local, do mesmo critério) juntos numa fatia só, até
+   dois ciclos por marco. O marco intermediário que esgota os ciclos segue, com
+   os bloqueantes abertos, para os marcos seguintes rodarem; a verificação final
+   os cobra de novo, com os ciclos dela, e só esgotados esses o laço para. O
    acompanhamento fica como pendência do Goal, no documento e no `--status`.
 7. **Fechamento.** O Goal só fecha com a verificação final limpa no commit
-   atual, e é o kernel que recusa o resto (`fechamento_sem_verificacao_limpa`).
-   No modo autônomo, o orquestrador integra por fast-forward na base e fecha; no
-   supervisionado, para com "pronto para integrar", e a chamada seguinte vê a
-   branch integrada e fecha.
+   atual e nenhum bloqueante aberto, e é o kernel que recusa o resto
+   (`fechamento_sem_verificacao_limpa`). O livro do aceite não se reescreve
+   (`kernel/livro_do_aceite.py`): a verificação e os pareceres dela são
+   imutáveis e só o orquestrador os cria; a ponta da branch, a condução, o plano
+   e as ligações do `Criterio` são dele, e o `Criterio` não se remove; o
+   `Achado` só anda pelas transições do livro (aberto a corrigido pelo
+   orquestrador, com o commit da correção; a descartado só pelo humano, com o
+   motivo; nada volta a aberto); e o Goal conduzido vai a `concluido` só pelo
+   orquestrador, num lote em que fechar é a única mudança (o humano cancela,
+   com o motivo, mas não conclui). Antes de fechar, o orquestrador confere no
+   git a ponta real da branch: o commit que o humano fez nela depois da
+   verificação impede o fechamento. No modo autônomo, o orquestrador integra
+   por fast-forward na base e fecha; no supervisionado, para com "pronto para
+   integrar", e a chamada seguinte vê a branch integrada e fecha.
+
+**Saídas do humano.** O Goal parado tem saída, e cada uma é um pedido gravado
+como `Decision` do humano (`orquestrador/pedidos_do_humano.py`), sempre com
+`--motivo`: `--recusar-plano` (antes de qualquer fatia: o planejador refaz o
+plano com o recusado e o motivo no briefing, e o `Criterio` que sai fica
+retirado), `--refazer-aceite C3` (o autor de aceite reescreve só os testes de
+C3; a resposta do humano à dúvida do executor que marcou `teste_errado` leva
+ao mesmo lugar, e no supervisionado o portão volta), `--descartar-achado`
+(o laço lê o estado do `Achado`, e não o veredito velho da verificação),
+`--mais-ciclos N` (para o marco atual) e `--cancelar`. **Limite da conta.** O
+limite de uso (`usage_limit_reached`, o `rate_limit_event` recusado) não é
+falha da fatia: a tentativa em curso não conta e o laço para com
+`limite_de_uso`, retomável; o erro passageiro da API (sobrecarga, 5xx) repete
+a invocação depois de 30 s, 2 min e 5 min.
 
 O estado sai do livro-razão e do git, então rodar de novo retoma de onde parou,
 inclusive depois de o processo cair no meio de uma sessão: o plano pago não se
@@ -972,15 +1027,17 @@ nunca exceção.
 | Garantia | Como |
 | :--- | :--- |
 | Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
-| Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez |
+| Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez (o autor de aceite, duas) |
+| O aceite prova o que diz | O teste de aceite roda da cópia do commit do aceite, sem conftest, configuração ou arquivo solto do executor, e conta como verde só quando a saída do runner diz que passou sem pular; o kernel recusa toda reescrita do livro do aceite (a verificação, o `Achado`, o `Criterio`, a ponta, o fechamento) |
 | O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal e o fast-forward da integração). Dentro do clone, três camadas em profundidade (`orquestrador/trava_do_git.py`): as regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push; o ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`; e, depois de cada sessão, o clone volta ao que era (a branch do Goal no commit de antes, com o commit que escapou de volta à árvore por `reset --soft`, as outras refs, a configuração e os hooks), sem reprovar a sessão, porque no clone só o agente mexe. Nada fora do clone é conferido nem desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
 | Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
 
 Modelo por papel: `--modelo-planejador`, `--modelo-aceite`, `--modelo-executor`,
-`--modelo-revisor` e `--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
-modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
+`--modelo-revisor`, `--modelo-verificador` e `--modelo-segunda_opiniao`, Opus
+por padrão, menos o autor de aceite e a segunda opinião, Sonnet (`sugerido` no
+executor segue o modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 `--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
 Goal (o clone da área, os streams das sessões, os patches e a trava do git) fica
 em `<pasta do banco>/orquestrar/<goal>/`; o clone sai quando o Goal fecha, e a
@@ -999,6 +1056,20 @@ de acompanhamento e pendência, sem Note. Os seis nós `Criterio` terminaram
 `atende`, e o lote que fechou o Goal veio depois da verificação final, feita no
 commit do código que é a ponta da branch (o commit seguinte só registrou a
 pendência no documento). Os 113 eventos do Goal são do papel `orquestrador`.
+
+A fumaça da rodada 2 da fase 2 (uma calculadora de estatística em duas etapas,
+`mediana` e `desvio` e depois a linha de comando e o README, onze critérios,
+modo autônomo, os papéis no padrão) fechou o Goal com treze sessões, US$ 2,18
+e 9,9 minutos, em dois marcos. O autor de aceite, no Sonnet, custou US$ 0,12 em
+0,6 minuto, com dez testes, todos vermelhos por asserção antes da
+implementação. O marco M1 saiu limpo; na final, o orquestrador rodou de novo
+os testes de M1 e a suíte junto com o aceite, e o verificador achou dois
+bloqueantes (o `desvio` de valores grandes com traceback na CLI e `nan` aceito
+como número), que viraram uma fatia de correção só; a verificação seguinte
+achou mais um (a `mediana` que transborda), corrigido no segundo ciclo, e a
+quarta saiu limpa. Os três achados que o verificador não ligou a critério
+passaram pela segunda opinião (três sessões sem ferramentas, US$ 0,05) e
+ficaram acompanhamento. Nenhuma Note.
 
 ---
 
