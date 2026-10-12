@@ -231,6 +231,8 @@ def _nome_falhou(saida: str, nome: str, *, conhecido: bool) -> bool:
 
 
 _EXCECAO_DO_PYTEST = re.compile(r"^\S+:\d+: ([A-Za-z_][\w.]*)(?::|$)", re.M)
+# O fim da linha que o pytest cortou na largura do terminal.
+CORTE_DO_PYTEST: str = "..."
 _MENSAGEM_DO_FAILED = re.compile(r"^FAILED \S+ - (assert\b|[A-Za-z_][\w.]*)", re.M)
 
 
@@ -250,9 +252,14 @@ def _falha_fora_da_assercao(saida: str, runner: str) -> str:
 
 
 def _excecao_do_pytest(saida: str) -> str:
-    """As exceções das falhas do pytest, do traceback ou da linha FAILED; só asserção vale."""
+    """As exceções das falhas do pytest, do traceback ou da linha FAILED; só asserção vale.
+
+    O pytest corta a linha FAILED na largura do terminal (`- Ass...`): o nome
+    cortado não é exceção nenhuma, e vale o que o traceback mostra. Na fumaça
+    da rodada 3, o corte custou duas retomadas ao autor de aceite.
+    """
     vistas = set(_EXCECAO_DO_PYTEST.findall(saida))
-    vistas |= {"AssertionError" if m == "assert" else m for m in _MENSAGEM_DO_FAILED.findall(saida)}
+    vistas |= {"AssertionError" if m == "assert" else m for m in _MENSAGEM_DO_FAILED.findall(saida) if not m.endswith(CORTE_DO_PYTEST)}
     if not vistas:
         return "a saida do pytest nao mostra com que excecao o teste falhou (rode-o sem --tb=no)"
     fora = sorted(vistas - EXCECOES_DE_ASSERCAO)

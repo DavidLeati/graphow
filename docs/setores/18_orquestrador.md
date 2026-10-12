@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-44 módulos · 7470 linhas · 62 classes
+44 módulos · 7477 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -42,7 +42,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 173 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
-| [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
+| [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 81 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 267 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
@@ -917,6 +917,7 @@ O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo moti
 | `MARCAS_DE_FALHA` | `re.Pattern[str]` | `re.compile('^(FAILED|FAIL:|FAIL |not ok|\\s*[✖✕×●]|_{3,} |\\s*\\d+\\) )…` |
 | `RUNNERS_NO_COMANDO` | `tuple[tuple[str, re.Pattern[str]], ...]` | `(('pytest', re.compile('\\b(pytest|py\\.test)\\b')), ('unittest', re.co…` |
 | `LEITORES` | `tuple[Callable[[str], Contagem | None], ...]` | `(_pytest, _unittest, _node, _jest, _vitest, _mocha)` |
+| `CORTE_DO_PYTEST` | `str` | `'...'` |
 
 ### `Contagem`
 

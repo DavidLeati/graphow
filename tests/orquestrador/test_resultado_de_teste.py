@@ -24,6 +24,13 @@ PYTEST_IMPORT_NO_TESTE: str = (
     "=========================== short test summary info ===========================\n"
     "FAILED aceite/aceite_c1.py::test_c1_media - ModuleNotFoundError: No modul...\n1 failed in 0.11s\n"
 )
+# A saída real do autor de aceite na fumaça da rodada 3: a asserção num helper e a linha FAILED cortada pelo pytest.
+PYTEST_RESUMO_CORTADO: str = (
+    "    def _func(nome):\n        import estatistica\n        f = getattr(estatistica, nome, None)\n"
+    ">       assert f is not None\nE       AssertionError: estatistica.mediana nao existe\n\n"
+    "aceite\\aceite_funcoes.py:14: AssertionError\n=========================== short test summary info ===========================\n"
+    "FAILED aceite/aceite_funcoes.py::test_c1_mediana_impar_par_e_nao_altera - Ass...\n1 failed in 0.19s\n"
+)
 PYTEST_COLETA: str = (
     "aceite\\aceite_c1.py:1: in <module>\n    from estatistica import media\nE   ModuleNotFoundError: No module named 'estatistica'\n"
     "=========================== short test summary info ===========================\nERROR aceite/aceite_c1.py\n"
@@ -108,6 +115,9 @@ def test_verde_so_quando_o_runner_diz_que_passou_sem_pular_edge_case(comando: st
         (PYTEST, 1, PYTEST_ASSERCAO.replace("\n", "\r\n"), "test_c1_media", ""),
         (PYTEST, 1, PYTEST_IMPORT_NO_TESTE.replace("\n", "\r\n"), "test_c1_media", "ModuleNotFoundError"),
         (PYTEST, 1, PYTEST_IMPORT_NO_TESTE, "test_c1_media", "ModuleNotFoundError"),
+        (PYTEST, 1, PYTEST_RESUMO_CORTADO, "test_c1_mediana_impar_par_e_nao_altera", ""),
+        (PYTEST, 1, PYTEST_RESUMO_CORTADO.replace("14: AssertionError", "14: NameError"), "test_c1_mediana_impar_par_e_nao_altera",
+         "NameError"),
         (PYTEST, 2, PYTEST_COLETA, "test_c1_media", "o pytest saiu com 2"),
         (PYTEST, 4, PYTEST_NAO_ACHOU, "test_c1_mediaa", "o pytest saiu com 4"),
         (PYTEST, 1, PYTEST_ASSERCAO, "test_c1_outro", "nao aparece como falho"),
@@ -128,7 +138,8 @@ def test_verde_so_quando_o_runner_diz_que_passou_sem_pular_edge_case(comando: st
         ("python aceite/aceite_c1.py", 0, "aceite ok\n", "test_c1_media", "saiu com zero"),
         ("python aceite/aceite_c1.py", None, "", "test_c1_media", "tempo acabou"),
     ],
-    ids=["pytest-assercao", "pytest-nome-completo", "pytest-crlf", "pytest-import-crlf", "pytest-import-no-corpo", "pytest-coleta", "pytest-nome-errado",
+    ids=["pytest-assercao", "pytest-nome-completo", "pytest-crlf", "pytest-import-crlf", "pytest-import-no-corpo", "pytest-resumo-cortado", "pytest-cortado-sem-assercao",
+         "pytest-coleta", "pytest-nome-errado",
          "pytest-outro-teste", "pytest-com-erro", "pytest-sem-resumo", "unittest-failures", "unittest-errors", "node-assercao",
          "node-referencia", "node-arquivo-nao-carrega", "jest-expect", "jest-modulo", "comando-ausente", "desconhecido-assercao",
          "desconhecido-import", "verde", "tempo"],
