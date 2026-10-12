@@ -7,7 +7,9 @@
 
 ## 📌 Visão Geral
 
-O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre pessoas e agentes autônomos de Inteligência Artificial (Planejadores, Executores, Revisores e, onde a política de governança o autoriza, o Árbitro).
+O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre pessoas e agentes autônomos de Inteligência Artificial.
+
+Desde a fase 1 da reestruturação, **quem coordena é código**: `graphow orquestrar` conduz um `Goal` num laço que planeja, executa, verifica e fecha, e os LLMs entram só onde há julgamento, cada um numa sessão `claude -p` nova (o planejador, um executor por fatia e o verificador adversarial). Nenhum agente escreve no grafo: cada um devolve JSON validado por schema, e o orquestrador grava o livro-razão (com o papel `orquestrador`) e commita cada fatia numa branch do Goal. O grafo é o livro-razão da intenção do humano, das decisões e das verificações; o MCP fica para a sessão do humano, onde o gerente alinha a demanda.
 
 O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a revisão confere a entrega contra o critério de pronto. A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, integração de ramos, colisões de migrations) entra como caso, quando a entrega é código.
 
@@ -28,7 +30,9 @@ A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
                              │ Proposta JSON Patch (RFC 6902)
                              ▼
   ┌────────────────────────────────────────────────────────┐
-  │                 AGENTE IA (MCP Server)                 │
+  │   ORQUESTRADOR EM CÓDIGO (graphow orquestrar) e MCP    │
+  │   da sessão do humano. Planejador, executor e          │
+  │   verificador devolvem JSON; o orquestrador grava      │
   └──────────────────────────┬─────────────────────────────┘
                              │
                              ▼
@@ -109,10 +113,12 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Também confere a política de governança declarada (`preset` e `personalizada` do nó `Governanca` e da propriedade `governanca` do `Projeto`): preset ou gesto desconhecido, valor fora do domínio do gesto e um segundo nó `Governanca` com id diferente de `governanca-global` caem com `estrutura_incompleta`, e nenhuma aresta toca o `Governanca`. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro, e a `Task` de ação externa é dele a menos que a política a entregue ao executor.
-   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu, sempre localizada (no arquivo ou na fonte); decompõe, ordena e diz com `orienta` onde cada decisão vale; proibido de fechar tarefas.
+   - **`orquestrador`**: O laço do `graphow orquestrar`, único escritor do Goal que conduz, com contrato próprio (`kernel/papel_do_orquestrador.py`): cria a hierarquia do Goal, o Goal, os critérios (`Constraint`), as decisões, as fatias (`Task`), as dúvidas (`Question` aberta), os commits (`Artifact`), as verificações (`Evidence` ligada ao Goal) e as notas; conclui fatia e fecha o Goal sem posse nem veredito por `Task`. Nunca cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele.
+   - Os papéis de agente abaixo (planejador, executor, revisor, árbitro) seguem como contratos do kernel, para o log antigo e para quem escreve em processo; desde a fase 1 nenhum servidor abre com eles, e a fase 4 os reduz.
+   - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu, sempre localizada (no arquivo ou na fonte); decompõe, ordena e diz com `orienta` onde cada decisão vale. Concluir `Task` exige veredito aprovado, como para todo agente.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas, alterar constraints, trocar a `entrega` de uma `Task` e, salvo quando a política lhe entrega o gesto `acao_externa`, assumir ou entregar a `Task` de ação externa.
    - **`revisor`**: Cria `Evidence`, `Question`, `Note`, `Aprendizado`; valida artefatos. Registra `Aprendizado` quem detém `deriva_de`: executor e revisor.
-   - **`arbitro`**: O agente a quem a política de governança do projeto entrega os gestos que tira do humano. Por si só cria só `Evidence`, `Decision` e `Note`; o resto vem da política do projeto do alvo e é recusado onde ela o deixa com o humano. Nunca promove a global, nunca altera a governança, não encerra a `Question` que abriu nem promove o `Aprendizado` que registrou, e não fecha `Task`. Servidor: `graphow mcp --papel arbitro`.
+   - **`arbitro`**: O papel a quem a política de governança do projeto entrega os gestos que tira do humano. Por si só cria só `Evidence`, `Decision` e `Note`; o resto vem da política do projeto do alvo e é recusado onde ela o deixa com o humano. Nunca promove a global, nunca altera a governança, não encerra a `Question` que abriu nem promove o `Aprendizado` que registrou, e não fecha `Task`. O subagente e o servidor dele saíram na fase 1.
    - **`sistema`**: Telemetria (`Run`), a `Sessao` em que o harness roda e, quando o humano não configurou um Setor, o **ambiente padrão da memória**: o `Projeto` com o nome do repositório e o `Setor` `Memoria` dentro dele. Nada do grafo de trabalho, e nenhum papel de agente alcança `sistema`.
 
    Estas regras valem para **todo** papel não humano, e valem no kernel, não no
@@ -140,8 +146,8 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas`, `local` ou `trecho`, carrega o ponteiro inteiro, numa de duas formas: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa; ou, quando o fato não mora num arquivo com linhas, `fonte` (URL, documento, conversa com data e participantes), `local` livre opcional (página, seção, minuto) e o `trecho` literal. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
-   - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
-   - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio.
+   - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano, o orquestrador (cujo Goal só fecha com a verificação do Goal limpa no commit atual) e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
+   - **Posse de Tarefa:** Nenhum agente move o status de uma `Task` sem deter o lock dela. Sem isso, dois executores na mesma tarefa não colidiam e o segundo sobrescrevia o primeiro em silêncio. O humano e o orquestrador, único escritor do Goal que conduz, ficam fora da regra.
    - **Locks Exclusivos:** Impede mutações em tarefas travadas por outro escritor, e isso inclui criar ou remover as arestas que redefinem a tarefa (`depende_de`, `decompoe`, `orienta`, `escopa`, `substitui`). `bloqueia` e `deriva_de` seguem livres: a escalação e a proveniência continuam chegando à tarefa travada.
 4. **Portão 4 — `WriteKernel`:** Geração dos `EventoLog` e projeção do lote **antes** de gravá-lo (o lote que o acumulador não consegue aplicar volta recusado, e o log fica intacto), persistência do lote inteiro em uma única transação (`BEGIN IMMEDIATE`/`ROLLBACK`, com `UNIQUE(ramo_id, seq)`) e notificação dos observadores — canal SSE e motor reativo.
 
@@ -199,13 +205,13 @@ reprovações em cadeia, por uma `Decision`, é a outra porta.
 
 - **Aba Configurações.** Na interface web (`graphow web`), a engrenagem da faixa de ícones à esquerda (ou o comando "Configurações: governança e operação" da paleta, `Ctrl+P`) abre a aba. Escolha o escopo (Global ou um projeto), um preset nos cartões e, na `personalizada`, o valor de cada gesto; no projeto cada gesto pode `herdar`. A tabela mostra a origem de cada valor, as linhas sempre humanas e a auditoria do que o árbitro fez. Escolher um preset já grava.
 - **`configurar_governanca`.** O equivalente pelo MCP, numa sessão humana: `escopo` (`global` ou o id de um `Projeto`), `preset` e `personalizada` opcional. Devolve a política efetiva e a origem de cada gesto. `configurar_autonomia_projeto` segue como o caminho legado.
-- **Subagente `graphow-arbitro`.** Despachado pela raiz da orquestração quando a política lhe concede o gesto, decide num contexto novo o que a política entrega ao árbitro (responder ou descartar `Question`, promover `Aprendizado` ao Setor ou Projeto, criar `Constraint`, fechar `Goal`, liberar posse órfã, encerrar sessão esquecida) e escala ao humano o resto.
+- **Sem árbitro em execução.** O subagente `graphow-arbitro`, que a raiz da orquestração antiga despachava quando a política lhe concedia o gesto, saiu na fase 1, com o servidor dele. A política segue no kernel (a fase 4 a reduz a dois modos), e o `graphow orquestrar` não a consulta: ele para nos portões fixos do laço.
 
 ---
 
 ## 🔌 Superfície de Ferramentas MCP (Model Context Protocol)
 
-O `GraphowMCPServer` expõe 25 ferramentas para consumo por agentes de IA. O **papel do agente não é um argumento**: ele é fixado na abertura da sessão (`graphow mcp --papel <papel>`) e qualquer chamada que traga `papel` é recusada.
+O `GraphowMCPServer` expõe 25 ferramentas. Desde a fase 1 ele serve à sessão do humano (o gerente e o que o humano conduz): os agentes do `graphow orquestrar` rodam sem MCP do graphow, e o servidor só abre com `graphow mcp --papel humano`. O **papel não é um argumento**: ele é fixado na abertura da sessão e qualquer chamada que traga `papel` é recusada. A redução das ferramentas ao que a sessão do humano precisa é da fase 4.
 
 A falha de uma ferramenta volta no resultado com `isError: true`, inclusive argumento de tipo errado e banco travado por outro escritor: antes, um `TypeError` ou um `sqlite3.OperationalError` derrubavam o processo MCP. Linha que não é JSON recebe `-32700`, e lote ou requisição sem `method` recebem `-32600`.
 
@@ -243,8 +249,8 @@ pode fazer, e um agente que as executasse desligaria todos os portões. As demai
 restritas (`responder_questao`, `promover_aprendizado`, `encerrar_sessao`,
 `excluir_projeto`, `excluir_em_lote`, `aprovar_plano`, `responder_desvio`) dependem da política efetiva do projeto do
 alvo: com a `governanca_maxima` são do humano, com a `arbitragem_maxima` também do
-papel `arbitro` (`graphow mcp --papel arbitro`), e planejador, executor e revisor
-são recusados em qualquer política. A recusa por nome de ferramenta é a primeira
+papel `arbitro` (que desde a fase 1 não abre servidor), e planejador, executor e
+revisor são recusados em qualquer política. A recusa por nome de ferramenta é a primeira
 camada, não a única: o `RoleGate` impõe as mesmas garantias contra qualquer caminho,
 inclusive um `propor_patch` cru.
 
@@ -256,10 +262,11 @@ papel da conexão pode criar, lido do `RoleGate`. As descrições das ferramenta
 dizem quando usá-las, não só o quê: é o que um agente que nunca leu a skill
 recebe junto das ferramentas.
 
-### O ciclo de um agente autônomo
+### O ciclo de uma sessão sobre o MCP
 
-As ferramentas acima fecham as três decisões que um agente sem supervisão
-precisa tomar sozinho:
+As ferramentas acima fecham as três decisões que uma sessão sobre o grafo
+precisa tomar (é o ciclo que os subagentes da orquestração antiga seguiam, e o
+que uma sessão do humano segue hoje):
 
 1. **O que fazer** — `proximas_tarefas(id_sessao)` devolve a fila já filtrada.
 2. **Trabalhar sem colidir** — `assumir_tarefa` toma a posse; o kernel recusa
@@ -310,12 +317,13 @@ que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 ### Pré-requisitos
 - Python $\ge$ 3.11
-- [Claude Code](https://claude.com/claude-code) (CLI ou app desktop), para a memória e a orquestração
+- [Claude Code](https://claude.com/claude-code) (CLI ou app desktop), para a memória, o gerente e as sessões `claude -p` do `graphow orquestrar` (o executável vem de `GRAPHOW_CLAUDE`, depois do PATH)
 
 ### 1. Instalar o pacote
 
 A instalação tem de ser editável e a partir de um checkout: o `graphow setup`
-copia as skills e os subagentes de `.agents/`, que não vão dentro do pacote.
+copia as skills de `.agents/`, que não vão dentro do pacote. Os prompts do
+`graphow orquestrar` vão dentro do pacote e não precisam de instalação.
 
 ```bash
 git clone https://github.com/DavidLeati/graphow.git
@@ -335,10 +343,10 @@ O comando faz, de uma vez, o que antes eram cinco passos à mão:
 
 | O quê | Para onde |
 | :--- | :--- |
-| Skills `graphow-mcp`, `graphow-orquestracao` e `graphow-gerente` | `~/.claude/skills/` |
-| Os sete subagentes da orquestração, com o servidor MCP de cada um apontando para o caminho absoluto do `graphow` | `~/.claude/agents/` |
-| Hooks `SessionStart`, `SessionEnd` e `SubagentStop`, também com o caminho absoluto | `~/.claude/settings.json` |
-| Permissões: leitura do servidor da sessão, os quatro servidores de subagente e os comandos de medição | `~/.claude/settings.json` |
+| Skills `graphow-mcp` e `graphow-gerente` | `~/.claude/skills/` |
+| Remove as cópias obsoletas da orquestração por subagentes: a skill `graphow-orquestracao` e os sete subagentes `graphow-*.md` | `~/.claude/skills/`, `~/.claude/agents/` |
+| Hooks `SessionStart` e `SessionEnd`, com o caminho absoluto; tira o `SubagentStop` antigo do harness | `~/.claude/settings.json` |
+| Permissões: leitura do servidor da sessão e os comandos de medição; tira as dos servidores de subagente | `~/.claude/settings.json` |
 
 O caminho absoluto é o que torna o setup confiável: com o pacote num venv, o
 `graphow` só está no PATH de quem ativou o venv, e o processo do app desktop não
@@ -351,7 +359,7 @@ arquivo e imprime o bloco para você colar.
 
 ### 3. O que segue manual
 
-O setup termina imprimindo os três passos que ficam com você:
+O setup termina imprimindo os dois passos que ficam com você:
 
 1. **Registrar o servidor MCP da sessão principal**, uma vez por usuário. O
    setup imprime o comando pronto, com o caminho do executável:
@@ -360,12 +368,9 @@ O setup termina imprimindo os três passos que ficam com você:
    Responder Question, promover Aprendizado e o resto continuam pedindo sua
    confirmação. Outros ambientes (Cursor, Claude Desktop, Antigravity) estão no
    [guia do MCP](.agents/skills/graphow-mcp/references/mcp_setup_guide.md).
-2. **Gravar a política de governança** de cada projeto, na aba Configurações do
-   `graphow web`. Sem política vale a `governanca_maxima`: o árbitro recusa todo
-   gesto, e todo portão para em você.
-3. **Reiniciar o Claude Code e conferir** a linha `Banco:` que o hook de início
-   imprime: raiz, subagentes e hooks precisam usar o mesmo banco
-   (`graphow banco-info`).
+2. **Reiniciar o Claude Code e conferir** a linha `Banco:` que o hook de início
+   imprime: a sessão, os hooks e o `graphow orquestrar` precisam usar o mesmo
+   banco (`graphow banco-info`).
 
 Nada precisa existir no grafo antes: a primeira sessão cria o Projeto do
 repositório e o Setor `Memoria` (ver [Harness](#-harness-o-grafo-sabe-que-a-sessão-existe)).
@@ -414,27 +419,37 @@ graphow mcp --papel humano --autor david
 # Regenerar o catálogo de documentação a partir do código
 graphow docs-gerar
 
-# Instalar (ou atualizar) skills, subagentes, hooks e permissões no Claude Code
+# Instalar (ou atualizar) skills, hooks e permissões no Claude Code, removendo as cópias obsoletas
 graphow setup --escrever-settings
 
 # Só conferir se as cópias em ~/.claude estão em dia (sai com código 1 se não estiverem)
 graphow setup --conferir
 
-# Instalar só a skill graphow-mcp, para ambientes sem a orquestração
+# Instalar só a skill graphow-mcp
 graphow skill-instalar
+
+# Conduzir um Goal de uma spec num repositório: plano, fatias, verificação e fechamento
+# (supervisionado por padrão: para no plano e no "pronto para integrar")
+graphow orquestrar --spec docs/pedido.md --repo .
+graphow orquestrar --spec docs/pedido.md --repo . --modo autonomo --orcamento-usd 10
+
+# Conduzir o Goal que o gerente gravou, aprovar o plano e ver onde ele está e quanto custou
+graphow orquestrar --goal goal-relatorio --repo .
+graphow orquestrar --goal goal-relatorio --aprovar-plano
+graphow orquestrar --goal goal-relatorio --status
 
 # Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
 # Sem --setor, a sessão nasce no ambiente padrão do repositório em que o comando roda
 graphow harness --fase inicio --sessao sess-01 --modelo opus-5
 graphow harness --fase fim --sessao sess-01 --resumo "3 tarefas concluidas"
 
-# O fim de um subagente (hook SubagentStop): um Run com os tokens, o modelo e as tarefas que ele assumiu
+# O fim de um subagente (o hook SubagentStop antigo, que o setup não instala mais): um Run com os tokens e o modelo
 graphow harness --fase subagente --entrada-hook
 
 # Comparar Goals orquestrados sob configurações de modelo: retrabalho, rejeições na revisão e tokens
 graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 
-# O mesmo, com uma linha por rodada do condutor: minutos, o que fechou e foi revisado na janela, tokens e cota
+# O mesmo, com uma linha por rodada do condutor da orquestração antiga: minutos, o que fechou, tokens e cota
 graphow orquestracao-medir --goal goal-padrao --por-rodada
 
 # Quando o trabalho mora num repositório git: conferir o Goal contra o ramo_base dele, o que o ramo base ganhou desde o merge-base,
@@ -450,6 +465,7 @@ graphow medir-escala
 
 # Rodar uma arquitetura nas três demandas do laboratório, auditar a entrega e comparar com a linha de base
 graphow bancada rodar --arquitetura enxuta --projeto todos --saida ../bancada-saida
+graphow bancada rodar --arquitetura orquestrar --projeto todos --saida ../bancada-saida
 graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
 graphow bancada placar --saida ../bancada-saida
 
@@ -520,7 +536,7 @@ identidade.
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
-| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dezesseis gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (cadência, teto de rodadas e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
+| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dezesseis gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (quando o gerente grava e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em
@@ -705,7 +721,7 @@ recusado pelo analisador — antes era escrito como caminho vazio no patch:
 graphow harness --fase fim --sessao sess-1 --resumo "sprint encerrada"
 ```
 
-`graphow setup --escrever-settings` grava os três hooks no
+`graphow setup --escrever-settings` grava os dois hooks (início e fim) no
 `~/.claude/settings.json` com o caminho absoluto do executável. A mesma fiação,
 com `graphow` sem caminho, está em `.agents/hooks/graphow_harness_hooks.json`,
 e `graphow docs-gerar --conferir` passa cada comando desse arquivo pelo analisador
@@ -822,75 +838,82 @@ faz esse trabalho com ele, na sessão principal:
    Constraints, Decisions com o motivo, o que ficou em aberto e o que ficou fora.
 4. **Gravar.** Pela conexão `humano` da sessão, num `propor_patch`. As Decisions
    orientam o Goal e descem a toda a decomposição.
-5. **Entregar** o Goal à `graphow-orquestracao` e, ao fim, **revisar** a entrega
-   contra o que foi decidido.
+5. **Entregar** o Goal ao `graphow orquestrar --goal <id> --repo <pasta>` e, ao
+   fim, **revisar** a entrega contra o que foi decidido. O orquestrador monta a
+   spec dos nós que o gerente gravou, com o texto inteiro de cada critério e de
+   cada decisão.
 
 O gerente não é um papel novo do kernel: ele propõe e o humano decide, então
 Goal e Constraint continuam sendo gestos do humano. Quando ele grava é uma
-propriedade operacional do Projeto, `gravacao_do_gerente`, na aba Configurações
-ao lado da cadência: `apos_aprovacao` (o padrão) só grava depois de o humano
+propriedade operacional do Projeto, `gravacao_do_gerente`, na aba Configurações: `apos_aprovacao` (o padrão) só grava depois de o humano
 aprovar o rascunho; `durante_alinhamento` grava cada Decision, Constraint ou
 Evidence assim que o humano a confirma na conversa.
 
-## 🎼 Orquestração: um Goal, vários agentes, o estado no grafo
+## 🎼 Orquestração em código: `graphow orquestrar`
 
-O Graphow sustenta uma orquestração em que o estado mora no grafo, e não na
-conversa. Um orquestrador no papel `planejador` decompõe o `Goal` em `Task`,
-registra as decisões e despacha agentes, cada um com o próprio servidor MCP,
-porque o papel é fixado na abertura da conexão: executores no papel `executor`,
-revisores no papel `revisor`. Nenhum deles precisa de especificação em prosa: o
-despacho pode ser só o id da tarefa, e a vista dela traz o resto. É o que deixa
-cada rodada do trabalho rodar num subagente novo, o condutor, que começa sem
-histórico e o descarta ao devolver. A sessão principal só despacha as rodadas e
-para nos portões humanos, sem `/clear` entre uma tarefa e outra.
+A coordenação deixou de ser feita por LLMs. Até a fase 1, uma raiz despachava
+rodadas a um condutor novo a cada rodada, que despachava exploradores,
+executores, revisores e um executor só para fechar, com um árbitro ao lado; a
+auditoria de campo de 10/10/2026 mediu que eles gastavam dois terços dos tokens
+fazendo o que um laço de código faz, e os defeitos foram pegos por quem rodou o
+programa contra o pedido, e não pela burocracia. A skill `graphow-orquestracao`
+e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orquestrador/`)
+é um laço em código, e os LLMs entram só onde há julgamento:
 
-O kernel sustenta cinco peças desse arranjo:
+1. **Área de trabalho.** O Goal trabalha num worktree git só dele, numa branch
+   do Goal (`--ramo`, padrão `graphow/<slug>`) criada da base (`--base`, padrão
+   a branch atual). O checkout do humano não é tocado até a integração.
+2. **Plano.** Uma sessão do planejador lê a spec e o código e devolve critérios
+   de aceite C1..Cn (texto completo, `verificacao: teste|checagem`), decisões
+   D1..Dn com o motivo, o comando da suíte e fatias verticais com critérios,
+   arquivos, dependências e modelo sugerido. O orquestrador grava os critérios
+   como `Constraint`, as decisões como `Decision`, as fatias como `Task`, e
+   commita `docs/goals/<slug>.md`, um texto só com duas leituras.
+3. **Portão do plano.** No modo supervisionado (o padrão) o laço para e espera
+   `--aprovar-plano` (o gesto `aprovar_plano` do humano). `--modo autonomo` segue
+   direto. O modo fica gravado no Goal.
+4. **Execução.** Para cada fatia pronta, em ordem, uma sessão nova do executor
+   recebe o briefing montado por código: a spec, o texto inteiro dos critérios e
+   das decisões, os arquivos, os commits das fatias anteriores e o diff resumido
+   da última. O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O
+   orquestrador confere o git, roda a suíte ele mesmo e commita na branch do
+   Goal com a mensagem que cita a fatia e os critérios; o commit vira
+   `Artifact`. A dúvida vira `Question` e pausa só aquela fatia; a falha ganha
+   uma nova tentativa com o erro, e a segunda vira pendência e para o laço. O
+   que não vira commit vai para um `.patch` e sai da área.
+5. **Verificação.** Com as fatias concluídas, uma sessão nova do verificador,
+   sem nada de quem implementou, roda a suíte e o programa de verdade e dá um
+   parecer por critério e por decisão, com prova, e achados com gravidade. A
+   verificação vira `Evidence` ligada ao Goal, com o commit verificado. Cada
+   bloqueante vira fatia de correção (até dois ciclos), e os acompanhamentos vão
+   para as pendências do documento do Goal.
+6. **Fechamento.** O Goal só fecha com a última verificação limpa no commit
+   atual. No modo autônomo, o orquestrador integra por fast-forward na base e
+   fecha; no supervisionado, para com "pronto para integrar", e a chamada
+   seguinte vê a branch integrada e fecha.
 
-| Peça | Onde |
+O estado sai do livro-razão e do git, então rodar de novo retoma de onde parou,
+inclusive depois de o processo cair no meio de uma sessão.
+
+| Garantia | Como |
 | :--- | :--- |
-| O planejador registra a `Evidence` do que leu, sempre com o ponteiro: `arquivo`, `linhas` e `trecho`, ou `fonte`, `local` e `trecho`; sem ele inteiro, `evidencia_sem_localizacao` | `kernel/localizacao.py`, `InvariantGate` |
-| A `Decision` diz onde vale por `orienta`, e chega à vista de quem executa e de quem revisa mesmo tomada noutra sessão | ontologia 1.2.0 |
-| `ler_vista(..., perspectiva="executor")` é o teste do executor frio, feito antes de todo despacho | `mcp/ferramentas_leitura.py` |
-| `criar_tarefa` grava `modelo` (com motivo), `trilha`, `entrega`, `arquivos_alvo`, `corrige` e as decisões; `proximas_tarefas` os devolve para o despacho e o paralelismo | `core/orquestracao.py` |
-| Cada subagente tem posse própria (`--autor-por-conexao`), e o harness grava um `Run` por subagente, com tokens, modelo e as tarefas que ele assumiu | `harness/transcricao.py` |
+| Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
+| Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez |
+| O executor não commita | Duas camadas: as regras `--disallowedTools` de git de escrita, e uma trava no ambiente da sessão (`GIT_CONFIG_*` com um hook `reference-transaction` que aborta toda atualização de ref). Uma sonda real mostrou que a regra sozinha deixa passar `git -C . commit`; a trava o barra. Depois da sessão, o orquestrador ainda desfaz com `reset --soft` o commit que tenha escapado |
+| Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
+| Custo sob controle | Cada sessão vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração e erro. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
 
-Para decidir a divisão de modelos por número, e não por palpite, o mesmo
-conjunto de tarefas roda sob configurações diferentes (a propriedade
-`configuracao` do Goal), e a medição compara:
+Modelo por papel: `--modelo-planejador`, `--modelo-executor` e
+`--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
+modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
+`--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
+Goal (área de trabalho, streams das sessões, patches e a trava do git) fica em
+`<pasta do banco>/orquestrar/<goal>/`.
 
-```bash
-graphow orquestracao-medir --goal goal-tudo-opus --goal goal-padrao
-```
-
-O relatório dá, por configuração, as tarefas concluídas sem retrabalho, as
-rejeições na revisão e os tokens por tarefa concluída. As tarefas da trilha
-leve, que rodam em Sonnet sob qualquer configuração, aparecem à parte na linha
-de modelos de cada Goal. Quando os `Run` trazem, o custo por tarefa concluída
-ganha os minutos de condutor, os pontos da cota semanal e os tokens sem a
-leitura de cache, e a linha de tokens do Goal mostra o total sem ela e os `Run`
-sem tokens pelo motivo (`transcricao_ausente`, `sem_agent_id`...). Com
-`--por-rodada`, com ou sem `--goal`, cada Goal ganha uma linha por rodada do
-condutor. A duração vem das transcrições, e a cota da linha
-`Cota: 5h <n>%, semana <n>%` que a raiz escreve no despacho e na parada. Os `Run` dos agentes
-despachados vêm do hook `SubagentStop`, que está na fiação de
-[`graphow_harness_hooks.json`](.agents/hooks/graphow_harness_hooks.json).
-
-Quando a política de governança do projeto entrega gestos ao árbitro, a raiz
-despacha também o subagente `graphow-arbitro`, que decide em contexto novo o que
-a política lhe dá (e devolve `Escaladas` para o que segue humano). A orquestração
-lê a política na vista, e a `integracao` (commit e merge local, quando a entrega é
-código), o `max_correcoes` e a `acao_externa` seguem o que ela diz; o push é
-sempre do humano. A `Task` de ação externa que segue com a pessoa volta à raiz
-como portão humano: a pessoa faz o gesto, a raiz registra a prova em nome dela
-(uma `Evidence` com `fonte` e `resultado`), e a revisão e o fechamento seguem o
-ciclo de sempre.
-
-A skill que conduz esse arranjo, `graphow-orquestracao`, está em
-[`.agents/skills/graphow-orquestracao`](.agents/skills/graphow-orquestracao/SKILL.md),
-e os subagentes que ela despacha em `.agents/agents`. `graphow setup` copia os
-dois para `~/.claude`, com o servidor MCP de cada subagente apontando para o
-caminho do executável; o resto da configuração está na
-[configuração](.agents/skills/graphow-orquestracao/references/configuracao.md).
+O teste de fumaça real (um repositório de brinquedo com uma função e três
+critérios, modo autônomo) fechou o Goal com três sessões Opus, US$ 0,40 e 1,2
+minuto, um commit de plano, um de fatia e um das pendências que o verificador
+achou, e os 49 eventos do Goal assinados pelo papel `orquestrador`.
 
 ---
 
@@ -943,12 +966,14 @@ bancada mede: as três demandas do laboratório de 10/10/2026 (uma CLI de
 reservas, uma CLI de estoque e uma API em Node), rodadas do zero por uma
 arquitetura, cada entrega auditada pelo mesmo prompt e as mesmas sondas, e
 comparadas com a linha de base do graphow 0.4.4 e da arquitetura enxuta de
-controle. Custo, tokens e minutos saem do stream-json e das transcrições com
+controle. As arquiteturas registradas são a `enxuta` e a `orquestrar`, o
+`graphow orquestrar` em modo autônomo, medido pela telemetria dele. Custo, tokens e minutos saem do stream-json e das transcrições com
 as definições do laboratório; critérios, sondas e defeitos bloqueantes saem da
 linha `PLACAR:` do auditor.
 
 ```bash
 graphow bancada rodar --arquitetura enxuta --projeto estoque-loja --saida ../bancada-saida
+graphow bancada rodar --arquitetura orquestrar --projeto estoque-loja --saida ../bancada-saida
 graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
 graphow bancada placar --saida ../bancada-saida
 ```
