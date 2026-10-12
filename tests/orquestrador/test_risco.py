@@ -4,6 +4,7 @@ import copy
 from pathlib import Path
 from typing import Any
 
+from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 
@@ -62,6 +63,12 @@ def test_revisao_que_rejeita_vira_falha_com_os_problemas_no_briefing_seguinte_no
     assert estado is not None and (estado.fatias[0].falhas, estado.fatias[0].tentativas) == (1, 2)
     view = bancada.kernel.obter_view()
     assert [view.obter_no(f"rev-task-soma-f1-t{n}").obter_propriedade("veredito") for n in (1, 2)] == ["rejeitado", "aprovado"]
+    achado = view.obter_no("achado-rev-task-soma-f1-t1-1")
+    assert achado is not None and achado.tipo == TipoNo.ACHADO, "a rejeicao vira Achado (acompanhamento 7)"
+    assert (achado.obter_propriedade("gravidade"), achado.obter_propriedade("estado")) == ("bloqueante", "resolvido")
+    assert [a.destino_id for a in view.obter_arestas_saida(achado.id, TipoAresta.FERE)] == ["crit-soma-c1"]
+    assert view.obter_no("nota-task-soma-f1-t1") is None, "e nao uma Note"
+    assert [a.id for a in estado.fatias[0].achados_de_revisao] == [achado.id]
 
 
 def test_fatia_sem_risco_que_ja_falhou_passa_pela_revisao_na_nova_tentativa_edge_case(tmp_path: Path) -> None:

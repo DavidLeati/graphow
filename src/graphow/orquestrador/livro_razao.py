@@ -168,14 +168,19 @@ class LivroRazaoDoGoal:
             f"Fatia {id_task} concluida em {commit[:12]}",
         )
 
-    def registrar_falha(self, id_task: str, tentativa: int, *, erro: str, patch: str, falhas: int) -> None:
-        """A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas."""
+    def registrar_falha(self, id_task: str, tentativa: int, *, erro: str, patch: str, falhas: int, nota: bool = True) -> None:
+        """A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
+
+        A rejeição da revisão de risco não vira Note: ela já está nos nós Achado
+        da revisão (`nota=False`), e a fatia só ganha o erro e a conta.
+        """
         id_nota = f"nota-{id_task}-t{tentativa}"
         propriedades = {"acao": m.ACAO_DA_TENTATIVA, "erro": erro, m.CAMPO_PATCH: patch, m.CAMPO_TENTATIVAS: tentativa}
+        rotulo = f"Tentativa {tentativa} de {id_task} falhou"
         self.gravar(
             [
-                *self.produzido(id_nota, TipoNo.NOTE, f"Tentativa {tentativa} de {id_task} falhou", propriedades=propriedades),
-                aresta(id_nota, id_task, TipoAresta.DERIVA_DE),
+                *(self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades) if nota else []),
+                *([aresta(id_nota, id_task, TipoAresta.DERIVA_DE)] if nota else []),
                 propriedade(id_task, m.CAMPO_ULTIMO_ERRO, erro),
                 propriedade(id_task, m.CAMPO_PATCH, patch),
                 propriedade(id_task, m.CAMPO_FALHAS, falhas),
@@ -184,16 +189,16 @@ class LivroRazaoDoGoal:
             f"Tentativa {tentativa} da fatia {id_task} falhou",
         )
 
-    def registrar_revisao(self, id_task: str, tentativa: int, *, dados: Mapping[str, Any]) -> None:
-        """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia."""
-        id_evidencia = f"rev-{id_task}-t{tentativa}"
+    def registrar_revisao(self, id_task: str, tentativa: int, *, dados: Mapping[str, Any], achados: Sequence[ItemPatch] = ()) -> None:
+        """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote."""
+        id_evidencia = m.id_da_revisao(id_task, tentativa)
         veredito = str(dados.get("veredito", ""))
         propriedades = {"acao": ACAO_DA_REVISAO_DE_RISCO, m.CAMPO_VEREDITO: veredito, "resumo": str(dados.get("resumo", "")),
                         "problemas": [dict(item) for item in dados.get("problemas", [])], "motivo": str(dados.get("motivo", "")),
                         "observacao": str(dados.get("observacao", "")), m.CAMPO_TENTATIVAS: tentativa}
         self.gravar(
             [*self.produzido(id_evidencia, TipoNo.EVIDENCE, f"Revisao de risco de {id_task}: {veredito}", propriedades=propriedades),
-             aresta(id_evidencia, id_task, TipoAresta.DERIVA_DE)],
+             aresta(id_evidencia, id_task, TipoAresta.DERIVA_DE), *achados],
             f"Revisao de risco da fatia {id_task} na tentativa {tentativa}",
         )
 

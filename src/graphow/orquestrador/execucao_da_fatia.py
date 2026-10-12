@@ -30,7 +30,7 @@ from graphow.orquestrador.git_do_goal import (
     mensagem_do_orquestrador,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
-from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, de_risco, revisar_fatia
+from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, RejeicaoDaRevisao, de_risco, revisar_fatia
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite, e_cache
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
@@ -91,6 +91,8 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     problema = _conferir_a_entrega(contexto, tentativa)
     if isinstance(problema, Parada):
         return problema
+    if isinstance(problema, RejeicaoDaRevisao):
+        return _falhou(contexto, tentativa, problema.texto, nota=False)
     if problema:
         return _falhou(contexto, tentativa, problema)
     commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
@@ -99,7 +101,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     return None
 
 
-def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str | Parada:
+def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str | Parada | RejeicaoDaRevisao:
     """Os testes de aceite intocados, a suíte verde sem eles e, na fatia de risco, a revisão; vazio quando tudo passa."""
     estado = contexto.estado()
     problema, configuracao = _conferir_o_que_mudou(contexto, estado, tentativa)
@@ -152,12 +154,12 @@ def _mexeu_no_aceite(mexidos: list[str]) -> str:
     )
 
 
-def _falhou(contexto: ContextoDoGoal, tentativa: Tentativa, erro: str) -> Parada | None:
+def _falhou(contexto: ContextoDoGoal, tentativa: Tentativa, erro: str, *, nota: bool = True) -> Parada | None:
     """A tentativa falhou: o que ela deixou vai para um .patch; na segunda, a fatia vira pendência."""
     fatia = tentativa.fatia
     patch = _guardar(contexto, fatia, f"t{tentativa.numero}")
     falhas = fatia.falhas + 1
-    contexto.livro.registrar_falha(fatia.id, tentativa.numero, erro=erro, patch=patch, falhas=falhas)
+    contexto.livro.registrar_falha(fatia.id, tentativa.numero, erro=erro, patch=patch, falhas=falhas, nota=nota)
     if falhas < MAXIMO_DE_FALHAS:
         return None
     return _virar_pendencia(contexto, fatia, f"falhou {falhas} vezes; a ultima: {erro[:500]}")

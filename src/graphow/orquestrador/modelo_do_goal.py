@@ -74,6 +74,11 @@ CAMPO_COMMIT: str = a.CAMPO_COMMIT
 CAMPO_CORRIGE: str = "corrige_verificacao"
 # Na fatia de correção: o Achado bloqueante que ela corrige (a Task deriva dele).
 CAMPO_ACHADO: str = "achado"
+
+
+def id_da_revisao(id_task: str, tentativa: int) -> str:
+    """O id da Evidence da revisão de risco de uma tentativa da fatia."""
+    return f"rev-{id_task}-t{tentativa}"
 CAMPO_CRITERIO_PRONTO: str = "criterio_pronto"
 
 # Na Question e na Evidence.

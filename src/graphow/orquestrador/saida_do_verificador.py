@@ -21,6 +21,7 @@ from graphow.core import aceite as a
 
 ORIGEM_DO_VERIFICADOR: str = "verificador"
 ORIGEM_DO_ORQUESTRADOR: str = "orquestrador"
+ORIGEM_DA_REVISAO: str = "revisao_de_risco"
 TITULO_DA_SUITE_VERMELHA: str = "A suite do plano falhou no commit verificado"
 # Quanto do fim da saída vai como prova do achado que o orquestrador registra.
 LIMITE_DA_PROVA: int = 2000

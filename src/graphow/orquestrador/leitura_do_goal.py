@@ -46,6 +46,7 @@ class FatiaRegistrada:
     propriedades: Mapping[str, Any]
     depende_de: tuple[str, ...] = ()
     duvidas: tuple[DuvidaRegistrada, ...] = ()
+    achados_de_revisao: tuple["AchadoRegistrado", ...] = ()
 
     def texto(self, chave: str) -> str:
         """Uma propriedade de texto da fatia."""
@@ -305,7 +306,16 @@ def _fatia(view: GrafoView, no: NoGrafo) -> FatiaRegistrada:
         propriedades=no.propriedades,
         depende_de=tuple(sorted(a.destino_id for a in view.obter_arestas_saida(no.id, TipoAresta.DEPENDE_DE))),
         duvidas=_duvidas(view, no.id),
+        achados_de_revisao=_achados_das_revisoes(view, no.id),
     )
+
+
+def _achados_das_revisoes(view: GrafoView, id_task: str) -> tuple["AchadoRegistrado", ...]:
+    """Os nós Achado das revisões de risco da fatia, da revisão mais antiga à mais nova."""
+    revisoes = [view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_task, TipoAresta.DERIVA_DE)]
+    do_risco = sorted((r for r in revisoes if r is not None and r.obter_propriedade("acao") == a.ACAO_DA_REVISAO_DE_RISCO),
+                      key=lambda r: (r.ordem.seq_criacao, r.id))
+    return tuple(achado for revisao in do_risco for achado in _achados(view, revisao.id))
 
 
 def _duvidas(view: GrafoView, id_task: str) -> tuple[DuvidaRegistrada, ...]:
