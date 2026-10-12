@@ -22,7 +22,7 @@ SUITE_QUE_PASSA: str = f'"{sys.executable}" -c "print(1)"'
 def _roteiro() -> dict[str, list[dict[str, Any]]]:
     """Um plano de uma fatia sobre a semente, um executor que escreve um arquivo e um verificador limpo."""
     plano = {
-        "titulo": "Entrega de teste", "comando_suite": SUITE_QUE_PASSA,
+        "titulo": "Entrega das operações", "comando_suite": SUITE_QUE_PASSA,
         "criterios": [{"id": "C1", "texto": "existe ENTREGA.md", "verificacao": "checagem"},
                       {"id": "C2", "texto": "o README segue igual", "verificacao": "checagem"}],
         "decisoes": [{"id": "D1", "texto": "nada de dependencia", "motivo": "teste"}],
@@ -57,6 +57,8 @@ def test_orquestrar_roda_na_semente_integra_na_branch_de_entrega_e_mede_as_sesso
     assert gravado["metricas"]["custo_usd"] == 1.2
     assert gravado["metricas"]["commits"] == 2
     assert gravado["entrega"]["ramo_existe"] is True
+    assert any("Entrega das operações" in linha for linha in parada["status"])
+    assert "\ufffd" not in (execucao / "orquestrar.json").read_bytes().decode("utf-8")
     assert len(gravado["sessoes"]) == 3
     projeto = Bancada().projeto("api-tarefas")
     repositorio = execucao / "api-tarefas"

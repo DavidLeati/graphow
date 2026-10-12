@@ -8,10 +8,14 @@ executor rodou na sessão seja o mesmo que o orquestrador roda. `GRAPHOW_SHELL`
 escolhe outro; sem bash nenhum, vale o shell da máquina. No tempo esgotado a
 suíte morre com a árvore dela, pelo PID, como as sessões: nunca por nome. O
 `GRAPHOW_DB` aponta para um banco descartável do Goal, para que um projeto que
-use o graphow nos testes não escreva no banco do usuário.
+use o graphow nos testes não escreva no banco do usuário. A saída é lida em
+UTF-8 (o Python da suíte é posto em UTF-8 por `PYTHONIOENCODING`, quando o
+ambiente não diz outro); a que não for UTF-8 é lida na página de código da
+máquina, para o acento não virar caractere de substituição.
 """
 
 from dataclasses import dataclass
+import locale
 import os
 from pathlib import Path
 import shutil
@@ -26,6 +30,8 @@ VARIAVEL_DO_GIT_BASH: str = "CLAUDE_CODE_GIT_BASH_PATH"
 SHELL_DA_MAQUINA: str = "o shell da maquina (cmd no Windows, /bin/sh fora dele)"
 TEMPO_LIMITE_DA_SUITE_S: float = 1800.0
 LIMITE_DA_SAIDA: int = 20000
+# Os bytes que continuam um caractere UTF-8: o corte do fim da saída não começa no meio de um.
+BYTES_DE_CONTINUACAO: bytes = bytes(range(0x80, 0xC0))
 # O fim da saída que vai para a Evidence da verificação e para o bloqueante da suíte vermelha.
 LIMITE_DO_TRECHO: int = 2000
 
@@ -83,7 +89,7 @@ def _bash_do_path() -> Path | None:
 
 def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limite_s: float = TEMPO_LIMITE_DA_SUITE_S) -> ResultadoDaSuite:
     """Roda o comando na área, no shell dos agentes, e devolve o resultado."""
-    ambiente = {**os.environ, VARIAVEL_DO_BANCO: str(banco_descartavel)}
+    ambiente = {"PYTHONIOENCODING": "utf-8", **os.environ, VARIAVEL_DO_BANCO: str(banco_descartavel)}
     shell = shell_dos_agentes()
     argumentos: str | list[str] = [str(shell), "-c", comando] if shell is not None else comando
     descricao = descrever_shell(shell)
@@ -104,5 +110,12 @@ def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limi
 
 
 def _texto(saida: bytes | None) -> str:
-    """A saída como texto, tolerando o que não é UTF-8."""
-    return (saida or b"").decode("utf-8", errors="replace")[-LIMITE_DA_SAIDA:]
+    """A saída como texto: UTF-8, ou a página de código da máquina quando ela não é UTF-8."""
+    inteira = saida or b""
+    bruto = inteira[-LIMITE_DA_SAIDA * 4:]
+    if len(bruto) < len(inteira):
+        bruto = bruto.lstrip(BYTES_DE_CONTINUACAO)
+    try:
+        return bruto.decode("utf-8")[-LIMITE_DA_SAIDA:]
+    except UnicodeDecodeError:
+        return bruto.decode(locale.getpreferredencoding(False), errors="replace")[-LIMITE_DA_SAIDA:]

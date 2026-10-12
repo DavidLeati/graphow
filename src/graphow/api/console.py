@@ -1,6 +1,14 @@
-"""Adaptadores de escrita em console imunes a limitações de codificação do terminal."""
+"""Adaptadores de escrita em console imunes a limitações de codificação do terminal.
+
+A saída que vai para um cano ou arquivo sai em UTF-8: no Windows o Python abre
+os canos na página de código da máquina (cp1252), e quem lê a saída de um
+comando (o Claude Code, um script, outro processo) espera UTF-8; "operações"
+chegava como "opera\ufffd\ufffdes". O console de verdade (TTY) fica como está:
+o Windows já escreve nele em Unicode.
+"""
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 import sys
 from typing import TextIO
 
@@ -37,6 +45,14 @@ class EscritorConsolePadrao(EscritorConsole):
         except UnicodeEncodeError:
             return texto.encode(codificacao, errors="replace").decode(codificacao, errors="replace")
         return texto
+
+
+def saida_em_utf8(fluxos: Sequence[TextIO] | None = None) -> None:
+    """Põe em UTF-8 a saída padrão e a de erro que não são console; o fluxo que não sabe se reconfigurar fica."""
+    for fluxo in fluxos if fluxos is not None else (sys.stdout, sys.stderr):
+        reconfigurar = getattr(fluxo, "reconfigure", None)
+        if reconfigurar is not None and not fluxo.isatty():
+            reconfigurar(encoding="utf-8", errors="replace")
 
 
 class EscritorConsoleEmMemoria(EscritorConsole):

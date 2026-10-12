@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -52,3 +53,25 @@ def test_briefing_do_planejador_diz_o_shell_da_suite_nominal() -> None:
     briefing = briefing_do_planejador(estado, "Quero somar.", False)
 
     assert "comando_suite" in briefing and "bash (" in briefing
+
+
+def test_acento_da_suite_chega_inteiro_nominal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """O Python da suíte escreve em UTF-8 no cano e a saída é lida em UTF-8: "operações" não vira substituição."""
+    monkeypatch.delenv("PYTHONIOENCODING", raising=False)
+    monkeypatch.delenv("PYTHONUTF8", raising=False)
+    comando = f'"{sys.executable}" -c "print(\'opera\u00e7\u00f5es\')"'
+
+    resultado = rodar_suite(tmp_path, comando, tmp_path / "descartavel.db")
+
+    assert resultado.passou, resultado.descrever()
+    assert "operações" in resultado.saida
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a pagina de codigo cp1252 e a do Windows")
+def test_saida_que_nao_e_utf8_e_lida_na_pagina_da_maquina_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o programa que escreve em cp1252 ainda tem o acento lido, e não substituído."""
+    comando = f'"{sys.executable}" -c "import sys; sys.stdout.buffer.write(bytes([111, 112, 231, 245, 101, 115]))"'
+
+    resultado = rodar_suite(tmp_path, comando, tmp_path / "descartavel.db")
+
+    assert resultado.saida == "op\u00e7\u00f5es"

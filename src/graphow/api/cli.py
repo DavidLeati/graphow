@@ -7,7 +7,7 @@ import sys
 from typing import Any
 import uuid
 
-from graphow.api.console import EscritorConsole, EscritorConsolePadrao
+from graphow.api.console import EscritorConsole, EscritorConsolePadrao, saida_em_utf8
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
@@ -123,10 +123,11 @@ class GraphowCLI:
 
 
 def main(argumentos: Sequence[str] | None = None) -> int:
-    """Ponto de entrada principal da linha de comando."""
+    """Ponto de entrada principal da linha de comando; a saída que não é console sai em UTF-8."""
     from graphow.api.cli_execucao import ExecutorLinhaDeComando
     from graphow.api.cli_parser import construir_parser
 
+    saida_em_utf8()
     parser: argparse.ArgumentParser = construir_parser()
     parsed = parser.parse_args(list(argumentos if argumentos is not None else sys.argv[1:]))
     if parsed.comando is None:

@@ -10,11 +10,11 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2021 linhas · 20 classes
+13 módulos · 2038 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`api/cli.py`](#apicli) | 154 | Interface de Linha de Comando (CLI) para operação do Graphow. |
+| [`api/cli.py`](#apicli) | 155 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_bancada.py`](#apiclibancada) | 220 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 255 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
@@ -23,7 +23,7 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 | [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/colisoes_base.py`](#apicolisoesbase) | 96 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
 | [`api/conferencia_base.py`](#apiconferenciabase) | 101 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
-| [`api/console.py`](#apiconsole) | 55 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
+| [`api/console.py`](#apiconsole) | 71 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
 | [`api/git_ramo_base.py`](#apigitramobase) | 107 | O que o ramo base ganhou desde que o ramo do Goal saiu dele, perguntado ao git. |
 | [`api/sse_transport.py`](#apissetransport) | 36 | Transporte de eventos para visualizadores de Canvas via SSE / AG-UI Protocol. |
 
@@ -49,7 +49,7 @@ Interface de Linha de Comando (CLI) para operação do Graphow.
 
 ### Funções do módulo
 
-- `main(argumentos: Sequence[str] | None) -> int` — Ponto de entrada principal da linha de comando.
+- `main(argumentos: Sequence[str] | None) -> int` — Ponto de entrada principal da linha de comando; a saída que não é console sai em UTF-8.
 - `descrever_localizacao_banco(localizacao: LocalizacaoBanco) -> tuple[str, ...]` — Monta as linhas de diagnóstico sobre onde o banco de eventos reside.
 
 ## `api/cli_bancada.py`
@@ -255,6 +255,10 @@ Adaptadores de escrita em console imunes a limitações de codificação do term
 *serviço* — Escreve no fluxo do processo sem jamais falhar por caractere não representável.
 
 - `escrever_linha(texto: str) -> None` — Escreve a linha substituindo caracteres que a codificação não suporta.
+
+### Funções do módulo
+
+- `saida_em_utf8(fluxos: Sequence[TextIO] | None) -> None` — Põe em UTF-8 a saída padrão e a de erro que não são console; o fluxo que não sabe se reconfigurar fica.
 
 ## `api/git_ramo_base.py`
 

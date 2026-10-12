@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-22 módulos · 3465 linhas · 43 classes
+22 módulos · 3478 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -31,7 +31,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 296 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
-| [`orquestrador/suite.py`](#orquestradorsuite) | 108 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
+| [`orquestrador/suite.py`](#orquestradorsuite) | 121 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 210 | A trava do git nas sessões de agente: as regras, o ambiente e a conferência depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 183 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
@@ -677,6 +677,7 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 | `SHELL_DA_MAQUINA` | `str` | `'o shell da maquina (cmd no Windows, /bin/sh fora dele)'` |
 | `TEMPO_LIMITE_DA_SUITE_S` | `float` | `1800.0` |
 | `LIMITE_DA_SAIDA` | `int` | `20000` |
+| `BYTES_DE_CONTINUACAO` | `bytes` | `bytes(range(128, 192))` |
 | `LIMITE_DO_TRECHO` | `int` | `2000` |
 
 ### `ResultadoDaSuite`
