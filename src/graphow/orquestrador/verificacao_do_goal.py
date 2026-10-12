@@ -21,11 +21,13 @@ verificação, e por isso a queda entre o lote e o commit do documento não perd
 acompanhamento.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, integrar_por_fast_forward, remover_area
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
 
@@ -77,7 +79,18 @@ def _corrigir(
         return None
     if not marco.final:
         return None
+    return _bloqueantes_restantes(contexto, ultima, bloqueantes, ciclos=ciclos, marco=marco)
+
+
+def _bloqueantes_restantes(
+    contexto: ContextoDoGoal, ultima: VerificacaoRegistrada, bloqueantes: Sequence[AchadoRegistrado], *, ciclos: int,
+    marco: MarcoRegistrado,
+) -> Parada:
+    """A final sem ciclo com bloqueante aberto: as saídas do humano, e o aviso de que o descarte não aprova o critério reprovado."""
     titulos = "; ".join(achado.texto("titulo") for achado in bloqueantes)
+    reprovados = (f" A verificacao {ultima.id} reprova {', '.join(ultima.reprovados)}: descartar os achados nao fecha o Goal, "
+                  f"e so `--retirar-criterio <criterio> --motivo \"...\"` ou `--refazer-aceite <criterio>` tiram o criterio "
+                  f"reprovado da frente.") if ultima.reprovados else ""
     return Parada(
         contexto.id_goal,
         MotivoDaParada.BLOQUEANTES_RESTANTES,
@@ -85,7 +98,7 @@ def _corrigir(
         f"{titulos}. Eles seguem como Achados abertos e nas pendencias do Goal; o Goal fica aberto, e o kernel nao o fecha "
         f"enquanto houver bloqueante aberto. Saidas do humano: `graphow orquestrar --goal {contexto.id_goal} --mais-ciclos 1 "
         f"--motivo \"...\"` (mais um ciclo de correcao), `--descartar-achado <id> --motivo \"...\"` (aceita o achado: "
-        + ", ".join(achado.id for achado in bloqueantes) + ") ou `--cancelar --motivo \"...\"`.",
+        + ", ".join(achado.id for achado in bloqueantes) + ") ou `--cancelar --motivo \"...\"`." + reprovados,
     )
 
 

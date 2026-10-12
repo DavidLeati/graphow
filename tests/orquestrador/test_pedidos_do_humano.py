@@ -234,3 +234,17 @@ def test_ciclos_de_correcao_dados_na_chamada_valem_para_o_goal_edge_case(tmp_pat
     id_achado = estado.verificacoes[-1].achados[0].id
     orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_DESCARTAR_ACHADO, "a docstring fica para depois", "david", alvo=id_achado))
     assert orquestrador.rodar("goal-soma", AUTONOMO).fechou
+
+
+def test_parada_com_criterio_reprovado_avisa_que_o_descarte_nao_fecha_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (fumaça da rodada 3): a final sem ciclo, com C2 reprovado, já indica a retirada, e não só o descarte."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("nao_atende", [EM_C1])]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco(modo="autonomo", ciclos_de_correcao=0))
+
+    assert parada.motivo == MotivoDaParada.BLOQUEANTES_RESTANTES, parada.mensagem
+    assert "A verificacao ver-goal-soma-1 reprova C2:" in parada.mensagem, parada.mensagem
+    assert "descartar os achados nao fecha o Goal" in parada.mensagem
+    assert "--retirar-criterio <criterio>" in parada.mensagem
