@@ -7,9 +7,9 @@ hooks, as skills e os subagentes do usuário (`--setting-sources project`), só
 com as ferramentas do papel (`--tools`), com o git de escrita negado
 (`--disallowedTools` e a trava no ambiente) e com o que resta do orçamento do
 Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
-Antes da sessão o repositório é fotografado e, depois dela, conferido: o que
-o agente mexeu no git fora da branch do Goal é desfeito, e a sessão falha
-dizendo o quê (orquestrador/trava_do_git.py).
+Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o
+que era: o que o agente mexeu no git do clone é desfeito e vai na resposta
+como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
 
 A saída é conferida contra o schema e contra o sentido. A que não confere
 volta à mesma sessão (`--resume`) com a lista de problemas, uma vez; falhando
@@ -36,7 +36,7 @@ from graphow.orquestrador.esquemas import (
     PAPEL_VERIFICADOR,
     caminho_do_prompt,
 )
-from graphow.orquestrador.trava_do_git import conferir_o_git, fotografar, regras_que_negam_git
+from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao
@@ -96,6 +96,7 @@ class RespostaDePapel:
     dados: Mapping[str, Any] | None
     problemas: tuple[str, ...] = ()
     resultados: tuple[ResultadoDeSessao, ...] = ()
+    desfeito: str = ""
 
 
 class SessoesDePapel:
@@ -111,14 +112,10 @@ class SessoesDePapel:
         return self._configuracao.modelos.get(papel) or MODELO_PADRAO
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
-        """A sessão conferida, e o git conferido depois dela: o que o agente mexeu fora da branch do Goal a reprova."""
-        foto = fotografar(pedido.pasta)
+        """A sessão conferida, e o clone deixado como estava antes dela; o que foi desfeito vai na resposta."""
+        foto = fotografar_clone(pedido.pasta)
         resposta = self._rodar_e_conferir(pedido)
-        achados = conferir_o_git(foto, guarda=self._configuracao.pasta_das_sessoes.parent / "patches")
-        if not achados:
-            return resposta
-        problema = "o agente mexeu no git fora da branch do Goal: " + "; ".join(achados)
-        return RespostaDePapel(None, (problema,), resposta.resultados)
+        return replace(resposta, desfeito=restaurar_o_clone(foto))
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão, e a retomada com os problemas quando a saída não confere."""

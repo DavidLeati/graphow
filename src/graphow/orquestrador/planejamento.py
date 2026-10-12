@@ -22,10 +22,8 @@ from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, escrever_documento, renderizar_documento
 from graphow.orquestrador.esquemas import ESQUEMA_DO_PLANO, PAPEL_PLANEJADOR
 from graphow.orquestrador.git_do_goal import (
-    commitar,
     descartar_mudancas,
     mensagem_do_orquestrador,
-    restaurar_head,
     ultimo_commit_do_arquivo,
 )
 from graphow.orquestrador.gravacao_do_plano import PlanoParaGravar, gravar_plano
@@ -56,7 +54,6 @@ def _sessao_do_planejador(
     contexto: ContextoDoGoal, estado: EstadoDoGoal, fixos: SpecDoGoal
 ) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]:
     """Uma sessão do planejador na área, que volta ao commit de onde partiu."""
-    head = contexto.git.head()
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_PLANEJADOR,
@@ -67,7 +64,6 @@ def _sessao_do_planejador(
             orcamento_restante_usd=contexto.restante(),
         )
     )
-    restaurar_head(contexto.area, contexto.configuracao.ramo, head)
     descartar_mudancas(contexto.area, contexto.patch("planejador"))
     return resposta.dados, resposta.problemas
 
@@ -111,7 +107,7 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, plano: Plano, *, fix
     escrever_documento(contexto.area, configuracao.slug, documento)
     if contexto.git.mudancas():
         mensagem = mensagem_do_orquestrador(f"Planeja o Goal {configuracao.slug}: {plano.titulo}", "", id_goal=contexto.id_goal)
-        commit = commitar(contexto.area, mensagem)
+        commit = contexto.commitar(mensagem)
     else:
         commit = ultimo_commit_do_arquivo(contexto.area, caminho)
     gravar_plano(

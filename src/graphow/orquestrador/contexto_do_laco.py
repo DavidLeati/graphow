@@ -13,7 +13,7 @@ from pathlib import Path
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, commitar, sincronizar_ramo
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
 from graphow.orquestrador.sessoes_de_papel import MODO_DE_PERMISSAO_PADRAO, SessoesDePapel
@@ -103,8 +103,20 @@ class ContextoDoGoal:
 
     @property
     def area(self) -> Path:
-        """O worktree do Goal."""
+        """O clone do Goal, onde as sessões trabalham."""
         return Path(self.configuracao.area)
+
+    @property
+    def area_do_goal(self) -> AreaDoGoal:
+        """O clone, o repositório do humano, a branch e a base, juntos."""
+        configuracao = self.configuracao
+        return AreaDoGoal(Path(configuracao.repositorio), self.area, configuracao.ramo, configuracao.base)
+
+    def commitar(self, mensagem: str, *, vazio_permitido: bool = False) -> str:
+        """O commit do orquestrador no clone, já levado à branch do Goal no repositório do humano."""
+        commit = commitar(self.area, mensagem, vazio_permitido=vazio_permitido)
+        sincronizar_ramo(self.area_do_goal)
+        return commit
 
     @property
     def git(self) -> GitDoGoal:

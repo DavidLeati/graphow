@@ -1,18 +1,33 @@
 """O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração.
 
-O trabalho do Goal acontece num worktree só dele, na branch do Goal, criada da
-base: o checkout do humano não é tocado até a integração. Quem commita é o
-orquestrador, depois de rodar a suíte; o executor não escreve no git. A trava
-que impede o agente de escrever no git mora em orquestrador/trava_do_git.py;
-aqui fica o git do próprio orquestrador, que roda sem ela. Depois de cada
-sessão ele confere HEAD e branch da área e desfaz com `reset --soft` o commit
-que tenha escapado.
+O trabalho do Goal acontece num clone local só dele, na branch do Goal: um
+`git clone --local` do repositório do humano, sem remoto, só com a branch do
+Goal e a base, sem tags, de modo que o agente não enxerga ref, configuração nem
+hook do humano. A base vem ao clone a cada chamada, puxada do repositório do
+humano, para que `base..HEAD` diga os commits do Goal. Um worktree dividiria tudo isso com o repositório dele, e o que o
+agente fizesse ali (ou o que o humano fizesse durante a sessão) se misturaria.
+Os objetos vêm por hardlink quando a pasta está no mesmo disco, sem
+alternates que apontem o repositório.
+
+Quem commita é o orquestrador, no clone, depois de rodar a suíte; o executor
+não escreve no git. A branch do Goal no repositório do humano é só do
+orquestrador: ele a cria e a avança puxando do clone (`git fetch <clone>`,
+rodado no repositório do humano), sem forçar, depois de cada commit dele e no
+começo de cada chamada. A integração na base continua por fast-forward no
+repositório do humano. A trava que impede o agente de escrever no git e a
+restauração do clone depois de cada sessão moram em orquestrador/trava_do_git.py;
+aqui fica o git do próprio orquestrador, que roda sem a trava.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import shutil
+import stat
 import subprocess
+import sys
+from typing import Any
 
 from graphow.core.exceptions import GraphowError
 
@@ -25,6 +40,11 @@ TRAILER_DO_GOAL: str = "Graphow-Goal"
 TRAILER_DA_TASK: str = "Graphow-Task"
 SEPARADOR_DE_COMMITS: str = "\x1e"
 SEPARADOR_DO_HASH: str = "\x1f"
+# A configuração do repositório do humano que o clone leva: quem assina os
+# commits e como o fim de linha vira arquivo, para o clone commitar o que o
+# checkout dele commitaria. O resto (remotos, hooks, includes) fica de fora.
+CHAVES_COPIADAS_PARA_O_CLONE: tuple[str, ...] = ("user.name", "user.email", "core.autocrlf", "core.eol", "core.safecrlf")
+REMOTO_DO_CLONE: str = "origin"
 IDENTIDADE_DE_RESERVA: tuple[str, ...] = (
     "-c", "user.name=graphow orquestrar", "-c", "user.email=orquestrador@graphow.invalid",
 )
@@ -112,7 +132,7 @@ def raiz_do_repositorio(pasta: Path) -> Path:
 
 @dataclass(frozen=True)
 class AreaDoGoal:
-    """Onde o trabalho do Goal acontece: o repositório do humano, o worktree, a branch e a base."""
+    """Onde o trabalho do Goal acontece: o repositório do humano, o clone do Goal, a branch e a base."""
 
     repositorio: Path
     pasta: Path
@@ -121,18 +141,82 @@ class AreaDoGoal:
 
 
 def preparar_area(area: AreaDoGoal) -> None:
-    """O worktree do Goal na branch dele: reaproveitado se já existe, criado da base se a branch é nova."""
-    git = GitDoGoal(area.repositorio)
-    if (area.pasta / ".git").exists():
+    """O clone do Goal na branch dele, e a branch do Goal no repositório do humano no commit do clone.
+
+    O clone que já existe é reaproveitado; a área de uma versão anterior, que
+    era um worktree do repositório do humano, sai e dá lugar ao clone.
+    """
+    if (area.pasta / ".git").is_file():
+        _tirar_worktree_antigo(area)
+    if (area.pasta / ".git").is_dir():
         if GitDoGoal(area.pasta).ramo_atual() != area.ramo:
             raise FalhaDoGitDoGoal("a area do Goal esta em outra branch", {"area": str(area.pasta), "ramo": area.ramo})
-        return
+    else:
+        _clonar(area)
+    GitDoGoal(area.pasta).rodar(
+        "fetch", "-q", "--no-tags", str(area.repositorio), f"+refs/heads/{area.base}:refs/heads/{area.base}"
+    )
+    limpar_rastros_do_clone(area.pasta)
+    sincronizar_ramo(area)
+
+
+def _clonar(area: AreaDoGoal) -> None:
+    """O clone local da branch do Goal (ou da base, quando ela ainda não existe), sem remoto, tag, reflog nem hook."""
+    repositorio = GitDoGoal(area.repositorio)
+    if area.pasta.exists() and any(area.pasta.iterdir()):
+        raise FalhaDoGitDoGoal("a pasta da area ja existe e nao e um clone do Goal", {"area": str(area.pasta)})
+    inicio = area.ramo if repositorio.ramo_existe(area.ramo) else area.base
     area.pasta.parent.mkdir(parents=True, exist_ok=True)
-    git.rodar("worktree", "prune")
-    if git.ramo_existe(area.ramo):
-        git.rodar("worktree", "add", str(area.pasta), area.ramo)
-        return
-    git.rodar("worktree", "add", "-b", area.ramo, str(area.pasta), area.base)
+    repositorio.rodar(
+        "clone", "-q", "--local", "--no-checkout", "--single-branch", "--no-tags", "--branch", inicio,
+        str(area.repositorio), str(area.pasta),
+    )
+    clone = GitDoGoal(area.pasta)
+    if inicio != area.ramo:
+        clone.rodar("branch", area.ramo, inicio)
+        clone.rodar("symbolic-ref", "HEAD", f"refs/heads/{area.ramo}")
+    clone.rodar("remote", "remove", REMOTO_DO_CLONE)
+    for chave in CHAVES_COPIADAS_PARA_O_CLONE:
+        valor = repositorio.tentar("config", "--get", chave)
+        if valor.codigo == 0 and valor.saida.strip():
+            clone.rodar("config", chave, valor.saida.strip())
+    clone.rodar("reset", "-q", "--hard", "HEAD")
+
+
+def limpar_rastros_do_clone(pasta: Path) -> None:
+    """Tira do clone o reflog (que diz de onde ele veio) e os hooks: nada ali roda nos commits do orquestrador."""
+    git_do_clone = pasta / ".git"
+    _apagar_arvore(git_do_clone / "logs")
+    _apagar_arvore(git_do_clone / "hooks")
+    (git_do_clone / "hooks").mkdir(exist_ok=True)
+
+
+def _tirar_worktree_antigo(area: AreaDoGoal) -> None:
+    """A área que era worktree do repositório do humano sai; a branch do Goal fica nele, e o clone parte dela."""
+    if GitDoGoal(area.repositorio).tentar("worktree", "remove", "--force", str(area.pasta)).codigo != 0:
+        _apagar_arvore(area.pasta)
+    GitDoGoal(area.repositorio).tentar("worktree", "prune")
+
+
+def sincronizar_ramo(area: AreaDoGoal) -> None:
+    """A branch do Goal no repositório do humano vai ao commit do clone, puxada dele, só por fast-forward.
+
+    A branch que andou no repositório do humano fora do orquestrador não é
+    sobrescrita: a chamada para dizendo isso.
+    """
+    repositorio = GitDoGoal(area.repositorio)
+    destino = f"refs/heads/{area.ramo}"
+    head = GitDoGoal(area.pasta).rodar("rev-parse", destino).strip()
+    if repositorio.ramo_existe(area.ramo):
+        atual = repositorio.rodar("rev-parse", destino).strip()
+        if atual == head:
+            return
+        if not GitDoGoal(area.pasta).e_ancestral(atual, head):
+            raise FalhaDoGitDoGoal(
+                "a branch do Goal andou no repositorio fora do orquestrador: ela nao e sobrescrita",
+                {"ramo": area.ramo, "no_repositorio": atual[:12], "no_clone": head[:12]},
+            )
+    repositorio.rodar("fetch", "-q", "--no-tags", str(area.pasta), f"{destino}:{destino}")
 
 
 def mensagem_do_orquestrador(assunto: str, corpo: str, *, id_goal: str, id_task: str = "") -> str:
@@ -220,7 +304,7 @@ def restaurar_head(area: Path, ramo: str, esperado: str) -> str:
     git = GitDoGoal(area)
     feito: list[str] = []
     if git.ramo_atual() != ramo:
-        git.rodar("checkout", "-q", ramo)
+        git.rodar("symbolic-ref", "HEAD", f"refs/heads/{ramo}")
         feito.append(f"o agente trocou de branch; a area voltou para {ramo}")
     atual = git.head()
     if atual != esperado:
@@ -248,7 +332,25 @@ def integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str:
     return git.rodar("rev-parse", base).strip()
 
 
-def remover_area(repositorio: Path, area: Path) -> bool:
-    """Tira o worktree do Goal depois da integração; a branch fica. Diz se conseguiu."""
-    return GitDoGoal(repositorio).tentar("worktree", "remove", str(area)).codigo == 0
+def remover_area(area: Path) -> bool:
+    """Apaga o clone do Goal depois da integração; a branch fica no repositório do humano. Diz se conseguiu."""
+    try:
+        _apagar_arvore(area)
+    except OSError:
+        return False
+    return not area.exists()
+
+
+def _apagar_arvore(pasta: Path) -> None:
+    """A pasta inteira, inclusive os objetos que o git deixa somente leitura (no Windows, o rmtree recusa)."""
+    if not pasta.exists():
+        return
+    chave = "onexc" if sys.version_info >= (3, 12) else "onerror"
+    shutil.rmtree(pasta, **{chave: _liberar_e_repetir})
+
+
+def _liberar_e_repetir(funcao: Callable[[str], Any], caminho: str, _erro: object) -> None:
+    """Tira o somente leitura do arquivo que o rmtree não apagou e tenta de novo."""
+    os.chmod(caminho, stat.S_IWRITE)
+    funcao(caminho)
 

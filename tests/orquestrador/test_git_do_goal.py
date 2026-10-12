@@ -1,4 +1,4 @@
-"""O git do Goal: área numa branch própria, commit do orquestrador, trava do agente e integração por fast-forward."""
+"""O git do Goal: o clone numa branch própria, o commit do orquestrador levado ao humano, a trava e o fast-forward."""
 
 import os
 from pathlib import Path
@@ -14,7 +14,9 @@ from graphow.orquestrador.git_do_goal import (
     descartar_mudancas,
     integrar_por_fast_forward,
     preparar_area,
+    remover_area,
     restaurar_head,
+    sincronizar_ramo,
 )
 from graphow.orquestrador.trava_do_git import instalar_trava, regras_que_negam_git
 
@@ -22,22 +24,29 @@ from tests.orquestrador.apoio_git import criar_repositorio, git
 
 
 def _area(tmp_path: Path) -> tuple[Path, Path]:
-    """O repositório do humano e a área do Goal na branch graphow/teste."""
+    """O repositório do humano e o clone do Goal na branch graphow/teste."""
     repositorio = criar_repositorio(tmp_path / "repo")
     area = tmp_path / "areas" / "teste"
-    preparar_area(AreaDoGoal(repositorio, area, "graphow/teste", "main"))
+    preparar_area(_do_goal(repositorio, area))
     return repositorio, area
 
 
+def _do_goal(repositorio: Path, area: Path) -> AreaDoGoal:
+    """A área de teste: a branch graphow/teste, da main."""
+    return AreaDoGoal(repositorio, area, "graphow/teste", "main")
+
+
 def test_area_nasce_na_branch_do_goal_sem_tocar_o_checkout_do_humano_nominal(tmp_path: Path) -> None:
-    """A área é um worktree na branch nova; o repositório do humano segue na main, limpo."""
+    """A área é um clone na branch nova, e a branch existe no humano; o repositório dele segue na main, limpo."""
     repositorio, area = _area(tmp_path)
 
     assert GitDoGoal(area).ramo_atual() == "graphow/teste"
     assert GitDoGoal(repositorio).ramo_atual() == "main"
     assert GitDoGoal(repositorio).mudancas() == ()
-    preparar_area(AreaDoGoal(repositorio, area, "graphow/teste", "main"))
+    preparar_area(_do_goal(repositorio, area))
     assert GitDoGoal(area).head() == GitDoGoal(repositorio).head()
+    assert git(repositorio, "rev-parse", "graphow/teste").strip() == GitDoGoal(area).head()
+    assert git(repositorio, "worktree", "list").count("\n") == 1
 
 
 def test_commit_do_orquestrador_leva_tudo_o_que_mudou_nominal(tmp_path: Path) -> None:
@@ -46,8 +55,10 @@ def test_commit_do_orquestrador_leva_tudo_o_que_mudou_nominal(tmp_path: Path) ->
     (area / "soma.py").write_text("def somar(a, b):\n    return a + b\n", encoding="utf-8")
 
     commit = commitar(area, "Fatia F1: soma (C1)")
+    sincronizar_ramo(_do_goal(repositorio, area))
 
     assert GitDoGoal(area).mudancas() == ()
+    assert git(repositorio, "rev-parse", "graphow/teste").strip() == commit
     assert git(area, "log", "-1", "--format=%s").strip() == "Fatia F1: soma (C1)"
     assert GitDoGoal(repositorio).ramo_atual() == "main"
     assert not (repositorio / "soma.py").exists()
@@ -117,6 +128,7 @@ def test_integracao_avanca_a_base_no_checkout_do_humano_nominal(tmp_path: Path) 
     repositorio, area = _area(tmp_path)
     (area / "soma.py").write_text("x = 1\n", encoding="utf-8")
     commit = commitar(area, "Fatia F1")
+    sincronizar_ramo(_do_goal(repositorio, area))
 
     integrado = integrar_por_fast_forward(repositorio, "graphow/teste", "main")
 
@@ -130,9 +142,52 @@ def test_integracao_recusa_quando_a_base_andou_edge_case(tmp_path: Path) -> None
     repositorio, area = _area(tmp_path)
     (area / "a.py").write_text("a\n", encoding="utf-8")
     commitar(area, "Fatia F1")
+    sincronizar_ramo(_do_goal(repositorio, area))
     (repositorio / "b.py").write_text("b\n", encoding="utf-8")
     commitar(repositorio, "Trabalho do humano")
 
     with pytest.raises(FalhaDoGitDoGoal):
         integrar_por_fast_forward(repositorio, "graphow/teste", "main")
     assert not (repositorio / "a.py").exists()
+
+
+def test_branch_que_andou_no_humano_nao_e_sobrescrita_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o humano commitou na branch do Goal; o orquestrador não a força, e diz por quê."""
+    repositorio, area = _area(tmp_path)
+    git(repositorio, "checkout", "-q", "graphow/teste")
+    (repositorio / "h.txt").write_text("h\n", encoding="utf-8")
+    commitar(repositorio, "Do humano na branch do Goal")
+    git(repositorio, "checkout", "-q", "main")
+    (area / "a.py").write_text("a\n", encoding="utf-8")
+    commitar(area, "Fatia F1")
+
+    with pytest.raises(FalhaDoGitDoGoal, match="andou no repositorio fora do orquestrador"):
+        sincronizar_ramo(_do_goal(repositorio, area))
+    assert git(repositorio, "log", "-1", "--format=%s", "graphow/teste").strip() == "Do humano na branch do Goal"
+
+
+def test_area_antiga_em_worktree_vira_clone_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o Goal de uma versão anterior tinha a área num worktree; ela sai e o clone parte da branch."""
+    repositorio = criar_repositorio(tmp_path / "repo")
+    area = tmp_path / "areas" / "teste"
+    git(repositorio, "worktree", "add", "-q", "-b", "graphow/teste", str(area), "main")
+    (area / "a.py").write_text("a\n", encoding="utf-8")
+    commit = commitar(area, "Fatia F1 na area antiga")
+
+    preparar_area(_do_goal(repositorio, area))
+
+    assert (area / ".git").is_dir() and GitDoGoal(area).head() == commit
+    assert git(repositorio, "worktree", "list").count("\n") == 1
+
+
+def test_remover_area_apaga_o_clone_e_a_branch_fica_nominal(tmp_path: Path) -> None:
+    """O clone sai inteiro, objetos somente leitura inclusive; a branch do Goal segue no repositório do humano."""
+    repositorio, area = _area(tmp_path)
+    (area / "a.py").write_text("a\n", encoding="utf-8")
+    commit = commitar(area, "Fatia F1")
+    sincronizar_ramo(_do_goal(repositorio, area))
+
+    assert remover_area(area) is True
+
+    assert not area.exists()
+    assert git(repositorio, "rev-parse", "graphow/teste").strip() == commit

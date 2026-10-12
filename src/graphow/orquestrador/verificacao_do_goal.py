@@ -30,12 +30,10 @@ from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import (
     FalhaDoGitDoGoal,
     GitDoGoal,
-    commitar,
     descartar_mudancas,
     integrar_por_fast_forward,
     mensagem_do_orquestrador,
     remover_area,
-    restaurar_head,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, VerificacaoRegistrada
 from graphow.orquestrador.saidas import Achado, Verificacao, conferir_verificacao
@@ -107,7 +105,6 @@ def _sessao_do_verificador(contexto: ContextoDoGoal, estado: EstadoDoGoal, head:
             orcamento_restante_usd=contexto.restante(),
         )
     )
-    restaurar_head(contexto.area, contexto.configuracao.ramo, head)
     descartar_mudancas(contexto.area, contexto.patch(f"verificador-{len(estado.verificacoes) + 1}"))
     if resposta.dados is None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, "A verificacao nao conferiu: " + "; ".join(resposta.problemas))
@@ -134,7 +131,7 @@ def _sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mappin
         return
     caminho.write_text(novo, encoding="utf-8", newline="\n")
     assunto = f"Registra as pendencias da verificacao {numero} do Goal {contexto.configuracao.slug}"
-    commitar(contexto.area, mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))
+    contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))
 
 
 def _corrigir(contexto: ContextoDoGoal, estado: EstadoDoGoal, ultima: VerificacaoRegistrada) -> Parada | None:
@@ -178,6 +175,6 @@ def _fechar(contexto: ContextoDoGoal) -> Parada:
 def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
     """Fecha o Goal e tira a área de trabalho, que já cumpriu o papel."""
     contexto.livro.fechar(integrado)
-    removida = remover_area(Path(contexto.configuracao.repositorio), contexto.area)
+    removida = remover_area(contexto.area)
     sobra = "" if removida else f" A area {contexto.area} ficou no disco (o git nao a removeu)."
     return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"Goal fechado: {contexto.configuracao.base} em {integrado[:12]}.{sobra}")

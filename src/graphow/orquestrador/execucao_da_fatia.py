@@ -19,10 +19,8 @@ from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
 from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
     commit_da_fatia,
-    commitar,
     descartar_mudancas,
     mensagem_do_orquestrador,
-    restaurar_head,
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
@@ -66,7 +64,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
             modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(),
         )
     )
-    desfeito = restaurar_head(contexto.area, contexto.configuracao.ramo, tentativa.head)
+    desfeito = resposta.desfeito
     if resposta.dados is None:
         return _falhou(contexto, tentativa, "a saida do executor nao conferiu: " + "; ".join(resposta.problemas))
     return _depois_da_sessao(contexto, tentativa, SaidaDoExecutor.de_json(resposta.dados), desfeito=desfeito)
@@ -88,7 +86,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     )
     if not suite.passou:
         return _falhou(contexto, tentativa, suite.descrever())
-    commit = commitar(contexto.area, _mensagem(contexto, fatia, saida), vazio_permitido=True)
+    commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito)
     return None
 

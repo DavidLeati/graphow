@@ -33,7 +33,7 @@ from graphow.orquestrador.entrada_do_goal import (
     pedido_de_adocao,
 )
 from graphow.orquestrador.execucao_da_fatia import executar_fatia
-from graphow.orquestrador.git_do_goal import AreaDoGoal, preparar_area, raiz_do_repositorio
+from graphow.orquestrador.git_do_goal import preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.planejamento import planejar
@@ -114,8 +114,7 @@ class Orquestrador:
         if estado.fechado:
             return Parada(id_goal, MotivoDaParada.FECHADO, f"O Goal {id_goal} ja esta fechado.")
         contexto = self._contexto(estado, opcoes, repositorio)
-        configuracao = contexto.configuracao
-        preparar_area(AreaDoGoal(Path(configuracao.repositorio), contexto.area, configuracao.ramo, configuracao.base))
+        preparar_area(contexto.area_do_goal)
         for _ in range(LIMITE_DE_PASSOS):
             parada = _passo(contexto)
             if parada is not None:

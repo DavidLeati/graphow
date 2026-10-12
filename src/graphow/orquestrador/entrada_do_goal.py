@@ -91,7 +91,7 @@ def configuracao_nova(pedido: PedidoDeConfiguracao) -> m.ConfiguracaoDoGoal:
 
 
 def _conferir_area(area: Path, raiz: Path) -> None:
-    """A área do Goal é um worktree à parte: nem o checkout do humano nem uma pasta dentro dele."""
+    """A área do Goal é um clone à parte: nem o checkout do humano nem uma pasta dentro dele."""
     resolvida, checkout = area.expanduser().resolve(), raiz.resolve()
     if resolvida == checkout or checkout in resolvida.parents:
         raise PedidoInvalido(

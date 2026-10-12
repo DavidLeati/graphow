@@ -13,6 +13,7 @@ import pytest
 
 from graphow.orquestrador import planejamento
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
+from graphow.orquestrador.git_do_goal import remover_area
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
 
@@ -137,7 +138,7 @@ def test_falha_do_git_vira_parada_e_nao_excecao_edge_case(tmp_path: Path) -> Non
     bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco())
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.configuracao is not None
-    git(bancada.repositorio, "worktree", "remove", "--force", estado.configuracao.area)
+    assert remover_area(Path(estado.configuracao.area))
     git(bancada.repositorio, "branch", "-m", "graphow/soma", "outra")
     git(bancada.repositorio, "checkout", "-q", "outra")
     git(bancada.repositorio, "branch", "-D", "main")

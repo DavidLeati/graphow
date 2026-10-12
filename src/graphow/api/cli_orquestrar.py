@@ -68,7 +68,7 @@ def _registrar_opcoes_do_git(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--repo", default="", help="Repositorio git do trabalho (padrao: o diretorio atual)")
     parser.add_argument("--ramo", default="", help="Branch do Goal (padrao: graphow/<slug>)")
     parser.add_argument("--base", default="", help="Branch base (padrao: a branch atual do repositorio)")
-    parser.add_argument("--area", default="", help="Pasta do worktree do Goal (padrao: na pasta de estado do Goal)")
+    parser.add_argument("--area", default="", help="Pasta do clone do Goal (padrao: na pasta de estado do Goal)")
     parser.add_argument(
         "--adotar-ramo", action="store_true",
         help="Aceita a branch do Goal que ja existe mesmo com commits que nao sao do Goal (sem isso, recusa)",
