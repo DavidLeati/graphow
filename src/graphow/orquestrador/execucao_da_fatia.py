@@ -16,7 +16,14 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
-from graphow.orquestrador.git_do_goal import commitar, descartar_mudancas, restaurar_head
+from graphow.orquestrador.git_do_goal import (
+    arquivos_do_commit,
+    commit_da_fatia,
+    commitar,
+    descartar_mudancas,
+    mensagem_do_orquestrador,
+    restaurar_head,
+)
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
@@ -38,6 +45,8 @@ class Tentativa:
 def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Parada | None:
     """Roda uma tentativa da fatia; a parada diz por que o laço não segue."""
     if fatia.status == m.STATUS_EM_ANDAMENTO:
+        if _concluir_pelo_commit(contexto, fatia):
+            return None
         _registrar_interrupcao(contexto, fatia)
         estado = contexto.estado()
         fatia = next(registrada for registrada in estado.fatias if registrada.id == fatia.id)
@@ -79,7 +88,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     )
     if not suite.passou:
         return _falhou(contexto, tentativa, suite.descrever())
-    commit = commitar(contexto.area, _mensagem(contexto, fatia, saida)) if contexto.git.mudancas() else tentativa.head
+    commit = commitar(contexto.area, _mensagem(contexto, fatia, saida), vazio_permitido=True)
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito)
     return None
 
@@ -136,8 +145,20 @@ def _modelo(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
 
 
 def _mensagem(contexto: ContextoDoGoal, fatia: FatiaRegistrada, saida: SaidaDoExecutor) -> str:
-    """A mensagem do commit: a fatia, os critérios, o que o executor fez e de onde veio."""
+    """A mensagem do commit: a fatia, os critérios, o que o executor fez e os trailers do Goal e da Task."""
     criterios = ", ".join(fatia.lista(m.CAMPO_CRITERIOS))
     titulo = fatia.titulo.split(": ", 1)[-1]
     assunto = f"Fatia {fatia.codigo}: {titulo}" + (f" ({criterios})" if criterios else "")
-    return f"{assunto}\n\n{saida.resumo}\n\nGoal: {contexto.id_goal} | Task: {fatia.id} | graphow orquestrar"
+    return mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=fatia.id)
+
+
+def _concluir_pelo_commit(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> bool:
+    """A tentativa interrompida depois do commit dela: o commit está na branch, e a fatia fecha sem nova sessão."""
+    commit = commit_da_fatia(contexto.area, fatia.id, contexto.configuracao.base)
+    if commit is None:
+        return False
+    resumo = commit.mensagem.split("\n\n")[1] if commit.mensagem.count("\n\n") >= 2 else ""
+    saida = SaidaDoExecutor(STATUS_PRONTO, resumo, arquivos_do_commit(contexto.area, commit.hash))
+    observacao = "retomada: o commit da fatia ja estava na branch quando o orquestrador parou"
+    contexto.livro.concluir_fatia(fatia.id, fatia.tentativas, commit=commit.hash, saida=saida, observacao=observacao)
+    return True

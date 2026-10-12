@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-21 módulos · 3000 linhas · 40 classes
+21 módulos · 3082 linhas · 41 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,21 +19,21 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 114 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 115 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 143 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 234 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 286 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 172 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 256 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
-| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 126 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 133 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 232 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 73 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 64 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 159 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 161 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
 
 ## `orquestrador/briefing.py`
 
@@ -223,6 +223,10 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 | `VARIAVEIS_DE_OUTRO_REPOSITORIO` | `frozenset[str]` | `frozenset({'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'})` |
 | `NOME_DO_HOOK_DA_TRAVA` | `str` | `'reference-transaction'` |
 | `HOOK_DA_TRAVA` | `str` | `'#!/bin/sh\n# Trava do graphow orquestrar: a sessao do agente nao atual…` |
+| `TRAILER_DO_GOAL` | `str` | `'Graphow-Goal'` |
+| `TRAILER_DA_TASK` | `str` | `'Graphow-Task'` |
+| `SEPARADOR_DE_COMMITS` | `str` | `'\x1e'` |
+| `SEPARADOR_DO_HASH` | `str` | `'\x1f'` |
 | `IDENTIDADE_DE_RESERVA` | `tuple[str, ...]` | `('-c', 'user.name=graphow orquestrar', '-c', 'user.email=orquestrador@g…` |
 | `LIMITE_DO_RESUMO_DO_DIFF` | `int` | `4000` |
 
@@ -231,6 +235,14 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 *DTO imutável* — Onde o trabalho do Goal acontece: o repositório do humano, o worktree, a branch e a base.
 
 **Campos:** `repositorio: Path`, `pasta: Path`, `ramo: str`, `base: str`
+
+### `CommitDoGit`
+
+*DTO imutável* — Um commit da branch: o hash e a mensagem inteira.
+
+**Campos:** `hash: str`, `mensagem: str`
+
+- `tem_trailer(chave: str, valor: str) -> bool` — A mensagem traz a linha `chave: valor`.
 
 ### `FalhaDoGitDoGoal` (GraphowError)
 
@@ -263,7 +275,11 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 
 - `raiz_do_repositorio(pasta: Path) -> Path` — A raiz do repositório git que contém a pasta.
 - `preparar_area(area: AreaDoGoal) -> None` — O worktree do Goal na branch dele: reaproveitado se já existe, criado da base se a branch é nova.
+- `mensagem_do_orquestrador(assunto: str, corpo: str) -> str` — A mensagem do commit com os trailers do Goal e, na fatia, da Task.
 - `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
+- `commits_entre(area: Path, antes: str, depois: str) -> tuple[CommitDoGit, ...]` — Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira.
+- `commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None` — O commit mais novo da branch, desde a base, que o orquestrador fez para a fatia; None sem nenhum.
+- `arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]` — Os arquivos que o commit mudou.
 - `ultimo_commit_do_arquivo(area: Path, caminho: str) -> str` — O commit mais novo que tocou o arquivo; o HEAD quando nenhum tocou.
 - `descartar_mudancas(area: Path, arquivo_patch: Path) -> bool` — Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.
 - `restaurar_head(area: Path, ramo: str, esperado: str) -> str` — Desfaz o que o agente fez no git: volta à branch e, com `reset --soft`, ao commit esperado.

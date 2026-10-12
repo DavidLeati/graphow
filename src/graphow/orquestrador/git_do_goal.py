@@ -35,6 +35,13 @@ HOOK_DA_TRAVA: str = (
     "fi\n"
     "exit 0\n"
 )
+# Os trailers que todo commit do orquestrador leva: o Goal e, no da fatia, a Task.
+# É por eles que a retomada reconhece o commit da fatia que caiu antes de ser
+# registrada, e que a branch que já existe é conferida antes de ser adotada.
+TRAILER_DO_GOAL: str = "Graphow-Goal"
+TRAILER_DA_TASK: str = "Graphow-Task"
+SEPARADOR_DE_COMMITS: str = "\x1e"
+SEPARADOR_DO_HASH: str = "\x1f"
 IDENTIDADE_DE_RESERVA: tuple[str, ...] = (
     "-c", "user.name=graphow orquestrar", "-c", "user.email=orquestrador@graphow.invalid",
 )
@@ -145,13 +152,58 @@ def preparar_area(area: AreaDoGoal) -> None:
     git.rodar("worktree", "add", "-b", area.ramo, str(area.pasta), area.base)
 
 
-def commitar(area: Path, mensagem: str) -> str:
-    """Tudo o que mudou na área num commit do orquestrador; devolve o hash."""
+def mensagem_do_orquestrador(assunto: str, corpo: str, *, id_goal: str, id_task: str = "") -> str:
+    """A mensagem do commit com os trailers do Goal e, na fatia, da Task."""
+    trailers = [f"{TRAILER_DO_GOAL}: {id_goal}", *([f"{TRAILER_DA_TASK}: {id_task}"] if id_task else [])]
+    partes = [assunto.strip(), corpo.strip(), "\n".join(trailers)]
+    return "\n\n".join(parte for parte in partes if parte)
+
+
+def commitar(area: Path, mensagem: str, *, vazio_permitido: bool = False) -> str:
+    """Tudo o que mudou na área num commit do orquestrador; devolve o hash.
+
+    O commit vazio vale para a fatia que fechou sem mudar arquivo: cada fatia
+    tem o seu commit, com os trailers que a retomada lê.
+    """
     git = GitDoGoal(area)
     git.rodar("add", "-A")
     identidade = () if git.tentar("config", "user.email").saida.strip() else IDENTIDADE_DE_RESERVA
-    git.rodar(*identidade, "commit", "-q", "-m", mensagem)
+    git.rodar(*identidade, "commit", "-q", *(["--allow-empty"] if vazio_permitido else []), "-m", mensagem)
     return git.head()
+
+
+@dataclass(frozen=True)
+class CommitDoGit:
+    """Um commit da branch: o hash e a mensagem inteira."""
+
+    hash: str
+    mensagem: str
+
+    def tem_trailer(self, chave: str, valor: str) -> bool:
+        """A mensagem traz a linha `chave: valor`."""
+        return f"{chave}: {valor}" in (linha.strip() for linha in self.mensagem.splitlines())
+
+
+def commits_entre(area: Path, antes: str, depois: str = "HEAD") -> tuple[CommitDoGit, ...]:
+    """Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira."""
+    saida = GitDoGoal(area).rodar("log", f"--format=%H{SEPARADOR_DO_HASH}%B{SEPARADOR_DE_COMMITS}", f"{antes}..{depois}")
+    commits = []
+    for bloco in saida.split(SEPARADOR_DE_COMMITS):
+        if SEPARADOR_DO_HASH in bloco:
+            hash_do_commit, mensagem = bloco.strip().split(SEPARADOR_DO_HASH, 1)
+            commits.append(CommitDoGit(hash_do_commit.strip(), mensagem))
+    return tuple(commits)
+
+
+def commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None:
+    """O commit mais novo da branch, desde a base, que o orquestrador fez para a fatia; None sem nenhum."""
+    return next((commit for commit in commits_entre(area, base) if commit.tem_trailer(TRAILER_DA_TASK, id_task)), None)
+
+
+def arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]:
+    """Os arquivos que o commit mudou."""
+    saida = GitDoGoal(area).rodar("show", "--name-only", "--format=", hash_do_commit)
+    return tuple(linha for linha in saida.splitlines() if linha.strip())
 
 
 def ultimo_commit_do_arquivo(area: Path, caminho: str) -> str:

@@ -26,6 +26,7 @@ from graphow.orquestrador.git_do_goal import (
     commitar,
     descartar_mudancas,
     integrar_por_fast_forward,
+    mensagem_do_orquestrador,
     remover_area,
     restaurar_head,
 )
@@ -110,7 +111,8 @@ def _commitar_pendencias(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[
     if novo == atual:
         return
     caminho.write_text(novo, encoding="utf-8", newline="\n")
-    commitar(contexto.area, f"Registra as pendencias da verificacao {numero} do Goal {contexto.configuracao.slug}")
+    assunto = f"Registra as pendencias da verificacao {numero} do Goal {contexto.configuracao.slug}"
+    commitar(contexto.area, mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))
 
 
 def _corrigir(contexto: ContextoDoGoal, estado: EstadoDoGoal, ultima: VerificacaoRegistrada) -> Parada | None:

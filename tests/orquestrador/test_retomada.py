@@ -20,6 +20,7 @@ from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
     PLANO,
     SOMA_CERTA,
+    SOMA_ERRADA,
     VERIFICAR,
     Bancada,
     Queda,
@@ -161,3 +162,56 @@ def test_duas_duvidas_respondidas_nao_gastam_as_tentativas_nominal(tmp_path: Pat
     assert terceira.fechou, terceira.mensagem
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and (estado.fatias[0].tentativas, estado.fatias[0].falhas) == (3, 0)
+
+
+def _commits_da_fatia(bancada: Bancada, id_task: str) -> list[str]:
+    """Os commits da main com o trailer da Task."""
+    log = git(bancada.repositorio, "log", "--format=%H %(trailers:key=Graphow-Task,valueonly,separator=)", "main")
+    return [linha.split()[0] for linha in log.splitlines() if linha.strip().endswith(id_task)]
+
+
+def test_queda_entre_o_commit_da_fatia_e_o_registro_conclui_pelo_trailer_nominal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """O commit da fatia já está na branch: a retomada a fecha por ele, sem pagar outro executor."""
+    bancada = montar_bancada(tmp_path, roteiro_farto())
+    monkeypatch.setattr(LivroRazaoDoGoal, "concluir_fatia", cai_uma_vez(LivroRazaoDoGoal.concluir_fatia))
+
+    motivo = _rodar_com_queda(bancada)
+
+    assert motivo == MotivoDaParada.FECHADO
+    assert len(bancada.chamadas("executor")) == 2
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    primeira = estado.fatias[0]
+    assert (primeira.status, primeira.tentativas, primeira.falhas) == ("concluido", 1, 0)
+    assert _commits_da_fatia(bancada, "task-soma-f1") == [primeira.texto("commit")]
+
+
+def test_queda_depois_do_commit_da_segunda_tentativa_nao_vira_pendencia_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Caso de borda: a primeira tentativa falhou, a segunda commitou e caiu; a fatia fecha com uma falha só."""
+    roteiro = roteiro_farto()
+    roteiro["executor"] = [executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": VERIFICAR}), *roteiro["executor"]]
+    bancada = montar_bancada(tmp_path, roteiro)
+    monkeypatch.setattr(LivroRazaoDoGoal, "concluir_fatia", cai_uma_vez(LivroRazaoDoGoal.concluir_fatia))
+
+    motivo = _rodar_com_queda(bancada)
+
+    assert motivo == MotivoDaParada.FECHADO
+    assert len(bancada.chamadas("executor")) == 3
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    assert (estado.fatias[0].status, estado.fatias[0].tentativas, estado.fatias[0].falhas) == ("concluido", 2, 1)
+    assert len(_commits_da_fatia(bancada, "task-soma-f1")) == 1
+
+
+def test_todo_commit_do_orquestrador_leva_o_trailer_do_goal_nominal(tmp_path: Path) -> None:
+    """Plano, fatias e pendências: cada commit da branch do Goal diz de que Goal veio."""
+    bancada = montar_bancada(tmp_path, roteiro_farto())
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    trailers = git(bancada.repositorio, "log", "--format=%(trailers:key=Graphow-Goal,valueonly,separator=)", "HEAD~3..main")
+    assert [linha.strip() for linha in trailers.splitlines() if linha.strip()] == ["goal-soma"] * 3

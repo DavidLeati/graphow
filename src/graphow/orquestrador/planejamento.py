@@ -21,7 +21,13 @@ from graphow.orquestrador.briefing import briefing_do_planejador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, escrever_documento, renderizar_documento
 from graphow.orquestrador.esquemas import ESQUEMA_DO_PLANO, PAPEL_PLANEJADOR
-from graphow.orquestrador.git_do_goal import commitar, descartar_mudancas, restaurar_head, ultimo_commit_do_arquivo
+from graphow.orquestrador.git_do_goal import (
+    commitar,
+    descartar_mudancas,
+    mensagem_do_orquestrador,
+    restaurar_head,
+    ultimo_commit_do_arquivo,
+)
 from graphow.orquestrador.gravacao_do_plano import PlanoParaGravar, gravar_plano
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.saidas import IdsFixados, Plano, conferir_plano
@@ -104,7 +110,8 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, plano: Plano, *, fix
     documento = renderizar_documento(contexto.id_goal, configuracao, plano, spec=str(estado.propriedades.get(m.CAMPO_SPEC, "")))
     escrever_documento(contexto.area, configuracao.slug, documento)
     if contexto.git.mudancas():
-        commit = commitar(contexto.area, f"Planeja o Goal {configuracao.slug}: {plano.titulo}\n\nGoal: {contexto.id_goal} | graphow orquestrar")
+        mensagem = mensagem_do_orquestrador(f"Planeja o Goal {configuracao.slug}: {plano.titulo}", "", id_goal=contexto.id_goal)
+        commit = commitar(contexto.area, mensagem)
     else:
         commit = ultimo_commit_do_arquivo(contexto.area, caminho)
     gravar_plano(
