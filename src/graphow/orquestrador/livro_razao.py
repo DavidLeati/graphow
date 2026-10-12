@@ -199,8 +199,10 @@ class LivroRazaoDoGoal:
         )
         return id_questao
 
-    def gravar_verificacao(self, numero: int, verificacao: Verificacao, *, commit: str, ciclo: int) -> str:
-        """A verificação vira Evidence ligada ao Goal, com o commit verificado; devolve o id dela."""
+    def gravar_verificacao(
+        self, numero: int, verificacao: Verificacao, *, commit: str, ciclo: int, pendencias: Sequence[Mapping[str, Any]]
+    ) -> str:
+        """A verificação vira Evidence ligada ao Goal, no mesmo lote da lista de pendências que ela deixa; devolve o id."""
         id_evidencia = f"ver-{self.id_goal}-{numero}"
         bloqueantes = verificacao.bloqueantes()
         propriedades = {
@@ -217,7 +219,8 @@ class LivroRazaoDoGoal:
         rotulo = f"Verificacao {numero} em {commit[:12]}: " + (f"{len(bloqueantes)} bloqueante(s)" if bloqueantes else "limpa")
         self.gravar(
             [*self.produzido(id_evidencia, TipoNo.EVIDENCE, rotulo, propriedades=propriedades),
-             aresta(id_evidencia, self.id_goal, TipoAresta.DERIVA_DE)],
+             aresta(id_evidencia, self.id_goal, TipoAresta.DERIVA_DE),
+             propriedade(self.id_goal, m.CAMPO_PENDENCIAS, [dict(item) for item in pendencias])],
             f"Verificacao {numero} do Goal {self.id_goal}",
         )
         return id_evidencia
@@ -239,10 +242,6 @@ class LivroRazaoDoGoal:
             operacoes.append(aresta(self.id_goal, id_task, TipoAresta.DECOMPOE))
         operacoes.append(propriedade(self.id_goal, m.CAMPO_CICLOS, ciclo))
         self.gravar(operacoes, f"Ciclo {ciclo} de correcao do Goal {self.id_goal}")
-
-    def registrar_pendencias(self, pendencias: Sequence[Mapping[str, Any]]) -> None:
-        """A lista de pendências do Goal (acompanhamentos e bloqueantes sem ciclo), inteira."""
-        self.gravar([propriedade(self.id_goal, m.CAMPO_PENDENCIAS, [dict(item) for item in pendencias])], "Pendencias do Goal")
 
     def fechar(self, commit_integrado: str) -> None:
         """O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra."""

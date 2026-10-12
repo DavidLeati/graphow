@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-21 módulos · 3082 linhas · 41 classes
+21 módulos · 3085 linhas · 41 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,7 +24,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 172 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 256 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 255 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 133 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
@@ -33,7 +33,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/status.py`](#orquestradorstatus) | 73 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 64 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 161 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 165 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
 
 ## `orquestrador/briefing.py`
 
@@ -409,9 +409,8 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
-- `gravar_verificacao(numero: int, verificacao: Verificacao) -> str` — A verificação vira Evidence ligada ao Goal, com o commit verificado; devolve o id dela.
+- `gravar_verificacao(numero: int, verificacao: Verificacao) -> str` — A verificação vira Evidence ligada ao Goal, no mesmo lote da lista de pendências que ela deixa; devolve o id.
 - `criar_correcoes(id_evidencia: str, achados: Sequence[Achado]) -> None` — Cada bloqueante vira uma fatia de correção, que diz por `corrige` de que verificação nasceu.
-- `registrar_pendencias(pendencias: Sequence[Mapping[str, Any]]) -> None` — A lista de pendências do Goal (acompanhamentos e bloqueantes sem ciclo), inteira.
 - `fechar(commit_integrado: str) -> None` — O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra.
 
 ### `LoteRecusado` (GraphowError)

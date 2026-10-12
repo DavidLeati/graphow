@@ -58,7 +58,8 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
         livro.concluir_fatia(id_task, 1, commit="c0ffee" + id_task[-1], saida=saida)
 
     verificacao = Verificacao.de_json(VERIFICACAO)
-    id_evidencia = livro.gravar_verificacao(1, verificacao, commit="c0ffee2", ciclo=0)
+    pendencia = {"gravidade": "acompanhamento", "titulo": "nome", "descricao": "d", "origem": "verificacao 1"}
+    id_evidencia = livro.gravar_verificacao(1, verificacao, commit="c0ffee2", ciclo=0, pendencias=[pendencia])
     livro.criar_correcoes(id_evidencia, verificacao.bloqueantes(), ciclo=1, ordem=2)
     estado = ler_estado(kernel.obter_view(), "goal-soma")
 
@@ -66,13 +67,14 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     assert estado.ultima_verificacao is not None and not estado.ultima_verificacao.limpa
     assert [fatia.codigo for fatia in estado.prontas()] == ["K1.1"]
     assert estado.ciclos_de_correcao == 1
+    assert estado.pendencias == [pendencia]
     correcao = estado.fatias[-1]
     assert correcao.texto(m.CAMPO_CORRIGE) == id_evidencia
     livro.iniciar_tentativa(correcao.id, 1)
     livro.concluir_fatia(correcao.id, 1, commit="c0ffee3", saida=saida)
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "criterios": [
         {"id": "C1", "veredito": "atende", "prova": "ok"}, {"id": "C2", "veredito": "atende", "prova": "ok"}]})
-    livro.gravar_verificacao(2, limpa, commit="c0ffee3", ciclo=1)
+    livro.gravar_verificacao(2, limpa, commit="c0ffee3", ciclo=1, pendencias=[])
     livro.fechar("c0ffee3")
     final = ler_estado(kernel.obter_view(), "goal-soma")
     assert final is not None and final.fechado and final.ultima_verificacao.limpa

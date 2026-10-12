@@ -18,6 +18,7 @@ from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
+    ACOMPANHAMENTO,
     PLANO,
     SOMA_CERTA,
     SOMA_ERRADA,
@@ -51,6 +52,20 @@ def cai_uma_vez(original: Callable[..., Any]) -> Callable[..., Any]:
             estado["caiu"] = True
             raise Queda()
         return original(*argumentos, **nomeados)
+
+    return envolta
+
+
+def cai_depois_uma_vez(original: Callable[..., Any]) -> Callable[..., Any]:
+    """A função que roda e derruba o processo logo depois, na primeira chamada."""
+    estado = {"caiu": False}
+
+    def envolta(*argumentos: Any, **nomeados: Any) -> Any:
+        resultado = original(*argumentos, **nomeados)
+        if not estado["caiu"]:
+            estado["caiu"] = True
+            raise Queda()
+        return resultado
 
     return envolta
 
@@ -215,3 +230,22 @@ def test_todo_commit_do_orquestrador_leva_o_trailer_do_goal_nominal(tmp_path: Pa
 
     trailers = git(bancada.repositorio, "log", "--format=%(trailers:key=Graphow-Goal,valueonly,separator=)", "HEAD~3..main")
     assert [linha.strip() for linha in trailers.splitlines() if linha.strip()] == ["goal-soma"] * 3
+
+
+def test_queda_entre_a_verificacao_e_o_documento_nao_perde_o_acompanhamento_nominal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A verificação e as pendências vão num lote só; a retomada sincroniza o documento sem outro verificador."""
+    roteiro = roteiro_farto()
+    roteiro["verificador"] = [verificacao("atende", [ACOMPANHAMENTO]) for _ in range(3)]
+    bancada = montar_bancada(tmp_path, roteiro)
+    monkeypatch.setattr(LivroRazaoDoGoal, "gravar_verificacao", cai_depois_uma_vez(LivroRazaoDoGoal.gravar_verificacao))
+
+    motivo = _rodar_com_queda(bancada)
+
+    assert motivo == MotivoDaParada.FECHADO
+    assert len(bancada.chamadas("verificador")) == 1
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and [item["titulo"] for item in estado.pendencias] == [ACOMPANHAMENTO["titulo"]]
+    documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
+    assert ACOMPANHAMENTO["titulo"] in documento.split("Pendencias")[-1]

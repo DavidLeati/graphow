@@ -9,6 +9,10 @@ atual: o mesmo commit, ou um depois dele que só mudou o documento do Goal. No
 modo autônomo o orquestrador integra por fast-forward na base e fecha; no
 supervisionado, para com "pronto para integrar", e a chamada seguinte vê a
 branch integrada e fecha.
+
+A verificação e as pendências que ela deixa vão ao livro-razão num lote só; o
+documento é sincronizado com elas a cada passo depois da verificação, e por isso
+a queda entre o lote e o commit do documento não perde acompanhamento.
 """
 
 from collections.abc import Mapping, Sequence
@@ -40,6 +44,7 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parad
     ultima = estado.ultima_verificacao
     if ultima is None or not _vale_para_o_commit_atual(contexto, ultima) or _ja_corrigida(estado, ultima):
         return _verificar(contexto, estado)
+    _sincronizar_documento(contexto, estado.pendencias, numero=len(estado.verificacoes))
     if ultima.limpa:
         return _fechar(contexto)
     return _corrigir(contexto, estado, ultima)
@@ -85,24 +90,23 @@ def _verificar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, "A verificacao nao conferiu: " + "; ".join(resposta.problemas))
     verificacao = Verificacao.de_json(resposta.dados)
     numero = len(estado.verificacoes) + 1
-    contexto.livro.gravar_verificacao(numero, verificacao, commit=head, ciclo=estado.ciclos_de_correcao)
-    _registrar_pendencias(contexto, estado, verificacao, numero=numero)
+    pendencias = _pendencias_depois(estado, verificacao, numero=numero)
+    contexto.livro.gravar_verificacao(numero, verificacao, commit=head, ciclo=estado.ciclos_de_correcao, pendencias=pendencias)
+    _sincronizar_documento(contexto, pendencias, numero=numero)
     return None
 
 
-def _registrar_pendencias(contexto: ContextoDoGoal, estado: EstadoDoGoal, verificacao: Verificacao, *, numero: int) -> None:
-    """Os acompanhamentos (e os bloqueantes, se não há mais ciclo) no Goal e no documento, num commit só dele."""
+def _pendencias_depois(estado: EstadoDoGoal, verificacao: Verificacao, *, numero: int) -> list[dict[str, Any]]:
+    """As pendências das fatias e os acompanhamentos (e os bloqueantes, se não há mais ciclo) desta verificação."""
     sem_ciclo = estado.ciclos_de_correcao >= MAXIMO_DE_CICLOS_DE_CORRECAO
     achados = [*verificacao.acompanhamentos(), *(verificacao.bloqueantes() if sem_ciclo else ())]
     origem = f"verificacao {numero}"
     novas = [{**achado.em_json(), "origem": origem} for achado in achados]
-    pendencias = [item for item in estado.pendencias if item.get("gravidade") == "pendencia"] + novas
-    contexto.livro.registrar_pendencias(pendencias)
-    _commitar_pendencias(contexto, pendencias, numero)
+    return [item for item in estado.pendencias if item.get("gravidade") == "pendencia"] + novas
 
 
-def _commitar_pendencias(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]], numero: int) -> None:
-    """Reescreve a seção de pendências do documento e commita, se ele mudou."""
+def _sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]], *, numero: int) -> None:
+    """Reescreve a seção de pendências do documento como o livro-razão a tem e commita, se ele mudou."""
     caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
     if not caminho.is_file():
         return
