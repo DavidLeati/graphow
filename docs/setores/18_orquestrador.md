@@ -10,11 +10,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-34 módulos · 5769 linhas · 55 classes
+36 módulos · 6012 linhas · 58 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 167 | Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste não muda sem o plano dizer. |
+| [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 63 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 135 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 252 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
@@ -28,11 +29,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 117 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 79 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 123 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 201 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 105 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 319 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 272 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 213 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 113 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 329 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 277 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 196 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 137 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
@@ -45,7 +47,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 134 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 142 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 208 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 
 ## `orquestrador/aceite_intocado.py`
@@ -69,6 +71,14 @@ Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste
 - `preparar_o_aceite(area: Path, commit_do_aceite: str) -> tuple[str, ...]` — Antes de rodar os testes de aceite: aceite/ como no commit do aceite e a configuração solta fora; diz o que tirou.
 - `flags_do_indice(area: Path) -> tuple[str, ...]` — Os arquivos com `skip-worktree` (S) ou `assume-unchanged` (letra minúscula) no índice: mudança que o status esconde.
 - `limpar_flags(area: Path, arquivos: Sequence[str]) -> None` — Tira as flags do índice dos arquivos, para o git voltar a ver o que mudou neles.
+
+## `orquestrador/atendimento_dos_pedidos.py`
+
+A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los.
+
+### Funções do módulo
+
+- `conferir_pedido(view: GrafoView, estado: EstadoDoGoal, pedido: NovoPedido) -> tuple[NovoPedido, Sequence[ItemPatch]]` — O pedido completo (o marco do `mais_ciclos`) e o que ele muda no mesmo lote; recusa o que não vale.
 
 ## `orquestrador/autor_de_aceite.py`
 
@@ -447,6 +457,7 @@ O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, 
 - `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda; a falha de domínio vira parada.
 - `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar; a falha de domínio vira parada.
 - `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano aprova junto o plano e os testes de aceite, no commit deles.
+- `pedir(id_goal: str, pedido: NovoPedido) -> str` — Grava o pedido do humano (orquestrador/pedidos_do_humano.py), conferido contra o Goal como ele está.
 
 ## `orquestrador/leitura_das_verificacoes.py`
 
@@ -469,7 +480,8 @@ As verificações do Goal e os nós Achado delas e das revisões de risco, como 
 **Campos:** `id: str`, `commit: str`, `veredito: str`, `ciclo: int`, `propriedades: Mapping[str, Any]`, `commit_do_codigo: str`, `achados: tuple[AchadoRegistrado, ...]`, `marco: str`
 
 - `bloqueantes() -> tuple[AchadoRegistrado, ...]` — Os nós Achado bloqueantes desta verificação.
-- `limpa() -> bool` `[property]` — Sem bloqueante.
+- `bloqueantes_abertos() -> tuple[AchadoRegistrado, ...]` — Os bloqueantes ainda não encerrados: o resolvido e o que o humano descartou não contam.
+- `limpa() -> bool` `[property]` — Sem bloqueante, ou com todo bloqueante dela encerrado: resolvido, ou descartado pelo humano.
 
 ### Funções do módulo
 
@@ -497,7 +509,7 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 
 *DTO imutável* — Tudo o que o laço lê do Goal para decidir o passo seguinte.
 
-**Campos:** `id_goal: str`, `rotulo: str`, `status: str`, `propriedades: Mapping[str, Any]`, `fatias: tuple[FatiaRegistrada, ...]`, `verificacoes: tuple[VerificacaoRegistrada, ...]`, `plano_aprovado: bool`
+**Campos:** `id_goal: str`, `rotulo: str`, `status: str`, `propriedades: Mapping[str, Any]`, `fatias: tuple[FatiaRegistrada, ...]`, `verificacoes: tuple[VerificacaoRegistrada, ...]`, `plano_aprovado: bool`, `pedidos: tuple[PedidoDoHumano, ...]`
 
 - `configuracao() -> m.ConfiguracaoDoGoal | None` `[property]` — A configuração do laço, quando o orquestrador já conduz o Goal.
 - `plano() -> Mapping[str, Any] | None` `[property]` — O plano gravado, quando já há.
@@ -513,7 +525,8 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 - `fatias_do_marco(marco: MarcoRegistrado) -> tuple[FatiaRegistrada, ...]` — As fatias do marco, as de correção inclusive.
 - `verificacoes_do_marco(marco: MarcoRegistrado) -> tuple[VerificacaoRegistrada, ...]` — As verificações do marco, da mais antiga à mais nova.
 - `marco_atual() -> MarcoRegistrado` — O primeiro marco sem verificação limpa que ainda tem o que fazer; com todos encerrados, o final.
-- `limite_de_ciclos(marco: MarcoRegistrado) -> int` — Quantos ciclos de correção o marco tem.
+- `limite_de_ciclos(marco: MarcoRegistrado) -> int` — Quantos ciclos de correção o marco tem: os dois de todo marco, mais os que o humano deu a ele.
+- `pedidos_pendentes(acao: str) -> tuple[PedidoDoHumano, ...]` — Os pedidos do humano com a ação dada que o laço ainda não atendeu.
 - `marco_esgotado(marco: MarcoRegistrado) -> bool` — O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer.
 - `bloqueantes_de_outros_marcos(marco: MarcoRegistrado) -> tuple[AchadoRegistrado, ...]` — Os bloqueantes ainda abertos que as verificações dos outros marcos deixaram: a final os cobra de novo.
 - `corrigidos(marco: MarcoRegistrado) -> tuple[str, ...]` — Os Achados que uma correção entregou e que a verificação limpa do marco resolve; na final, os do Goal inteiro.
@@ -583,6 +596,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
 - `gravar_ponta(ponta: Mapping[str, str]) -> None` — A ponta da branch do Goal como o git a tem agora: o commit e o commit do código.
 - `criar_correcoes(id_evidencia: str, achados: Sequence[AchadoRegistrado]) -> None` — Os Achados bloqueantes viram fatias de correção do marco, os do mesmo arquivo juntos, cada uma derivando dos dela.
+- `resolver(achados: Sequence[str], justificativa: str) -> None` — Os Achados corrigidos passam a resolvidos: a verificação final limpa os confirmou.
 - `fechar(commit_integrado: str) -> None` — O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra.
 
 ### `LoteRecusado` (GraphowError)
@@ -679,6 +693,44 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 - `id_da_verificacao(id_goal: str, numero: int) -> str` — A Evidence da verificação de número dado do Goal.
 - `id_do_achado(id_goal: str, numero: int, indice: int) -> str` — O Achado de índice dado da verificação de número dado.
 - `id_da_fatia(slug: str, codigo: str) -> str` — A Task de uma fatia do plano ou de uma correção.
+
+## `orquestrador/pedidos_do_humano.py`
+
+Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PEDIDO_DESCARTAR_ACHADO` | `str` | `'descartar_achado'` |
+| `PEDIDO_MAIS_CICLOS` | `str` | `'mais_ciclos'` |
+| `PEDIDO_CANCELAR` | `str` | `'cancelar'` |
+| `PEDIDO_RECUSAR_PLANO` | `str` | `'recusar_plano'` |
+| `PEDIDO_REFAZER_ACEITE` | `str` | `'refazer_aceite'` |
+| `PEDIDOS` | `frozenset[str]` | `frozenset({PEDIDO_DESCARTAR_ACHADO, PEDIDO_MAIS_CICLOS, PEDIDO_CANCELAR…` |
+| `ESTADOS_QUE_SE_DESCARTAM` | `frozenset[str]` | `frozenset({a.ESTADO_ABERTO, a.ESTADO_CORRIGIDO, a.ESTADO_DO_ACOMPANHAME…` |
+
+### `NovoPedido`
+
+*DTO imutável* — O que o humano pede pela CLI.
+
+**Campos:** `acao: str`, `motivo: str`, `por: str`, `alvo: str`, `ciclos: int`
+
+### `PedidoDoHumano`
+
+*DTO imutável* — Um pedido gravado: o que o humano pediu, por quê, sobre o quê e quem pediu.
+
+**Campos:** `id: str`, `acao: str`, `motivo: str`, `alvo: str`, `ciclos: int`, `por: str`
+
+### `PedidoRecusado` (GraphowError)
+
+*serviço* — O pedido do humano não vale para o Goal como ele está, ou o kernel o recusou.
+
+### Funções do módulo
+
+- `ler_pedidos(view: GrafoView, id_goal: str) -> tuple[PedidoDoHumano, ...]` — Os pedidos do humano sobre o Goal, na ordem do log.
+- `gravar_pedido(kernel: WriteKernel, id_goal: str, pedido: NovoPedido) -> str` — Grava a Decision do pedido, com o que ele muda no mesmo lote, como o humano; devolve o id dela.
+- `escrita(id_no: str, chave: str, valor: object) -> ItemPatch` — A escrita de uma propriedade de um nó, no lote do pedido.
+- `descarte(view: GrafoView, id_achado: str, motivo: str) -> list[ItemPatch]` — O que o descarte muda no Achado; recusa o que não é Achado, ou o que já está encerrado.
+- `cancelamento(id_goal: str, motivo: str) -> list[ItemPatch]` — O que o cancelamento muda no Goal.
 
 ## `orquestrador/planejamento.py`
 

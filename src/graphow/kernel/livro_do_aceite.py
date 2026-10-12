@@ -154,18 +154,25 @@ def _imutavel(id_no: str, lote: _Lote) -> bool:
 
 
 def _motivo_na_remocao(id_no: str, lote: _Lote) -> str:
-    """O Criterio, o Achado e a verificação do Goal não se removem."""
+    """O Criterio, o Achado, o pedido do humano e a verificação do Goal não se removem."""
     no = lote.estado.nos.get(id_no)
     if no is None:
         return ""
-    if no.tipo in (TipoNo.CRITERIO, TipoNo.ACHADO):
+    if no.tipo in (TipoNo.CRITERIO, TipoNo.ACHADO) or _e_pedido(no.propriedades):
         return f"o {no.tipo.value} '{id_no}' nao se remove"
     return f"a verificacao '{id_no}' nao se remove" if _e_verificacao(no.propriedades) else ""
 
 
+def _e_pedido(propriedades: Mapping[str, Any]) -> bool:
+    """O nó é um pedido do humano ao laço."""
+    return bool(propriedades.get(a.CAMPO_ACAO_DO_HUMANO))
+
+
 def _motivo_na_criacao(id_no: str, lote: _Lote) -> str:
-    """A verificação e o Achado nascem do orquestrador, com a forma que o fechamento lê."""
+    """A verificação e o Achado nascem do orquestrador, com a forma que o fechamento lê; o pedido do humano, do humano."""
     propriedades = lote.propriedades(id_no)
+    if _e_pedido(propriedades):
+        return "" if lote.papel == PapelAutor.HUMANO and lote.tipo(id_no) == TipoNo.DECISION else "o pedido ao laco e uma Decision do humano"
     if _e_verificacao(propriedades):
         return _motivo_da_verificacao_nova(propriedades, lote)
     return _motivo_do_achado_novo(id_no, propriedades, lote) if lote.tipo(id_no) == TipoNo.ACHADO else ""
@@ -203,6 +210,8 @@ def _motivo_na_propriedade(id_no: str, chave: str, item: ItemPatch, *, lote: _Lo
         return "a verificacao do Goal nasce verificacao; um no existente nao vira uma"
     if existente and tipo == TipoNo.EVIDENCE and _e_verificacao(lote.propriedades(id_no)):
         return f"a verificacao '{id_no}' nao se edita"
+    if existente and (_e_pedido(lote.propriedades(id_no)) or chave == a.CAMPO_ACAO_DO_HUMANO):
+        return f"o pedido do humano '{id_no}' nao se edita, e um no existente nao vira um"
     if existente and tipo == TipoNo.ACHADO:
         return _motivo_no_achado(id_no, chave, item, lote=lote)
     if tipo == TipoNo.CRITERIO and chave in a.PROPRIEDADES_DERIVADAS_DO_CRITERIO and lote.papel != ORQUESTRADOR:

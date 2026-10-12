@@ -39,7 +39,7 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: M
     sincronizar_documento(contexto, estado.pendencias, numero=len(estado.verificacoes))
     carregados = estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()
     if ultima.limpa and not carregados:
-        return _fechar(contexto) if marco.final else None
+        return _fechar(contexto, estado, marco) if marco.final else None
     return _corrigir(contexto, estado, ultima, marco=marco)
 
 
@@ -67,7 +67,7 @@ def _corrigir(
     Sem ciclo, o marco intermediário segue (o laço vai ao marco seguinte), e a
     final para: não há mais o que executar.
     """
-    bloqueantes = (*ultima.bloqueantes(), *(estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()))
+    bloqueantes = (*ultima.bloqueantes_abertos(), *(estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()))
     ciclos = estado.ciclos_do_marco(marco)
     if ciclos < estado.limite_de_ciclos(marco):
         ordem = max((fatia.ordem for fatia in estado.fatias), default=0)
@@ -81,12 +81,20 @@ def _corrigir(
         MotivoDaParada.BLOQUEANTES_RESTANTES,
         f"Depois de {ciclos} ciclos de correcao na verificacao final ({marco.id}), ainda ha {len(bloqueantes)} bloqueante(s): "
         f"{titulos}. Eles seguem como Achados abertos e nas pendencias do Goal; o Goal fica aberto, e o kernel nao o fecha "
-        "enquanto houver bloqueante aberto.",
+        f"enquanto houver bloqueante aberto. Saidas do humano: `graphow orquestrar --goal {contexto.id_goal} --mais-ciclos 1 "
+        f"--motivo \"...\"` (mais um ciclo de correcao), `--descartar-achado <id> --motivo \"...\"` (aceita o achado: "
+        + ", ".join(achado.id for achado in bloqueantes) + ") ou `--cancelar --motivo \"...\"`.",
     )
 
 
-def _fechar(contexto: ContextoDoGoal) -> Parada:
-    """Integra no modo autônomo, ou espera o humano integrar no supervisionado; fecha quando integrado."""
+def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada:
+    """Integra no modo autônomo, ou espera o humano integrar no supervisionado; fecha quando integrado.
+
+    A verificação final que ficou limpa porque o humano descartou o
+    bloqueante dela não resolveu, ao ser gravada, os achados que as correções
+    tinham entregue: eles se resolvem agora, confirmados por ela.
+    """
+    contexto.livro.resolver(estado.corrigidos(marco), f"Achados corrigidos confirmados pela verificacao final do Goal {contexto.id_goal}")
     configuracao = contexto.configuracao
     repositorio = Path(configuracao.repositorio)
     head = contexto.git.head()

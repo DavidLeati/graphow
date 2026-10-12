@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-33 módulos · 5566 linhas · 35 classes
+33 módulos · 5575 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 387 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
-| [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 300 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
+| [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 309 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |

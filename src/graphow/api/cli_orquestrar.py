@@ -24,6 +24,13 @@ from graphow.orquestrador.esquemas import PAPEIS
 from graphow.orquestrador.laco import Orquestrador, PedidoInvalido
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.modelo_do_goal import MODOS
+from graphow.orquestrador.pedidos_do_humano import (
+    PEDIDO_CANCELAR,
+    PEDIDO_DESCARTAR_ACHADO,
+    PEDIDO_MAIS_CICLOS,
+    NovoPedido,
+    PedidoRecusado,
+)
 from graphow.orquestrador.sessoes_de_papel import MODELO_PADRAO, MODO_DE_PERMISSAO_PADRAO
 from graphow.orquestrador.status import formatar_status
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
@@ -52,6 +59,10 @@ def registrar_comando_de_orquestrar(
     acao = parser.add_mutually_exclusive_group()
     acao.add_argument("--status", action="store_true", help="So mostra onde o Goal esta e quanto as sessoes custaram")
     acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano do Goal (portao do humano) e segue")
+    acao.add_argument("--descartar-achado", metavar="ID", default="", help="O humano aceita o Achado bloqueante (pede --motivo) e segue")
+    acao.add_argument("--mais-ciclos", metavar="N", type=int, default=0, help="Da N ciclos de correcao ao marco atual (pede --motivo)")
+    acao.add_argument("--cancelar", action="store_true", help="Cancela o Goal (pede --motivo); o laco nao o conduz mais")
+    parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar)")
     _registrar_opcoes_do_git(parser)
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
@@ -98,11 +109,15 @@ def executar_orquestrar(argumentos: argparse.Namespace, ambiente: AmbienteDoOrqu
         if argumentos.aprovar_plano:
             _exigir_goal(argumentos)
             ambiente.console.escrever_linha(orquestrador.aprovar_plano(argumentos.goal, argumentos.autor or getpass.getuser()))
+        pedido = _pedido_do_humano(argumentos)
+        if pedido is not None:
+            _exigir_goal(argumentos)
+            ambiente.console.escrever_linha(orquestrador.pedir(argumentos.goal, pedido))
         if argumentos.spec:
             parada = orquestrador.iniciar_da_spec(Path(argumentos.spec).expanduser(), repositorio, opcoes)
         else:
             parada = orquestrador.rodar(argumentos.goal, opcoes, repositorio if argumentos.repo else None)
-    except PedidoInvalido as erro:
+    except (PedidoInvalido, PedidoRecusado) as erro:
         ambiente.console.escrever_linha(erro.formatar_para_llm())
         return CODIGO_FALHA
     return _relatar(parada, ambiente, telemetria)
@@ -132,6 +147,16 @@ def _opcoes(argumentos: argparse.Namespace) -> OpcoesDoLaco:
         tempo_limite_da_suite_s=argumentos.tempo_limite_suite * SEGUNDOS_POR_MINUTO,
         adotar_ramo=argumentos.adotar_ramo,
     )
+
+
+def _pedido_do_humano(argumentos: argparse.Namespace) -> NovoPedido | None:
+    """O pedido do humano que a chamada faz, quando faz."""
+    por = argumentos.autor or getpass.getuser()
+    if argumentos.descartar_achado:
+        return NovoPedido(PEDIDO_DESCARTAR_ACHADO, argumentos.motivo, por, alvo=argumentos.descartar_achado)
+    if argumentos.mais_ciclos:
+        return NovoPedido(PEDIDO_MAIS_CICLOS, argumentos.motivo, por, ciclos=argumentos.mais_ciclos)
+    return NovoPedido(PEDIDO_CANCELAR, argumentos.motivo, por) if argumentos.cancelar else None
 
 
 def _exigir_goal(argumentos: argparse.Namespace) -> None:

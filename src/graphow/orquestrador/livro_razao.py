@@ -260,6 +260,11 @@ class LivroRazaoDoGoal:
         operacoes.append(propriedade(self.id_goal, m.CAMPO_CICLOS, ciclo))
         self.gravar(operacoes, f"Ciclo {ciclo} de correcao do Goal {self.id_goal}")
 
+    def resolver(self, achados: Sequence[str], justificativa: str) -> None:
+        """Os Achados corrigidos passam a resolvidos: a verificação final limpa os confirmou."""
+        if achados:
+            self.gravar([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_RESOLVIDO) for achado in achados], justificativa)
+
     def fechar(self, commit_integrado: str) -> None:
         """O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra."""
         self.gravar(

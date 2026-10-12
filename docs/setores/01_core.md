@@ -10,11 +10,11 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 
 ## Inventário
 
-13 módulos · 1453 linhas · 38 classes
+13 módulos · 1459 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`core/aceite.py`](#coreaceite) | 98 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
+| [`core/aceite.py`](#coreaceite) | 104 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
 | [`core/composicao_governanca.py`](#corecomposicaogovernanca) | 61 | Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva. |
 | [`core/escopo.py`](#coreescopo) | 33 | Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem. |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
@@ -84,7 +84,10 @@ O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escre
 | `CAMPO_ACEITE` | `str` | `'aceite'` |
 | `CAMPO_STATUS` | `str` | `'status'` |
 | `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
+| `CAMPO_PEDIDOS_ATENDIDOS` | `str` | `'pedidos_atendidos'` |
+| `CAMPO_PLANOS_RECUSADOS` | `str` | `'planos_recusados'` |
 | `PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL` | `frozenset[str]` | `frozenset({CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEI…` |
+| `CAMPO_ACAO_DO_HUMANO` | `str` | `'acao_do_humano'` |
 | `STATUS_CONCLUIDO` | `str` | `'concluido'` |
 | `STATUS_CANCELADO` | `str` | `'cancelado'` |
 | `CAMPO_MOTIVO_DO_CANCELAMENTO` | `str` | `'motivo_do_cancelamento'` |

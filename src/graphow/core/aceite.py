@@ -90,9 +90,15 @@ CAMPO_MOTIVO_DO_DESCARTE: str = "motivo_do_descarte"
 CAMPO_ACEITE: str = "aceite"
 CAMPO_STATUS: str = "status"
 CAMPO_INTEGRADO_EM: str = "integrado_em"
+# Os pedidos do humano que o laço já atendeu, e os planos que o humano recusou.
+CAMPO_PEDIDOS_ATENDIDOS: str = "pedidos_atendidos"
+CAMPO_PLANOS_RECUSADOS: str = "planos_recusados"
 PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL: frozenset[str] = frozenset(
-    {CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEITE}
+    {CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEITE, CAMPO_PEDIDOS_ATENDIDOS, CAMPO_PLANOS_RECUSADOS}
 )
+# O pedido do humano ao laço (descartar um Achado, mais ciclos, cancelar,
+# recusar o plano, refazer um aceite): uma Decision que só o humano grava.
+CAMPO_ACAO_DO_HUMANO: str = "acao_do_humano"
 STATUS_CONCLUIDO: str = "concluido"
 STATUS_CANCELADO: str = "cancelado"
 CAMPO_MOTIVO_DO_CANCELAMENTO: str = "motivo_do_cancelamento"

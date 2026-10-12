@@ -20,6 +20,7 @@ from graphow.orquestrador.leitura_das_verificacoes import (
     achados_das_revisoes,
     verificacoes_do_goal,
 )
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, PedidoDoHumano, ler_pedidos
 from graphow.projection.graph_view import GrafoView
 
 STATUS_NA_FILA: frozenset[str] = frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})
@@ -108,6 +109,7 @@ class EstadoDoGoal:
     fatias: tuple[FatiaRegistrada, ...] = ()
     verificacoes: tuple[VerificacaoRegistrada, ...] = ()
     plano_aprovado: bool = False
+    pedidos: tuple[PedidoDoHumano, ...] = ()
 
     @property
     def configuracao(self) -> m.ConfiguracaoDoGoal | None:
@@ -198,8 +200,15 @@ class EstadoDoGoal:
         return next((marco for marco, encerrado in zip(marcos, encerrados) if not encerrado), marcos[-1])
 
     def limite_de_ciclos(self, marco: MarcoRegistrado) -> int:
-        """Quantos ciclos de correção o marco tem."""
-        return m.MAXIMO_DE_CICLOS_DE_CORRECAO
+        """Quantos ciclos de correção o marco tem: os dois de todo marco, mais os que o humano deu a ele."""
+        dados = sum(p.ciclos for p in self.pedidos if p.acao == PEDIDO_MAIS_CICLOS and p.alvo == marco.id)
+        return m.MAXIMO_DE_CICLOS_DE_CORRECAO + dados
+
+    def pedidos_pendentes(self, acao: str) -> tuple[PedidoDoHumano, ...]:
+        """Os pedidos do humano com a ação dada que o laço ainda não atendeu."""
+        atendidos = self.propriedades.get(a.CAMPO_PEDIDOS_ATENDIDOS)
+        feitos = set(atendidos) if isinstance(atendidos, list) else set()
+        return tuple(pedido for pedido in self.pedidos if pedido.acao == acao and pedido.id not in feitos)
 
     def marco_esgotado(self, marco: MarcoRegistrado) -> bool:
         """O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer."""
@@ -254,6 +263,7 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
         fatias=_fatias(view, id_goal),
         verificacoes=verificacoes_do_goal(view, id_goal),
         plano_aprovado=_plano_aprovado_pelo_humano(goal),
+        pedidos=ler_pedidos(view, id_goal),
     )
 
 

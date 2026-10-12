@@ -13,6 +13,8 @@ parada legível, e não uma exceção no meio da chamada.
 from pathlib import Path
 
 from graphow.core import aceite as a
+from graphow.orquestrador.atendimento_dos_pedidos import conferir_pedido
+from graphow.orquestrador.pedidos_do_humano import NovoPedido, gravar_pedido
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
@@ -91,6 +93,16 @@ class Orquestrador:
         if not recibo.sucesso:
             raise PedidoInvalido("a aprovacao do plano foi recusada", {"id_goal": id_goal, "motivo": recibo.mensagem})
         return f"Plano e testes de aceite do Goal {id_goal} aprovados por {autor} (em {str(aprovacao['documento'])[:12]})."
+
+    def pedir(self, id_goal: str, pedido: NovoPedido) -> str:
+        """Grava o pedido do humano (orquestrador/pedidos_do_humano.py), conferido contra o Goal como ele está."""
+        estado = ler_estado(self._view(), id_goal)
+        if estado is None or estado.configuracao is None:
+            raise PedidoInvalido("o Goal nao e conduzido pelo orquestrador", {"id_goal": id_goal})
+        completo, extra = conferir_pedido(self._view(), estado, pedido)
+        id_pedido = gravar_pedido(self._dependencias.kernel, id_goal, completo, extra=extra)
+        alvo = f" ({completo.alvo})" if completo.alvo else ""
+        return f"Pedido do humano gravado como {id_pedido}: {completo.acao}{alvo}, por {completo.por}. Motivo: {completo.motivo}"
 
     def _view(self) -> GrafoView:
         """O grafo agora."""

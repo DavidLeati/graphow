@@ -58,10 +58,18 @@ class VerificacaoRegistrada:
         """Os nós Achado bloqueantes desta verificação."""
         return tuple(achado for achado in self.achados if achado.bloqueante)
 
+    def bloqueantes_abertos(self) -> tuple[AchadoRegistrado, ...]:
+        """Os bloqueantes ainda não encerrados: o resolvido e o que o humano descartou não contam."""
+        return tuple(achado for achado in self.bloqueantes() if achado.estado not in a.ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE)
+
     @property
     def limpa(self) -> bool:
-        """Sem bloqueante."""
-        return self.veredito == m.VEREDITO_LIMPO
+        """Sem bloqueante, ou com todo bloqueante dela encerrado: resolvido, ou descartado pelo humano.
+
+        O laço lê o estado do Achado, e não o veredito velho da Evidence: o
+        bloqueante que o humano descartou não segura mais o marco.
+        """
+        return self.veredito == m.VEREDITO_LIMPO or (bool(self.bloqueantes()) and not self.bloqueantes_abertos())
 
 
 
