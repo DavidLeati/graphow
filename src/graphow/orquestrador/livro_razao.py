@@ -215,11 +215,16 @@ class LivroRazaoDoGoal:
             f"Fatia {id_task} virou pendencia do Goal",
         )
 
-    def abrir_duvida(self, id_task: str, tentativa: int, *, pergunta: str, patch: str) -> str:
-        """A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela."""
+    def abrir_duvida(self, id_task: str, tentativa: int, *, pergunta: str, patch: str, criterio_do_teste: str = "") -> str:
+        """A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
+
+        A que diz que o teste de aceite de um critério está errado guarda o
+        critério: respondida, ela faz o autor de aceite refazer aquele teste.
+        """
         id_questao = f"q-{id_task}-t{tentativa}"
         propriedades = {
             "status": "aberta", m.CAMPO_PERGUNTA: pergunta, m.CAMPO_ABERTA_POR: m.AUTOR_DO_ORQUESTRADOR, m.CAMPO_FATIA: id_task,
+            m.CAMPO_CRITERIO_DO_TESTE: criterio_do_teste,
         }
         self.gravar(
             [

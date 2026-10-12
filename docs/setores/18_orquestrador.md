@@ -10,37 +10,39 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-36 módulos · 6012 linhas · 58 classes
+38 módulos · 6345 linhas · 58 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 167 | Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste não muda sem o plano dizer. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 63 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 135 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 146 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 252 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 177 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 59 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 97 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 154 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 156 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 226 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 117 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
-| [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 79 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
-| [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 123 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 213 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 85 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
+| [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 234 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 113 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 329 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 277 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 196 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 339 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 282 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 215 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 137 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
-| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 149 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 252 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 187 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
-| [`orquestrador/saidas.py`](#orquestradorsaidas) | 245 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
+| [`orquestrador/saidas.py`](#orquestradorsaidas) | 247 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 305 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 105 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
@@ -419,7 +421,7 @@ Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligaçã
 
 *DTO imutável* — O aceite conferido e commitado: a saída do autor, o commit, os arquivos, as execuções e o nó de cada critério.
 
-**Campos:** `saida: SaidaDoAceite`, `commit: str`, `arquivos: tuple[str, ...]`, `execucoes: Sequence[Mapping[str, Any]]`, `nos: Mapping[str, str]`
+**Campos:** `saida: SaidaDoAceite`, `commit: str`, `arquivos: tuple[str, ...]`, `execucoes: Sequence[Mapping[str, Any]]`, `nos: Mapping[str, str]`, `id_do_aceite: str`, `revisoes: int`, `atendidos: tuple[str, ...]`, `so: tuple[str, ...]`
 
 - `em_json() -> dict[str, Any]` — O aceite como propriedade do Goal.
 
@@ -436,7 +438,9 @@ O plano do planejador gravado no livro-razão: critérios, decisões e fatias, n
 
 *DTO imutável* — O plano conferido e o que o cerca: o slug, os nós já fixados e o commit do documento.
 
-**Campos:** `plano: Plano`, `slug: str`, `commit_do_documento: str`, `caminho_do_documento: str`, `nos_fixados: Mapping[str, str]`, `renomear_goal: bool`
+**Campos:** `plano: Plano`, `slug: str`, `commit_do_documento: str`, `caminho_do_documento: str`, `nos_fixados: Mapping[str, str]`, `renomear_goal: bool`, `versao: int`, `retirar: Mapping[str, Mapping[str, str]]`
+
+- `slug_das_tasks() -> str` `[property]` — O slug das Tasks do plano: com a versão, a partir do plano que veio depois de uma recusa.
 
 ### Funções do módulo
 
@@ -501,7 +505,7 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 
 *DTO imutável* — Uma Question que o orquestrador abriu para uma fatia, e o que o humano respondeu.
 
-**Campos:** `id: str`, `pergunta: str`, `status: str`, `resposta: str`
+**Campos:** `id: str`, `pergunta: str`, `status: str`, `resposta: str`, `criterio_do_teste: str`
 
 - `aberta() -> bool` `[property]` — Ainda espera o humano.
 
@@ -649,6 +653,8 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_COMMIT` | `str` | `a.CAMPO_COMMIT` |
 | `CAMPO_CORRIGE` | `str` | `'corrige_verificacao'` |
 | `CAMPO_ACHADO` | `str` | `'achado'` |
+| `CAMPO_SUBSTITUIDA` | `str` | `'substituida_por'` |
+| `CAMPO_CRITERIO_DO_TESTE` | `str` | `'criterio_do_teste'` |
 | `CAMPO_ACHADOS` | `str` | `'achados'` |
 | `MAXIMO_DE_CICLOS_DE_CORRECAO` | `int` | `2` |
 | `CAMPO_CRITERIO_PRONTO` | `str` | `'criterio_pronto'` |
@@ -689,7 +695,9 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 - `id_da_sessao(id_goal: str) -> str` — A Sessao do orquestrador que produz o que ele grava do Goal (o contrato do papel a reconhece por este nome).
 - `id_do_criterio(slug: str, codigo: str) -> str` — O Criterio de um critério de aceite criado pelo plano (na fase 1, uma Constraint com o mesmo id).
 - `id_da_decisao(slug: str, codigo: str) -> str` — A Decision de uma decisão registrada pelo plano.
-- `id_do_aceite(id_goal: str) -> str` — O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele.
+- `id_do_aceite(id_goal: str, versao: int) -> str` — O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele.
+- `versao_do_plano(propriedades: Mapping[str, Any]) -> int` — A versão do plano do Goal: um, mais um por plano que o humano recusou.
+- `slug_da_versao(slug: str, versao: int) -> str` — O slug com que as Tasks do plano nascem: o do Goal, e a versão a partir da segunda.
 - `id_da_verificacao(id_goal: str, numero: int) -> str` — A Evidence da verificação de número dado do Goal.
 - `id_do_achado(id_goal: str, numero: int, indice: int) -> str` — O Achado de índice dado da verificação de número dado.
 - `id_da_fatia(slug: str, codigo: str) -> str` — A Task de uma fatia do plano ou de uma correção.
@@ -739,6 +747,34 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 ### Funções do módulo
 
 - `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
+
+## `orquestrador/refazer_aceite.py`
+
+Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CHAVE_DO_REFEITO` | `str` | `'refeito'` |
+
+### Funções do módulo
+
+- `refazer_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano) -> Parada | None` — Uma sessão do autor de aceite refaz os testes do critério do pedido; commita e grava, ou diz por que não deu.
+- `briefing_do_refazer(estado: EstadoDoGoal, pedido: PedidoDoHumano, atual: SaidaDoAceite) -> str` — O pedido ao autor: o de sempre, mais o critério a refazer, os testes atuais dele e o motivo do humano.
+
+## `orquestrador/replanejamento.py`
+
+Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PROPRIEDADES_DO_PLANO_VELHO` | `tuple[str, ...]` | `(m.CAMPO_PLANO, m.CAMPO_PLANO_PROPOSTO, m.CAMPO_ACEITE, m.CAMPO_ACEITE_…` |
+
+### Funções do módulo
+
+- `replanejar(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano) -> Parada | None` — Retira o plano recusado (e os testes de aceite dele) e deixa o Goal pronto para o planejador de novo.
+- `atendidos_com(estado: EstadoDoGoal, id_pedido: str) -> list[str]` — Os pedidos atendidos do Goal, mais o dado.
+- `bloco_da_recusa(estado: EstadoDoGoal) -> str` — No briefing do planejador, o último plano recusado e o motivo do humano; vazio sem recusa.
+- `retirados_pela_recusa(estado: EstadoDoGoal, codigos_novos: Sequence[str]) -> dict[str, dict[str, str]]` — O Criterio dos planos recusados que o plano novo não traz mais, com a Decision do humano que o retirou.
 
 ## `orquestrador/resultado_de_teste.py`
 
@@ -966,7 +1002,7 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 
 *DTO imutável* — O que o executor devolveu da fatia.
 
-**Campos:** `status: str`, `resumo: str`, `arquivos: tuple[str, ...]`, `testes: tuple[str, ...]`, `duvida: str`
+**Campos:** `status: str`, `resumo: str`, `arquivos: tuple[str, ...]`, `testes: tuple[str, ...]`, `duvida: str`, `teste_errado: str`
 
 - `de_json(dados: Mapping[str, Any]) -> 'SaidaDoExecutor'` — A saída como o executor a devolveu.
 - `conferir() -> tuple[str, ...]` — A dúvida precisa da pergunta.

@@ -19,6 +19,7 @@ sessão deixou, e só abre outra sessão quando eles se perderam.
 from collections.abc import Mapping
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
@@ -27,6 +28,7 @@ from graphow.orquestrador.esquemas import ESQUEMA_DO_ACEITE, PAPEL_AUTOR_DE_ACEI
 from graphow.orquestrador.git_do_goal import arquivos_do_commit, commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, gravar_aceite, gravar_aceite_proposto
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE
 from graphow.orquestrador.saida_do_aceite import SaidaDoAceite, conferir_forma, conferir_vermelho, dentro_do_aceite, e_cache
 from graphow.orquestrador.sessoes_de_papel import Conferencia, PedidoDePapel
 from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
@@ -47,7 +49,8 @@ def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
             return Parada(contexto.id_goal, MotivoDaParada.FALHA, "Os testes de aceite nao conferiram: " + "; ".join(problemas))
         gravar_aceite_proposto(contexto.livro, proposto)
     saida = SaidaDoAceite.de_json(proposto["saida"])
-    commit = _commit_do_aceite(contexto, saida)
+    id_do_aceite = m.id_do_aceite(contexto.id_goal, m.versao_do_plano(estado.propriedades))
+    commit = _commit_do_aceite(contexto, saida, id_do_aceite=id_do_aceite)
     if commit is None:
         gravar_aceite_proposto(contexto.livro, None)
         return None
@@ -55,7 +58,10 @@ def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
     do_commit = [a for a in arquivos_do_commit(contexto.area, commit) if dentro_do_aceite(a) and not e_cache(a)]
     arquivos = tuple(dict.fromkeys([*declarados, *do_commit]))
     execucoes = [dict(item) for item in proposto.get("execucoes", []) if isinstance(item, Mapping)]
-    gravar_aceite(contexto.livro, AceiteParaGravar(saida, commit, arquivos, execucoes, nos_do_plano(estado.plano or {})))
+    pedidos = [pedido.id for pedido in estado.pedidos_pendentes(PEDIDO_REFAZER_ACEITE)]
+    atendidos = tuple(dict.fromkeys([*(str(x) for x in estado.propriedades.get(a.CAMPO_PEDIDOS_ATENDIDOS) or []), *pedidos]))
+    gravar_aceite(contexto.livro, AceiteParaGravar(saida, commit, arquivos, execucoes, nos_do_plano(estado.plano or {}),
+                                                   id_do_aceite=id_do_aceite, atendidos=atendidos if pedidos else ()))
     return None
 
 
@@ -73,7 +79,7 @@ def _sessao_do_autor(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> tuple[di
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_AUTOR_DE_ACEITE, id_goal=contexto.id_goal, pasta=contexto.area,
-            briefing=briefing_do_autor_de_aceite(estado), conferir=_conferencia(contexto, estado, guarda),
+            briefing=briefing_do_autor_de_aceite(estado) + _orientacao_do_humano(estado), conferir=_conferencia(contexto, estado, guarda),
             orcamento_restante_usd=contexto.restante(),
         )
     )
@@ -81,6 +87,12 @@ def _sessao_do_autor(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> tuple[di
         descartar_mudancas(contexto.area, contexto.patch("aceite-recusado"))
         return None, resposta.problemas
     return {"saida": dict(resposta.dados), "execucoes": guarda.get("execucoes", [])}, ()
+
+
+def _orientacao_do_humano(estado: EstadoDoGoal) -> str:
+    """O que o humano pediu sobre os testes (o `--refazer-aceite` de antes de haver aceite), para o autor levar em conta."""
+    pedidos = [f"- {pedido.alvo}: {pedido.motivo}" for pedido in estado.pedidos_pendentes(PEDIDO_REFAZER_ACEITE)]
+    return ("\n\n## O que o humano pediu sobre os testes\n" + "\n".join(pedidos)) if pedidos else ""
 
 
 def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[str, Any]) -> Conferencia:
@@ -103,13 +115,12 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
     return conferir
 
 
-def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite) -> str | None:
+def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_aceite: str) -> str | None:
     """O commit dos testes: o que já está na branch (pelo trailer), ou o dos arquivos que a sessão deixou; None sem eles.
 
     O teste que já estava na base, igual, não muda nada no git, e o commit sai
     mesmo assim, com a seção do documento (ou vazio): é ele que marca o aceite.
     """
-    id_do_aceite = m.id_do_aceite(contexto.id_goal)
     feito = commit_da_fatia(contexto.area, id_do_aceite, contexto.configuracao.base)
     if feito is not None:
         return feito.hash

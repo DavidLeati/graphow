@@ -84,7 +84,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     fatia = tentativa.fatia
     if saida.status == STATUS_DUVIDA:
         patch = _guardar(contexto, fatia, f"t{tentativa.numero}-duvida")
-        contexto.livro.abrir_duvida(fatia.id, tentativa.numero, pergunta=saida.duvida, patch=patch)
+        contexto.livro.abrir_duvida(fatia.id, tentativa.numero, pergunta=saida.duvida, patch=patch, criterio_do_teste=saida.teste_errado)
         return None
     if saida.status != STATUS_PRONTO:
         return _falhou(contexto, tentativa, f"o executor devolveu {saida.status}: {saida.resumo}")

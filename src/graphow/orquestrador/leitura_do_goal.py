@@ -20,7 +20,7 @@ from graphow.orquestrador.leitura_das_verificacoes import (
     achados_das_revisoes,
     verificacoes_do_goal,
 )
-from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, PedidoDoHumano, ler_pedidos
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, PEDIDO_REFAZER_ACEITE, PedidoDoHumano, ler_pedidos
 from graphow.projection.graph_view import GrafoView
 
 STATUS_NA_FILA: frozenset[str] = frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})
@@ -34,6 +34,7 @@ class DuvidaRegistrada:
     pergunta: str
     status: str
     resposta: str
+    criterio_do_teste: str = ""
 
     @property
     def aberta(self) -> bool:
@@ -205,10 +206,17 @@ class EstadoDoGoal:
         return m.MAXIMO_DE_CICLOS_DE_CORRECAO + dados
 
     def pedidos_pendentes(self, acao: str) -> tuple[PedidoDoHumano, ...]:
-        """Os pedidos do humano com a ação dada que o laço ainda não atendeu."""
+        """Os pedidos do humano com a ação dada que o laço ainda não atendeu.
+
+        A dúvida do executor que diz que um teste de aceite está errado, depois
+        de respondida pelo humano, é um pedido de refazer aquele aceite, com a
+        resposta como motivo.
+        """
         atendidos = self.propriedades.get(a.CAMPO_PEDIDOS_ATENDIDOS)
         feitos = set(atendidos) if isinstance(atendidos, list) else set()
-        return tuple(pedido for pedido in self.pedidos if pedido.acao == acao and pedido.id not in feitos)
+        duvidas = (PedidoDoHumano(d.id, PEDIDO_REFAZER_ACEITE, d.resposta, alvo=d.criterio_do_teste)
+                   for f in self.fatias for d in f.duvidas if d.criterio_do_teste and not d.aberta)
+        return tuple(pedido for pedido in (*self.pedidos, *duvidas) if pedido.acao == acao and pedido.id not in feitos)
 
     def marco_esgotado(self, marco: MarcoRegistrado) -> bool:
         """O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer."""
@@ -284,7 +292,8 @@ def _plano_aprovado_pelo_humano(goal: NoGrafo) -> bool:
 def _fatias(view: GrafoView, id_goal: str) -> tuple[FatiaRegistrada, ...]:
     """As Tasks do orquestrador sob o Goal, na ordem do plano."""
     tarefas = [view.obter_no(a.destino_id) for a in view.obter_arestas_saida(id_goal, TipoAresta.DECOMPOE)]
-    do_orquestrador = [no for no in tarefas if no is not None and no.tipo == TipoNo.TASK and no.obter_propriedade(m.CAMPO_FATIA)]
+    do_orquestrador = [no for no in tarefas if no is not None and no.tipo == TipoNo.TASK and no.obter_propriedade(m.CAMPO_FATIA)
+                       and not no.obter_propriedade(m.CAMPO_SUBSTITUIDA)]
     fatias = [_fatia(view, no) for no in do_orquestrador]
     return tuple(sorted(fatias, key=lambda fatia: (fatia.ordem, fatia.id)))
 
@@ -315,6 +324,7 @@ def _duvidas(view: GrafoView, id_task: str) -> tuple[DuvidaRegistrada, ...]:
             pergunta=str(q.obter_propriedade(m.CAMPO_PERGUNTA) or q.rotulo),
             status=str(q.obter_propriedade("status") or StatusQuestion.ABERTA.value),
             resposta=str(q.obter_propriedade(m.CAMPO_RESPOSTA) or ""),
+            criterio_do_teste=str(q.obter_propriedade(m.CAMPO_CRITERIO_DO_TESTE) or ""),
         )
         for q in validas
     )

@@ -74,6 +74,10 @@ CAMPO_COMMIT: str = a.CAMPO_COMMIT
 CAMPO_CORRIGE: str = "corrige_verificacao"
 # Na fatia de correção: o Achado bloqueante que ela corrige (a Task deriva dele).
 CAMPO_ACHADO: str = "achado"
+# A Task do plano recusado continua no grafo, fora do plano: o pedido do humano que a substituiu.
+CAMPO_SUBSTITUIDA: str = "substituida_por"
+# A dúvida do executor que diz que um teste de aceite está errado: o critério dele.
+CAMPO_CRITERIO_DO_TESTE: str = "criterio_do_teste"
 # A fatia de correção junta os bloqueantes do mesmo arquivo (ou do mesmo critério): os ids de todos eles.
 CAMPO_ACHADOS: str = "achados"
 # Os ciclos de correção que cada marco tem antes de o laço seguir sem ele (ou, na final, parar).
@@ -176,9 +180,24 @@ def id_da_decisao(slug: str, codigo: str) -> str:
     return f"dec-{slug}-{codigo.lower()}"
 
 
-def id_do_aceite(id_goal: str) -> str:
-    """O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele."""
-    return f"aceite-{id_goal}"
+def id_do_aceite(id_goal: str, versao: int = 1) -> str:
+    """O que o trailer `Graphow-Task` do commit dos testes de aceite diz, e o sufixo do Artifact dele.
+
+    O plano que o humano recusou leva junto os testes de aceite dele: o do plano
+    seguinte é outra versão, com outro id, para a retomada não achar o velho.
+    """
+    return f"aceite-{id_goal}" if versao <= 1 else f"aceite-{id_goal}-v{versao}"
+
+
+def versao_do_plano(propriedades: Mapping[str, Any]) -> int:
+    """A versão do plano do Goal: um, mais um por plano que o humano recusou."""
+    recusados = propriedades.get(a.CAMPO_PLANOS_RECUSADOS)
+    return 1 + (len(recusados) if isinstance(recusados, list) else 0)
+
+
+def slug_da_versao(slug: str, versao: int) -> str:
+    """O slug com que as Tasks do plano nascem: o do Goal, e a versão a partir da segunda."""
+    return slug if versao <= 1 else f"{slug}-v{versao}"
 
 
 def id_da_verificacao(id_goal: str, numero: int) -> str:

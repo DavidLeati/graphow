@@ -228,6 +228,7 @@ class SaidaDoExecutor:
     arquivos: tuple[str, ...] = ()
     testes: tuple[str, ...] = ()
     duvida: str = ""
+    teste_errado: str = ""
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "SaidaDoExecutor":
@@ -238,6 +239,7 @@ class SaidaDoExecutor:
             arquivos=_textos(dados.get("arquivos")),
             testes=_textos(dados.get("testes")),
             duvida=str(dados.get("duvida", "")).strip(),
+            teste_errado=str(dados.get("teste_errado", "")).strip(),
         )
 
     def conferir(self) -> tuple[str, ...]:

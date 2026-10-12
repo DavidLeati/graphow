@@ -17,6 +17,7 @@ retomada depois do commit, vale o commit que já o gravou.
 from collections.abc import Mapping
 from typing import Any
 
+from graphow.core import aceite as a
 from graphow.core.types import PapelAutor
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_planejador
@@ -30,6 +31,7 @@ from graphow.orquestrador.git_do_goal import (
 )
 from graphow.orquestrador.gravacao_do_plano import PlanoParaGravar, gravar_plano
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
+from graphow.orquestrador.replanejamento import bloco_da_recusa, retirados_pela_recusa
 from graphow.orquestrador.saidas import IdsFixados, Plano, conferir_plano
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel, saida_conferida_da_telemetria
 from graphow.orquestrador.spec_do_goal import SpecDoGoal, montar_spec_do_goal
@@ -61,7 +63,8 @@ def _sessao_do_planejador(
             papel=PAPEL_PLANEJADOR,
             id_goal=contexto.id_goal,
             pasta=contexto.area,
-            briefing=briefing_do_planejador(estado, str(estado.propriedades.get(m.CAMPO_SPEC, "")), bool(fixos.nos_fixados)),
+            briefing=_juntar_blocos(briefing_do_planejador(estado, str(estado.propriedades.get(m.CAMPO_SPEC, "")),
+                                                           bool(fixos.nos_fixados)), bloco_da_recusa(estado)),
             conferir=lambda dados: _conferir(dados, fixos.fixados),
             orcamento_restante_usd=contexto.restante(),
         )
@@ -75,6 +78,8 @@ def _plano_ja_pago(contexto: ContextoDoGoal, estado: EstadoDoGoal, fixos: SpecDo
     proposto = estado.propriedades.get(m.CAMPO_PLANO_PROPOSTO)
     if isinstance(proposto, Mapping) and not _problemas(proposto, fixos.fixados):
         return proposto
+    if estado.propriedades.get(a.CAMPO_PLANOS_RECUSADOS):
+        return None
     recuperado = saida_conferida_da_telemetria(
         contexto.telemetria.listar(contexto.id_goal), PAPEL_PLANEJADOR, lambda dados: _problemas(dados, fixos.fixados)
     )
@@ -121,8 +126,15 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, plano: Plano, *, fix
             caminho_do_documento=caminho,
             nos_fixados=fixos.nos_fixados,
             renomear_goal=not fixos.nos_fixados and _criado_pelo_orquestrador(contexto),
+            versao=m.versao_do_plano(estado.propriedades),
+            retirar=retirados_pela_recusa(estado, [criterio.id for criterio in plano.criterios]),
         ),
     )
+
+
+def _juntar_blocos(*blocos: str) -> str:
+    """Os blocos do briefing, sem os vazios."""
+    return "\n\n".join(bloco for bloco in blocos if bloco)
 
 
 def _criado_pelo_orquestrador(contexto: ContextoDoGoal) -> bool:

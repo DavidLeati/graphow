@@ -31,6 +31,13 @@ class PlanoParaGravar:
     caminho_do_documento: str
     nos_fixados: Mapping[str, str] = field(default_factory=dict)
     renomear_goal: bool = False
+    versao: int = 1
+    retirar: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+
+    @property
+    def slug_das_tasks(self) -> str:
+        """O slug das Tasks do plano: com a versão, a partir do plano que veio depois de uma recusa."""
+        return m.slug_da_versao(self.slug, self.versao)
 
 
 def gravar_plano(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> None:
@@ -46,6 +53,7 @@ def gravar_plano(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> None:
     for ordem, fatia in enumerate(plano.fatias, start=1):
         operacoes += _operacoes_da_fatia(livro, pedido, fatia, ordem=ordem)
     operacoes += _operacoes_do_documento(livro, pedido)
+    operacoes += [propriedade(id_no, a.CAMPO_RETIRADO, dict(retirada)) for id_no, retirada in pedido.retirar.items()]
     operacoes.append(propriedade(livro.id_goal, m.CAMPO_PLANO, _plano_em_json(pedido, criterios, decisoes)))
     if pedido.renomear_goal:
         operacoes.append(ItemPatch(OperacaoPatch.REPLACE, f"/nos/{livro.id_goal}/rotulo", plano.titulo))
@@ -77,7 +85,7 @@ def _operacoes_da_decisao(livro: LivroRazaoDoGoal, decisao: Decisao, id_no: str)
 
 def _operacoes_da_fatia(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar, fatia: Fatia, *, ordem: int) -> list[ItemPatch]:
     """A Task da fatia sob o Goal, com as dependências para as fatias anteriores."""
-    id_task = m.id_da_fatia(pedido.slug, fatia.id)
+    id_task = m.id_da_fatia(pedido.slug_das_tasks, fatia.id)
     textos = {criterio.id: criterio.texto for criterio in pedido.plano.criterios}
     propriedades = {
         m.CAMPO_STATUS: m.STATUS_PENDENTE,
@@ -96,13 +104,13 @@ def _operacoes_da_fatia(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar, fatia:
     return [
         *livro.produzido(id_task, TipoNo.TASK, f"{fatia.id}: {fatia.titulo}", propriedades=propriedades),
         aresta(livro.id_goal, id_task, TipoAresta.DECOMPOE),
-        *(aresta(id_task, m.id_da_fatia(pedido.slug, dependencia), TipoAresta.DEPENDE_DE) for dependencia in fatia.depende_de),
+        *(aresta(id_task, m.id_da_fatia(pedido.slug_das_tasks, dependencia), TipoAresta.DEPENDE_DE) for dependencia in fatia.depende_de),
     ]
 
 
 def _operacoes_do_documento(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> list[ItemPatch]:
     """O commit do documento do Goal como Artifact do plano."""
-    id_artefato = f"art-{livro.id_goal}-plano"
+    id_artefato = f"art-{livro.id_goal}-plano" + (f"-v{pedido.versao}" if pedido.versao > 1 else "")
     propriedades = {m.CAMPO_COMMIT: pedido.commit_do_documento, "arquivos": [pedido.caminho_do_documento]}
     return livro.produzido(id_artefato, TipoNo.ARTIFACT, f"Plano do Goal em {pedido.caminho_do_documento}", propriedades=propriedades)
 

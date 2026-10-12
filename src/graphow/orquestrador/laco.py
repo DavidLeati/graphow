@@ -10,15 +10,15 @@ recusa um lote, o git que recusa um comando, a sessão que não abre) vira uma
 parada legível, e não uma exceção no meio da chamada.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 from graphow.core import aceite as a
-from graphow.orquestrador.atendimento_dos_pedidos import conferir_pedido
-from graphow.orquestrador.pedidos_do_humano import NovoPedido, gravar_pedido
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.atendimento_dos_pedidos import conferir_pedido
 from graphow.orquestrador.autor_de_aceite import escrever_aceite
 from graphow.orquestrador.contexto_do_laco import (
     ContextoDoGoal,
@@ -41,7 +41,10 @@ from graphow.orquestrador.execucao_da_fatia import executar_fatia
 from graphow.orquestrador.git_do_goal import preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_RECUSAR_PLANO, PEDIDO_REFAZER_ACEITE, NovoPedido, gravar_pedido
 from graphow.orquestrador.planejamento import planejar
+from graphow.orquestrador.refazer_aceite import refazer_aceite
+from graphow.orquestrador.replanejamento import replanejar
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
 from graphow.orquestrador.trava_do_git import instalar_trava
@@ -169,12 +172,9 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
         return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"O Goal {contexto.id_goal} esta fechado.")
     if estado.cancelado:
         return _parada_do_cancelamento(estado)
-    if estado.plano is None:
-        return planejar(contexto, estado)
-    if estado.aceite is None:
-        return escrever_aceite(contexto, estado)
-    if contexto.configuracao.modo == m.MODO_SUPERVISIONADO and not estado.plano_aprovado:
-        return _portao_do_plano(contexto)
+    etapa = _etapa_antes_das_fatias(contexto, estado)
+    if etapa is not None:
+        return etapa(contexto, estado)
     marco = estado.marco_atual()
     prontas = estado.prontas(marco)
     if prontas:
@@ -188,6 +188,26 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
     if sem_como_rodar:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"As fatias {', '.join(sem_como_rodar)} do marco {marco.id} nao tem como rodar.")
     return verificar_ou_fechar(contexto, estado, marco)
+
+
+Etapa = Callable[[ContextoDoGoal, EstadoDoGoal], Parada | None]
+
+
+def _etapa_antes_das_fatias(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Etapa | None:
+    """O que vem antes das fatias, na ordem: a recusa do plano, o plano, o aceite, o aceite a refazer e o portão do humano."""
+    recusas = estado.pedidos_pendentes(PEDIDO_RECUSAR_PLANO)
+    if estado.plano is not None and recusas:
+        return lambda c, e: replanejar(c, e, recusas[0])
+    if estado.plano is None:
+        return planejar
+    if estado.aceite is None:
+        return escrever_aceite
+    refazer = estado.pedidos_pendentes(PEDIDO_REFAZER_ACEITE)
+    if refazer:
+        return lambda c, e: refazer_aceite(c, e, refazer[0])
+    if contexto.configuracao.modo == m.MODO_SUPERVISIONADO and not estado.plano_aprovado:
+        return lambda c, _: _portao_do_plano(c)
+    return None
 
 
 def _parada_do_cancelamento(estado: EstadoDoGoal) -> Parada:
@@ -204,7 +224,8 @@ def _portao_do_plano(contexto: ContextoDoGoal) -> Parada:
         MotivoDaParada.AGUARDANDO_APROVACAO,
         f"O plano e os testes de aceite esperam aprovacao (isto e o que vai provar que o Goal esta pronto): leia "
         f"docs/goals/{configuracao.slug}.md e a pasta aceite/ na branch {configuracao.ramo} "
-        f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`.",
+        f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`, recuse com `--recusar-plano --motivo "
+        f"\"...\"` (o planejador o refaz) ou peca `--refazer-aceite <criterio> --motivo \"...\"` (o autor refaz os testes dele).",
     )
 
 

@@ -28,6 +28,8 @@ from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_CANCELAR,
     PEDIDO_DESCARTAR_ACHADO,
     PEDIDO_MAIS_CICLOS,
+    PEDIDO_RECUSAR_PLANO,
+    PEDIDO_REFAZER_ACEITE,
     NovoPedido,
     PedidoRecusado,
 )
@@ -59,10 +61,7 @@ def registrar_comando_de_orquestrar(
     acao = parser.add_mutually_exclusive_group()
     acao.add_argument("--status", action="store_true", help="So mostra onde o Goal esta e quanto as sessoes custaram")
     acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano do Goal (portao do humano) e segue")
-    acao.add_argument("--descartar-achado", metavar="ID", default="", help="O humano aceita o Achado bloqueante (pede --motivo) e segue")
-    acao.add_argument("--mais-ciclos", metavar="N", type=int, default=0, help="Da N ciclos de correcao ao marco atual (pede --motivo)")
-    acao.add_argument("--cancelar", action="store_true", help="Cancela o Goal (pede --motivo); o laco nao o conduz mais")
-    parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar)")
+    _registrar_pedidos_do_humano(acao, parser)
     _registrar_opcoes_do_git(parser)
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
@@ -72,6 +71,16 @@ def registrar_comando_de_orquestrar(
     parser.add_argument("--tempo-limite", type=float, default=60.0, help="Minutos por sessao de agente (padrao: 60)")
     parser.add_argument("--tempo-limite-suite", type=float, default=30.0, help="Minutos para a suite do projeto (padrao: 30)")
     parser.add_argument("--autor", default="", help="Quem aprova o plano (padrao: o usuario do sistema)")
+
+
+def _registrar_pedidos_do_humano(acao: argparse._MutuallyExclusiveGroup, parser: argparse.ArgumentParser) -> None:
+    """As saidas do humano do Goal parado, cada uma com o motivo dele (orquestrador/pedidos_do_humano.py)."""
+    acao.add_argument("--descartar-achado", metavar="ID", default="", help="O humano aceita o Achado bloqueante (pede --motivo) e segue")
+    acao.add_argument("--mais-ciclos", metavar="N", type=int, default=0, help="Da N ciclos de correcao ao marco atual (pede --motivo)")
+    acao.add_argument("--cancelar", action="store_true", help="Cancela o Goal (pede --motivo); o laco nao o conduz mais")
+    acao.add_argument("--recusar-plano", action="store_true", help="Recusa o plano antes de qualquer fatia (pede --motivo): o planejador o refaz")
+    acao.add_argument("--refazer-aceite", metavar="CRITERIO", default="", help="O autor de aceite refaz os testes do criterio (pede --motivo)")
+    parser.add_argument("--motivo", default="", help="Por que o humano pede (obrigatorio nos pedidos: descartar, ciclos, cancelar, recusar, refazer)")
 
 
 def _registrar_opcoes_do_git(parser: argparse.ArgumentParser) -> None:
@@ -156,6 +165,10 @@ def _pedido_do_humano(argumentos: argparse.Namespace) -> NovoPedido | None:
         return NovoPedido(PEDIDO_DESCARTAR_ACHADO, argumentos.motivo, por, alvo=argumentos.descartar_achado)
     if argumentos.mais_ciclos:
         return NovoPedido(PEDIDO_MAIS_CICLOS, argumentos.motivo, por, ciclos=argumentos.mais_ciclos)
+    if argumentos.refazer_aceite:
+        return NovoPedido(PEDIDO_REFAZER_ACEITE, argumentos.motivo, por, alvo=argumentos.refazer_aceite.upper())
+    if argumentos.recusar_plano:
+        return NovoPedido(PEDIDO_RECUSAR_PLANO, argumentos.motivo, por)
     return NovoPedido(PEDIDO_CANCELAR, argumentos.motivo, por) if argumentos.cancelar else None
 
 

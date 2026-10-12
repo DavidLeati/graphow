@@ -110,7 +110,9 @@ ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
         "arquivos": LISTA_DE_TEXTOS,
         "testes": LISTA_DE_TEXTOS,
         "duvida": TEXTO_LIVRE,
-    }
+        "teste_errado": TEXTO_LIVRE,
+    },
+    opcionais=("teste_errado",),
 )
 
 PARECER: dict[str, Any] = _objeto(
