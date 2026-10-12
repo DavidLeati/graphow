@@ -16,7 +16,7 @@ teste que já passa sem implementação é sinalizado, porque ou o critério já
 atendido pelo código (e a justificativa diz por quê), ou o teste não prova
 nada; e o que falha tem de falhar numa asserção dele, lida na saída do runner
 (orquestrador/resultado_de_teste.py), e não por import, coleta, comando ou
-nome errado. O que não confere volta à mesma sessão, uma vez.
+nome errado. O que não confere volta à mesma sessão, até duas vezes.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -231,22 +231,28 @@ def _vermelho_errado(execucao: ExecucaoDeAceite, motivo: str) -> str:
 
 
 def conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]:
-    """Os testes falham antes da implementação, salvo o do critério que já era atendido; devolve os problemas e as execuções."""
+    """Cada teste falha numa asserção dele antes da implementação, ou já passa com o porquê; devolve os problemas e as execuções.
+
+    `ja_atendido` justifica os testes do critério que já passam, e só eles: os
+    outros do mesmo critério continuam tendo de falhar pelo motivo certo. Na
+    bancada, o autor marcou `ja_atendido` em C1 para justificar um teste de
+    cinco, e os quatro vermelhos viraram contradição sem saída.
+    """
     execucoes = rodar_testes(saida, rodar)
     ja_atendidos = {criterio.id for criterio in saida.criterios if criterio.ja_atendido}
     problemas = [
-        (f"o teste {e.teste} de {e.criterio} ja passa sem implementacao: ou o criterio ja era atendido pelo codigo "
-         "(diga por que em 'ja_atendido'), ou o teste nao prova nada (corrija-o para falhar enquanto o criterio nao for atendido)")
-        if e.passou else
-        f"o teste {e.teste} de {e.criterio} nao passa ({e.motivo}), mas 'ja_atendido' diz que o codigo ja atende {e.criterio}"
-        for e in execucoes if e.passou != (e.criterio in ja_atendidos)
+        f"o teste {e.teste} de {e.criterio} ja passa sem implementacao: ou o criterio ja era atendido pelo codigo "
+        "(diga por que em 'ja_atendido'), ou o teste nao prova nada (corrija-o para falhar enquanto o criterio nao for atendido)"
+        for e in execucoes if e.passou and e.criterio not in ja_atendidos
     ]
-    problemas += [_vermelho_errado(e, motivo) for e in execucoes
-                  if not e.passou and e.criterio not in ja_atendidos and (motivo := e.vermelho_invalido())]
-    todos_atendidos = bool(execucoes) and all(e.criterio in ja_atendidos for e in execucoes)
+    problemas += [_vermelho_errado(e, motivo) for e in execucoes if not e.passou and (motivo := e.vermelho_invalido())]
+    problemas += [f"'ja_atendido' de {criterio} diz que o codigo ja atende o criterio, mas nenhum teste dele passa: tire a "
+                  "justificativa, ou corrija os testes" for criterio in sorted(ja_atendidos)
+                  if (deles := [e for e in execucoes if e.criterio == criterio]) and not any(e.passou for e in deles)]
+    todos_passam = bool(execucoes) and all(e.passou for e in execucoes)
     agregado = rodar_o_comando_de_aceite(saida, rodar) if execucoes else None
-    if agregado is not None and agregado.passou != todos_atendidos:
+    if agregado is not None and agregado.passou != todos_passam:
         estado = "passa" if agregado.passou else "falha"
-        problemas.append(f"o comando_aceite `{saida.comando_aceite}` {estado}, e devia {'passar' if todos_atendidos else 'falhar'} "
+        problemas.append(f"o comando_aceite `{saida.comando_aceite}` {estado}, e devia {'passar' if todos_passam else 'falhar'} "
                          "agora: ele roda so os testes de aceite, todos eles")
     return tuple(problemas), execucoes + ((agregado,) if agregado is not None else ())

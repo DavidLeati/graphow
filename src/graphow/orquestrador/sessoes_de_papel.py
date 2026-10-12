@@ -14,7 +14,7 @@ como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
 A saída é conferida contra o schema e contra o sentido e, no papel que declara
 os comandos que rodou (o verificador), contra as chamadas Bash do stream da
 sessão (orquestrador/comandos_do_stream.py). A que não confere volta à mesma
-sessão (`--resume`) com a lista de problemas, uma vez; falhando de novo, o
+sessão (`--resume`) com a lista de problemas, uma vez (o autor de aceite, duas); falhando de novo, o
 papel falhou. Cada invocação vira uma linha de telemetria, fora do
 grafo, que nasce `em_andamento` antes de a sessão abrir e fecha com o
 resultado; o stream de cada invocação tem nome próprio, e a refeita não
@@ -95,6 +95,7 @@ class PedidoDePapel:
     modelo: str = ""
     orcamento_restante_usd: float = 0.0
     comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None = None
+    retomadas: int = 1
 
 
 @dataclass(frozen=True)
@@ -126,16 +127,16 @@ class SessoesDePapel:
         return replace(resposta, desfeito=restaurar_o_clone(foto))
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
-        """A sessão, e a retomada com os problemas quando a saída não confere."""
-        primeira = self._invocar(pedido, pedido.briefing, "")
-        dados, problemas = _conferida(pedido, (primeira,))
-        if not problemas:
-            return RespostaDePapel(dados, (), (primeira,))
-        if not primeira.session_id or primeira.tempo_esgotado:
-            return RespostaDePapel(None, problemas, (primeira,))
-        segunda = self._invocar(pedido, pedido_de_correcao_da_saida(problemas), primeira.session_id)
-        dados, problemas = _conferida(pedido, (primeira, segunda))
-        return RespostaDePapel(None if problemas else dados, problemas, (primeira, segunda))
+        """A sessão, e as retomadas (uma, ou as que o pedido dá) com os problemas enquanto a saída não confere."""
+        resultados = [self._invocar(pedido, pedido.briefing, "")]
+        dados, problemas = _conferida(pedido, tuple(resultados))
+        while problemas and len(resultados) <= pedido.retomadas and not resultados[-1].tempo_esgotado:
+            sessao = resultados[-1].session_id or resultados[0].session_id
+            if not sessao:
+                break
+            resultados.append(self._invocar(pedido, pedido_de_correcao_da_saida(problemas), sessao))
+            dados, problemas = _conferida(pedido, tuple(resultados))
+        return RespostaDePapel(None if problemas else dados, problemas, tuple(resultados))
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
         """Uma invocação de `claude -p`: a linha de telemetria nasce em andamento e fecha com o resultado."""

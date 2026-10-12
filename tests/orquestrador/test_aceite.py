@@ -11,6 +11,7 @@ from graphow.core.types import TipoAresta
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, LoteRecusado
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE, NovoPedido
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
@@ -100,7 +101,7 @@ def test_autor_que_mexe_fora_de_aceite_nao_e_aceito_edge_case(tmp_path: Path) ->
     roteiro = _roteiro_limpo()
     invasor = autor_de_aceite()
     invasor["arquivos"] = {**invasor["arquivos"], "soma.py": SOMA_CERTA}
-    roteiro["aceite"] = [invasor, copy.deepcopy(invasor)]
+    roteiro["aceite"] = [invasor, copy.deepcopy(invasor), copy.deepcopy(invasor)]
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
@@ -231,3 +232,48 @@ def test_teste_de_aceite_pulado_pelo_modulo_do_executor_nao_passa_edge_case(tmp_
     assert {p["id"]: p["veredito"] for p in primeira.propriedades["pareceres"]}["C1"] == "nao_atende"
     assert "1 teste(s) foram pulados" in primeira.bloqueantes()[0].texto("descricao")
     assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True, True]
+
+
+def _c1_com_dois_testes(ja_atendido: str) -> dict[str, Any]:
+    """O aceite de C1 com um teste que já passa (somar existe) e um vermelho (soma certa), e a justificativa dada."""
+    resposta = autor_de_aceite(ja_atendido=ja_atendido)
+    existe = '"""C1: somar existe."""\nimport sys\n\nsys.path.insert(0, ".")\nfrom soma import somar\n\n\n' \
+             "def test_c1_existe():\n    assert callable(somar)\n\n\ntest_c1_existe()\nprint('ok')\n"
+    comando = f'"{sys.executable}" aceite/aceite_c1b.py'
+    resposta["saida"]["criterios"][0]["testes"].append({"arquivo": "aceite/aceite_c1b.py", "nome": "test_c1_existe", "comando": comando})
+    resposta["arquivos"]["aceite/aceite_c1b.py"] = existe
+    return resposta
+
+
+def test_ja_atendido_justifica_so_o_teste_que_ja_passa_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (bancada A): C1 com um teste verde justificado e outro vermelho não é contradição; o Goal segue e fecha."""
+    roteiro = _roteiro_limpo()
+    roteiro["aceite"] = [_c1_com_dois_testes("somar ja existe na base; falta somar certo")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert len(bancada.chamadas("aceite")) == 1
+
+
+def test_autor_que_esgota_as_retomadas_para_com_a_saida_de_refazer_e_o_humano_orienta_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (bancada A): duas retomadas com o que falhou; esgotadas, a parada indica --refazer-aceite, que orienta o autor."""
+    roteiro = _roteiro_limpo()
+    contraditorio = autor_de_aceite(ja_atendido="somar ja soma certo")
+    roteiro["aceite"] = [contraditorio, copy.deepcopy(contraditorio), copy.deepcopy(contraditorio), autor_de_aceite()]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FALHA and "depois de 3 tentativas" in parada.mensagem
+    assert "--refazer-aceite <criterio>" in parada.mensagem and "nenhum teste dele passa" in parada.mensagem
+    assert ["--resume" in c["argv"] for c in bancada.chamadas("aceite")] == [False, True, True]
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_REFAZER_ACEITE, "a soma da base esta errada: nao ha ja_atendido", "david",
+                                               alvo="C1"))
+    fechado = orquestrador.rodar("goal-soma", AUTONOMO)
+    assert fechado.fechou, fechado.mensagem
+    assert "a soma da base esta errada: nao ha ja_atendido" in bancada.chamadas("aceite")[3]["stdin"]
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.propriedades["pedidos_atendidos"] == ["pedido-goal-soma-1"]

@@ -36,6 +36,11 @@ from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
 
 
+# O autor volta à mesma sessão duas vezes com o que não conferiu: na bancada, a
+# única retomada foi gasta num problema de forma, e a contradição seguinte parou o Goal.
+RETOMADAS_DO_AUTOR: int = 2
+
+
 def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
     """Os testes de aceite já pagos, ou uma sessão do autor; commita e grava, ou diz por que não deu."""
     proposto = _aceite_ja_pago(estado)
@@ -46,7 +51,7 @@ def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
             return sem_orcamento
         proposto, problemas = _sessao_do_autor(contexto, estado)
         if proposto is None:
-            return Parada(contexto.id_goal, MotivoDaParada.FALHA, "Os testes de aceite nao conferiram: " + "; ".join(problemas))
+            return Parada(contexto.id_goal, MotivoDaParada.FALHA, _sem_aceite(contexto, problemas))
         gravar_aceite_proposto(contexto.livro, proposto)
     saida = SaidaDoAceite.de_json(proposto["saida"])
     id_do_aceite = m.id_do_aceite(contexto.id_goal, m.versao_do_plano(estado.propriedades))
@@ -65,6 +70,15 @@ def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
     return None
 
 
+def _sem_aceite(contexto: ContextoDoGoal, problemas: tuple[str, ...]) -> str:
+    """A parada do autor que esgotou as retomadas, com as saídas do humano."""
+    return (
+        f"Os testes de aceite nao conferiram depois de {RETOMADAS_DO_AUTOR + 1} tentativas da sessao: " + "; ".join(problemas)
+        + f". Para tentar de novo com uma orientacao: `graphow orquestrar --goal {contexto.id_goal} --refazer-aceite <criterio> "
+        "--motivo \"...\"` (o autor le o motivo), ou recuse o plano com `--recusar-plano --motivo \"...\"`."
+    )
+
+
 def _aceite_ja_pago(estado: EstadoDoGoal) -> Mapping[str, Any] | None:
     """A saída do autor que já foi conferida e gravada no Goal, quando há."""
     proposto = estado.propriedades.get(m.CAMPO_ACEITE_PROPOSTO)
@@ -80,7 +94,7 @@ def _sessao_do_autor(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> tuple[di
         PedidoDePapel(
             papel=PAPEL_AUTOR_DE_ACEITE, id_goal=contexto.id_goal, pasta=contexto.area,
             briefing=briefing_do_autor_de_aceite(estado) + _orientacao_do_humano(estado), conferir=_conferencia(contexto, estado, guarda),
-            orcamento_restante_usd=contexto.restante(),
+            orcamento_restante_usd=contexto.restante(), retomadas=RETOMADAS_DO_AUTOR,
         )
     )
     if resposta.dados is None:

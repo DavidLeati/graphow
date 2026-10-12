@@ -10,13 +10,13 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-38 módulos · 6345 linhas · 58 classes
+38 módulos · 6366 linhas · 58 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 167 | Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste não muda sem o plano dizer. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 63 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 146 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 160 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 252 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 177 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -40,10 +40,10 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
-| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 252 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 258 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 187 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 247 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 305 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 306 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 105 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
@@ -85,6 +85,10 @@ A conferência dos pedidos do humano contra o Goal como ele está, antes de grav
 ## `orquestrador/autor_de_aceite.py`
 
 O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RETOMADAS_DO_AUTOR` | `int` | `2` |
 
 ### Funções do módulo
 
@@ -890,7 +894,7 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 - `rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None) -> tuple[ExecucaoDeAceite, ...]` — Cada teste de aceite dos critérios dados (todos, sem eles), rodado pelo comando dele.
 - `rodar_o_comando_de_aceite(saida: SaidaDoAceite, rodar: Rodar) -> ExecucaoDeAceite` — O comando que roda todos os testes de aceite, de uma vez.
 - `rodar_a_suite_com_o_aceite(saida: SaidaDoAceite, comando_suite: str, rodar: Rodar) -> ExecucaoDeAceite` — A suíte do projeto e todos os testes de aceite num comando só, com os arquivos de aceite na área.
-- `conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]` — Os testes falham antes da implementação, salvo o do critério que já era atendido; devolve os problemas e as execuções.
+- `conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]` — Cada teste falha numa asserção dele antes da implementação, ou já passa com o porquê; devolve os problemas e as execuções.
 
 ## `orquestrador/saida_do_verificador.py`
 
@@ -1033,7 +1037,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 *DTO imutável* — Uma sessão a rodar: o papel, onde, com que briefing e como conferir a saída.
 
-**Campos:** `papel: str`, `id_goal: str`, `pasta: Path`, `briefing: str`, `conferir: Conferencia`, `fatia: str`, `tentativa: int`, `modelo: str`, `orcamento_restante_usd: float`, `comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None`
+**Campos:** `papel: str`, `id_goal: str`, `pasta: Path`, `briefing: str`, `conferir: Conferencia`, `fatia: str`, `tentativa: int`, `modelo: str`, `orcamento_restante_usd: float`, `comandos_declarados: Callable[[Mapping[str, Any]], Sequence[str]] | None`, `retomadas: int`
 
 ### `RespostaDePapel`
 
