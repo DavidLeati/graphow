@@ -8,6 +8,11 @@ policiava agentes concorrentes: posse de Task, gestos da política de
 governança (fechar o Goal, aprovar o que o laço decidiu) e o veredito de
 revisor por Task, que a verificação do Goal substitui.
 
+O alcance é o Goal que ele conduz: ele edita só os nós que criou e o Goal que
+traz a configuração do laço (adotar o Goal do gerente é gravar nele a spec e
+essa configuração), e toda aresta nova sai ou chega num nó dele. A Decision e
+a Constraint do humano, o Setor e o Projeto ficam como estão.
+
 Ficam com o humano as reservas que o laço nunca precisa, e o contrato as recusa
 explicitamente: a `Governanca` e a política ou a autonomia do Projeto, o
 alcance de um Aprendizado (promover), o plano aprovado e as respostas de desvio
@@ -19,12 +24,13 @@ o livro-razão dele só cresce. Nenhum servidor MCP abre sessão com este papel
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from graphow.core.escopo import CAMPO_PLANOS, CAMPO_RESPOSTAS_DE_DESVIO
 from graphow.core.falhas import ModoFalhaMAST
-from graphow.core.models import GrafoEstado
-from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
+from graphow.core.models import GrafoEstado, NoGrafo
+from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.kernel.matriz_papeis import (
     PROPRIEDADES_DE_APRENDIZADO_RESERVADAS_AO_HUMANO,
     PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO,
@@ -34,6 +40,10 @@ from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, PropostaPatch,
 PORTAO: str = "RoleGate"
 # O portão do plano do `graphow orquestrar`, no Goal: só o humano o escreve.
 CAMPO_APROVACAO_DO_PLANO: str = "aprovacao_do_plano"
+# O Goal conduzido pelo orquestrador traz a configuração do laço; adotá-lo é
+# gravar nele só a spec e essa configuração.
+CAMPO_DA_CONDUCAO: str = "orquestracao"
+PROPRIEDADES_DA_ADOCAO: frozenset[str] = frozenset({"spec", CAMPO_DA_CONDUCAO})
 SEGMENTOS_DO_ELEMENTO: int = 2
 SEGMENTOS_DA_PROPRIEDADE: int = 4
 CAMPO_STATUS: str = "status"
@@ -65,39 +75,78 @@ PROPRIEDADES_RESERVADAS_POR_TIPO: Mapping[TipoNo, frozenset[str]] = {
 ARESTAS_NEGADAS_AO_ORQUESTRADOR: frozenset[TipoAresta] = frozenset({TipoAresta.VALE_PARA})
 
 
+@dataclass(frozen=True)
+class _Lote:
+    """O estado de antes e os nós que o próprio lote cria, que são do orquestrador."""
+
+    estado: GrafoEstado
+    criados: frozenset[str]
+
+    def e_do_orquestrador(self, id_no: str) -> bool:
+        """O nó nasce neste lote ou foi criado pelo orquestrador."""
+        no = self.estado.nos.get(id_no)
+        return id_no in self.criados or (no is not None and no.proveniencia.papel == PapelAutor.ORQUESTRADOR.value)
+
+
 def validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
-    """Aprova o lote do orquestrador, salvo a primeira operação que toca uma reserva do humano."""
+    """Aprova o lote do orquestrador, salvo a primeira operação fora do alcance dele ou numa reserva do humano."""
+    criados = frozenset(
+        item.path.split("/")[2] for item in proposta.operacoes
+        if item.op == OperacaoPatch.ADD and item.path.startswith("/nos/") and item.path.count("/") == SEGMENTOS_DO_ELEMENTO
+    )
+    lote = _Lote(estado, criados)
     for item in proposta.operacoes:
         segmentos = tuple(segmento for segmento in item.path.split("/") if segmento)
-        motivo = _motivo_da_recusa(segmentos, item, estado)
+        motivo = _motivo_da_recusa(segmentos, item, lote)
         if motivo:
             return _recusar(motivo, item)
     return ResultadoValidacao.sucesso()
 
 
-def _motivo_da_recusa(segmentos: Sequence[str], item: ItemPatch, estado: GrafoEstado) -> str:
+def _motivo_da_recusa(segmentos: Sequence[str], item: ItemPatch, lote: _Lote) -> str:
     """Por que a operação fica fora do contrato do orquestrador; vazio quando ela cabe nele."""
     if len(segmentos) < SEGMENTOS_DO_ELEMENTO:
         return ""
     if item.op == OperacaoPatch.REMOVE and len(segmentos) == SEGMENTOS_DO_ELEMENTO:
         return "o orquestrador nao remove nos nem arestas: o livro-razao dele so cresce"
     if segmentos[0] == "arestas":
-        return _motivo_na_aresta(item)
+        return _motivo_na_aresta(item, lote)
     if len(segmentos) == SEGMENTOS_DO_ELEMENTO:
         return _motivo_na_criacao(item.value)
-    no = estado.nos.get(segmentos[1])
+    no = lote.estado.nos.get(segmentos[1])
     if no is None:
         return ""
     if no.tipo == TipoNo.GOVERNANCA:
         return "a Governanca e do humano"
-    return _motivo_na_propriedade(no.tipo, segmentos, item)
+    return _motivo_de_alcance(no, segmentos, lote) or _motivo_na_propriedade(no.tipo, segmentos, item)
 
 
-def _motivo_na_aresta(item: ItemPatch) -> str:
-    """A aresta que promove memória é do humano."""
+def _motivo_de_alcance(no: NoGrafo, segmentos: Sequence[str], lote: _Lote) -> str:
+    """O orquestrador edita só o que criou e o Goal que conduz (o que tem `orquestracao`).
+
+    Adotar o Goal que o gerente gravou é gravar nele `spec` e `orquestracao`;
+    depois disso o Goal é conduzido. O rótulo e as propriedades de qualquer
+    outro nó (a Decision e a Constraint do humano, o Setor, o Projeto) são de
+    quem os criou.
+    """
+    if lote.e_do_orquestrador(no.id):
+        return ""
+    chave = segmentos[-1] if len(segmentos) == SEGMENTOS_DA_PROPRIEDADE else ""
+    conduzido = CAMPO_DA_CONDUCAO in no.propriedades
+    if no.tipo == TipoNo.GOAL and chave and (conduzido or chave in PROPRIEDADES_DA_ADOCAO):
+        return ""
+    papel = no.proveniencia.papel or "outro autor"
+    return f"o orquestrador so edita os nos que criou e o Goal que conduz; '{no.id}' ({no.tipo.value}) e de {papel}"
+
+
+def _motivo_na_aresta(item: ItemPatch, lote: _Lote) -> str:
+    """A aresta que promove memória é do humano, e a aresta nova sai ou chega num nó do orquestrador."""
     valor = item.value if isinstance(item.value, dict) else {}
     if valor.get("tipo") in {tipo.value for tipo in ARESTAS_NEGADAS_AO_ORQUESTRADOR}:
         return f"a aresta '{valor.get('tipo')}' promove memoria, e promover e do humano"
+    pontas = (str(valor.get("origem_id", "")), str(valor.get("destino_id", "")))
+    if item.op == OperacaoPatch.ADD and not any(lote.e_do_orquestrador(ponta) for ponta in pontas):
+        return f"a aresta liga {pontas[0]} a {pontas[1]}, e nenhum dos dois e do orquestrador"
     return ""
 
 

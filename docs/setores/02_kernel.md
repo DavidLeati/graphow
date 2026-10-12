@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-30 módulos · 4789 linhas · 33 classes
+30 módulos · 4838 linhas · 34 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -29,7 +29,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 271 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
-| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 144 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
+| [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 193 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
 | [`kernel/pares_de_escopo.py`](#kernelparesdeescopo) | 35 | Pares de tipos das arestas do escopo governado, apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 178 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
@@ -406,6 +406,8 @@ O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que 
 | :--- | :--- | :--- |
 | `PORTAO` | `str` | `'RoleGate'` |
 | `CAMPO_APROVACAO_DO_PLANO` | `str` | `'aprovacao_do_plano'` |
+| `CAMPO_DA_CONDUCAO` | `str` | `'orquestracao'` |
+| `PROPRIEDADES_DA_ADOCAO` | `frozenset[str]` | `frozenset({'spec', CAMPO_DA_CONDUCAO})` |
 | `SEGMENTOS_DO_ELEMENTO` | `int` | `2` |
 | `SEGMENTOS_DA_PROPRIEDADE` | `int` | `4` |
 | `CAMPO_STATUS` | `str` | `'status'` |
@@ -413,9 +415,17 @@ O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que 
 | `PROPRIEDADES_RESERVADAS_POR_TIPO` | `Mapping[TipoNo, frozenset[str]]` | `{TipoNo.PROJETO: PROPRIEDADES_DE_PROJETO_RESERVADAS_AO_HUMANO, TipoNo.G…` |
 | `ARESTAS_NEGADAS_AO_ORQUESTRADOR` | `frozenset[TipoAresta]` | `frozenset({TipoAresta.VALE_PARA})` |
 
+### `_Lote`
+
+*DTO imutável* — O estado de antes e os nós que o próprio lote cria, que são do orquestrador.
+
+**Campos:** `estado: GrafoEstado`, `criados: frozenset[str]`
+
+- `e_do_orquestrador(id_no: str) -> bool` — O nó nasce neste lote ou foi criado pelo orquestrador.
+
 ### Funções do módulo
 
-- `validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Aprova o lote do orquestrador, salvo a primeira operação que toca uma reserva do humano.
+- `validar_escrita_do_orquestrador(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Aprova o lote do orquestrador, salvo a primeira operação fora do alcance dele ou numa reserva do humano.
 
 ## `kernel/pares_de_escopo.py`
 

@@ -162,6 +162,56 @@ def test_reservas_do_humano_ficam_fora_do_contrato_edge_case(operacoes: list[Ite
     assert "orquestrador" in recibo.mensagem
 
 
+def _kernel_com_nos_do_humano() -> WriteKernel:
+    """O Goal do gerente com uma Decision e uma Constraint do humano, e a Sessao do orquestrador no Setor."""
+    kernel = montar_kernel_em_memoria()
+    humano = [
+        _no("proj", TipoNo.PROJETO), _no("setor", TipoNo.SETOR), _aresta("proj", "setor", TipoAresta.CONTEM),
+        _no("sess-h", TipoNo.SESSAO), _aresta("setor", "sess-h", TipoAresta.CONTEM),
+        _no("goal", TipoNo.GOAL), _aresta("sess-h", "goal", TipoAresta.PRODUZ),
+        _no("dec-h", TipoNo.DECISION), _aresta("sess-h", "dec-h", TipoAresta.PRODUZ),
+        _no("crit-h", TipoNo.CONSTRAINT, {"tipo": "criterio_aceite"}), _aresta("sess-h", "crit-h", TipoAresta.PRODUZ),
+    ]
+    assert _submeter(kernel, humano, PapelAutor.HUMANO).sucesso
+    assert _submeter(kernel, [_no("sess", TipoNo.SESSAO), _aresta("setor", "sess", TipoAresta.CONTEM)]).sucesso
+    return kernel
+
+
+@pytest.mark.parametrize(
+    "operacao",
+    [
+        ItemPatch(OperacaoPatch.REPLACE, "/nos/dec-h/rotulo", "decisao reescrita"),
+        _propriedade("dec-h", "motivo", "outro motivo"),
+        _propriedade("crit-h", "tipo", "fronteira"),
+        _propriedade("setor", "descricao", "outro"),
+        ItemPatch(OperacaoPatch.REPLACE, "/nos/goal/rotulo", "outro titulo"),
+        _propriedade("goal", "status", "concluido"),
+        _aresta("dec-h", "goal", TipoAresta.ORIENTA),
+    ],
+)
+def test_orquestrador_nao_mexe_no_que_e_do_humano_edge_case(operacao: ItemPatch) -> None:
+    """Caso de borda: rótulo e propriedades dos nós do humano, o Goal que ele não conduz e a aresta entre dois nós do humano."""
+    kernel = _kernel_com_nos_do_humano()
+
+    recibo = _submeter(kernel, [operacao])
+
+    assert not recibo.sucesso
+    assert recibo.modo_de_falha == ModoFalhaMAST.VIOLACAO_PERMISSAO_PAPEL.value
+
+
+def test_adocao_do_goal_do_gerente_abre_o_alcance_do_orquestrador_nominal() -> None:
+    """Adotar grava `spec` e `orquestracao`; depois disso o Goal é conduzido, e o laço o fecha."""
+    kernel = _kernel_com_nos_do_humano()
+
+    adocao = _submeter(kernel, [_propriedade("goal", "spec", "texto"), _propriedade("goal", "orquestracao", {"modo": "autonomo"})])
+    fatia = _submeter(kernel, [*_produzido("f1", TipoNo.TASK, {"status": "pendente"}), _aresta("goal", "f1", TipoAresta.DECOMPOE)])
+    fechamento = _submeter(kernel, [_propriedade("goal", "status", "concluido")])
+
+    assert adocao.sucesso, adocao.mensagem
+    assert fatia.sucesso, fatia.mensagem
+    assert fechamento.sucesso, fechamento.mensagem
+
+
 def test_governanca_fica_fora_do_contrato_edge_case() -> None:
     """Caso de borda: o contrato recusa criar a Governanca, que o SchemaGate já recusaria pela forma."""
     proposta = PropostaPatch.criar(
