@@ -66,6 +66,8 @@ def registrar_comando_de_orquestrar(
     _registrar_opcoes_do_git(parser)
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
+    parser.add_argument("--ciclos-de-correcao", type=int, default=None,
+                        help="Ciclos de correcao por marco (padrao: 2); fica gravado no Goal")
     for papel in PAPEIS:
         parser.add_argument(f"--modelo-{papel}", default=modelo_padrao(papel), help=f"Modelo do {papel} (padrao: {modelo_padrao(papel)})")
     parser.add_argument("--permissao", default=MODO_DE_PERMISSAO_PADRAO, help="Modo de permissao das sessoes (padrao: bypassPermissions)")
@@ -158,6 +160,7 @@ def _opcoes(argumentos: argparse.Namespace) -> OpcoesDoLaco:
         area=Path(argumentos.area).expanduser() if argumentos.area else None,
         tempo_limite_da_suite_s=argumentos.tempo_limite_suite * SEGUNDOS_POR_MINUTO,
         adotar_ramo=argumentos.adotar_ramo,
+        ciclos_de_correcao=argumentos.ciclos_de_correcao,
     )
 
 

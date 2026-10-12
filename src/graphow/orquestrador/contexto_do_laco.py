@@ -74,6 +74,7 @@ class OpcoesDoLaco:
     area: Path | None = None
     tempo_limite_da_suite_s: float = TEMPO_LIMITE_DA_SUITE_S
     adotar_ramo: bool = False
+    ciclos_de_correcao: int | None = None
 
 
 @dataclass(frozen=True)

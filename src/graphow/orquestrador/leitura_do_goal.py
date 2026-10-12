@@ -213,9 +213,10 @@ class EstadoDoGoal:
         return next((marco for marco, encerrado in zip(marcos, encerrados) if not encerrado), marcos[-1])
 
     def limite_de_ciclos(self, marco: MarcoRegistrado) -> int:
-        """Quantos ciclos de correção o marco tem: os dois de todo marco, mais os que o humano deu a ele."""
+        """Quantos ciclos de correção o marco tem: os do Goal (dois, ou o que a chamada disse), mais os que o humano deu a ele."""
         dados = sum(p.ciclos for p in self.pedidos if p.acao == PEDIDO_MAIS_CICLOS and p.alvo == marco.id)
-        return m.MAXIMO_DE_CICLOS_DE_CORRECAO + dados
+        configuracao = self.configuracao
+        return (configuracao.ciclos_de_correcao if configuracao else m.MAXIMO_DE_CICLOS_DE_CORRECAO) + dados
 
     def pedidos_pendentes(self, acao: str) -> tuple[PedidoDoHumano, ...]:
         """Os pedidos com a ação dada que o laço ainda não atendeu: os do humano e os de refazer um teste de aceite.

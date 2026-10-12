@@ -216,3 +216,21 @@ def test_retirar_o_criterio_reprovado_fecha_o_goal_e_aparece_no_status_e_no_docu
     assert any("C1 retirado pelo humano (a soma fica para o proximo Goal)" in linha for linha in formatar_status(estado, []))
     documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
     assert "## Criterios retirados pelo humano" in documento and "**C1**, retirado por david" in documento
+
+
+def test_ciclos_de_correcao_dados_na_chamada_valem_para_o_goal_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: com --ciclos-de-correcao 0, o bloqueante da final para o laço sem correção; o descarte fecha."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("atende", [EM_C1])]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco(modo="autonomo", ciclos_de_correcao=0))
+
+    assert parada.motivo == MotivoDaParada.BLOQUEANTES_RESTANTES, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.configuracao is not None and estado.configuracao.ciclos_de_correcao == 0
+    assert not [f for f in estado.fatias if f.texto("corrige_verificacao")]
+    id_achado = estado.verificacoes[-1].achados[0].id
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_DESCARTAR_ACHADO, "a docstring fica para depois", "david", alvo=id_achado))
+    assert orquestrador.rodar("goal-soma", AUTONOMO).fechou

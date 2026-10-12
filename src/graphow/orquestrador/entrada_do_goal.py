@@ -87,6 +87,7 @@ def configuracao_nova(pedido: PedidoDeConfiguracao) -> m.ConfiguracaoDoGoal:
         modo=opcoes.modo or m.MODO_SUPERVISIONADO, repositorio=str(pedido.raiz), area=str(area),
         ramo=ramo, base=base, slug=pedido.slug,
         orcamento_usd=opcoes.orcamento_usd if opcoes.orcamento_usd is not None else ORCAMENTO_PADRAO_USD,
+        ciclos_de_correcao=opcoes.ciclos_de_correcao if opcoes.ciclos_de_correcao is not None else m.MAXIMO_DE_CICLOS_DE_CORRECAO,
     )
 
 
@@ -132,11 +133,12 @@ def pedido_de_adocao(estado: EstadoDoGoal, opcoes: OpcoesDoLaco, *, repositorio:
 
 
 def atualizar_configuracao(livro: LivroRazaoDoGoal, configuracao: m.ConfiguracaoDoGoal, opcoes: OpcoesDoLaco) -> m.ConfiguracaoDoGoal:
-    """O modo e o orçamento que a chamada pede de novo valem daqui em diante, e ficam gravados."""
+    """O modo, o orçamento e os ciclos de correção que a chamada pede de novo valem daqui em diante, e ficam gravados."""
     modo = opcoes.modo or configuracao.modo
     orcamento = opcoes.orcamento_usd if opcoes.orcamento_usd is not None else configuracao.orcamento_usd
-    if (modo, orcamento) == (configuracao.modo, configuracao.orcamento_usd):
+    ciclos = opcoes.ciclos_de_correcao if opcoes.ciclos_de_correcao is not None else configuracao.ciclos_de_correcao
+    if (modo, orcamento, ciclos) == (configuracao.modo, configuracao.orcamento_usd, configuracao.ciclos_de_correcao):
         return configuracao
-    nova = m.ConfiguracaoDoGoal(**{**configuracao.em_json(), "modo": modo, "orcamento_usd": orcamento})
+    nova = m.ConfiguracaoDoGoal(**{**configuracao.em_json(), "modo": modo, "orcamento_usd": orcamento, "ciclos_de_correcao": ciclos})
     livro.gravar([propriedade(livro.id_goal, m.CAMPO_ORQUESTRACAO, nova.em_json())], f"Configuracao do Goal {livro.id_goal}")
     return nova

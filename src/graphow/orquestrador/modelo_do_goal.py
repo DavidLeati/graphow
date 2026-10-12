@@ -132,6 +132,7 @@ class ConfiguracaoDoGoal:
     base: str
     slug: str
     orcamento_usd: float
+    ciclos_de_correcao: int = MAXIMO_DE_CICLOS_DE_CORRECAO
 
     def em_json(self) -> dict[str, Any]:
         """A configuração como propriedade do Goal."""
@@ -144,6 +145,7 @@ class ConfiguracaoDoGoal:
             modo=str(dados["modo"]), repositorio=str(dados["repositorio"]), area=str(dados["area"]),
             ramo=str(dados["ramo"]), base=str(dados["base"]), slug=str(dados["slug"]),
             orcamento_usd=float(dados["orcamento_usd"]),
+            ciclos_de_correcao=int(dados.get("ciclos_de_correcao", MAXIMO_DE_CICLOS_DE_CORRECAO)),
         )
 
 
