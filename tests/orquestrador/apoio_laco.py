@@ -41,6 +41,7 @@ PLANO: dict[str, Any] = {
         {"id": "F2", "titulo": "Uso no README", "objetivo": "README com exemplo", "criterios": ["C2"],
          "arquivos": ["README.md"], "depende_de": ["F1"], "modelo": "sonnet"},
     ],
+    "marcos": [{"id": "M1", "titulo": "Soma e README", "fatias": ["F1", "F2"]}],
 }
 
 

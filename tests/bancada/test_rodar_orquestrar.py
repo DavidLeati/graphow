@@ -28,6 +28,7 @@ def _roteiro() -> dict[str, list[dict[str, Any]]]:
         "decisoes": [{"id": "D1", "texto": "nada de dependencia", "motivo": "teste"}],
         "fatias": [{"id": "F1", "titulo": "Entrega", "objetivo": "criar ENTREGA.md", "criterios": ["C1", "C2"],
                     "arquivos": ["ENTREGA.md"], "depende_de": [], "modelo": "opus"}],
+        "marcos": [{"id": "M1", "titulo": "Entrega", "fatias": ["F1"]}],
     }
     return {
         "planejador": [{"saida": plano, "custo": 0.4}],

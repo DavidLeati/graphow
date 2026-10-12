@@ -34,11 +34,22 @@ def renderizar_documento(id_goal: str, configuracao: m.ConfiguracaoDoGoal, plano
         "## Criterios de aceite", *(f"- **{c.id}** ({c.verificacao}): {c.texto}" for c in plano.criterios), "",
         "## Decisoes", *(f"- **{d.id}**: {d.texto} Motivo: {d.motivo}" for d in plano.decisoes), "",
         "## Plano", *_tabela_do_plano(plano), "",
+        "## Marcos", *_linhas_dos_marcos(plano), "",
         "## Fora do escopo", *(f"- {item}" for item in plano.fora_do_escopo or ("nada registrado",)), "",
         "## Spec", "", spec.strip(), "",
         TITULO_DAS_PENDENCIAS, "", "Nenhuma ate agora.", "",
     ]
     return "\n".join(linhas)
+
+
+def _linhas_dos_marcos(plano: Plano) -> list[str]:
+    """Cada marco com as fatias e os critérios que a verificação dele julga; o último é a verificação final."""
+    ultimo = plano.marcos[-1].id if plano.marcos else ""
+    return [
+        f"- **{marco.id}** {marco.titulo}: fatias {', '.join(marco.fatias)}; "
+        + ("verificacao final, sobre o Goal inteiro" if marco.id == ultimo else f"verifica {', '.join(plano.criterios_do_marco(marco.id))}")
+        for marco in plano.marcos
+    ]
 
 
 def _tabela_do_plano(plano: Plano) -> list[str]:

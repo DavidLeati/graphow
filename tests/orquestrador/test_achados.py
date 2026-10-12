@@ -40,9 +40,9 @@ def test_achado_de_baixa_severidade_que_toca_criterio_vira_correcao_nominal(tmp_
     assert (achado.obter_propriedade("gravidade"), achado.obter_propriedade("severidade")) == ("bloqueante", "baixa")
     assert [a.destino_id for a in view.obter_arestas_saida(achado.id, TipoAresta.FERE)] == ["crit-soma-c2"]
     assert [a.destino_id for a in view.obter_arestas_saida("achado-goal-soma-v1-1", TipoAresta.DERIVA_DE)] == ["ver-goal-soma-1"]
-    assert [a.origem_id for a in view.obter_arestas_entrada(achado.id, TipoAresta.DERIVA_DE)] == ["task-soma-k1-1"]
+    assert [a.origem_id for a in view.obter_arestas_entrada(achado.id, TipoAresta.DERIVA_DE)] == ["task-soma-m1-k1-1"]
     assert achado.obter_propriedade("estado") == "resolvido"
-    assert "Fatia K1.1: README sem o resultado do exemplo (C2)" in git(bancada.repositorio, "log", "--format=%s")
+    assert "Fatia M1.K1.1: README sem o resultado do exemplo (C2)" in git(bancada.repositorio, "log", "--format=%s")
 
 
 def test_briefing_da_correcao_traz_o_achado_inteiro_e_pede_a_regressao_antes_nominal(tmp_path: Path) -> None:

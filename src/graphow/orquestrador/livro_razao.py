@@ -215,19 +215,25 @@ class LivroRazaoDoGoal:
         commit = str(ponta.get(m.CAMPO_COMMIT, ""))
         self.gravar([propriedade(self.id_goal, m.CAMPO_PONTA_DO_RAMO, dict(ponta))], f"Ponta da branch do Goal {self.id_goal} em {commit[:12]}")
 
-    def criar_correcoes(self, id_evidencia: str, achados: Sequence[AchadoRegistrado], *, ciclo: int, ordem: int) -> None:
-        """Cada Achado bloqueante vira uma fatia de correção, que deriva dele e diz de que verificação nasceu."""
+    def criar_correcoes(
+        self, id_evidencia: str, achados: Sequence[AchadoRegistrado], *, ciclo: int, ordem: int, marco: str = ""
+    ) -> None:
+        """Cada Achado bloqueante vira uma fatia de correção do marco, que deriva dele e diz de que verificação nasceu.
+
+        O código é `<marco>.K<ciclo>.<n>`; `ciclos_de_correcao` no Goal guarda o
+        ciclo das últimas correções abertas (a conta por marco sai das fatias).
+        """
         slug = self.view().obter_no(self.id_goal).obter_propriedade(m.CAMPO_ORQUESTRACAO, {}).get("slug", self.id_goal)
         operacoes: list[ItemPatch] = []
         for indice, achado in enumerate(achados, start=1):
-            codigo = f"K{ciclo}.{indice}"
+            codigo = f"{marco}.K{ciclo}.{indice}" if marco else f"K{ciclo}.{indice}"
             id_task = m.id_da_fatia(slug, codigo)
             local = achado.texto("local")
             propriedades = {
                 m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo, m.CAMPO_ORDEM: ordem + indice,
                 m.CAMPO_OBJETIVO: achado.texto("descricao") + (f" (local: {local})" if local else ""),
                 m.CAMPO_CRITERIOS: list(achado.lista("criterios")), m.CAMPO_ARQUIVOS_ALVO: [local.split(":")[0]] if local else [],
-                m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_ACHADO: achado.id, m.CAMPO_TENTATIVAS: 0,
+                m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_ACHADO: achado.id, m.CAMPO_MARCO: marco, m.CAMPO_TENTATIVAS: 0,
             }
             operacoes += self.produzido(id_task, TipoNo.TASK, f"Corrige: {achado.texto('titulo')}", propriedades=propriedades)
             operacoes += [aresta(self.id_goal, id_task, TipoAresta.DECOMPOE), aresta(id_task, achado.id, TipoAresta.DERIVA_DE)]

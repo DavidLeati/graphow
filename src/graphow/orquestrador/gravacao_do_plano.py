@@ -87,6 +87,7 @@ def _operacoes_da_fatia(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar, fatia:
         m.CAMPO_CRITERIOS: list(fatia.criterios),
         m.CAMPO_ARQUIVOS_ALVO: list(fatia.arquivos),
         m.CAMPO_MODELO: fatia.modelo,
+        m.CAMPO_MARCO: pedido.plano.marco_da_fatia(fatia.id),
         m.CAMPO_TENTATIVAS: 0,
         m.CAMPO_CRITERIO_PRONTO: " ".join(f"{c}: {textos.get(c, '')}" for c in fatia.criterios),
     }
@@ -113,6 +114,8 @@ def _plano_em_json(pedido: PlanoParaGravar, criterios: Mapping[str, str], deciso
         "criterios": [{"id": c.id, "texto": c.texto, "verificacao": c.verificacao, "no": criterios[c.id]} for c in plano.criterios],
         "decisoes": [{"id": d.id, "texto": d.texto, "motivo": d.motivo, "no": decisoes[d.id]} for d in plano.decisoes],
         "fatias": [fatia.id for fatia in plano.fatias],
+        "marcos": [{"id": marco.id, "titulo": marco.titulo, "fatias": list(marco.fatias), "criterios": list(plano.criterios_do_marco(marco.id))}
+                   for marco in plano.marcos],
         "fora_do_escopo": list(plano.fora_do_escopo),
         "documento": {"caminho": pedido.caminho_do_documento, "commit": pedido.commit_do_documento},
     }

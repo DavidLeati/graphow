@@ -66,6 +66,7 @@ FATIA: dict[str, Any] = _objeto(
         "modelo": {"type": "string", "enum": list(MODELOS_SUGERIDOS)},
     }
 )
+MARCO: dict[str, Any] = _objeto({"id": TEXTO, "titulo": TEXTO, "fatias": LISTA_DE_TEXTOS})
 ESQUEMA_DO_PLANO: dict[str, Any] = _objeto(
     {
         "titulo": TEXTO,
@@ -73,6 +74,7 @@ ESQUEMA_DO_PLANO: dict[str, Any] = _objeto(
         "criterios": _lista_de(CRITERIO, 1),
         "decisoes": _lista_de(DECISAO),
         "fatias": _lista_de(FATIA, 1),
+        "marcos": _lista_de(MARCO, 1),
         "fora_do_escopo": LISTA_DE_TEXTOS,
     },
     opcionais=("fora_do_escopo",),

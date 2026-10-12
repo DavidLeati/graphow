@@ -158,7 +158,8 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
             f"O plano espera aprovacao: leia docs/goals/{contexto.configuracao.slug}.md na branch {contexto.configuracao.ramo} "
             f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`.",
         )
-    prontas = estado.prontas()
+    marco = estado.marco_atual()
+    prontas = estado.prontas(marco)
     if prontas:
         return executar_fatia(contexto, estado, prontas[0])
     if estado.bloqueadas():
@@ -166,7 +167,10 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
     if estado.pausadas():
         duvidas = "; ".join(f"{f.duvida_aberta.id}: {f.duvida_aberta.pergunta}" for f in estado.pausadas() if f.duvida_aberta)
         return Parada(contexto.id_goal, MotivoDaParada.AGUARDANDO_RESPOSTA, f"Fatias pausadas esperando resposta do humano: {duvidas}")
-    return verificar_ou_fechar(contexto, estado)
+    sem_como_rodar = [f.codigo for f in estado.fatias_do_marco(marco) if f.status != m.STATUS_CONCLUIDO]
+    if sem_como_rodar:
+        return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"As fatias {', '.join(sem_como_rodar)} do marco {marco.id} nao tem como rodar.")
+    return verificar_ou_fechar(contexto, estado, marco)
 
 
 def _parada_de_falha(id_goal: str, erro: GraphowError) -> Parada:

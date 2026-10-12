@@ -53,7 +53,7 @@ def test_modo_autonomo_planeja_executa_corrige_verifica_e_integra_nominal(comple
     assert parada.motivo == MotivoDaParada.FECHADO, parada.mensagem
     assert _assuntos(bancada.repositorio) == [
         "Registra as pendencias da verificacao 2 do Goal soma",
-        "Fatia K1.1: README sem exemplo (C2)",
+        "Fatia M1.K1.1: README sem exemplo (C2)",
         "Fatia F2: Uso no README (C2)",
         "Fatia F1: Funcao somar (C1)",
         "Planeja o Goal soma: Soma de dois numeros",

@@ -49,6 +49,9 @@ CAMPO_FATIA: str = "fatia"
 CAMPO_OBJETIVO: str = "objetivo"
 CAMPO_CRITERIOS: str = "criterios"
 CAMPO_ARQUIVOS_ALVO: str = "arquivos_alvo"
+# O marco da fatia: as fatias de um marco rodam antes das do seguinte, e o
+# verificador olha o marco quando todas elas fecham.
+CAMPO_MARCO: str = a.CAMPO_MARCO
 CAMPO_MODELO: str = "modelo"
 CAMPO_ORDEM: str = "ordem"
 CAMPO_TENTATIVAS: str = "tentativas"

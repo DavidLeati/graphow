@@ -10,34 +10,35 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-25 módulos · 3937 linhas · 45 classes
+26 módulos · 4148 linhas · 47 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 174 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 186 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 176 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
-| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 76 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
+| [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 87 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 127 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 129 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 361 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 115 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
-| [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 118 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 174 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 288 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 246 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 161 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 121 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 178 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 339 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 252 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 164 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 180 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
-| [`orquestrador/saidas.py`](#orquestradorsaidas) | 175 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 186 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saidas.py`](#orquestradorsaidas) | 241 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 301 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 113 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 121 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 210 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 104 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 153 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 
 ## `orquestrador/briefing.py`
 
@@ -57,7 +58,7 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 
 - `briefing_do_planejador(estado: EstadoDoGoal, spec: str, tem_fixados: bool) -> str` — O pedido ao planejador: a spec inteira e onde está o repositório.
 - `briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto: ContextoDaFatia) -> str` — O pedido ao executor da fatia, com tudo o que a governa por extenso.
-- `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador: spec, critérios, decisões, suíte e o commit, sem nada de quem implementou.
+- `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou.
 - `pedido_de_correcao_da_saida(problemas: Sequence[str]) -> str` — O que vai à mesma sessão quando a saída dela não conferiu.
 
 ## `orquestrador/comandos_do_stream.py`
@@ -208,6 +209,7 @@ Os schemas da saída de cada papel: o que o planejador, o executor e o verificad
 | `CRITERIO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'texto': TEXTO, 'verificacao': {'type': 'string',…` |
 | `DECISAO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'texto': TEXTO, 'motivo': TEXTO})` |
 | `FATIA` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'objetivo': TEXTO, 'criterios': …` |
+| `MARCO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'fatias': LISTA_DE_TEXTOS})` |
 | `ESQUEMA_DO_PLANO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'comando_suite': TEXTO, 'criterios': _lista_d…` |
 | `ESQUEMA_DA_EXECUCAO` | `dict[str, Any]` | `_objeto({'status': {'type': 'string', 'enum': list(STATUS_DO_EXECUTOR)}…` |
 | `PARECER` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'veredito': {'type': 'string', 'enum': list(VERED…` |
@@ -402,7 +404,12 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 - `pendencias() -> list[dict[str, Any]]` `[property]` — As pendências gravadas no Goal.
 - `achado(id_achado: str) -> AchadoRegistrado | None` — O nó Achado de qualquer verificação do Goal, pelo id.
 - `ultima_verificacao() -> VerificacaoRegistrada | None` `[property]` — A verificação mais recente.
-- `prontas() -> tuple[FatiaRegistrada, ...]` — As fatias que podem rodar agora, na ordem do plano.
+- `marcos() -> tuple[MarcoRegistrado, ...]` — Os marcos do plano, em ordem; o plano sem marcos (o de antes da fase 2) é um marco só, o final.
+- `fatias_do_marco(marco: MarcoRegistrado) -> tuple[FatiaRegistrada, ...]` — As fatias do marco, as de correção inclusive.
+- `verificacoes_do_marco(marco: MarcoRegistrado) -> tuple[VerificacaoRegistrada, ...]` — As verificações do marco, da mais antiga à mais nova.
+- `marco_atual() -> MarcoRegistrado` — O primeiro marco sem verificação limpa; com todos limpos, o final.
+- `ciclos_do_marco(marco: MarcoRegistrado) -> int` — Quantos ciclos de correção o marco já abriu: as verificações dele de onde nasceram fatias de correção.
+- `prontas(marco: MarcoRegistrado | None) -> tuple[FatiaRegistrada, ...]` — As fatias que podem rodar agora, na ordem do plano; com o marco dado, só as dele.
 - `pausadas() -> tuple[FatiaRegistrada, ...]` — As fatias paradas numa dúvida aberta.
 - `bloqueadas() -> tuple[FatiaRegistrada, ...]` — As fatias que viraram pendência depois da segunda falha.
 
@@ -418,11 +425,19 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 - `falhas() -> int` `[property]` — Quantas tentativas falharam (a saída inválida, a suíte vermelha, a sessão interrompida); a dúvida não conta.
 - `duvida_aberta() -> DuvidaRegistrada | None` `[property]` — A dúvida que pausa a fatia, quando há.
 
+### `MarcoRegistrado`
+
+*DTO imutável* — Um marco do plano gravado: as fatias dele, os critérios que a verificação dele julga e se é o final.
+
+**Campos:** `id: str`, `titulo: str`, `fatias: tuple[str, ...]`, `criterios: tuple[str, ...]`, `final: bool`
+
+- `contem(fatia: FatiaRegistrada, primeiro: bool) -> bool` — A fatia é deste marco; a fatia de antes dos marcos é do primeiro.
+
 ### `VerificacaoRegistrada`
 
 *DTO imutável* — Uma verificação do Goal: em que commit, com que veredito e o que achou.
 
-**Campos:** `id: str`, `commit: str`, `veredito: str`, `ciclo: int`, `propriedades: Mapping[str, Any]`, `commit_do_codigo: str`, `achados: tuple[AchadoRegistrado, ...]`
+**Campos:** `id: str`, `commit: str`, `veredito: str`, `ciclo: int`, `propriedades: Mapping[str, Any]`, `commit_do_codigo: str`, `achados: tuple[AchadoRegistrado, ...]`, `marco: str`
 
 - `bloqueantes() -> tuple[AchadoRegistrado, ...]` — Os nós Achado bloqueantes desta verificação.
 - `limpa() -> bool` `[property]` — Sem bloqueante.
@@ -465,7 +480,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
 - `gravar_ponta(ponta: Mapping[str, str]) -> None` — A ponta da branch do Goal como o git a tem agora: o commit e o commit do código.
-- `criar_correcoes(id_evidencia: str, achados: Sequence[AchadoRegistrado]) -> None` — Cada Achado bloqueante vira uma fatia de correção, que deriva dele e diz de que verificação nasceu.
+- `criar_correcoes(id_evidencia: str, achados: Sequence[AchadoRegistrado]) -> None` — Cada Achado bloqueante vira uma fatia de correção do marco, que deriva dele e diz de que verificação nasceu.
 - `fechar(commit_integrado: str) -> None` — O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra.
 
 ### `LoteRecusado` (GraphowError)
@@ -503,6 +518,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_OBJETIVO` | `str` | `'objetivo'` |
 | `CAMPO_CRITERIOS` | `str` | `'criterios'` |
 | `CAMPO_ARQUIVOS_ALVO` | `str` | `'arquivos_alvo'` |
+| `CAMPO_MARCO` | `str` | `a.CAMPO_MARCO` |
 | `CAMPO_MODELO` | `str` | `'modelo'` |
 | `CAMPO_ORDEM` | `str` | `'ordem'` |
 | `CAMPO_TENTATIVAS` | `str` | `'tentativas'` |
@@ -612,7 +628,7 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 
 ### Funções do módulo
 
-- `conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]` — Um parecer por critério e por decisão pedidos, achado que toca só o que existe e ao menos um comando rodado.
+- `conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]` — Um parecer por critério e por decisão pedidos, achado que toca só o que pode tocar e ao menos um comando rodado.
 
 ## `orquestrador/saidas.py`
 
@@ -621,6 +637,7 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `STATUS_DUVIDA` | `str` | `'duvida'` |
+| `MARCO_UNICO` | `str` | `'M1'` |
 
 ### `Criterio`
 
@@ -648,13 +665,21 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 
 **Campos:** `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`
 
+### `Marco`
+
+*DTO imutável* — Um marco do plano: as fatias que, juntas, entregam critérios verificáveis.
+
+**Campos:** `id: str`, `titulo: str`, `fatias: tuple[str, ...]`
+
 ### `Plano`
 
-*DTO imutável* — O plano do Goal: título, comando da suíte, critérios, decisões e fatias.
+*DTO imutável* — O plano do Goal: título, comando da suíte, critérios, decisões, fatias e os marcos que as repartem.
 
-**Campos:** `titulo: str`, `comando_suite: str`, `criterios: tuple[Criterio, ...]`, `decisoes: tuple[Decisao, ...]`, `fatias: tuple[Fatia, ...]`, `fora_do_escopo: tuple[str, ...]`
+**Campos:** `titulo: str`, `comando_suite: str`, `criterios: tuple[Criterio, ...]`, `decisoes: tuple[Decisao, ...]`, `fatias: tuple[Fatia, ...]`, `fora_do_escopo: tuple[str, ...]`, `marcos: tuple[Marco, ...]`
 
 - `de_json(dados: Mapping[str, Any]) -> 'Plano'` — O plano como o planejador o devolveu, já conferido pelo schema.
+- `marco_da_fatia(id_fatia: str) -> str` — O marco em que a fatia está; vazio quando nenhum a traz.
+- `criterios_do_marco(id_marco: str) -> tuple[str, ...]` — Os critérios que o marco completa (a última fatia que os cobre está nele); no último, todos.
 - `com_criterios_do_humano(criterios: Sequence[Criterio]) -> 'Plano'` — O plano com o texto e o tipo de verificação dos critérios que o humano fixou, como ele os escreveu.
 
 ### `SaidaDoExecutor`
@@ -811,9 +836,21 @@ Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis 
 
 ## `orquestrador/verificacao_do_goal.py`
 
-Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento.
+O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal.
 
 ### Funções do módulo
 
-- `verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — Com as fatias concluídas: verifica o commit atual, abre correções ou fecha.
+- `verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None` — Com as fatias do marco concluídas: verifica o commit atual, abre correções, segue ao próximo marco ou fecha.
+
+## `orquestrador/verificacao_do_marco.py`
+
+A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão.
+
+### Funções do módulo
+
+- `verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None` — Uma sessão nova do verificador no commit atual e a suíte do plano, gravadas como Evidence do Goal.
+- `criterios_ate_o_marco(estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple[str, ...]` — Os critérios que os marcos até este, inclusive, completaram: os que já podem ser julgados ou feridos.
+- `decisoes_do_plano(estado: EstadoDoGoal) -> tuple[str, ...]` — Os ids das decisões do plano.
+- `nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]` — O nó do livro-razão de cada critério e decisão do plano, pelo código.
+- `sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]]) -> None` — Reescreve a seção de pendências do documento como o livro-razão a tem e commita, se ele mudou.
 

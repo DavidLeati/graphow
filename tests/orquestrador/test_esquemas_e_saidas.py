@@ -40,6 +40,7 @@ PLANO: dict[str, Any] = {
         {"id": "F2", "titulo": "Uso", "objetivo": "README", "criterios": ["C2"], "arquivos": ["README.md"],
          "depende_de": ["F1"], "modelo": "sonnet"},
     ],
+    "marcos": [{"id": "M1", "titulo": "Soma e uso", "fatias": ["F1", "F2"]}],
 }
 VERIFICACAO: dict[str, Any] = {
     "resumo": "suite verde, programa rodado",

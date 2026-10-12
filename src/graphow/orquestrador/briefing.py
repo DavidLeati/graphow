@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
+from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada, MarcoRegistrado
 from graphow.orquestrador.suite import descrever_shell, shell_dos_agentes
 
 LIMITE_DO_ERRO: int = 6000
@@ -150,22 +150,34 @@ def _falha_anterior(fatia: FatiaRegistrada) -> list[str]:
     return linhas
 
 
-def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str:
-    """O pedido ao verificador: spec, critérios, decisões, suíte e o commit, sem nada de quem implementou."""
+def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str], *, marco: MarcoRegistrado) -> str:
+    """O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou."""
     plano = estado.plano or {}
     return _juntar([
         f"# Verificacao do Goal {estado.id_goal}: {estado.rotulo}",
         f"Commit verificado: {commit}. A pasta atual esta nesse commit.",
+        _alcance_do_marco(marco),
         _bloco("Suite", [f"`{plano.get('comando_suite', '')}`"]),
-        _bloco("Criterios de aceite", _criterios(plano)),
+        _bloco("Criterios que esta verificacao julga", _criterios(plano, marco.criterios)),
         _bloco("Decisoes", _decisoes(plano)),
         _bloco("Commits do Goal desde a base", list(entregues)),
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
-        "Devolva a verificacao no JSON do schema, com um parecer para cada criterio e cada decisao e, em `comandos`, "
-        "cada comando que rodou, copiado como o mandou ao Bash, com o codigo de saida e um trecho do que ele imprimiu: "
-        "o orquestrador confere cada um contra as chamadas Bash desta sessao. Depois de voce, ele roda a suite nesse "
-        "commit: suite vermelha reprova a entrega.",
+        "Devolva a verificacao no JSON do schema, com um parecer para cada criterio que esta verificacao julga "
+        + ("e para cada decisao" if marco.final else "(e para as decisoes que o marco toca)")
+        + " e, em `comandos`, cada comando que rodou, copiado como o mandou ao Bash, com o codigo de saida e um trecho "
+        "do que ele imprimiu: o orquestrador confere cada um contra as chamadas Bash desta sessao. Depois de voce, ele "
+        "roda a suite nesse commit: suite vermelha reprova a entrega.",
     ])
+
+
+def _alcance_do_marco(marco: MarcoRegistrado) -> str:
+    """O que esta verificação cobre: o marco, ou o Goal inteiro na final."""
+    if marco.final:
+        return f"Esta e a verificacao final ({marco.id}), sobre o Goal inteiro: julgue todos os criterios e todas as decisoes."
+    return (
+        f"Esta e a verificacao do marco {marco.id} ({marco.titulo}), fatias {', '.join(marco.fatias)}: julgue os criterios que "
+        "ele completa. Os criterios de marcos seguintes ainda nao foram construidos: nao os julgue nem os cite em achado."
+    )
 
 
 def pedido_de_correcao_da_saida(problemas: Sequence[str]) -> str:

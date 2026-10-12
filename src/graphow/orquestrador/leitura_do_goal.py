@@ -110,6 +110,7 @@ class VerificacaoRegistrada:
     propriedades: Mapping[str, Any]
     commit_do_codigo: str = ""
     achados: tuple[AchadoRegistrado, ...] = ()
+    marco: str = ""
 
     def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
         """Os nós Achado bloqueantes desta verificação."""
@@ -120,6 +121,22 @@ class VerificacaoRegistrada:
         """Sem bloqueante."""
         return self.veredito == m.VEREDITO_LIMPO
 
+
+
+@dataclass(frozen=True)
+class MarcoRegistrado:
+    """Um marco do plano gravado: as fatias dele, os critérios que a verificação dele julga e se é o final."""
+
+    id: str
+    titulo: str
+    fatias: tuple[str, ...]
+    criterios: tuple[str, ...]
+    final: bool
+
+    def contem(self, fatia: FatiaRegistrada, primeiro: bool) -> bool:
+        """A fatia é deste marco; a fatia de antes dos marcos é do primeiro."""
+        marco = fatia.texto(m.CAMPO_MARCO)
+        return marco == self.id or (not marco and primeiro)
 
 
 @dataclass(frozen=True)
@@ -172,11 +189,44 @@ class EstadoDoGoal:
         """A verificação mais recente."""
         return self.verificacoes[-1] if self.verificacoes else None
 
-    def prontas(self) -> tuple[FatiaRegistrada, ...]:
-        """As fatias que podem rodar agora, na ordem do plano."""
-        concluidas = {fatia.id for fatia in self.fatias if fatia.status == m.STATUS_CONCLUIDO}
+    def marcos(self) -> tuple[MarcoRegistrado, ...]:
+        """Os marcos do plano, em ordem; o plano sem marcos (o de antes da fase 2) é um marco só, o final."""
+        plano = self.plano or {}
+        gravados = [item for item in plano.get("marcos", []) if isinstance(item, Mapping)]
+        todos = tuple(str(c["id"]) for c in plano.get("criterios", []))
+        if not gravados:
+            return (MarcoRegistrado("M1", "O Goal inteiro", tuple(str(f) for f in plano.get("fatias", [])), todos, True),)
         return tuple(
-            fatia for fatia in self.fatias
+            MarcoRegistrado(str(item["id"]), str(item.get("titulo", "")), tuple(str(f) for f in item.get("fatias", [])),
+                            todos if posicao == len(gravados) - 1 else tuple(str(c) for c in item.get("criterios", [])),
+                            posicao == len(gravados) - 1)
+            for posicao, item in enumerate(gravados)
+        )
+
+    def fatias_do_marco(self, marco: MarcoRegistrado) -> tuple[FatiaRegistrada, ...]:
+        """As fatias do marco, as de correção inclusive."""
+        primeiro = self.marcos()[0].id == marco.id
+        return tuple(fatia for fatia in self.fatias if marco.contem(fatia, primeiro))
+
+    def verificacoes_do_marco(self, marco: MarcoRegistrado) -> tuple[VerificacaoRegistrada, ...]:
+        """As verificações do marco, da mais antiga à mais nova."""
+        return tuple(verificacao for verificacao in self.verificacoes if verificacao.marco == marco.id)
+
+    def marco_atual(self) -> MarcoRegistrado:
+        """O primeiro marco sem verificação limpa; com todos limpos, o final."""
+        marcos = self.marcos()
+        return next((marco for marco in marcos if not any(v.limpa for v in self.verificacoes_do_marco(marco))), marcos[-1])
+
+    def ciclos_do_marco(self, marco: MarcoRegistrado) -> int:
+        """Quantos ciclos de correção o marco já abriu: as verificações dele de onde nasceram fatias de correção."""
+        return len({fatia.texto(m.CAMPO_CORRIGE) for fatia in self.fatias_do_marco(marco) if fatia.texto(m.CAMPO_CORRIGE)})
+
+    def prontas(self, marco: MarcoRegistrado | None = None) -> tuple[FatiaRegistrada, ...]:
+        """As fatias que podem rodar agora, na ordem do plano; com o marco dado, só as dele."""
+        concluidas = {fatia.id for fatia in self.fatias if fatia.status == m.STATUS_CONCLUIDO}
+        candidatas = self.fatias if marco is None else self.fatias_do_marco(marco)
+        return tuple(
+            fatia for fatia in candidatas
             if fatia.status in STATUS_NA_FILA and set(fatia.depende_de) <= concluidas and fatia.duvida_aberta is None
         )
 
@@ -263,6 +313,7 @@ def _verificacoes(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada,
             propriedades=e.propriedades,
             commit_do_codigo=str(e.obter_propriedade(m.CAMPO_COMMIT_DO_CODIGO) or ""),
             achados=_achados(view, e.id),
+            marco=str(e.obter_propriedade(m.CAMPO_MARCO) or ""),
         )
         for e in ordenadas
     )

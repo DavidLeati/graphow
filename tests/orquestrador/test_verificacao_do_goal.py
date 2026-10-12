@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from graphow.orquestrador import modelo_do_goal as m, verificacao_do_goal
+from graphow.orquestrador import modelo_do_goal as m, verificacao_do_marco
 from graphow.orquestrador.comandos_do_stream import comandos_nao_rodados
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
@@ -35,14 +35,14 @@ def test_suite_vermelha_no_commit_verificado_reprova_a_verificacao_que_dizia_ate
 ) -> None:
     """O verificador diz que tudo atende, a suíte do orquestrador falha: vira bloqueante, correção e nova verificação."""
     bancada = montar_bancada(tmp_path, roteiro_farto())
-    original = verificacao_do_goal.rodar_suite
+    original = verificacao_do_marco.rodar_suite
     chamadas: list[str] = []
 
     def vermelha_na_primeira(*argumentos: Any, **nomeados: Any) -> ResultadoDaSuite:
         chamadas.append("suite")
         return ResultadoDaSuite("python verificar.py", 1, "AssertionError: C1") if len(chamadas) == 1 else original(*argumentos, **nomeados)
 
-    monkeypatch.setattr(verificacao_do_goal, "rodar_suite", vermelha_na_primeira)
+    monkeypatch.setattr(verificacao_do_marco, "rodar_suite", vermelha_na_primeira)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
@@ -55,7 +55,7 @@ def test_suite_vermelha_no_commit_verificado_reprova_a_verificacao_que_dizia_ate
     assert primeira["suite_do_orquestrador"]["codigo"] == 1 and not primeira["suite_do_orquestrador"]["passou"]
     assert segunda["suite_do_orquestrador"]["passou"] and segunda["comandos"][0]["codigo"] == 0
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
-    assert estado is not None and [fatia.codigo for fatia in estado.fatias] == ["F1", "F2", "K1.1"]
+    assert estado is not None and [fatia.codigo for fatia in estado.fatias] == ["F1", "F2", "M1.K1.1"]
 
 
 def test_verificacao_com_prova_vazia_nao_fecha_o_goal_edge_case(tmp_path: Path) -> None:
