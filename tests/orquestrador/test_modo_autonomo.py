@@ -89,6 +89,7 @@ def test_executor_do_autonomo_decide_e_a_decisao_fica_para_o_humano_revisar_nomi
     decidida = executor_pronto({"soma.py": SOMA_CERTA, "verificar.py": VERIFICAR})
     decidida["saida"]["decisoes"] = [{"questao": "inteiros ou decimais?", "decisao": "so inteiros", "motivo": "a spec diz so inteiros"}]
     roteiro["executor"][0] = decidida
+    roteiro["executor"][1]["saida"]["decisoes"] = [{"questao": "README em que idioma?", "decisao": "portugues.", "motivo": "a spec"}]
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
@@ -104,6 +105,8 @@ def test_executor_do_autonomo_decide_e_a_decisao_fica_para_o_humano_revisar_nomi
     assert any("inteiros ou decimais? -> so inteiros" in linha for linha in formatar_status(estado, []))
     documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
     assert "## Decisoes do agente (para o humano revisar)" in documento and "(F1) inteiros ou decimais? -> so inteiros" in documento
+    assert "(F2) README em que idioma? -> portugues. Motivo: a spec" in documento
+    assert "(task-" not in documento.split("## Decisoes do agente")[1], "a fatia aparece pelo codigo, e nao pelo id da Task"
 
 
 def test_resposta_manter_a_duvida_do_teste_nao_refaz_o_aceite_edge_case(tmp_path: Path) -> None:

@@ -56,7 +56,8 @@ def _linhas_do_aceite(estado: EstadoDoGoal) -> list[str]:
     decisoes = estado.decisoes_do_agente
     if decisoes:
         linhas.append(f"Decisoes do agente para o humano revisar: {len(decisoes)}")
-        linhas.extend(f"  {d.fatia}: {d.questao} -> {d.decisao} ({d.motivo})" for d in decisoes)
+        codigos = {fatia.id: fatia.codigo for fatia in estado.fatias}
+        linhas.extend(f"  {codigos.get(d.fatia, d.fatia)}: {d.questao} -> {d.decisao} ({d.motivo})" for d in decisoes)
     linhas.extend(f"Marco {marco.id}{' (final)' if marco.final else ''}: fatias {', '.join(marco.fatias)}; "
                   + ("verificado limpo" if any(v.limpa for v in estado.verificacoes_do_marco(marco)) else
                      "ciclos esgotados, bloqueantes seguem para a final" if estado.marco_esgotado(marco) else "sem verificacao limpa")

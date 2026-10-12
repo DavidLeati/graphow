@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-44 módulos · 7507 linhas · 62 classes
+44 módulos · 7512 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 140 | Os testes de aceite rodam com a configuração de teste do commit do aceite, mexa o executor no que mexer. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 181 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 101 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
-| [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 69 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
+| [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 73 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 135 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 173 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
@@ -51,7 +51,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 75 | A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 350 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
-| [`orquestrador/status.py`](#orquestradorstatus) | 113 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
+| [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
@@ -254,7 +254,7 @@ O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite
 ### Funções do módulo
 
 - `operacoes_das_decisoes(livro: LivroRazaoDoGoal, id_task: str, tentativa: int) -> list[ItemPatch]` — Cada decisão do executor como Decision marcada como do agente, que orienta a fatia.
-- `linhas_das_decisoes(decisoes: Sequence[DecisaoDoAgente], novas: Sequence[Mapping[str, Any]]) -> list[str]` — As decisões do agente para o documento e o status: a questão, a decisão e o motivo.
+- `linhas_das_decisoes(decisoes: Sequence[DecisaoDoAgente], novas: Sequence[Mapping[str, Any]]) -> list[str]` — As decisões do agente para o documento: a fatia pelo código dela (F1), a questão, a decisão e o motivo.
 - `documentar_decisoes(contexto: ContextoDoGoal, fatia: FatiaRegistrada, novas: Sequence[Mapping[str, Any]]) -> None` — A seção das decisões do agente no documento do Goal, com as novas, para entrar no commit da fatia.
 
 ## `orquestrador/documento_do_goal.py`

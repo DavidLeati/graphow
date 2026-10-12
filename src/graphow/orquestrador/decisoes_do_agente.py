@@ -52,11 +52,13 @@ def operacoes_das_decisoes(livro: LivroRazaoDoGoal, id_task: str, tentativa: int
     return operacoes
 
 
-def linhas_das_decisoes(decisoes: Sequence[DecisaoDoAgente], novas: Sequence[Mapping[str, Any]] = (), *, fatia: str = "") -> list[str]:
-    """As decisões do agente para o documento e o status: a questão, a decisão e o motivo."""
-    todas = [*((d.fatia, d.questao, d.decisao, d.motivo) for d in decisoes),
+def linhas_das_decisoes(decisoes: Sequence[DecisaoDoAgente], novas: Sequence[Mapping[str, Any]] = (), *, fatia: str = "",
+                        codigos: Mapping[str, str] | None = None) -> list[str]:
+    """As decisões do agente para o documento: a fatia pelo código dela (F1), a questão, a decisão e o motivo."""
+    nomes = codigos or {}
+    todas = [*((nomes.get(d.fatia, d.fatia), d.questao, d.decisao, d.motivo) for d in decisoes),
              *((fatia, str(n.get("questao", "")), str(n.get("decisao", "")), str(n.get("motivo", ""))) for n in novas)]
-    return [f"- ({origem}) {questao} -> {decisao}. Motivo: {motivo}" for origem, questao, decisao, motivo in todas]
+    return [f"- ({origem}) {questao} -> {decisao.rstrip('.')}. Motivo: {motivo}" for origem, questao, decisao, motivo in todas]
 
 
 def documentar_decisoes(contexto: ContextoDoGoal, fatia: FatiaRegistrada, novas: Sequence[Mapping[str, Any]]) -> None:
@@ -65,5 +67,7 @@ def documentar_decisoes(contexto: ContextoDoGoal, fatia: FatiaRegistrada, novas:
         return
     caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
     if caminho.is_file():
-        linhas = linhas_das_decisoes(ler_decisoes_do_agente(contexto.livro.view(), contexto.id_goal), novas, fatia=fatia.codigo)
+        codigos = {registrada.id: registrada.codigo for registrada in contexto.estado().fatias}
+        linhas = linhas_das_decisoes(ler_decisoes_do_agente(contexto.livro.view(), contexto.id_goal), novas, fatia=fatia.codigo,
+                                     codigos=codigos)
         gravar_se_mudou(caminho, com_secao(caminho.read_text(encoding="utf-8"), TITULO_DAS_DECISOES_DO_AGENTE, linhas))
