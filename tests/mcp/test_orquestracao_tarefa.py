@@ -167,3 +167,14 @@ def test_perspectiva_fora_dos_papeis_de_agente_e_recusada_edge_case() -> None:
 
     assert recibo["sucesso"] is False
     assert "perspectiva" in recibo["erro"]
+
+
+def test_perspectiva_do_revisor_por_task_saiu_edge_case() -> None:
+    """Caso de borda: a revisão por Task deixou de ser o padrão, e a vista do revisor saiu com ela."""
+    _, planejador = _montar()
+    _criar(planejador, "t1")
+
+    recibo = planejador.executar_ferramenta("ler_vista", {"id_alvo": "t1", "perspectiva": "revisor"})
+
+    assert recibo["sucesso"] is False
+    assert "use executor, planejador" in recibo["erro"]

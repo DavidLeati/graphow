@@ -15,7 +15,6 @@ from graphow.context.politicas import (
     PoliticaContexto,
     PoliticaExecutor,
     PoliticaPlanejador,
-    PoliticaRevisor,
 )
 from graphow.context.propostas_fora_do_goal import PoliticaHumano
 from graphow.context.renderizacao import RenderizadorContexto, TextoRenderizado
@@ -109,7 +108,6 @@ class MaterializadorContexto:
     POLITICAS_POR_PAPEL: dict[PapelAutor, PoliticaContexto] = {
         PapelAutor.PLANEJADOR: PoliticaPlanejador(),
         PapelAutor.EXECUTOR: PoliticaExecutor(),
-        PapelAutor.REVISOR: PoliticaRevisor(),
         PapelAutor.HUMANO: PoliticaHumano(),
         PapelAutor.ARBITRO: PoliticaArbitro(),
     }

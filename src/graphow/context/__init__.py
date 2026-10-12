@@ -5,7 +5,6 @@ from graphow.context.politicas import (
     PoliticaContexto,
     PoliticaExecutor,
     PoliticaPlanejador,
-    PoliticaRevisor,
 )
 from graphow.context.token_counter import ContadorTokens
 
@@ -15,7 +14,6 @@ __all__ = [
     "PoliticaContexto",
     "PoliticaExecutor",
     "PoliticaPlanejador",
-    "PoliticaRevisor",
     "RequisicaoVista",
     "VistaMaterializada",
 ]

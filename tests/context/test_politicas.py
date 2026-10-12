@@ -1,6 +1,6 @@
 """Testes unitários para as políticas de recorte de contexto por papel."""
 
-from graphow.context.politicas import PoliticaExecutor, PoliticaPlanejador, PoliticaRevisor
+from graphow.context.politicas import PoliticaExecutor, PoliticaPlanejador
 from graphow.core.models import ArestaGrafo, GrafoEstado, NoGrafo
 from graphow.core.types import StatusQuestion, TipoAresta, TipoNo
 from graphow.projection.graph_view import GrafoView
@@ -72,16 +72,9 @@ def test_planejador_recebe_a_decomposicao_do_alvo_nominal() -> None:
     assert "task-b" not in ids
 
 
-def test_revisor_recebe_artefatos_derivados_do_alvo_nominal() -> None:
-    """O revisor enxerga o artefato que deriva da tarefa sob revisão."""
-    ids = PoliticaRevisor().extrair_recorte("task-a", _montar_view()).ids_incluidos()
-    assert "art-a" in ids
-    assert "art-b" not in ids
-
-
 def test_duvida_bloqueante_aparece_em_qualquer_papel_edge_case() -> None:
     """Caso de borda: a dúvida que trava a tarefa é seção universal."""
-    for politica in (PoliticaExecutor(), PoliticaRevisor()):
+    for politica in (PoliticaExecutor(), PoliticaPlanejador()):
         recorte = politica.extrair_recorte("task-a", _montar_view())
         assert "quest-a" in recorte.ids_incluidos()
         assert "Duvidas Abertas Que Bloqueiam Este No" in _titulos(recorte)

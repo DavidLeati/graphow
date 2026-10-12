@@ -165,7 +165,7 @@ Ferramentas MCP de leitura e inspeção do grafo, sem efeitos colaterais.
 | :--- | :--- | :--- |
 | `ORCAMENTO_TOKENS_PADRAO` | `int` | `1500` |
 | `ESCOPO_ATIVO` | `str` | `'ativo'` |
-| `PERSPECTIVAS_DE_VISTA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVIS…` |
+| `PERSPECTIVAS_DE_VISTA` | `frozenset[PapelAutor]` | `frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR})` |
 
 ### `FerramentasLeitura`
 

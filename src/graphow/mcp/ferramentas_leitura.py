@@ -17,9 +17,9 @@ ESCOPO_ATIVO: str = "ativo"
 # Ler não dá poder: nenhum papel é restrito na leitura, e a política só decide o
 # que é relevante. Ler a Task como o executor a leria mostra se ela se sustenta
 # sozinha, o que o planejador não via porque a política dele esconde as decisões.
-PERSPECTIVAS_DE_VISTA: frozenset[PapelAutor] = frozenset(
-    {PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR, PapelAutor.REVISOR}
-)
+# A perspectiva do revisor por Task saiu na fase 2, com a revisão por Task como
+# padrão: a sessão de papel revisor lê como o executor.
+PERSPECTIVAS_DE_VISTA: frozenset[PapelAutor] = frozenset({PapelAutor.PLANEJADOR, PapelAutor.EXECUTOR})
 
 
 class FerramentasLeitura:

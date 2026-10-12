@@ -13,7 +13,7 @@ DEFINICOES_FERRAMENTAS_MCP: list[dict[str, Any]] = [
                 "orcamento_tokens": {"type": "integer", "default": 1500, "description": "Limite máximo de tokens da vista."},
                 "escopo": {"type": "string", "enum": ["tudo", "ativo"], "default": "tudo", "description": "'ativo' poda a navegação para o que está perto de trabalho não concluído. O padrão é 'tudo': Decision e Evidence são a memória que evita re-decidir, e escondê-las por default custa mais do que economiza."},
                 "raio_do_escopo": {"type": "integer", "default": 1, "description": "Saltos a partir do trabalho aberto quando escopo='ativo'. Acima de 1 o recorte cresce rápido."},
-                "perspectiva": {"type": "string", "enum": ["planejador", "executor", "revisor"], "description": "Lê o alvo como esse papel o lê; omitida, vale o papel da sessão. Lida com perspectiva='executor', a Task mostra se quem nunca viu a conversa a executaria só com aquilo."},
+                "perspectiva": {"type": "string", "enum": ["planejador", "executor"], "description": "Lê o alvo como esse papel o lê; omitida, vale o papel da sessão. Lida com perspectiva='executor', a Task mostra se quem nunca viu a conversa a executaria só com aquilo."},
             },
             "required": ["id_alvo"],
         },

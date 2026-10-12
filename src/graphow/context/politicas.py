@@ -305,34 +305,3 @@ class PoliticaPlanejador(PoliticaBase):
             for no in self._filtrar_por_tipo(nos, TipoNo.QUESTION)
             if no.obter_propriedade("status", StatusQuestion.ABERTA.value) == StatusQuestion.ABERTA.value
         )
-
-
-class PoliticaRevisor(PoliticaBase):
-    """Revisor: os artefatos derivados do alvo, as evidências e as decisões que os escopam.
-
-    O revisor chega pelo Artifact, sobe por `deriva_de` até a Task e dali às
-    decisões que a orientam. Sem a seção de decisões ele revisava contra o
-    gosto, e não contra o que ficou decidido.
-    """
-
-    def _secoes_do_papel(
-        self,
-        alvo: NoGrafo,
-        ambiente: AmbienteDoRecorte,
-    ) -> tuple[SecaoContexto, ...]:
-        """Artefatos, evidências e decisões ligados ao alvo por proveniência e orientação."""
-        vizinhanca = self._coletar(alvo, ambiente, ARESTAS_DE_PROVENIENCIA | ARESTAS_DE_ORIENTACAO | {TipoAresta.CONTRADIZ})
-        governam = montar_secao_das_decisoes_que_governam(alvo, ambiente.view, ordem=5)
-        return (
-            montar_secao_de_nos(
-                "Artefatos Sob Revisao",
-                self._filtrar_por_tipo(vizinhanca, TipoNo.ARTIFACT),
-                (3, PrioridadeRetencao.DECISOES),
-            ),
-            montar_secao_de_nos(
-                "Evidencias Disponiveis",
-                self._filtrar_por_tipo(vizinhanca, TipoNo.EVIDENCE),
-                (4, PrioridadeRetencao.APOIO),
-            ),
-            governam,
-        )
