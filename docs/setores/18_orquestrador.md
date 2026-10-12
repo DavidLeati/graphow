@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-30 módulos · 5025 linhas · 53 classes
+31 módulos · 5305 linhas · 54 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -31,8 +31,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 267 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 178 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 131 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 109 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
-| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 212 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 233 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 186 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 245 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 305 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -629,6 +630,35 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 
 - `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
 
+## `orquestrador/resultado_de_teste.py`
+
+O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RUNNER_DESCONHECIDO` | `str` | `'desconhecido'` |
+| `CODIGOS_DE_COMANDO_AUSENTE` | `frozenset[int]` | `frozenset({126, 127})` |
+| `CODIGO_DO_PYTEST_COM_FALHA` | `int` | `1` |
+| `EXCECOES_DE_ASSERCAO` | `frozenset[str]` | `frozenset({'AssertionError', 'Failed', 'pytest.fail.Exception', '_pytes…` |
+| `PALAVRAS_DE_PULO` | `re.Pattern[str]` | `re.compile('\\b(skip|skipped|skipping|xfail|xfailed|xpass|xpassed|todo|…` |
+| `ERRO_FORA_DA_ASSERCAO` | `re.Pattern[str]` | `re.compile('\\b(ModuleNotFoundError|ImportError|SyntaxError|Indentation…` |
+| `MARCAS_DE_FALHA` | `re.Pattern[str]` | `re.compile('^(FAILED|FAIL:|FAIL |not ok|\\s*[✖✕×●]|_{3,} |\\s*\\d+\\) )…` |
+| `RUNNERS_NO_COMANDO` | `tuple[tuple[str, re.Pattern[str]], ...]` | `(('pytest', re.compile('\\b(pytest|py\\.test)\\b')), ('unittest', re.co…` |
+| `LEITORES` | `tuple[Callable[[str], Contagem | None], ...]` | `(_pytest, _unittest, _node, _jest, _vitest, _mocha)` |
+
+### `Contagem`
+
+*DTO imutável* — Quantos testes passaram, falharam, deram erro e foram pulados, como o runner disse.
+
+**Campos:** `runner: str`, `passados: int`, `falhos: int`, `erros: int`, `pulados: int`
+
+### Funções do módulo
+
+- `runner_do_comando(comando: str) -> str` — O runner que o comando chama, quando é um que o orquestrador conhece; senão, desconhecido.
+- `ler_saida(saida: str) -> Contagem | None` — A contagem do primeiro runner conhecido cujo resumo está na saída; None quando nenhum está.
+- `por_que_nao_passou(comando: str, codigo: int | None, saida: str) -> str` — Por que o teste não conta como verde; vazio quando conta.
+- `por_que_o_vermelho_nao_vale(comando: str, codigo: int | None, saida: str) -> str` — Por que a falha não é a asserção do teste declarado; vazio quando é.
+
 ## `orquestrador/revisao_da_fatia.py`
 
 A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit.
@@ -673,7 +703,9 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 
 **Campos:** `criterio: str`, `teste: str`, `comando: str`, `codigo: int | None`, `saida: str`
 
-- `passou() -> bool` `[property]` — Saiu com zero.
+- `motivo() -> str` `[property]` — Por que o teste não conta como verde (saiu com erro, foi pulado, o runner não disse); vazio quando conta.
+- `passou() -> bool` `[property]` — Saiu com zero e a saída do runner diz que passou, sem pular nada.
+- `vermelho_invalido() -> str` — Por que a falha não é a asserção do teste declarado; vazio quando é.
 - `em_json() -> dict[str, Any]` — A execução para o livro-razão.
 
 ### `SaidaDoAceite`

@@ -14,7 +14,9 @@ sua entrada, cada teste existe em `aceite/`, tem o nome no arquivo e cita o
 critério, e o autor não mexeu em nada fora de `aceite/`. E roda cada teste: o
 teste que já passa sem implementação é sinalizado, porque ou o critério já era
 atendido pelo código (e a justificativa diz por quê), ou o teste não prova
-nada. O que não confere volta à mesma sessão, uma vez.
+nada; e o que falha tem de falhar numa asserção dele, lida na saída do runner
+(orquestrador/resultado_de_teste.py), e não por import, coleta, comando ou
+nome errado. O que não confere volta à mesma sessão, uma vez.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -24,6 +26,7 @@ import re
 from typing import Any
 
 from graphow.core import aceite as a
+from graphow.orquestrador.resultado_de_teste import por_que_nao_passou, por_que_o_vermelho_nao_vale
 from graphow.orquestrador.suite import ResultadoDaSuite
 
 PASTA_DO_ACEITE: str = "aceite"
@@ -161,14 +164,23 @@ class ExecucaoDeAceite:
     saida: str
 
     @property
+    def motivo(self) -> str:
+        """Por que o teste não conta como verde (saiu com erro, foi pulado, o runner não disse); vazio quando conta."""
+        return por_que_nao_passou(self.comando, self.codigo, self.saida)
+
+    @property
     def passou(self) -> bool:
-        """Saiu com zero."""
-        return self.codigo == 0
+        """Saiu com zero e a saída do runner diz que passou, sem pular nada."""
+        return not self.motivo
+
+    def vermelho_invalido(self) -> str:
+        """Por que a falha não é a asserção do teste declarado; vazio quando é."""
+        return por_que_o_vermelho_nao_vale(self.comando, self.codigo, self.saida, nome=self.teste)
 
     def em_json(self) -> dict[str, Any]:
         """A execução para o livro-razão."""
         return {"criterio": self.criterio, "teste": self.teste, "comando": self.comando, "codigo": self.codigo,
-                "passou": self.passou, "saida": self.saida[-LIMITE_DA_SAIDA_REGISTRADA:]}
+                "passou": self.passou, "motivo": self.motivo, "saida": self.saida[-LIMITE_DA_SAIDA_REGISTRADA:]}
 
 
 def rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None = None) -> tuple[ExecucaoDeAceite, ...]:
@@ -192,6 +204,13 @@ def _execucao(criterio: str, teste: str, comando: str, *, rodar: Rodar) -> Execu
     return ExecucaoDeAceite(criterio, teste, comando, codigo, resultado.saida)
 
 
+def _vermelho_errado(execucao: ExecucaoDeAceite, motivo: str) -> str:
+    """O problema do teste vermelho pelo motivo errado, para a nova tentativa do autor."""
+    return (f"o teste {execucao.teste} de {execucao.criterio} esta vermelho pelo motivo errado: {motivo}. Antes da "
+            "implementacao ele tem de rodar e falhar numa assercao dele: importe o que ainda nao existe dentro do teste e "
+            "transforme a ausencia em assert, sem skip, xfail nem todo, e com o resumo do runner na saida")
+
+
 def conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]:
     """Os testes falham antes da implementação, salvo o do critério que já era atendido; devolve os problemas e as execuções."""
     execucoes = rodar_testes(saida, rodar)
@@ -200,9 +219,11 @@ def conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ..
         (f"o teste {e.teste} de {e.criterio} ja passa sem implementacao: ou o criterio ja era atendido pelo codigo "
          "(diga por que em 'ja_atendido'), ou o teste nao prova nada (corrija-o para falhar enquanto o criterio nao for atendido)")
         if e.passou else
-        f"o teste {e.teste} de {e.criterio} falha, mas 'ja_atendido' diz que o codigo ja atende {e.criterio}"
+        f"o teste {e.teste} de {e.criterio} nao passa ({e.motivo}), mas 'ja_atendido' diz que o codigo ja atende {e.criterio}"
         for e in execucoes if e.passou != (e.criterio in ja_atendidos)
     ]
+    problemas += [_vermelho_errado(e, motivo) for e in execucoes
+                  if not e.passou and e.criterio not in ja_atendidos and (motivo := e.vermelho_invalido())]
     todos_atendidos = bool(execucoes) and all(e.criterio in ja_atendidos for e in execucoes)
     agregado = rodar_o_comando_de_aceite(saida, rodar) if execucoes else None
     if agregado is not None and agregado.passou != todos_atendidos:

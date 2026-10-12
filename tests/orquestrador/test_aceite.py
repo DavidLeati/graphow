@@ -68,7 +68,7 @@ def test_teste_que_ja_passa_sem_justificativa_volta_ao_autor_edge_case(tmp_path:
     """Caso de borda: o teste que passa sem implementação é sinalizado; a mesma sessão corrige e o Goal segue."""
     roteiro = _roteiro_limpo()
     vazio = autor_de_aceite()
-    vazio["arquivos"] = {"aceite/aceite_c1.py": '"""C1."""\n\ndef test_c1_soma():\n    pass\n\n\ntest_c1_soma()\n'}
+    vazio["arquivos"] = {"aceite/aceite_c1.py": '"""C1."""\n\ndef test_c1_soma():\n    pass\n\n\ntest_c1_soma()\nprint("ok")\n'}
     roteiro["aceite"] = [vazio, autor_de_aceite()]
     bancada = montar_bancada(tmp_path, roteiro)
 
@@ -188,3 +188,55 @@ def test_supervisionado_para_depois_do_autor_e_aprova_plano_e_testes_juntos_nomi
 
     assert recusa.value.contexto["modo"] == "fechamento_sem_verificacao_limpa"
     assert "a ultima verificacao foi feita no commit" in recusa.value.contexto["motivo"]
+
+
+ACEITE_PYTEST: str = (
+    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.insert(0, ".")\n\n\n'
+    "def test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n"
+)
+COMANDO_PYTEST: str = f"{PYTHON} -m pytest -q -p no:cacheprovider aceite/aceite_c1.py"
+
+
+def _aceite_em_pytest(conteudo: str) -> dict[str, Any]:
+    """O autor de aceite com o teste de C1 em pytest, rodado pelo pytest."""
+    resposta = autor_de_aceite()
+    resposta["saida"]["comando_aceite"] = COMANDO_PYTEST
+    resposta["saida"]["criterios"][0]["testes"][0]["comando"] = f"{COMANDO_PYTEST}::test_c1_soma"
+    resposta["arquivos"] = {"aceite/aceite_c1.py": conteudo}
+    return resposta
+
+
+def test_teste_vermelho_por_erro_de_coleta_volta_ao_autor_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o teste que falha porque o import do topo quebra a coleta não vale como vermelho; o autor corrige."""
+    roteiro = _roteiro_limpo()
+    coleta = '"""C1."""\nfrom modulo_que_nao_existe import somar\n\n\ndef test_c1_soma():\n    assert somar(2, 3) == 5\n'
+    roteiro["aceite"] = [_aceite_em_pytest(coleta), _aceite_em_pytest(ACEITE_PYTEST)]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    retomada = bancada.chamadas("aceite")[1]["stdin"]
+    assert "o teste test_c1_soma de C1 esta vermelho pelo motivo errado: o pytest saiu com 4" in retomada
+
+
+def test_teste_de_aceite_pulado_pelo_modulo_do_executor_nao_passa_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (bloqueante 1c): o código que faz o teste de aceite se pular sai com zero, e mesmo assim reprova C1."""
+    roteiro = _roteiro_limpo()
+    roteiro["aceite"] = [_aceite_em_pytest(ACEITE_PYTEST)]
+    pula = ("import sys\n\nif 'pytest' in sys.modules:\n    import pytest\n    pytest.skip('pulado', allow_module_level=True)\n\n\n"
+            "def somar(a, b):\n    return a - b\n")
+    roteiro["executor"][0] = executor_pronto({"soma.py": pula, "verificar.py": "print('ok')\n"})
+    roteiro["executor"].append(executor_pronto({"soma.py": SOMA_CERTA}))
+    roteiro["verificador"] = [verificacao("atende"), verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    primeira = estado.verificacoes[0]
+    assert {p["id"]: p["veredito"] for p in primeira.propriedades["pareceres"]}["C1"] == "nao_atende"
+    assert "1 teste(s) foram pulados" in primeira.bloqueantes()[0].texto("descricao")
+    assert [e["passou"] for e in estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]] == [True, True]

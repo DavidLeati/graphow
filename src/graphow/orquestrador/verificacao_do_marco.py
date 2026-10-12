@@ -84,10 +84,10 @@ def _com_o_aceite(verificacao: Verificacao, execucoes: Sequence[ExecucaoDeAceite
     """
     algum_criterio = any(not e.passou for e in execucoes if e.criterio)
     for execucao in (e for e in execucoes if not e.passou and (e.criterio or not algum_criterio)):
-        situacao = "tempo esgotado" if execucao.codigo is None else f"codigo {execucao.codigo}"
-        descricao = f"`{execucao.comando}` saiu com {situacao} no commit verificado. Fim da saida:\n{execucao.saida[-LIMITE_DO_TRECHO:]}"
+        situacao = execucao.motivo
+        descricao = f"`{execucao.comando}` nao passou no commit verificado: {situacao}. Fim da saida:\n{execucao.saida[-LIMITE_DO_TRECHO:]}"
         if execucao.criterio:
-            prova = f"o teste de aceite {execucao.teste} falhou ({situacao}) quando o orquestrador o rodou"
+            prova = f"o teste de aceite {execucao.teste} nao passou ({situacao}) quando o orquestrador o rodou"
             verificacao = verificacao.com_parecer(execucao.criterio, a.VEREDITO_NAO_ATENDE, prova)
             titulo = f"O teste de aceite {execucao.teste} de {execucao.criterio} falhou"
             verificacao = verificacao.com_achado_do_orquestrador(titulo, descricao, (execucao.criterio,))
