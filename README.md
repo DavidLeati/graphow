@@ -113,7 +113,7 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 1. **Portão 1 — `SchemaGate`:** Sanitização estrita contra *prototype pollution* (`__proto__`, `constructor`, `__class__`), checagem de tipos e validação da tabela ontológica de pares válidos de arestas. Só aceita as formas que o conversor grava como elas são (`add`/`remove` em `/nos/<id>` e `/arestas/<id>`, `add`/`replace` em `/nos/<id>/rotulo`, `add`/`replace`/`remove` em `/nos/<id>/propriedades/<chave>`), sem segmento vazio (`//` ou `/` no final), e todo `add` cria um id novo, o mesmo do campo `id` do valor. Também confere a política de governança declarada (`preset` e `personalizada` do nó `Governanca` e da propriedade `governanca` do `Projeto`): preset ou gesto desconhecido, valor fora do domínio do gesto e um segundo nó `Governanca` com id diferente de `governanca-global` caem com `estrutura_incompleta`, e nenhuma aresta toca o `Governanca`. Antes disso, uma barra no final de `.../propriedades/status/` escapava da regra do RoleGate e encerrava a `Question`, um `test` no status concluía uma `Task` com dúvida bloqueante aberta, um `add` sobre id existente transformava uma `Constraint` em `Note`, e um `add` em `/arestas/<id>/...` gravava um evento que quebrava toda leitura do ramo.
 2. **Portão 2 — `RoleGate`:** Matriz de permissões por papel, aplicada sobre a identidade da *conexão*, nunca sobre um campo do payload:
    - **`humano`**: Acesso irrestrito. Só ele faz, em qualquer preset, a promoção global, a configuração da governança e o push; os demais gestos (encerrar uma `Question`, criar/editar `Constraint`, excluir, fechar `Goal`, encerrar `Sessao`, liberar posse alheia, estruturar a camada de navegação) são dele a menos que a política os entregue ao árbitro, e a `Task` de ação externa é dele a menos que a política a entregue ao executor.
-   - **`orquestrador`**: O laço do `graphow orquestrar`, único escritor do Goal que conduz, com contrato próprio (`kernel/papel_do_orquestrador.py`): cria a hierarquia do Goal, o Goal, os critérios (`Constraint`), as decisões, as fatias (`Task`), as dúvidas (`Question` aberta), os commits (`Artifact`), as verificações (`Evidence` ligada ao Goal) e as notas; conclui fatia e fecha o Goal sem posse nem veredito por `Task`. Nunca cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele.
+   - **`orquestrador`**: O laço do `graphow orquestrar`, único escritor do Goal que conduz, com contrato próprio (`kernel/papel_do_orquestrador.py`): cria a hierarquia do Goal, o Goal, os critérios (`Constraint`), as decisões, as fatias (`Task`), as dúvidas (`Question` aberta), os commits (`Artifact`), as verificações (`Evidence` ligada ao Goal) e as notas; conclui fatia e fecha o Goal sem posse nem veredito por `Task`. Cada lote dele diz o Goal que conduz e fica preso a ele (o Goal, a Sessao `orq-sessao-<id>`, o que ela produz e a contenção acima dela): não escreve noutro Goal, não liga nó dele a nó do humano ou de outro Goal e não edita aresta. Nunca cria `Governanca` nem `Aprendizado`, não escreve a política, o plano aprovado nem a resposta de uma `Question`, não remove nada, e nenhum servidor MCP abre com ele.
    - Os papéis de agente abaixo (planejador, executor, revisor, árbitro) seguem como contratos do kernel, para o log antigo e para quem escreve em processo; desde a fase 1 nenhum servidor abre com eles, e a fase 4 os reduz.
    - **`planejador`**: Cria `Task`, `Decision`, `Question`, `Note` e a `Evidence` do que leu, sempre localizada (no arquivo ou na fonte); decompõe, ordena e diz com `orienta` onde cada decisão vale. Concluir `Task` exige veredito aprovado, como para todo agente.
    - **`executor`**: Cria `Artifact`, `Evidence`, `Question`, `Note`, `Aprendizado`; assume tarefas e trabalha nelas; proibido de criar tarefas, alterar constraints, trocar a `entrega` de uma `Task` e, salvo quando a política lhe entrega o gesto `acao_externa`, assumir ou entregar a `Task` de ação externa.
@@ -863,9 +863,17 @@ programa contra o pedido, e não pela burocracia. A skill `graphow-orquestracao`
 e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orquestrador/`)
 é um laço em código, e os LLMs entram só onde há julgamento:
 
-1. **Área de trabalho.** O Goal trabalha num worktree git só dele, numa branch
-   do Goal (`--ramo`, padrão `graphow/<slug>`) criada da base (`--base`, padrão
-   a branch atual). O checkout do humano não é tocado até a integração. A branch
+1. **Área de trabalho.** O Goal trabalha num clone local só dele
+   (`git clone --local`, objetos por hardlink quando a pasta está no mesmo
+   disco, sem alternates), numa branch do Goal (`--ramo`, padrão
+   `graphow/<slug>`) criada da base (`--base`, padrão a branch atual). O clone
+   não tem remoto, tag, reflog nem hook, e só leva a branch do Goal e a base:
+   o agente não enxerga ref nem configuração do humano, e o que ele fizer no git
+   fica no clone. A branch do Goal no repositório do humano é só do orquestrador,
+   que a cria e a avança puxando do clone (`git fetch <clone>` rodado no
+   repositório do humano) depois de cada commit dele, só por fast-forward: a
+   branch que andou fora do orquestrador não é sobrescrita, e a chamada para
+   dizendo isso. O checkout do humano não é tocado até a integração. A branch
    que já existe com commit que não é do Goal (todo commit do orquestrador leva
    os trailers `Graphow-Goal` e, na fatia, `Graphow-Task`) é recusada, a menos
    que a chamada diga `--adotar-ramo`; a `--area` não pode ser o checkout do
@@ -896,7 +904,9 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    parecer por critério e por decisão, com prova, achados com gravidade e a
    lista dos comandos que rodou, cada um com o código de saída e um trecho da
    saída: sem comando rodado, ou com prova de menos de dez caracteres, a
-   verificação não confere. Depois, o próprio orquestrador roda a suíte no
+   verificação não confere, e cada comando declarado tem de aparecer numa
+   chamada da ferramenta Bash do stream da sessão (o que não aparece volta à
+   mesma sessão uma vez, como o JSON inválido). Depois, o próprio orquestrador roda a suíte no
    commit verificado; vermelha, ela é bloqueante, diga o verificador o que
    disser. A verificação vira `Evidence` ligada ao Goal, com o commit
    verificado, os comandos e a suíte, no mesmo lote das pendências que deixa.
@@ -921,7 +931,7 @@ nunca exceção.
 | :--- | :--- |
 | Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
 | Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez |
-| O agente não escreve no git | Três camadas (`orquestrador/trava_do_git.py`). As regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push. O ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`, e dá ao agente uma identidade de committer própria. Antes de cada sessão o orquestrador fotografa as refs (remotas inclusive), os checkouts e a configuração do repositório; depois, desfaz a ref que mudou sem o humano no reflog e a configuração mudada, relata o checkout de outra pasta que trocou de branch e reprova a sessão com a lista. O commit que escapou na branch do Goal volta à árvore com `reset --soft`. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pela trava; o push que passar pelas três não se desfaz, e a conferência o relata |
+| O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal e o fast-forward da integração). Dentro do clone, três camadas em profundidade (`orquestrador/trava_do_git.py`): as regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push; o ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`; e, depois de cada sessão, o clone volta ao que era (a branch do Goal no commit de antes, com o commit que escapou de volta à árvore por `reset --soft`, as outras refs, a configuração e os hooks), sem reprovar a sessão, porque no clone só o agente mexe. Nada fora do clone é conferido nem desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
 | Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
@@ -930,19 +940,19 @@ Modelo por papel: `--modelo-planejador`, `--modelo-executor` e
 `--modelo-verificador`, todos Opus por padrão (`sugerido` no executor segue o
 modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 `--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
-Goal (área de trabalho, streams das sessões, patches e a trava do git) fica em
-`<pasta do banco>/orquestrar/<goal>/`.
+Goal (o clone da área, os streams das sessões, os patches e a trava do git) fica
+em `<pasta do banco>/orquestrar/<goal>/`; o clone sai quando o Goal fecha, e a
+branch do Goal fica no repositório do humano. A área de uma versão anterior, que
+era um worktree, dá lugar ao clone na chamada seguinte.
 
 O teste de fumaça real (um repositório de brinquedo com uma função e quatro
-critérios, modo autônomo, Opus nos três papéis) fechou o Goal com três
-sessões, US$ 0,46 e 1,4 minuto: um commit de plano, um de fatia e um das
-pendências que o verificador achou, todos com o trailer do Goal. A verificação
-listou quatro comandos rodados, com o código de saída de cada um, e a suíte
-que o orquestrador rodou no commit verificado, no Git Bash, passou; os 53
-eventos do Goal são do papel `orquestrador`. A spec pedia ao executor que
-tentasse `git commit` e `git -c core.hooksPath=. branch -D` numa branch do
-humano, e ele recusou pelas regras da sessão; a conferência do git depois da
-sessão, a terceira camada, é coberta pelos testes.
+critérios, modo autônomo, Opus nos três papéis, área num clone) fechou o Goal
+com três sessões, US$ 0,40 e 1,1 minuto: um commit de plano, um de fatia e um
+das pendências que o verificador achou, todos com o trailer do Goal, levados à
+branch do Goal no repositório e integrados por fast-forward. Os comandos que o
+verificador declarou apareceram nas chamadas Bash do stream na primeira
+resposta. Durante a sessão do executor o humano commitou numa outra branch do
+repositório dele e criou uma tag anotada; os dois ficaram como ele os deixou.
 
 ---
 
