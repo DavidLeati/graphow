@@ -10,14 +10,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-22 módulos · 3391 linhas · 43 classes
+22 módulos · 3420 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 149 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 147 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 148 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
-| [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 114 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
+| [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 121 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 254 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
@@ -101,7 +101,7 @@ O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orça
 
 *DTO imutável* — O que a chamada pede; None quer dizer "o que já está gravado no Goal, ou o padrão".
 
-**Campos:** `modo: str | None`, `ramo: str`, `base: str`, `orcamento_usd: float | None`, `area: Path | None`, `tempo_limite_da_suite_s: float`
+**Campos:** `modo: str | None`, `ramo: str`, `base: str`, `orcamento_usd: float | None`, `area: Path | None`, `tempo_limite_da_suite_s: float`, `adotar_ramo: bool`
 
 ### `Parada`
 

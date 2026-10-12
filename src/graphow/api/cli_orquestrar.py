@@ -52,18 +52,27 @@ def registrar_comando_de_orquestrar(
     acao = parser.add_mutually_exclusive_group()
     acao.add_argument("--status", action="store_true", help="So mostra onde o Goal esta e quanto as sessoes custaram")
     acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano do Goal (portao do humano) e segue")
-    parser.add_argument("--repo", default="", help="Repositorio git do trabalho (padrao: o diretorio atual)")
+    _registrar_opcoes_do_git(parser)
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
-    parser.add_argument("--ramo", default="", help="Branch do Goal (padrao: graphow/<slug>)")
-    parser.add_argument("--base", default="", help="Branch base (padrao: a branch atual do repositorio)")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
-    parser.add_argument("--area", default="", help="Pasta do worktree do Goal (padrao: na pasta de estado do Goal)")
     for papel in PAPEIS:
         parser.add_argument(f"--modelo-{papel}", default=MODELO_PADRAO, help=f"Modelo do {papel} (padrao: {MODELO_PADRAO})")
     parser.add_argument("--permissao", default=MODO_DE_PERMISSAO_PADRAO, help="Modo de permissao das sessoes (padrao: bypassPermissions)")
     parser.add_argument("--tempo-limite", type=float, default=60.0, help="Minutos por sessao de agente (padrao: 60)")
     parser.add_argument("--tempo-limite-suite", type=float, default=30.0, help="Minutos para a suite do projeto (padrao: 30)")
     parser.add_argument("--autor", default="", help="Quem aprova o plano (padrao: o usuario do sistema)")
+
+
+def _registrar_opcoes_do_git(parser: argparse.ArgumentParser) -> None:
+    """Onde o Goal trabalha: o repositório, a branch, a base e a área."""
+    parser.add_argument("--repo", default="", help="Repositorio git do trabalho (padrao: o diretorio atual)")
+    parser.add_argument("--ramo", default="", help="Branch do Goal (padrao: graphow/<slug>)")
+    parser.add_argument("--base", default="", help="Branch base (padrao: a branch atual do repositorio)")
+    parser.add_argument("--area", default="", help="Pasta do worktree do Goal (padrao: na pasta de estado do Goal)")
+    parser.add_argument(
+        "--adotar-ramo", action="store_true",
+        help="Aceita a branch do Goal que ja existe mesmo com commits que nao sao do Goal (sem isso, recusa)",
+    )
 
 
 @dataclass(frozen=True)
@@ -121,6 +130,7 @@ def _opcoes(argumentos: argparse.Namespace) -> OpcoesDoLaco:
         orcamento_usd=argumentos.orcamento_usd,
         area=Path(argumentos.area).expanduser() if argumentos.area else None,
         tempo_limite_da_suite_s=argumentos.tempo_limite_suite * SEGUNDOS_POR_MINUTO,
+        adotar_ramo=argumentos.adotar_ramo,
     )
 
 

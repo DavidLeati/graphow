@@ -69,6 +69,7 @@ class OpcoesDoLaco:
     orcamento_usd: float | None = None
     area: Path | None = None
     tempo_limite_da_suite_s: float = TEMPO_LIMITE_DA_SUITE_S
+    adotar_ramo: bool = False
 
 
 @dataclass(frozen=True)
