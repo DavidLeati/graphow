@@ -137,7 +137,9 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         _bloco("Decisoes", _decisoes(plano)),
         _bloco("Commits do Goal desde a base", list(entregues)),
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),
-        "Devolva a verificacao no JSON do schema, com um parecer para cada criterio e cada decisao.",
+        "Devolva a verificacao no JSON do schema, com um parecer para cada criterio e cada decisao e, em `comandos`, "
+        "cada comando que rodou, com o codigo de saida e um trecho do que ele imprimiu. Depois de voce, o orquestrador "
+        "roda a suite nesse commit: suite vermelha reprova a entrega.",
     ])
 
 

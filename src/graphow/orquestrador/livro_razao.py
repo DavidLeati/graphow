@@ -19,6 +19,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoP
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.saidas import Achado, SaidaDoExecutor, Verificacao
+from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite
 from graphow.projection.graph_view import GrafoView
 
 RAMO_PADRAO: str = "main"
@@ -200,9 +201,11 @@ class LivroRazaoDoGoal:
         return id_questao
 
     def gravar_verificacao(
-        self, numero: int, verificacao: Verificacao, *, commit: str, ciclo: int, pendencias: Sequence[Mapping[str, Any]]
+        self, numero: int, verificacao: Verificacao, *, commit: str, ciclo: int, pendencias: Sequence[Mapping[str, Any]],
+        suite: ResultadoDaSuite,
     ) -> str:
-        """A verificação vira Evidence ligada ao Goal, no mesmo lote da lista de pendências que ela deixa; devolve o id."""
+        """A verificação vira Evidence ligada ao Goal, com os comandos do verificador e a suíte que o orquestrador
+        rodou no commit verificado, no mesmo lote da lista de pendências que ela deixa; devolve o id."""
         id_evidencia = f"ver-{self.id_goal}-{numero}"
         bloqueantes = verificacao.bloqueantes()
         propriedades = {
@@ -212,6 +215,9 @@ class LivroRazaoDoGoal:
             m.CAMPO_CICLO: ciclo,
             "fonte": "graphow orquestrar: sessao do verificador",
             "resumo": verificacao.resumo,
+            "comandos": [comando.em_json() for comando in verificacao.comandos],
+            "suite_do_orquestrador": {"comando": suite.comando, "codigo": suite.codigo, "passou": suite.passou,
+                                      "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
             "pareceres": [{"id": p.id, "veredito": p.veredito, "prova": p.prova} for p in (*verificacao.criterios, *verificacao.decisoes)],
             "bloqueantes": [achado.em_json() for achado in bloqueantes],
             "acompanhamentos": [achado.em_json() for achado in verificacao.acompanhamentos()],

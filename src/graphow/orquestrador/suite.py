@@ -18,6 +18,8 @@ from graphow.sessoes.sessao_claude import NO_WINDOWS, matar_arvore
 
 TEMPO_LIMITE_DA_SUITE_S: float = 1800.0
 LIMITE_DA_SAIDA: int = 20000
+# O fim da saída que vai para a Evidence da verificação e para o bloqueante da suíte vermelha.
+LIMITE_DO_TRECHO: int = 2000
 
 
 @dataclass(frozen=True)

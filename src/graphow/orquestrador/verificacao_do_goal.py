@@ -1,7 +1,10 @@
 """Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento.
 
 Com as fatias concluídas, uma sessão nova do verificador confere a entrega no
-commit atual. A verificação vira Evidence ligada ao Goal; cada bloqueante vira
+commit atual e lista os comandos que rodou, com o código e um trecho da saída;
+depois o próprio orquestrador roda a suíte do plano nesse commit, e a suíte
+vermelha é bloqueante, diga o verificador o que disser. A verificação vira
+Evidence ligada ao Goal, com os comandos e a suíte; cada bloqueante vira
 fatia de correção, até dois ciclos; os acompanhamentos vão para a seção de
 pendências do documento do Goal, num commit só desse documento. O Goal só
 fecha quando a última verificação não tem bloqueante e vale para o commit
@@ -37,6 +40,7 @@ from graphow.orquestrador.git_do_goal import (
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, VerificacaoRegistrada
 from graphow.orquestrador.saidas import Achado, Verificacao, conferir_verificacao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
+from graphow.orquestrador.suite import LIMITE_DO_TRECHO, rodar_suite
 
 
 def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
@@ -68,14 +72,33 @@ def _ja_corrigida(estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> b
 
 
 def _verificar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
-    """Uma sessão nova do verificador no commit atual, gravada como Evidence do Goal."""
+    """Uma sessão nova do verificador no commit atual e a suíte do plano, gravadas como Evidence do Goal."""
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
+    head = contexto.git.head()
+    dados = _sessao_do_verificador(contexto, estado, head)
+    if isinstance(dados, Parada):
+        return dados
+    plano = estado.plano or {}
+    suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
+                        tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
+    verificacao = Verificacao.de_json(dados)
+    verificacao = verificacao if suite.passou else verificacao.com_a_suite_vermelha(suite.descrever()[-LIMITE_DO_TRECHO:])
+    numero = len(estado.verificacoes) + 1
+    pendencias = _pendencias_depois(estado, verificacao, numero=numero)
+    contexto.livro.gravar_verificacao(
+        numero, verificacao, commit=head, ciclo=estado.ciclos_de_correcao, pendencias=pendencias, suite=suite
+    )
+    _sincronizar_documento(contexto, pendencias, numero=numero)
+    return None
+
+
+def _sessao_do_verificador(contexto: ContextoDoGoal, estado: EstadoDoGoal, head: str) -> Mapping[str, Any] | Parada:
+    """A saída conferida do verificador, que roda numa sessão nova e não deixa mudança na área; ou a parada."""
     plano = estado.plano or {}
     criterios = [str(c["id"]) for c in plano.get("criterios", [])]
     decisoes = [str(d["id"]) for d in plano.get("decisoes", [])]
-    head = contexto.git.head()
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_VERIFICADOR, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=len(estado.verificacoes) + 1,
@@ -88,12 +111,7 @@ def _verificar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
     descartar_mudancas(contexto.area, contexto.patch(f"verificador-{len(estado.verificacoes) + 1}"))
     if resposta.dados is None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, "A verificacao nao conferiu: " + "; ".join(resposta.problemas))
-    verificacao = Verificacao.de_json(resposta.dados)
-    numero = len(estado.verificacoes) + 1
-    pendencias = _pendencias_depois(estado, verificacao, numero=numero)
-    contexto.livro.gravar_verificacao(numero, verificacao, commit=head, ciclo=estado.ciclos_de_correcao, pendencias=pendencias)
-    _sincronizar_documento(contexto, pendencias, numero=numero)
-    return None
+    return resposta.dados
 
 
 def _pendencias_depois(estado: EstadoDoGoal, verificacao: Verificacao, *, numero: int) -> list[dict[str, Any]]:

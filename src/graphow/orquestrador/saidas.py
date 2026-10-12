@@ -4,18 +4,19 @@ O schema garante a forma; aqui se garante o sentido: ids únicos, fatia que
 cobre critério que existe, dependência que aponta fatia do plano e não fecha
 ciclo, todo critério coberto, os critérios e as decisões que o humano já fixou
 mantidos, a dúvida com pergunta e a verificação que dá parecer sobre cada
-critério. Saída que não confere volta à mesma sessão com a lista de
-problemas, uma vez (orquestrador/sessoes_de_papel.py).
+critério e lista os comandos que rodou. Saída que não confere volta à mesma
+sessão com a lista de problemas, uma vez (orquestrador/sessoes_de_papel.py).
 """
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 VEREDITO_QUE_ATENDE: str = "atende"
 GRAVIDADE_BLOQUEANTE: str = "bloqueante"
 GRAVIDADE_ACOMPANHAMENTO: str = "acompanhamento"
 STATUS_DUVIDA: str = "duvida"
+TITULO_DA_SUITE_VERMELHA: str = "A suite do plano falhou no commit verificado"
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -199,6 +200,25 @@ class Achado:
 
 
 @dataclass(frozen=True)
+class ComandoRodado:
+    """Um comando que o verificador rodou: o que, com que código saiu e um trecho do que imprimiu."""
+
+    comando: str
+    codigo: int
+    saida: str
+
+    def em_json(self) -> dict[str, Any]:
+        """O comando para gravar na Evidence."""
+        return {"comando": self.comando, "codigo": self.codigo, "saida": self.saida}
+
+
+def _comandos(valor: object) -> tuple[ComandoRodado, ...]:
+    """Os comandos rodados do JSON; a falta deles é problema da conferência, não da leitura."""
+    itens = valor if isinstance(valor, list) else []
+    return tuple(ComandoRodado(str(c["comando"]).strip(), int(c["codigo"]), str(c["saida"]).strip()) for c in itens)
+
+
+@dataclass(frozen=True)
 class Verificacao:
     """O que o verificador devolveu do Goal inteiro."""
 
@@ -206,6 +226,7 @@ class Verificacao:
     criterios: tuple[Parecer, ...]
     decisoes: tuple[Parecer, ...] = ()
     achados: tuple[Achado, ...] = field(default_factory=tuple)
+    comandos: tuple[ComandoRodado, ...] = ()
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Verificacao":
@@ -222,7 +243,12 @@ class Verificacao:
                        str(a.get("local", "")).strip(), _textos(a.get("criterios")))
                 for a in dados["achados"]
             ),
+            comandos=_comandos(dados.get("comandos")),
         )
+
+    def com_a_suite_vermelha(self, descricao: str) -> "Verificacao":
+        """A verificação com o bloqueante da suíte que o orquestrador rodou no commit verificado e viu falhar."""
+        return replace(self, achados=(*self.achados, Achado(GRAVIDADE_BLOQUEANTE, TITULO_DA_SUITE_VERMELHA, descricao)))
 
     def bloqueantes(self) -> tuple[Achado, ...]:
         """Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum cita, um sintético."""
@@ -241,11 +267,12 @@ class Verificacao:
 
 
 def conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]:
-    """Um parecer por critério e por decisão do plano, e achado que cita só o que existe."""
+    """Um parecer por critério e por decisão do plano, achado que cita só o que existe e ao menos um comando rodado."""
     dados = [parecer.id for parecer in verificacao.criterios]
     dadas = [parecer.id for parecer in verificacao.decisoes]
     conhecidos = {*criterios, *decisoes}
     return (
+        *(() if verificacao.comandos else ("a verificacao nao lista nenhum comando rodado em 'comandos'",)),
         *(f"falta o parecer do criterio {id_c}" for id_c in criterios if id_c not in dados),
         *(f"falta o parecer da decisao {id_d}" for id_d in decisoes if id_d not in dadas),
         *_repetidos("parecer", dados + dadas),

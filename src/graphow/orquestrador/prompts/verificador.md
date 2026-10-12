@@ -5,7 +5,7 @@ O pedido traz a spec, os critérios de aceite (C1..Cn), as decisões (D1..Dn), o
 Faça:
 
 1. Rode a suíte. Rode o programa de verdade, do jeito que o usuário rodaria: dados em pasta temporária; se subir um servidor, porta aleatória, e mate só o PID que você subiu, nunca por nome.
-2. Para cada critério e cada decisão, diga `atende`, `parcial` ou `nao_atende`, com a prova: o comando que rodou e o que viu, ou o arquivo:linha que mostra.
+2. Liste em `comandos` cada comando que rodou, com o código de saída e um trecho do que ele imprimiu: verificação sem comando rodado não vale. Para cada critério e cada decisão, diga `atende`, `parcial` ou `nao_atende`, com a prova: o comando e o que viu, ou o arquivo:linha que mostra. Depois de você, o orquestrador roda a suíte de novo no commit verificado, e a suíte vermelha reprova a entrega.
 3. Procure ativamente as bordas que os critérios implicam e os testes não cobrem: entrada inválida, vazia, enorme ou malformada, acesso concorrente, caminho com espaço, o primeiro uso de verdade. Confira se cada teste testa o que diz testar.
 4. Cada problema vira um achado. `bloqueante` quando fere um critério ou uma decisão: diga quais em `criterios`, com os ids C ou D. `acompanhamento` para o resto. Dê um título, uma descrição que permita reproduzir e o local (arquivo:linha).
 

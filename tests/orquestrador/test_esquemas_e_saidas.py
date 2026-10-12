@@ -44,6 +44,7 @@ PLANO: dict[str, Any] = {
 }
 VERIFICACAO: dict[str, Any] = {
     "resumo": "suite verde, programa rodado",
+    "comandos": [{"comando": "python -m pytest -q", "codigo": 0, "saida": "2 passed"}],
     "criterios": [{"id": "C1", "veredito": "atende", "prova": "pytest 2 passed"},
                   {"id": "C2", "veredito": "parcial", "prova": "README sem exemplo"}],
     "decisoes": [{"id": "D1", "veredito": "atende", "prova": "sem import externo"}],
@@ -136,6 +137,30 @@ def test_verificacao_sem_parecer_de_um_criterio_e_recusada_edge_case() -> None:
 
     assert "falta o parecer do criterio C2" in problemas
     assert "o achado 'nome' cita C7, que nao e criterio nem decisao do plano" in problemas
+
+
+@pytest.mark.parametrize(
+    ("trocas", "trecho"),
+    [
+        ({"comandos": []}, "$.comandos: precisa de ao menos 1"),
+        ({"criterios": [{"id": "C1", "veredito": "atende", "prova": "."}]}, "$.criterios[0].prova"),
+        ({"comandos": [{"comando": "pytest", "codigo": "zero", "saida": "ok"}]}, "$.comandos[0].codigo"),
+    ],
+)
+def test_verificacao_sem_comando_ou_com_prova_vazia_nao_confere_edge_case(trocas: dict[str, Any], trecho: str) -> None:
+    """Caso de borda: sem comando rodado, com prova "." ou com código que não é número, a verificação volta."""
+    problemas = validar_contra_esquema({**copy.deepcopy(VERIFICACAO), **trocas}, ESQUEMA_DA_VERIFICACAO)
+
+    assert any(problema.startswith(trecho) for problema in problemas), problemas
+
+
+def test_conferencia_recusa_a_verificacao_sem_comandos_mesmo_fora_do_schema_edge_case() -> None:
+    """Caso de borda: a leitura tolera a falta de `comandos`, e a conferência a recusa."""
+    dados = {chave: valor for chave, valor in copy.deepcopy(VERIFICACAO).items() if chave != "comandos"}
+
+    problemas = conferir_verificacao(Verificacao.de_json(dados), ("C1", "C2"), ("D1",))
+
+    assert "a verificacao nao lista nenhum comando rodado em 'comandos'" in problemas
 
 
 @pytest.mark.parametrize("papel", PAPEIS)

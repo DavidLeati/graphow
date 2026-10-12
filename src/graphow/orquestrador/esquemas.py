@@ -25,7 +25,11 @@ STATUS_DO_EXECUTOR: tuple[str, ...] = ("pronto", "duvida", "falhou")
 VEREDITOS_DE_CRITERIO: tuple[str, ...] = ("atende", "parcial", "nao_atende")
 GRAVIDADES: tuple[str, ...] = ("bloqueante", "acompanhamento")
 
+# A prova de um parecer diz o comando e o que se viu, ou o arquivo:linha: "." não é prova.
+TAMANHO_MINIMO_DA_PROVA: int = 10
+
 TEXTO: Mapping[str, Any] = {"type": "string", "minLength": 1}
+PROVA: Mapping[str, Any] = {"type": "string", "minLength": TAMANHO_MINIMO_DA_PROVA}
 TEXTO_LIVRE: Mapping[str, Any] = {"type": "string"}
 LISTA_DE_TEXTOS: Mapping[str, Any] = {"type": "array", "items": {"type": "string"}}
 
@@ -83,8 +87,9 @@ ESQUEMA_DA_EXECUCAO: dict[str, Any] = _objeto(
 )
 
 PARECER: dict[str, Any] = _objeto(
-    {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": TEXTO}
+    {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": PROVA}
 )
+COMANDO_RODADO: dict[str, Any] = _objeto({"comando": TEXTO, "codigo": {"type": "integer"}, "saida": TEXTO})
 ACHADO: dict[str, Any] = _objeto(
     {
         "gravidade": {"type": "string", "enum": list(GRAVIDADES)},
@@ -97,6 +102,7 @@ ACHADO: dict[str, Any] = _objeto(
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
     {
         "resumo": TEXTO,
+        "comandos": _lista_de(COMANDO_RODADO, 1),
         "criterios": _lista_de(PARECER, 1),
         "decisoes": _lista_de(PARECER),
         "achados": _lista_de(ACHADO),
