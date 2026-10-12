@@ -253,7 +253,7 @@ O humano decide pela caixa de propostas do `graphow web` ou por um patch seu: `r
 
 ## humano: critérios de aceite e fronteira do Goal
 
-Cada critério é uma Constraint com `tipo: criterio_aceite`, e o fora do escopo é uma só, com `tipo: fronteira`, todas com `escopa` para o Goal e `produz` da sessão. O lote completo, com o Goal, está na skill `graphow-gerente` (passo 4). A Task emergente cita o id do nó do critério, por isso vale um id legível.
+Cada critério é um nó `Criterio` (`codigo`, `texto`, `verificacao` `teste` ou `checagem`), e o fora do escopo é uma Constraint só, com `tipo: fronteira`, todos com `escopa` para o Goal e `produz` da sessão. O lote completo, com o Goal, está na skill `graphow-gerente` (passo 4). Os Goals de antes da ontologia `1.7.0` trazem o critério como Constraint com `tipo: criterio_aceite`, que segue valendo e é a que a Task emergente do escopo governado cita.
 
 ## executor: começar o trabalho
 

@@ -268,6 +268,6 @@ Na Task de ação externa o `Artifact` vai sem `arquivos`, só com o `resumo` do
 
 ## Referências
 
-- [Matriz ontológica e regras de aresta](./references/ontology_matrix.md): os 14 tipos de nó, as 17 arestas, os pares de tipo válidos, o papel `arbitro` e a sanitização de dados.
+- [Matriz ontológica e regras de aresta](./references/ontology_matrix.md): os 16 tipos de nó, as 18 arestas, os pares de tipo válidos, o papel `arbitro` e a sanitização de dados.
 - [Cookbook de JSON Patch](./references/patch_cookbook.md): patches prontos por papel e finalidade.
 - [Guia de conexão MCP](./references/mcp_setup_guide.md): como configurar e testar o servidor stdio em Antigravity, Cursor, Claude Desktop e Arena.

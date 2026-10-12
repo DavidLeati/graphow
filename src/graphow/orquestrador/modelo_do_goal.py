@@ -135,7 +135,7 @@ def id_da_sessao(id_goal: str) -> str:
 
 
 def id_do_criterio(slug: str, codigo: str) -> str:
-    """A Constraint de um critério de aceite criado pelo plano."""
+    """O Criterio de um critério de aceite criado pelo plano (na fase 1, uma Constraint com o mesmo id)."""
     return f"crit-{slug}-{codigo.lower()}"
 
 

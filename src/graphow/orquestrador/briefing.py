@@ -49,7 +49,8 @@ def briefing_do_planejador(estado: EstadoDoGoal, spec: str, tem_fixados: bool) -
     configuracao = estado.configuracao
     ramo = configuracao.ramo if configuracao else ""
     aviso = (
-        "Os criterios (C) e as decisoes (D) com id na spec ja foram fixados pelo humano: devolva-os com o mesmo id e o mesmo texto."
+        "Os criterios (C) e as decisoes (D) com id na spec ja foram fixados pelo humano: devolva-os com o mesmo id e o mesmo texto "
+        "(o orquestrador grava o texto e o tipo de verificacao do criterio como o humano os escreveu)."
         if tem_fixados else ""
     )
     return _juntar([

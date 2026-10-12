@@ -33,7 +33,7 @@ def _livro_com_plano() -> tuple[WriteKernel, LivroRazaoDoGoal]:
 
 
 def test_goal_e_plano_viram_nos_do_livro_razao_nominal() -> None:
-    """Critérios como Constraint, decisão como Decision, fatias como Task com dependência, tudo do orquestrador."""
+    """Critérios como Criterio, decisão como Decision, fatias como Task com dependência, tudo do orquestrador."""
     kernel, _ = _livro_com_plano()
     view = kernel.obter_view()
 
@@ -42,7 +42,9 @@ def test_goal_e_plano_viram_nos_do_livro_razao_nominal() -> None:
     assert estado is not None and estado.rotulo == "Soma de dois numeros"
     assert [fatia.codigo for fatia in estado.fatias] == ["F1", "F2"]
     assert estado.fatias[1].depende_de == ("task-soma-f1",)
-    assert view.obter_no("crit-soma-c1").rotulo == "somar(2, 3) devolve 5"
+    criterio = view.obter_no("crit-soma-c1")
+    assert criterio.tipo.value == "Criterio" and criterio.rotulo == "C1: somar(2, 3) devolve 5"
+    assert (criterio.obter_propriedade("texto"), criterio.obter_propriedade("estado")) == ("somar(2, 3) devolve 5", "pendente")
     assert [a.destino_id for a in view.obter_arestas_saida("crit-soma-c1", TipoAresta.ESCOPA)] == ["goal-soma"]
     assert view.obter_no("dec-soma-d1").obter_propriedade("motivo") == "o pacote nao tem dependencia"
     assert estado.plano is not None and estado.plano["comando_suite"] == "python -m pytest -q"

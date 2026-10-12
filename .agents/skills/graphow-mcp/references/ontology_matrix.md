@@ -2,7 +2,7 @@
 
 Referência de estrutura: que nó existe, que aresta liga o quê, quem pode criá-la e por onde os status andam. Um par de tipos fora da tabela é recusado pelo SchemaGate com `par_de_aresta_invalido`; o papel errado é recusado pelo RoleGate com `violacao_permissao_papel`, junto da lista de quem poderia. As duas checagens são independentes: o patch precisa passar nas duas.
 
-## Os 14 tipos de nó
+## Os 16 tipos de nó
 
 Camada de navegação, os contêineres:
 
@@ -17,14 +17,16 @@ Camada de trabalho:
 - `Task`: unidade atribuível a um executor. A propriedade `entrega` diz o que ela produz: `artefato` (o padrão: arquivo, documento, dado) ou `acao_externa` (um gesto no mundo que não deixa arquivo, como enviar um e-mail, marcar uma reunião ou publicar). A de ação externa não leva `arquivos_alvo`, e quem a executa é o gesto `acao_externa` da política (ver "Status e ciclos de vida").
 - `Decision`: decisão registrada com o motivo: de desenho, de método, de critério.
 - `Question`: dúvida que bloqueia tarefa até a resposta do humano ou, conforme a política, do árbitro.
-- `Constraint`: restrição obrigatória de técnica, segurança ou escopo. Com `tipo: criterio_aceite` é um critério de aceite do `Goal` que a escopa (uma `Constraint` por critério, e o id do nó é o que a `Task` emergente cita em `atende_criterio`); com `tipo: fronteira` é o fora do escopo do `Goal`, uma só por Goal, com a lista em `itens`. Sem `tipo`, é restrição comum.
+- `Criterio`: critério de aceite do `Goal` que ele escopa (ontologia `1.7.0`), com `codigo`, `texto`, `verificacao` (`teste` ou `checagem`) e o `estado` que as verificações do orquestrador lhe dão. Grava o humano (o gerente) e o orquestrador.
+- `Achado`: problema que uma verificação do orquestrador achou; deriva da verificação e fere (`fere`) o critério ou a decisão que toca. Bloqueante quando fere algo, acompanhamento quando não; nunca vira `Note`. Só o orquestrador e o humano o gravam.
+- `Constraint`: restrição obrigatória de técnica, segurança ou escopo. Com `tipo: criterio_aceite` é o critério de aceite de um `Goal` de antes da `1.7.0`, que a escopa (uma `Constraint` por critério, e o id do nó é o que a `Task` emergente cita em `atende_criterio`); com `tipo: fronteira` é o fora do escopo do `Goal`, uma só por Goal, com a lista em `itens`. Sem `tipo`, é restrição comum.
 - `Artifact`: entregável concreto, com `arquivos` (o que a entrega alterou: código, documento, planilha) e `resumo`. Na Task de ação externa vai sem `arquivos`, só com o `resumo` do gesto feito.
 - `Evidence`: dado empírico, medição, telemetria, prova ou trecho lido (de código, documento, página, conversa). Pode apontar por `deriva_de` o `Artifact` ou a `Task` que avalia. Quando cita `linhas`, `local` ou `trecho`, e sempre que é do planejador, carrega o ponteiro inteiro, numa de duas formas: arquivo (`arquivo`, `linhas` como `120` ou `120-135`, e o `trecho` literal) ou fonte genérica (`fonte`, que é URL, documento ou conversa com data e participantes, `local` opcional e livre, como página, seção ou minuto, e o `trecho` literal). Sem isso, `evidencia_sem_localizacao`. `arquivo` ou `fonte` sozinhos seguem livres: é o caso do log de verificação e da prova de ação externa, que leva `fonte` e `resultado`.
 - `Run`: registro de execução e telemetria de invocação de modelo.
 - `Note`: anotação livre ou aviso reativo; com `acao: condensacao_de_sessao`, a condensação em prosa de uma sessão encerrada; com `acao: proposta_fora_do_goal`, a descoberta que não atende a critério de aceite algum, com `status` `aberta` (ausente conta como aberta), `aceita` ou `descartada`. Só o humano muda o `status` da proposta, e só ele a vê (vista de Projeto e de Goal, caixa de propostas da web). O planejador, que não é dono de `deriva_de`, põe os ids do achado na propriedade `origens`; executor e revisor usam a aresta `deriva_de`.
 - `Aprendizado`: memória de longo prazo, o que sobrevive ao projeto. O rótulo é a afirmação; `como_aplicar` diz o que fazer com ela. Nasce com `deriva_de` obrigatório e só alcança outros projetos quando o humano o promove.
 
-## As 17 arestas: pares válidos e donos
+## As 18 arestas: pares válidos e donos
 
 | Aresta | Origem para destino | Cria | Remove |
 | :--- | :--- | :--- | :--- |
@@ -37,8 +39,9 @@ Camada de trabalho:
 | `bloqueia` | `Question`→`Task` | humano e qualquer agente | humano; árbitro, se a política lhe entrega `responder_questao` (e não a da Question que ele abriu) |
 | `justifica` | `Evidence`→`Decision` | humano, planejador, executor, revisor, árbitro | humano, planejador, executor, revisor, árbitro |
 | `contradiz` | `Evidence`→`Decision`, `Evidence`→`Evidence`, `Evidence`→`Aprendizado` | humano, executor, revisor | humano, executor, revisor |
-| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Evidence`→`Artifact`, `Evidence`→`Task`, `Evidence`→`Goal` (a verificação do Goal), `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task` | humano, executor, revisor | humano, executor, revisor |
-| `escopa` | `Constraint`→`Goal`, `Constraint`→`Task` | humano; árbitro, se a política lhe entrega `constraint` | humano; árbitro, idem |
+| `deriva_de` | `Artifact`→`Task`, `Artifact`→`Artifact`, `Evidence`→`Artifact`, `Evidence`→`Task`, `Evidence`→`Goal` (a verificação do Goal), `Note`→`Task`, `Note`→`Decision`, `Note`→`Evidence`, `Note`→`Artifact`, `Aprendizado`→`Evidence`, `Aprendizado`→`Decision`, `Aprendizado`→`Note`, `Aprendizado`→`Artifact`, `Aprendizado`→`Task`, `Achado`→`Evidence` (a verificação que o achou), `Task`→`Achado` (a fatia de correção), `Artifact`→`Criterio` (o commit dos testes de aceite) | humano, executor, revisor | humano, executor, revisor |
+| `escopa` | `Constraint`→`Goal`, `Constraint`→`Task`, `Criterio`→`Goal` | humano; árbitro, se a política lhe entrega `constraint` | humano; árbitro, idem |
+| `fere` | `Achado`→`Criterio`, `Achado`→`Decision` | humano (e o orquestrador, pelo contrato dele) | humano |
 | `vale_para` | `Aprendizado`→`Projeto`, `Aprendizado`→`Setor` | humano; árbitro, se a política lhe entrega `promover_aprendizado` (e não o Aprendizado que ele registrou) | humano; árbitro, idem |
 | `orienta` | `Decision`→`Task`, `Decision`→`Goal` | humano, planejador | humano, planejador |
 | `motivada_por` | `Task`→`Decision`, `Task`→`Evidence`, `Task`→`Task`, `Task`→`Question`; `Decision`→`Decision`, `Decision`→`Evidence`, `Decision`→`Task`, `Decision`→`Question` | humano, planejador | humano |

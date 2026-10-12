@@ -3,19 +3,26 @@
 A vista do agente mostrava do Goal só o rótulo, e as Decisions chegavam ao
 executor reduzidas a um título: os agentes compensavam com `expandir_no` e
 descrições de Task que copiavam as decisões. Aqui a spec sai inteira, uma vez:
-a descrição e o que ficou em aberto, cada critério de aceite (Constraint
-`criterio_aceite`) numerado C1..Cn com o id do nó, a fronteira item a item, as
-outras restrições e cada Decision vigente (a substituída fica de fora)
-numerada D1..Dn, com o motivo e o trecho da Evidence que a sustenta.
+a descrição e o que ficou em aberto, cada critério de aceite numerado C1..Cn
+com o id do nó e o tipo de verificação, a fronteira item a item, as outras
+restrições e cada Decision vigente (a substituída fica de fora) numerada
+D1..Dn, com o texto inteiro, o motivo e o trecho da Evidence que a sustenta.
+
+O critério de aceite é o nó Criterio que o gerente grava (ontologia 1.7.0); o
+Goal de antes dele traz a Constraint `criterio_aceite`, que segue valendo. O
+texto e o tipo de verificação de cada critério do humano vão também no
+`SpecDoGoal`: o orquestrador os grava como o humano os escreveu, e não pede ao
+planejador que os extraia de novo.
 """
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from graphow.core import aceite as a
 from graphow.core.escopo import CAMPO_TIPO_CONSTRAINT, CONSTRAINT_CRITERIO_ACEITE, CONSTRAINT_FRONTEIRA
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoAresta, TipoNo
-from graphow.orquestrador.saidas import IdsFixados
+from graphow.orquestrador.saidas import Criterio, IdsFixados
 from graphow.projection.graph_view import GrafoView
 
 
@@ -26,6 +33,7 @@ class SpecDoGoal:
     texto: str
     fixados: IdsFixados = field(default_factory=IdsFixados)
     nos_fixados: dict[str, str] = field(default_factory=dict)
+    criterios_do_humano: tuple[Criterio, ...] = ()
 
 
 def montar_spec_do_goal(view: GrafoView, id_goal: str) -> SpecDoGoal:
@@ -34,7 +42,7 @@ def montar_spec_do_goal(view: GrafoView, id_goal: str) -> SpecDoGoal:
     if goal is None:
         return SpecDoGoal("")
     restricoes = _ordenados(view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.ESCOPA))
-    criterios = [no for no in restricoes if _tipo_da_restricao(no) == CONSTRAINT_CRITERIO_ACEITE]
+    criterios = [no for no in restricoes if no.tipo == TipoNo.CRITERIO or _tipo_da_restricao(no) == CONSTRAINT_CRITERIO_ACEITE]
     decisoes = [no for no in _ordenados(view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.ORIENTA))
                 if no.tipo == TipoNo.DECISION and not view.obter_arestas_entrada(no.id, TipoAresta.SUBSTITUI)]
     codigos = {**{f"C{i}": no.id for i, no in enumerate(criterios, 1)}, **{f"D{i}": no.id for i, no in enumerate(decisoes, 1)}}
@@ -42,16 +50,28 @@ def montar_spec_do_goal(view: GrafoView, id_goal: str) -> SpecDoGoal:
         f"# {goal.rotulo}",
         str(goal.obter_propriedade("descricao") or ""),
         _secao("Criterios de aceite (definidos pelo humano: mantenha o id e o texto)",
-               [f"- C{i} ({no.id}): {no.rotulo}" for i, no in enumerate(criterios, 1)]),
+               [f"- C{i} ({no.id}, {_verificacao(no)}): {_texto(no)}" for i, no in enumerate(criterios, 1)]),
         _secao("Fora do escopo", _itens_da_fronteira(restricoes)),
-        _secao("Restricoes", [f"- {no.rotulo}" for no in restricoes if not _tipo_da_restricao(no)]),
+        _secao("Restricoes", [f"- {no.rotulo}" for no in restricoes if no.tipo == TipoNo.CONSTRAINT and not _tipo_da_restricao(no)]),
         _secao("Decisoes do humano (mantenha o id)", [_linha_da_decisao(view, i, no) for i, no in enumerate(decisoes, 1)]),
         _secao("Em aberto", [str(goal.obter_propriedade("em_aberto") or "")]),
     ]
     texto = "\n\n".join(parte for parte in partes if parte.strip()) + "\n"
     fixados = IdsFixados(criterios=tuple(f"C{i}" for i in range(1, len(criterios) + 1)),
                          decisoes=tuple(f"D{i}" for i in range(1, len(decisoes) + 1)))
-    return SpecDoGoal(texto, fixados, codigos)
+    do_humano = tuple(Criterio(f"C{i}", _texto(no), _verificacao(no)) for i, no in enumerate(criterios, 1))
+    return SpecDoGoal(texto, fixados, codigos, do_humano)
+
+
+def _texto(no: NoGrafo) -> str:
+    """O texto inteiro do critério ou da decisão: a propriedade `texto`, ou o rótulo do nó antigo."""
+    return str(no.obter_propriedade(a.CAMPO_TEXTO) or no.rotulo)
+
+
+def _verificacao(no: NoGrafo) -> str:
+    """Como o critério se prova; o critério sem o tipo declarado se prova por teste."""
+    valor = str(no.obter_propriedade(a.CAMPO_VERIFICACAO) or "")
+    return valor if valor in a.VERIFICACOES_DE_CRITERIO else a.VERIFICACAO_POR_TESTE
 
 
 def _ordenados(nos: Iterable[NoGrafo | None]) -> list[NoGrafo]:
@@ -75,7 +95,7 @@ def _itens_da_fronteira(restricoes: Iterable[NoGrafo]) -> list[str]:
 
 def _linha_da_decisao(view: GrafoView, numero: int, no: NoGrafo) -> str:
     """A decisão com o motivo e os trechos que a sustentam."""
-    linha = f"- D{numero} ({no.id}): {no.rotulo}"
+    linha = f"- D{numero} ({no.id}): {_texto(no)}"
     motivo = str(no.obter_propriedade("motivo") or "")
     if motivo:
         linha += f" Motivo: {motivo}"

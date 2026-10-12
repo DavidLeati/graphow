@@ -1,17 +1,19 @@
 """O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só.
 
-Cada critério de aceite vira uma Constraint `criterio_aceite` que escopa o
-Goal, com o texto inteiro no rótulo; cada decisão, uma Decision que orienta o
-Goal, com o motivo; cada fatia, uma Task sob o Goal por `decompoe`, com as
-dependências como `depende_de`. O que o Goal já trazia do gerente (critério
+Cada critério de aceite vira um nó Criterio que escopa o Goal, com o código,
+o texto inteiro, o tipo de verificação e o estado `pendente` até a primeira
+verificação que o julgar; cada decisão, uma Decision que orienta o Goal, com o
+texto inteiro e o motivo; cada fatia, uma Task sob o Goal por `decompoe`, com
+as dependências como `depende_de`. O que o Goal já trazia do gerente (critério
 ou decisão com id) é reaproveitado, e não duplicado. O Goal guarda o plano
-inteiro em `plano`, com o comando da suíte e o commit do documento do Goal.
+inteiro em `plano`, com o comando da suíte, o nó de cada critério e decisão e
+o commit do documento do Goal.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from graphow.core.escopo import CAMPO_TIPO_CONSTRAINT, CONSTRAINT_CRITERIO_ACEITE
+from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch
 from graphow.orquestrador import modelo_do_goal as m
@@ -51,12 +53,13 @@ def gravar_plano(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> None:
 
 
 def _operacoes_do_criterio(livro: LivroRazaoDoGoal, criterio: Criterio, id_no: str) -> list[ItemPatch]:
-    """A Constraint do critério novo; nada para o critério que o Goal já trazia."""
+    """O Criterio novo, que escopa o Goal; nada para o critério que o Goal já trazia."""
     if livro.view().contem_no(id_no):
         return []
-    propriedades = {CAMPO_TIPO_CONSTRAINT: CONSTRAINT_CRITERIO_ACEITE, "codigo": criterio.id, "verificacao": criterio.verificacao}
+    propriedades = {a.CAMPO_CODIGO: criterio.id, a.CAMPO_TEXTO: criterio.texto, a.CAMPO_VERIFICACAO: criterio.verificacao,
+                    a.CAMPO_ESTADO: a.ESTADO_PENDENTE}
     return [
-        *livro.produzido(id_no, TipoNo.CONSTRAINT, criterio.texto, propriedades=propriedades),
+        *livro.produzido(id_no, TipoNo.CRITERIO, f"{criterio.id}: {criterio.texto}", propriedades=propriedades),
         aresta(id_no, livro.id_goal, TipoAresta.ESCOPA),
     ]
 

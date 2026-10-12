@@ -3,7 +3,9 @@
 O planejador lê a spec e o código e devolve critérios, decisões, o comando da
 suíte e as fatias. O orquestrador confere, escreve `docs/goals/<slug>.md` na
 área do Goal, commita e grava o plano. No Goal que veio do gerente, os
-critérios e as decisões que o humano fixou ficam com o mesmo id e o mesmo nó.
+critérios e as decisões que o humano fixou ficam com o mesmo id e o mesmo nó,
+e o critério do humano vale com o texto e o tipo de verificação do nó Criterio
+dele, diga o planejador o que disser.
 
 O plano pago não se paga de novo. A saída conferida vai para o Goal
 (`plano_proposto`) antes de qualquer outro passo, e a retomada a reaproveita;
@@ -46,7 +48,7 @@ def planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None:
         if dados is None:
             return Parada(contexto.id_goal, MotivoDaParada.FALHA, "O plano nao conferiu: " + "; ".join(problemas))
         contexto.livro.gravar_plano_proposto(dados)
-    _gravar(contexto, estado, Plano.de_json(dados), fixos=fixos)
+    _gravar(contexto, estado, Plano.de_json(dados).com_criterios_do_humano(fixos.criterios_do_humano), fixos=fixos)
     return None
 
 

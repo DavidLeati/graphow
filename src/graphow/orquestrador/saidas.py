@@ -91,6 +91,11 @@ class Plano:
             fora_do_escopo=_textos(dados.get("fora_do_escopo")),
         )
 
+    def com_criterios_do_humano(self, criterios: Sequence[Criterio]) -> "Plano":
+        """O plano com o texto e o tipo de verificação dos critérios que o humano fixou, como ele os escreveu."""
+        do_humano = {criterio.id: criterio for criterio in criterios}
+        return replace(self, criterios=tuple(do_humano.get(criterio.id, criterio) for criterio in self.criterios))
+
 
 @dataclass(frozen=True)
 class IdsFixados:

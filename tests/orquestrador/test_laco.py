@@ -278,8 +278,8 @@ def test_executor_que_tenta_commitar_nao_consegue_e_o_orquestrador_commita_edge_
     assert "o commit foi desfeito com reset --soft" in str(artefato.obter_propriedade("observacao"))
 
 
-def _goal_do_gerente(bancada: Bancada) -> None:
-    """O Goal como o gerente grava: Sessao do humano, critério como Constraint e decisão com motivo."""
+def _goal_do_gerente(bancada: Bancada, *, criterio: str = "Constraint") -> None:
+    """O Goal como o gerente grava: Sessao do humano, critério (Criterio, ou a Constraint de antes) e decisão com motivo."""
     def no(id_no: str, tipo_no: str, rotulo: str, **propriedades: object) -> ItemPatch:
         return ItemPatch(OperacaoPatch.ADD, f"/nos/{id_no}", {"id": id_no, "tipo": tipo_no, "rotulo": rotulo, "propriedades": propriedades})
 
@@ -291,7 +291,9 @@ def _goal_do_gerente(bancada: Bancada) -> None:
         no("proj", "Projeto", "Brinquedo"), no("setor", "Setor", "Demandas"), aresta("proj", "setor", "contem"),
         no("sess", "Sessao", "Gerente"), aresta("setor", "sess", "contem"),
         no("goal-calc", "Goal", "Somar", descricao="O time quer somar dois inteiros."), aresta("sess", "goal-calc", "produz"),
-        no("crit-calc-1", "Constraint", "somar(2, 3) devolve 5", tipo="criterio_aceite"),
+        no("crit-calc-1", criterio, "somar(2, 3) devolve 5", tipo="criterio_aceite")
+        if criterio == "Constraint" else
+        no("crit-calc-1", criterio, "C1: somar(2, 3) devolve 5", codigo="C1", texto="somar(2, 3) devolve 5", verificacao="checagem"),
         aresta("sess", "crit-calc-1", "produz"), aresta("crit-calc-1", "goal-calc", "escopa"),
         no("dec-calc-1", "Decision", "so a biblioteca padrao", motivo="o repositorio nao tem dependencias"),
         aresta("sess", "dec-calc-1", "produz"), aresta("dec-calc-1", "goal-calc", "orienta"),
@@ -308,7 +310,7 @@ def test_goal_do_gerente_vira_spec_com_texto_inteiro_e_mantem_os_nos_fixados_nom
     parada = bancada.orquestrador().rodar("goal-calc", AUTONOMO, bancada.repositorio)
 
     briefing = bancada.chamadas("planejador")[0]["stdin"]
-    assert "- C1 (crit-calc-1): somar(2, 3) devolve 5" in briefing
+    assert "- C1 (crit-calc-1, teste): somar(2, 3) devolve 5" in briefing
     assert "- D1 (dec-calc-1): so a biblioteca padrao Motivo: o repositorio nao tem dependencias" in briefing
     assert "ja foram fixados pelo humano" in briefing
     assert parada.fechou, parada.mensagem
@@ -317,6 +319,26 @@ def test_goal_do_gerente_vira_spec_com_texto_inteiro_e_mantem_os_nos_fixados_nom
     assert [c["no"] for c in estado.plano["criterios"]] == ["crit-calc-1", "crit-calc-c2"]
     assert [d["no"] for d in estado.plano["decisoes"]] == ["dec-calc-1"]
     assert estado.rotulo == "Somar"
+
+
+def test_goal_do_gerente_com_criterio_como_no_usa_o_texto_e_a_verificacao_do_humano_nominal(tmp_path: Path) -> None:
+    """F2.6: o Criterio do gerente vale como ele o escreveu; o planejador que o reescreve não muda o nó nem o plano."""
+    roteiro = roteiro_completo()
+    roteiro["planejador"][0]["saida"]["criterios"][0]["texto"] = "somar devolve a soma"
+    bancada = montar_bancada(tmp_path, roteiro)
+    _goal_do_gerente(bancada, criterio="Criterio")
+
+    parada = bancada.orquestrador().rodar("goal-calc", AUTONOMO, bancada.repositorio)
+
+    assert "- C1 (crit-calc-1, checagem): somar(2, 3) devolve 5" in bancada.chamadas("planejador")[0]["stdin"]
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-calc")
+    assert estado is not None and estado.plano is not None
+    assert estado.plano["criterios"][0] == {"id": "C1", "texto": "somar(2, 3) devolve 5", "verificacao": "checagem", "no": "crit-calc-1"}
+    no = bancada.kernel.obter_view().obter_no("crit-calc-1")
+    assert no is not None and no.obter_propriedade("texto") == "somar(2, 3) devolve 5"
+    novo = bancada.kernel.obter_view().obter_no("crit-calc-c2")
+    assert novo is not None and novo.tipo.value == "Criterio" and novo.obter_propriedade("estado") == "pendente"
 
 
 def test_goal_do_gerente_sem_repositorio_e_recusado_edge_case(tmp_path: Path) -> None:
