@@ -29,7 +29,7 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.briefing import briefing_do_verificador
-from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_CICLOS_DE_CORRECAO, ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias
 from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
@@ -69,7 +69,7 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     registro = RegistroDaVerificacao(
         numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, execucoes), commit=head,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(plano), ciclo=estado.ciclos_do_marco(marco),
-        final=marco.final, marco=marco.id, aceite=[execucao.em_json() for execucao in execucoes], resolver=_corrigidos(estado, marco),
+        final=marco.final, marco=marco.id, aceite=[execucao.em_json() for execucao in execucoes], resolver=estado.corrigidos(marco),
         tirado_antes_do_aceite=tirado,
     )
     registro = replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
@@ -139,13 +139,6 @@ def _so_o_que_o_marco_julga(verificacao: Verificacao, estado: EstadoDoGoal, marc
     return replace(verificacao, criterios=tuple(parecer for parecer in verificacao.criterios if parecer.id in validos))
 
 
-def _corrigidos(estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple[str, ...]:
-    """Os Achados do marco que uma correção já entregou e que a verificação limpa resolve."""
-    return tuple(
-        achado.id for v in estado.verificacoes_do_marco(marco) for achado in v.achados if achado.estado == a.ESTADO_CORRIGIDO
-    )
-
-
 def nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
     """O nó do livro-razão de cada critério e decisão do plano, pelo código."""
     itens = [*plano.get("criterios", []), *plano.get("decisoes", [])]
@@ -185,7 +178,7 @@ def _pendencias_depois(
     O acompanhamento que uma verificação anterior achou continua pendência,
     ache-o a seguinte ou não; o mesmo título no mesmo local não entra duas vezes.
     """
-    sem_ciclo = estado.ciclos_do_marco(marco) >= MAXIMO_DE_CICLOS_DE_CORRECAO
+    sem_ciclo = estado.ciclos_do_marco(marco) >= estado.limite_de_ciclos(marco)
     novas = [
         {**achado.em_json(), "achado": id_achado, "origem": f"verificacao {registro.numero}"}
         for id_achado, achado in registro.achados(id_goal)

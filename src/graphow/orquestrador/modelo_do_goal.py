@@ -74,6 +74,19 @@ CAMPO_COMMIT: str = a.CAMPO_COMMIT
 CAMPO_CORRIGE: str = "corrige_verificacao"
 # Na fatia de correção: o Achado bloqueante que ela corrige (a Task deriva dele).
 CAMPO_ACHADO: str = "achado"
+# A fatia de correção junta os bloqueantes do mesmo arquivo (ou do mesmo critério): os ids de todos eles.
+CAMPO_ACHADOS: str = "achados"
+# Os ciclos de correção que cada marco tem antes de o laço seguir sem ele (ou, na final, parar).
+MAXIMO_DE_CICLOS_DE_CORRECAO: int = 2
+
+
+def achados_da_correcao(propriedades: Mapping[str, Any]) -> tuple[str, ...]:
+    """Os Achados que a fatia de correção corrige: a lista, ou o único da fatia de antes do agrupamento."""
+    lista = propriedades.get(CAMPO_ACHADOS)
+    if isinstance(lista, list) and lista:
+        return tuple(str(item) for item in lista)
+    unico = str(propriedades.get(CAMPO_ACHADO) or "")
+    return (unico,) if unico else ()
 
 
 def id_da_revisao(id_task: str, tentativa: int) -> str:

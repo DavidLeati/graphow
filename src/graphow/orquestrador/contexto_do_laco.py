@@ -25,7 +25,7 @@ from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria
 
 # Quantas falhas a fatia admite: a segunda a torna pendência. Dúvida não é falha.
 MAXIMO_DE_FALHAS: int = 2
-MAXIMO_DE_CICLOS_DE_CORRECAO: int = 2
+MAXIMO_DE_CICLOS_DE_CORRECAO: int = m.MAXIMO_DE_CICLOS_DE_CORRECAO
 ORCAMENTO_PADRAO_USD: float = 30.0
 
 

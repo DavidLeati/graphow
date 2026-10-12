@@ -21,6 +21,7 @@ from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.correcoes import agrupar_por_area, propriedades_da_correcao, titulo_da_correcao
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
@@ -144,12 +145,13 @@ class LivroRazaoDoGoal:
         )
 
     def concluir_fatia(
-        self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "", achado: str = ""
+        self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "",
+        achados: Sequence[str] = (),
     ) -> None:
         """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
 
-        Na fatia de correção, o Achado que ela corrige passa a corrigido no mesmo
-        lote: resolvido, só quando a verificação seguinte do marco sair limpa.
+        Na fatia de correção, os Achados que ela corrige passam a corrigidos no
+        mesmo lote: resolvidos, só quando a verificação seguinte do marco sair limpa.
         """
         id_artefato = f"art-{id_task}-t{tentativa}"
         propriedades = {
@@ -162,8 +164,8 @@ class LivroRazaoDoGoal:
                 aresta(id_artefato, id_task, TipoAresta.DERIVA_DE),
                 propriedade(id_task, m.CAMPO_COMMIT, commit),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_CONCLUIDO),
-                *([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO), propriedade(achado, a.CAMPO_COMMIT_DA_CORRECAO, commit)]
-                  if achado else []),
+                *(item for achado in achados for item in (propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO),
+                                                          propriedade(achado, a.CAMPO_COMMIT_DA_CORRECAO, commit))),
             ],
             f"Fatia {id_task} concluida em {commit[:12]}",
         )
@@ -238,25 +240,23 @@ class LivroRazaoDoGoal:
     def criar_correcoes(
         self, id_evidencia: str, achados: Sequence[AchadoRegistrado], *, ciclo: int, ordem: int, marco: str = ""
     ) -> None:
-        """Cada Achado bloqueante vira uma fatia de correção do marco, que deriva dele e diz de que verificação nasceu.
+        """Os Achados bloqueantes viram fatias de correção do marco, os do mesmo arquivo juntos, cada uma derivando dos dela.
 
         O código é `<marco>.K<ciclo>.<n>`; `ciclos_de_correcao` no Goal guarda o
         ciclo das últimas correções abertas (a conta por marco sai das fatias).
+        Na bancada, os 8 bloqueantes de um marco estavam todos no mesmo arquivo e
+        viraram 8 sessões de executor: juntos, são 2 (orquestrador/correcoes.py).
         """
         slug = self.view().obter_no(self.id_goal).obter_propriedade(m.CAMPO_ORQUESTRACAO, {}).get("slug", self.id_goal)
         operacoes: list[ItemPatch] = []
-        for indice, achado in enumerate(achados, start=1):
+        for indice, grupo in enumerate(agrupar_por_area(achados), start=1):
             codigo = f"{marco}.K{ciclo}.{indice}" if marco else f"K{ciclo}.{indice}"
             id_task = m.id_da_fatia(slug, codigo)
-            local = achado.texto("local")
-            propriedades = {
-                m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo, m.CAMPO_ORDEM: ordem + indice,
-                m.CAMPO_OBJETIVO: achado.texto("descricao") + (f" (local: {local})" if local else ""),
-                m.CAMPO_CRITERIOS: list(achado.lista("criterios")), m.CAMPO_ARQUIVOS_ALVO: [local.split(":")[0]] if local else [],
-                m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_ACHADO: achado.id, m.CAMPO_MARCO: marco, m.CAMPO_TENTATIVAS: 0,
-            }
-            operacoes += self.produzido(id_task, TipoNo.TASK, f"Corrige: {achado.texto('titulo')}", propriedades=propriedades)
-            operacoes += [aresta(self.id_goal, id_task, TipoAresta.DECOMPOE), aresta(id_task, achado.id, TipoAresta.DERIVA_DE)]
+            propriedades = {**propriedades_da_correcao(grupo), m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo,
+                            m.CAMPO_ORDEM: ordem + indice, m.CAMPO_CORRIGE: id_evidencia, m.CAMPO_MARCO: marco, m.CAMPO_TENTATIVAS: 0}
+            operacoes += self.produzido(id_task, TipoNo.TASK, titulo_da_correcao(grupo), propriedades=propriedades)
+            operacoes.append(aresta(self.id_goal, id_task, TipoAresta.DECOMPOE))
+            operacoes += [aresta(id_task, achado.id, TipoAresta.DERIVA_DE) for achado in grupo]
         operacoes.append(propriedade(self.id_goal, m.CAMPO_CICLOS, ciclo))
         self.gravar(operacoes, f"Ciclo {ciclo} de correcao do Goal {self.id_goal}")
 

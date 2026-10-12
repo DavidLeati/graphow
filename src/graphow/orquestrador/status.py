@@ -50,7 +50,8 @@ def _linhas_do_aceite(estado: EstadoDoGoal) -> list[str]:
     estados = _estados_dos_criterios(estado)
     linhas.append("Criterios: " + ", ".join(f"{c['id']} {estados.get(str(c['id']), 'pendente')}" for c in estado.plano.get("criterios", [])))
     linhas.extend(f"Marco {marco.id}{' (final)' if marco.final else ''}: fatias {', '.join(marco.fatias)}; "
-                  + ("verificado limpo" if any(v.limpa for v in estado.verificacoes_do_marco(marco)) else "sem verificacao limpa")
+                  + ("verificado limpo" if any(v.limpa for v in estado.verificacoes_do_marco(marco)) else
+                     "ciclos esgotados, bloqueantes seguem para a final" if estado.marco_esgotado(marco) else "sem verificacao limpa")
                   for marco in estado.marcos())
     return linhas
 

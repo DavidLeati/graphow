@@ -171,22 +171,21 @@ def _correcao(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str:
 
 
 def _achado_da_correcao(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> list[str]:
-    """O Achado inteiro que a fatia de correção corrige, o que ele fere e a ordem: o teste de regressão antes."""
-    achado = estado.achado(fatia.texto(m.CAMPO_ACHADO))
-    if achado is None:
+    """Cada Achado inteiro que a fatia de correção corrige, o que ele fere e a ordem: o teste de regressão antes."""
+    achados = [achado for id_achado in m.achados_da_correcao(fatia.propriedades) if (achado := estado.achado(id_achado))]
+    if not achados:
         return []
     plano = estado.plano or {}
-    feridos = [*achado.lista("criterios"), *achado.lista("decisoes")]
     textos = {item["id"]: item["texto"] for item in (*plano.get("criterios", []), *plano.get("decisoes", []))}
-    return [
+    linhas = [linha for achado in achados for linha in (
         f"{achado.id}: {achado.texto('titulo')}",
-        f"Descricao: {achado.texto('descricao')}",
-        f"Prova (como reproduzir): {achado.texto('prova')}",
-        *([f"Local: {achado.texto('local')}"] if achado.texto("local") else []),
-        *(f"Fere {codigo}: {textos.get(codigo, '')}" for codigo in feridos),
-        "Escreva primeiro o teste de regressao que reproduz este achado e veja-o falhar; so depois corrija. "
-        "O achado fere o que o humano pediu: corrija no ambito do criterio, mesmo que o defeito ja existisse antes.",
-    ]
+        f"  Descricao: {achado.texto('descricao')}",
+        f"  Prova (como reproduzir): {achado.texto('prova')}",
+        *([f"  Local: {achado.texto('local')}"] if achado.texto("local") else []),
+        *(f"  Fere {codigo}: {textos.get(codigo, '')}" for codigo in (*achado.lista("criterios"), *achado.lista("decisoes"))),
+    )]
+    return [*linhas, "Para cada achado, escreva primeiro o teste de regressao que o reproduz e veja-o falhar; so depois corrija. "
+            "Os achados ferem o que o humano pediu: corrija no ambito do criterio, mesmo que o defeito ja existisse antes."]
 
 
 def _diff(diff: str) -> str:

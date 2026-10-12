@@ -14,6 +14,12 @@ from graphow.core import aceite as a
 from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusQuestion, TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.leitura_das_verificacoes import (
+    AchadoRegistrado,
+    VerificacaoRegistrada,
+    achados_das_revisoes,
+    verificacoes_do_goal,
+)
 from graphow.projection.graph_view import GrafoView
 
 STATUS_NA_FILA: frozenset[str] = frozenset({m.STATUS_PENDENTE, m.STATUS_EM_ANDAMENTO})
@@ -46,7 +52,7 @@ class FatiaRegistrada:
     propriedades: Mapping[str, Any]
     depende_de: tuple[str, ...] = ()
     duvidas: tuple[DuvidaRegistrada, ...] = ()
-    achados_de_revisao: tuple["AchadoRegistrado", ...] = ()
+    achados_de_revisao: tuple[AchadoRegistrado, ...] = ()
 
     def texto(self, chave: str) -> str:
         """Uma propriedade de texto da fatia."""
@@ -73,55 +79,6 @@ class FatiaRegistrada:
     def duvida_aberta(self) -> DuvidaRegistrada | None:
         """A dúvida que pausa a fatia, quando há."""
         return next((duvida for duvida in self.duvidas if duvida.aberta), None)
-
-
-@dataclass(frozen=True)
-class AchadoRegistrado:
-    """Um nó Achado de uma verificação do Goal: a gravidade que o código decidiu, o estado e o que ele é."""
-
-    id: str
-    verificacao: str
-    gravidade: str
-    estado: str
-    propriedades: Mapping[str, Any]
-
-    def texto(self, chave: str) -> str:
-        """Uma propriedade de texto do achado."""
-        return str(self.propriedades.get(chave) or "")
-
-    def lista(self, chave: str) -> tuple[str, ...]:
-        """Uma propriedade de lista de textos do achado."""
-        valor = self.propriedades.get(chave)
-        return tuple(str(item) for item in valor) if isinstance(valor, list) else ()
-
-    @property
-    def bloqueante(self) -> bool:
-        """O código o decidiu bloqueante."""
-        return self.gravidade == a.GRAVIDADE_BLOQUEANTE
-
-
-@dataclass(frozen=True)
-class VerificacaoRegistrada:
-    """Uma verificação do Goal: em que commit, com que veredito e o que achou."""
-
-    id: str
-    commit: str
-    veredito: str
-    ciclo: int
-    propriedades: Mapping[str, Any]
-    commit_do_codigo: str = ""
-    achados: tuple[AchadoRegistrado, ...] = ()
-    marco: str = ""
-
-    def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
-        """Os nós Achado bloqueantes desta verificação."""
-        return tuple(achado for achado in self.achados if achado.bloqueante)
-
-    @property
-    def limpa(self) -> bool:
-        """Sem bloqueante."""
-        return self.veredito == m.VEREDITO_LIMPO
-
 
 
 @dataclass(frozen=True)
@@ -230,9 +187,37 @@ class EstadoDoGoal:
         return tuple(verificacao for verificacao in self.verificacoes if verificacao.marco == marco.id)
 
     def marco_atual(self) -> MarcoRegistrado:
-        """O primeiro marco sem verificação limpa; com todos limpos, o final."""
+        """O primeiro marco sem verificação limpa que ainda tem o que fazer; com todos encerrados, o final.
+
+        O marco intermediário que gastou os ciclos de correção com bloqueante
+        aberto não para o Goal: os bloqueantes seguem abertos, o laço vai aos
+        marcos seguintes, e a verificação final os cobra de novo.
+        """
         marcos = self.marcos()
-        return next((marco for marco in marcos if not any(v.limpa for v in self.verificacoes_do_marco(marco))), marcos[-1])
+        encerrados = (any(v.limpa for v in self.verificacoes_do_marco(marco)) or self.marco_esgotado(marco) for marco in marcos)
+        return next((marco for marco, encerrado in zip(marcos, encerrados) if not encerrado), marcos[-1])
+
+    def limite_de_ciclos(self, marco: MarcoRegistrado) -> int:
+        """Quantos ciclos de correção o marco tem."""
+        return m.MAXIMO_DE_CICLOS_DE_CORRECAO
+
+    def marco_esgotado(self, marco: MarcoRegistrado) -> bool:
+        """O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer."""
+        verificacoes = self.verificacoes_do_marco(marco)
+        if marco.final or not verificacoes or any(v.limpa for v in verificacoes):
+            return False
+        corrigida = any(fatia.texto(m.CAMPO_CORRIGE) == verificacoes[-1].id for fatia in self.fatias)
+        return self.ciclos_do_marco(marco) >= self.limite_de_ciclos(marco) and not corrigida
+
+    def bloqueantes_de_outros_marcos(self, marco: MarcoRegistrado) -> tuple[AchadoRegistrado, ...]:
+        """Os bloqueantes ainda abertos que as verificações dos outros marcos deixaram: a final os cobra de novo."""
+        return tuple(achado for v in self.verificacoes if v.marco != marco.id for achado in v.bloqueantes()
+                     if achado.estado == a.ESTADO_ABERTO)
+
+    def corrigidos(self, marco: MarcoRegistrado) -> tuple[str, ...]:
+        """Os Achados que uma correção entregou e que a verificação limpa do marco resolve; na final, os do Goal inteiro."""
+        verificacoes = self.verificacoes if marco.final else self.verificacoes_do_marco(marco)
+        return tuple(achado.id for v in verificacoes for achado in v.achados if achado.estado == a.ESTADO_CORRIGIDO)
 
     def ciclos_do_marco(self, marco: MarcoRegistrado) -> int:
         """Quantos ciclos de correção o marco já abriu: as verificações dele de onde nasceram fatias de correção."""
@@ -267,7 +252,7 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
         status=str(goal.obter_propriedade(m.CAMPO_STATUS) or ""),
         propriedades=goal.propriedades,
         fatias=_fatias(view, id_goal),
-        verificacoes=_verificacoes(view, id_goal),
+        verificacoes=verificacoes_do_goal(view, id_goal),
         plano_aprovado=_plano_aprovado_pelo_humano(goal),
     )
 
@@ -306,16 +291,8 @@ def _fatia(view: GrafoView, no: NoGrafo) -> FatiaRegistrada:
         propriedades=no.propriedades,
         depende_de=tuple(sorted(a.destino_id for a in view.obter_arestas_saida(no.id, TipoAresta.DEPENDE_DE))),
         duvidas=_duvidas(view, no.id),
-        achados_de_revisao=_achados_das_revisoes(view, no.id),
+        achados_de_revisao=achados_das_revisoes(view, no.id),
     )
-
-
-def _achados_das_revisoes(view: GrafoView, id_task: str) -> tuple["AchadoRegistrado", ...]:
-    """Os nós Achado das revisões de risco da fatia, da revisão mais antiga à mais nova."""
-    revisoes = [view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_task, TipoAresta.DERIVA_DE)]
-    do_risco = sorted((r for r in revisoes if r is not None and r.obter_propriedade("acao") == a.ACAO_DA_REVISAO_DE_RISCO),
-                      key=lambda r: (r.ordem.seq_criacao, r.id))
-    return tuple(achado for revisao in do_risco for achado in _achados(view, revisao.id))
 
 
 def _duvidas(view: GrafoView, id_task: str) -> tuple[DuvidaRegistrada, ...]:
@@ -330,37 +307,6 @@ def _duvidas(view: GrafoView, id_task: str) -> tuple[DuvidaRegistrada, ...]:
             resposta=str(q.obter_propriedade(m.CAMPO_RESPOSTA) or ""),
         )
         for q in validas
-    )
-
-
-def _verificacoes(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada, ...]:
-    """As Evidence de verificação ligadas ao Goal, da mais antiga à mais nova."""
-    evidencias = [view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.DERIVA_DE)]
-    do_goal = [e for e in evidencias if e is not None and e.obter_propriedade("acao") == m.ACAO_DA_VERIFICACAO]
-    ordenadas = sorted(do_goal, key=lambda e: (e.ordem.seq_criacao, e.id))
-    return tuple(
-        VerificacaoRegistrada(
-            id=e.id,
-            commit=str(e.obter_propriedade(m.CAMPO_COMMIT) or ""),
-            veredito=str(e.obter_propriedade(m.CAMPO_VEREDITO) or ""),
-            ciclo=int(e.obter_propriedade(m.CAMPO_CICLO) or 0),
-            propriedades=e.propriedades,
-            commit_do_codigo=str(e.obter_propriedade(m.CAMPO_COMMIT_DO_CODIGO) or ""),
-            achados=_achados(view, e.id),
-            marco=str(e.obter_propriedade(m.CAMPO_MARCO) or ""),
-        )
-        for e in ordenadas
-    )
-
-
-def _achados(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegistrado, ...]:
-    """Os nós Achado que derivam da verificação, na ordem dos ids."""
-    origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_evidencia, TipoAresta.DERIVA_DE))
-    nos = sorted((no for no in origens if no is not None and no.tipo == TipoNo.ACHADO), key=lambda no: (no.ordem.seq_criacao, no.id))
-    return tuple(
-        AchadoRegistrado(no.id, id_evidencia, str(no.obter_propriedade(a.CAMPO_GRAVIDADE) or ""),
-                         str(no.obter_propriedade(a.CAMPO_ESTADO) or ""), no.propriedades)
-        for no in nos
     )
 
 

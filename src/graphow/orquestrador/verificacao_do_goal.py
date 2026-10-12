@@ -1,12 +1,15 @@
 """O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal.
 
 Com as fatias do marco concluídas, o marco é verificado por uma sessão nova
-do verificador (orquestrador/verificacao_do_marco.py). Cada Achado bloqueante
-vira fatia de correção do marco, até dois ciclos por marco; esgotado o
-limite, o laço para com o motivo, e os bloqueantes seguem abertos. O marco
-segue quando a verificação dele sai limpa; o último marco é a verificação
-final, sobre o Goal inteiro, e o Goal só fecha quando ela não tem bloqueante
-e vale para o commit atual: a verificação foi feita no commit do código da
+do verificador (orquestrador/verificacao_do_marco.py). Os Achados bloqueantes
+viram fatias de correção do marco, os do mesmo arquivo juntos numa fatia só,
+até dois ciclos por marco. O marco segue quando a verificação dele sai limpa;
+o marco intermediário que esgota os ciclos também segue, com os bloqueantes
+abertos, para que os marcos seguintes rodem. O último marco é a verificação
+final, sobre o Goal inteiro: ela cobra de novo os bloqueantes que os outros
+marcos deixaram, com os ciclos dela, e só esgotados esses o laço para. O Goal
+só fecha quando não há bloqueante aberto e a verificação final limpa vale
+para o commit atual: a verificação foi feita no commit do código da
 ponta da branch (o commit que só mudou o documento do Goal não conta). O
 kernel recusa o fechamento que não tiver essa prova. No modo autônomo o
 orquestrador integra por fast-forward na base e fecha; no supervisionado,
@@ -21,7 +24,7 @@ acompanhamento.
 from pathlib import Path
 
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_CICLOS_DE_CORRECAO, ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, integrar_por_fast_forward, remover_area
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
@@ -34,7 +37,8 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: M
     if ultima is None or not _vale_para_o_commit_atual(contexto, ultima) or _ja_corrigida(estado, ultima):
         return verificar_marco(contexto, estado, marco)
     sincronizar_documento(contexto, estado.pendencias, numero=len(estado.verificacoes))
-    if ultima.limpa:
+    carregados = estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()
+    if ultima.limpa and not carregados:
         return _fechar(contexto) if marco.final else None
     return _corrigir(contexto, estado, ultima, marco=marco)
 
@@ -50,29 +54,35 @@ def _vale_para_o_commit_atual(contexto: ContextoDoGoal, verificacao: Verificacao
 
 
 def _ja_corrigida(estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
-    """A verificação rejeitada já teve as correções dela, todas concluídas: verificar de novo."""
+    """A verificação já teve as correções dela (as dos bloqueantes dela e, na final, as dos que ela cobrou), todas concluídas."""
     correcoes = [fatia for fatia in estado.fatias if fatia.texto(m.CAMPO_CORRIGE) == verificacao.id]
-    return not verificacao.limpa and bool(correcoes) and all(f.status == m.STATUS_CONCLUIDO for f in correcoes)
+    return bool(correcoes) and all(f.status == m.STATUS_CONCLUIDO for f in correcoes)
 
 
 def _corrigir(
     contexto: ContextoDoGoal, estado: EstadoDoGoal, ultima: VerificacaoRegistrada, *, marco: MarcoRegistrado
 ) -> Parada | None:
-    """Os bloqueantes viram fatias de correção do marco, enquanto ele tiver ciclo; sem ciclo, o laço para."""
-    bloqueantes = ultima.bloqueantes()
+    """Os bloqueantes (na final, também os dos outros marcos) viram fatias de correção enquanto o marco tiver ciclo.
+
+    Sem ciclo, o marco intermediário segue (o laço vai ao marco seguinte), e a
+    final para: não há mais o que executar.
+    """
+    bloqueantes = (*ultima.bloqueantes(), *(estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()))
     ciclos = estado.ciclos_do_marco(marco)
-    if ciclos >= MAXIMO_DE_CICLOS_DE_CORRECAO:
-        titulos = "; ".join(achado.texto("titulo") for achado in bloqueantes)
-        return Parada(
-            contexto.id_goal,
-            MotivoDaParada.BLOQUEANTES_RESTANTES,
-            f"Depois de {MAXIMO_DE_CICLOS_DE_CORRECAO} ciclos de correcao no marco {marco.id}, a verificacao {ultima.id} ainda tem "
-            f"{len(bloqueantes)} bloqueante(s): {titulos}. Eles seguem como Achados abertos e nas pendencias do Goal; "
-            "o Goal fica aberto, e o kernel nao o fecha enquanto houver bloqueante aberto.",
-        )
-    ordem = max((fatia.ordem for fatia in estado.fatias), default=0)
-    contexto.livro.criar_correcoes(ultima.id, bloqueantes, ciclo=ciclos + 1, ordem=ordem, marco=marco.id)
-    return None
+    if ciclos < estado.limite_de_ciclos(marco):
+        ordem = max((fatia.ordem for fatia in estado.fatias), default=0)
+        contexto.livro.criar_correcoes(ultima.id, bloqueantes, ciclo=ciclos + 1, ordem=ordem, marco=marco.id)
+        return None
+    if not marco.final:
+        return None
+    titulos = "; ".join(achado.texto("titulo") for achado in bloqueantes)
+    return Parada(
+        contexto.id_goal,
+        MotivoDaParada.BLOQUEANTES_RESTANTES,
+        f"Depois de {ciclos} ciclos de correcao na verificacao final ({marco.id}), ainda ha {len(bloqueantes)} bloqueante(s): "
+        f"{titulos}. Eles seguem como Achados abertos e nas pendencias do Goal; o Goal fica aberto, e o kernel nao o fecha "
+        "enquanto houver bloqueante aberto.",
+    )
 
 
 def _fechar(contexto: ContextoDoGoal) -> Parada:

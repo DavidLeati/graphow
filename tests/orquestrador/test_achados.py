@@ -9,7 +9,15 @@ from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DO_ORQUESTRADOR, Achado
 
 from tests.orquestrador.apoio_git import git
-from tests.orquestrador.apoio_laco import ACOMPANHAMENTO, Bancada, executor_pronto, montar_bancada, roteiro_completo, verificacao
+from tests.orquestrador.apoio_laco import (
+    ACOMPANHAMENTO,
+    BLOQUEANTE_DO_README,
+    Bancada,
+    executor_pronto,
+    montar_bancada,
+    roteiro_completo,
+    verificacao,
+)
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 # O que a fase 1 chamaria de acompanhamento: o verificador o acha menor, mas ele toca o critério C2.
@@ -56,7 +64,27 @@ def test_briefing_da_correcao_traz_o_achado_inteiro_e_pede_a_regressao_antes_nom
     assert "achado-goal-soma-v1-1: README sem exemplo" in achado
     assert "Prova (como reproduzir): README.md lido: nenhum exemplo" in achado
     assert "Fere C2: o README explica como usar somar" in achado
-    assert "teste de regressao que reproduz este achado" in achado
+    assert "escreva primeiro o teste de regressao que o reproduz" in achado
+
+
+def test_bloqueantes_do_mesmo_arquivo_viram_uma_fatia_de_correcao_so_nominal(tmp_path: Path) -> None:
+    """Bancada B: dois bloqueantes em soma.py e um no README viram duas fatias; a de soma.py corrige os dois de uma vez."""
+    em_soma = [{**BLOQUEANTE_DO_README, "titulo": f"soma {n}", "local": f"soma.py:{n}", "criterios": ["C1"]} for n in (1, 3)]
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("parcial", [*em_soma, BLOQUEANTE_DO_README]), verificacao("atende")]
+    roteiro["executor"] = [*roteiro["executor"][:2], executor_pronto({"soma.py": "def somar(a, b):\n    return b + a\n"}),
+                           roteiro["executor"][2]]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    correcoes = [f for f in estado.fatias if f.texto("corrige_verificacao")]
+    assert [(f.codigo, len(f.lista("achados"))) for f in correcoes] == [("M1.K1.1", 2), ("M1.K1.2", 1)]
+    assert correcoes[0].titulo == "Corrige: soma 1 (e mais 1)" and correcoes[0].lista("arquivos_alvo") == ("soma.py",)
+    assert [a.estado for a in estado.verificacoes[0].achados if a.bloqueante] == ["resolvido"] * 3
+    assert "soma 3" in bancada.chamadas("executor")[2]["stdin"]
 
 
 def test_acompanhamento_vira_pendencia_e_nenhum_achado_vira_note_nominal(tmp_path: Path) -> None:
