@@ -92,6 +92,19 @@ class _Lote:
         """O valor que o lote escreve na propriedade, ou o que ela já tinha."""
         return self.escritas.get((id_no, chave), self.propriedades(id_no).get(chave))
 
+    def finais(self, id_no: str) -> Mapping[str, Any]:
+        """As propriedades do nó no fim do lote: as de antes (ou de criação) com cada escrita do lote por cima.
+
+        A regra julga o que o nó é ao fim do lote, e não a operação: a Evidence
+        que nasce sem `acao` e ganha `acao=verificacao_do_goal` numa operação
+        seguinte do mesmo lote é uma verificação nascida naquele lote.
+        """
+        finais = dict(self.propriedades(id_no))
+        for (no, chave), valor in self.escritas.items():
+            if no == id_no:
+                finais.pop(chave, None) if valor is None else finais.__setitem__(chave, valor)
+        return finais
+
 
 def validar_livro_do_aceite(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
     """Recusa a primeira operação que reescreve o livro do aceite ou o escreve com o papel errado."""
@@ -169,13 +182,28 @@ def _e_pedido(propriedades: Mapping[str, Any]) -> bool:
 
 
 def _motivo_na_criacao(id_no: str, lote: _Lote) -> str:
-    """A verificação e o Achado nascem do orquestrador, com a forma que o fechamento lê; o pedido do humano, do humano."""
-    propriedades = lote.propriedades(id_no)
+    """O nó que nasce no lote, julgado pelo que ele é no fim do lote e pelo papel de quem o grava.
+
+    A verificação, a revisão de risco, o Achado e as derivadas do Criterio
+    nascem do orquestrador; o pedido ao laço, do humano.
+    """
+    propriedades, tipo = lote.finais(id_no), lote.tipo(id_no)
     if _e_pedido(propriedades):
-        return "" if lote.papel == PapelAutor.HUMANO and lote.tipo(id_no) == TipoNo.DECISION else "o pedido ao laco e uma Decision do humano"
+        return "" if lote.papel == PapelAutor.HUMANO and tipo == TipoNo.DECISION else "o pedido ao laco e uma Decision do humano"
     if _e_verificacao(propriedades):
         return _motivo_da_verificacao_nova(propriedades, lote)
-    return _motivo_do_achado_novo(id_no, propriedades, lote) if lote.tipo(id_no) == TipoNo.ACHADO else ""
+    if propriedades.get(a.CAMPO_ACAO) == a.ACAO_DA_REVISAO_DE_RISCO and lote.papel != ORQUESTRADOR:
+        return "so o orquestrador grava a revisao de risco da fatia"
+    if tipo == TipoNo.CRITERIO and lote.papel != ORQUESTRADOR:
+        return _motivo_do_criterio_novo(propriedades)
+    return _motivo_do_achado_novo(id_no, propriedades, lote) if tipo == TipoNo.ACHADO else ""
+
+
+def _motivo_do_criterio_novo(propriedades: Mapping[str, Any]) -> str:
+    """O Criterio que o humano grava nasce com código, texto e verificação; o que as verificações e o aceite dão é do orquestrador."""
+    derivadas = sorted(chave for chave in set(propriedades) & a.PROPRIEDADES_DERIVADAS_DO_CRITERIO
+                       if not (chave == a.CAMPO_ESTADO and propriedades.get(chave) == a.ESTADO_PENDENTE))
+    return f"'{derivadas[0]}' do Criterio vem das verificacoes e do aceite: e do orquestrador" if derivadas else ""
 
 
 def _motivo_da_verificacao_nova(propriedades: Mapping[str, Any], lote: _Lote) -> str:
@@ -198,7 +226,7 @@ def _motivo_do_achado_novo(id_no: str, propriedades: Mapping[str, Any], lote: _L
         return f"o Achado '{id_no}' nasce com gravidade valida e estado {inicial}"
     origens = (aresta.get("destino_id") for aresta in lote.arestas_novas
                if aresta.get("tipo") == TipoAresta.DERIVA_DE.value and aresta.get("origem_id") == id_no)
-    if any(lote.propriedades(str(origem)).get(a.CAMPO_ACAO) in ACOES_DE_ONDE_ACHADO_DERIVA for origem in origens):
+    if any(lote.finais(str(origem)).get(a.CAMPO_ACAO) in ACOES_DE_ONDE_ACHADO_DERIVA for origem in origens):
         return ""
     return f"o Achado '{id_no}' deriva, no mesmo lote, da verificacao ou da revisao que o achou"
 
@@ -206,8 +234,8 @@ def _motivo_do_achado_novo(id_no: str, propriedades: Mapping[str, Any], lote: _L
 def _motivo_na_propriedade(id_no: str, chave: str, item: ItemPatch, *, lote: _Lote) -> str:
     """A escrita de uma propriedade da verificação, do Achado, do Criterio ou do Goal do aceite."""
     existente, tipo = id_no not in lote.criados, lote.tipo(id_no)
-    if chave == a.CAMPO_ACAO and item.value == a.ACAO_DA_VERIFICACAO and existente:
-        return "a verificacao do Goal nasce verificacao; um no existente nao vira uma"
+    if chave == a.CAMPO_ACAO and item.value in ACOES_DE_ONDE_ACHADO_DERIVA and existente:
+        return "a verificacao e a revisao de risco nascem assim; um no existente nao vira uma"
     if existente and tipo == TipoNo.EVIDENCE and _e_verificacao(lote.propriedades(id_no)):
         return f"a verificacao '{id_no}' nao se edita"
     if existente and (_e_pedido(lote.propriedades(id_no)) or chave == a.CAMPO_ACAO_DO_HUMANO):
@@ -284,7 +312,7 @@ def _motivo_na_aresta(id_aresta: str, item: ItemPatch, lote: _Lote) -> str:
         return "a aresta fere e do orquestrador"
     if tipo == TipoAresta.ESCOPA.value and lote.tipo(origem) == TipoNo.CRITERIO and a.CAMPO_CONDUCAO in lote.propriedades(destino):
         return "ligar Criterio ao Goal conduzido e do orquestrador"
-    if tipo == TipoAresta.DERIVA_DE.value and any(_e_verificacao(lote.propriedades(ponta)) for ponta in (origem, destino)):
+    if tipo == TipoAresta.DERIVA_DE.value and any(_e_verificacao(lote.finais(ponta)) for ponta in (origem, destino)):
         return "ligar a verificacao do Goal e do orquestrador"
     return ""
 

@@ -170,3 +170,54 @@ def test_derivadas_do_criterio_e_fere_sao_do_orquestrador_edge_case() -> None:
 
     assert not humano_estado.sucesso and orq_estado.sucesso
     assert not humano_fere.sucesso
+
+
+VERIFICACAO_FORJADA: dict[str, object] = {"numero": 7, "final": True, "veredito": "aprovado", "commit": "cod123",
+                                          "commit_do_codigo": "cod123",
+                                          "pareceres": [{"id": "C1", "no": "crit-1", "veredito": "atende", "prova": "forjada"}]}
+ACAO: ItemPatch = _propriedade("ver-f", "acao", "verificacao_do_goal")
+LIGA: ItemPatch = _aresta("ver-f", "goal", TipoAresta.DERIVA_DE)
+
+
+@pytest.mark.parametrize(
+    ("preparo", "lote", "papel"),
+    [
+        (None, [*_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA), ACAO, LIGA], HUMANO),
+        (None, [*_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA), LIGA, ACAO], HUMANO),
+        ([*_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA)], [ACAO, LIGA], ORQ),
+        ([*_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA)], [ACAO], HUMANO),
+        (None, [*_no("ped-x", TipoNo.DECISION, {"goal": "goal", "motivo": "x"}),
+                _propriedade("ped-x", "acao_do_humano", "descartar_achado")], ORQ),
+        (None, [*_no("rev-f", TipoNo.EVIDENCE, {}), _propriedade("rev-f", "acao", "revisao_de_risco")], HUMANO),
+        (None, [*_no("crit-h", TipoNo.CRITERIO, {"codigo": "C9", "estado": "atende"})], HUMANO),
+        (None, [*_no("crit-h", TipoNo.CRITERIO, {"codigo": "C9"}), _propriedade("crit-h", "testes_de_aceite", [])], HUMANO),
+        (_verificacao(1), [*_no("ach-x", TipoNo.ACHADO, {"gravidade": "bloqueante", "estado": "aberto"}),
+                           _aresta("ach-x", "ver-1", TipoAresta.DERIVA_DE), _propriedade("ach-x", "estado", "descartado")], ORQ),
+    ],
+    ids=["acao-num-patch-posterior", "aresta-antes-da-acao", "acao-num-lote-seguinte-orq", "acao-num-lote-seguinte-humano",
+         "pedido-forjado-pelo-orquestrador", "revisao-forjada-pelo-humano", "criterio-humano-ja-atende",
+         "criterio-humano-com-testes", "achado-nasce-e-muda-no-lote"],
+)
+def test_o_livro_julga_o_no_pelo_que_ele_e_no_fim_do_lote_edge_case(
+    preparo: list[ItemPatch] | None, lote: list[ItemPatch], papel: PapelAutor
+) -> None:
+    """Caso de borda (N1): a verificação, o pedido, a revisão, o Criterio e o Achado são julgados pelo estado final, não pela operação."""
+    recibo = _tentar(preparo, lote, papel)
+
+    assert not recibo.sucesso, recibo.mensagem
+    assert recibo.modo_de_falha == ModoFalhaMAST.ALTERACAO_DO_LIVRO_DO_ACEITE.value
+
+
+def test_o_criterio_do_gerente_nasce_pendente_nominal() -> None:
+    """O humano (o gerente) grava o Criterio com código, texto, verificação e o estado pendente."""
+    recibo = _tentar(None, [*_no("crit-h", TipoNo.CRITERIO, {"codigo": "C9", "texto": "x", "verificacao": "teste",
+                                                            "estado": "pendente"})], HUMANO)
+
+    assert recibo.sucesso, recibo.mensagem
+
+
+def test_aresta_antes_do_no_nem_chega_ao_livro_edge_case() -> None:
+    """Caso de borda: a aresta que liga a verificação forjada antes de o nó existir no lote é recusada já pela estrutura."""
+    recibo = _tentar(None, [LIGA, *_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA), ACAO], HUMANO)
+
+    assert not recibo.sucesso and recibo.modo_de_falha == "referencia_inexistente"
