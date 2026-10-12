@@ -33,11 +33,12 @@ from graphow.orquestrador.entrada_do_goal import (
     pedido_de_adocao,
 )
 from graphow.orquestrador.execucao_da_fatia import executar_fatia
-from graphow.orquestrador.git_do_goal import AreaDoGoal, instalar_trava, preparar_area, raiz_do_repositorio
+from graphow.orquestrador.git_do_goal import AreaDoGoal, preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.planejamento import planejar
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
+from graphow.orquestrador.trava_do_git import instalar_trava
 from graphow.orquestrador.verificacao_do_goal import verificar_ou_fechar
 from graphow.projection.graph_view import GrafoView
 

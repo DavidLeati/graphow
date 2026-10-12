@@ -12,12 +12,11 @@ from graphow.orquestrador.git_do_goal import (
     GitDoGoal,
     commitar,
     descartar_mudancas,
-    instalar_trava,
     integrar_por_fast_forward,
     preparar_area,
-    regras_que_negam_git,
     restaurar_head,
 )
+from graphow.orquestrador.trava_do_git import instalar_trava, regras_que_negam_git
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
 

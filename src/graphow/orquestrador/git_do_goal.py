@@ -2,20 +2,13 @@
 
 O trabalho do Goal acontece num worktree só dele, na branch do Goal, criada da
 base: o checkout do humano não é tocado até a integração. Quem commita é o
-orquestrador, depois de rodar a suíte; o executor não escreve no git.
-
-A trava do executor tem duas camadas, porque uma sonda real mostrou que a
-regra de ferramenta `Bash(git commit:*)` recusa `git commit` e deixa passar
-`git -C . commit`. A primeira são as regras de ferramenta da sessão. A segunda
-vai no ambiente dela: `GIT_CONFIG_*` aponta `core.hooksPath` para uma pasta
-com um hook `reference-transaction` que aborta toda atualização de ref
-(commit, inclusive com `--no-verify`, reset, branch, checkout -b, merge,
-rebase, stash). O orquestrador roda o próprio git sem essas variáveis. Depois
-de cada sessão ele ainda confere HEAD e branch, e desfaz com `reset --soft` o
-commit que tenha escapado.
+orquestrador, depois de rodar a suíte; o executor não escreve no git. A trava
+que impede o agente de escrever no git mora em orquestrador/trava_do_git.py;
+aqui fica o git do próprio orquestrador, que roda sem ela. Depois de cada
+sessão ele confere HEAD e branch da área e desfaz com `reset --soft` o commit
+que tenha escapado.
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -25,16 +18,6 @@ from graphow.core.exceptions import GraphowError
 
 EXECUTAVEL_DO_GIT: str = "git"
 VARIAVEIS_DE_OUTRO_REPOSITORIO: frozenset[str] = frozenset({"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"})
-NOME_DO_HOOK_DA_TRAVA: str = "reference-transaction"
-HOOK_DA_TRAVA: str = (
-    "#!/bin/sh\n"
-    "# Trava do graphow orquestrar: a sessao do agente nao atualiza ref nenhuma.\n"
-    'if [ "$1" = "prepared" ]; then\n'
-    '  echo "graphow: o agente nao escreve no git; quem commita e o orquestrador" >&2\n'
-    "  exit 1\n"
-    "fi\n"
-    "exit 0\n"
-)
 # Os trailers que todo commit do orquestrador leva: o Goal e, no da fatia, a Task.
 # É por eles que a retomada reconhece o commit da fatia que caiu antes de ser
 # registrada, e que a branch que já existe é conferida antes de ser adotada.
@@ -269,18 +252,3 @@ def remover_area(repositorio: Path, area: Path) -> bool:
     """Tira o worktree do Goal depois da integração; a branch fica. Diz se conseguiu."""
     return GitDoGoal(repositorio).tentar("worktree", "remove", str(area)).codigo == 0
 
-
-def instalar_trava(pasta: Path) -> dict[str, str]:
-    """Grava o hook da trava na pasta e devolve o ambiente que a liga numa sessão de agente."""
-    pasta.mkdir(parents=True, exist_ok=True)
-    hook = pasta / NOME_DO_HOOK_DA_TRAVA
-    hook.write_text(HOOK_DA_TRAVA, encoding="utf-8", newline="\n")
-    hook.chmod(0o755)
-    return {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": pasta.as_posix()}
-
-
-def regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]:
-    """As regras `--disallowedTools` de git de escrita, para cada ferramenta de shell dada."""
-    subcomandos = ("commit", "push", "reset", "checkout", "switch", "restore", "merge", "rebase", "stash",
-                   "branch", "tag", "cherry-pick", "revert", "am", "worktree", "update-ref")
-    return tuple(f"{ferramenta}(git {sub}:*)" for ferramenta in ferramentas for sub in subcomandos)

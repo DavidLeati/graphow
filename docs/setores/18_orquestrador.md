@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-21 módulos · 3199 linhas · 42 classes
+22 módulos · 3391 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,18 +20,19 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 114 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 121 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 164 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 286 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 254 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 173 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 174 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 261 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 133 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 283 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 283 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 296 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 66 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
+| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 210 | A trava do git nas sessões de agente: as regras, o ambiente e a conferência depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 183 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
 
@@ -224,8 +225,6 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 | :--- | :--- | :--- |
 | `EXECUTAVEL_DO_GIT` | `str` | `'git'` |
 | `VARIAVEIS_DE_OUTRO_REPOSITORIO` | `frozenset[str]` | `frozenset({'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'})` |
-| `NOME_DO_HOOK_DA_TRAVA` | `str` | `'reference-transaction'` |
-| `HOOK_DA_TRAVA` | `str` | `'#!/bin/sh\n# Trava do graphow orquestrar: a sessao do agente nao atual…` |
 | `TRAILER_DO_GOAL` | `str` | `'Graphow-Goal'` |
 | `TRAILER_DA_TASK` | `str` | `'Graphow-Task'` |
 | `SEPARADOR_DE_COMMITS` | `str` | `'\x1e'` |
@@ -288,8 +287,6 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `restaurar_head(area: Path, ramo: str, esperado: str) -> str` — Desfaz o que o agente fez no git: volta à branch e, com `reset --soft`, ao commit esperado.
 - `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até a branch do Goal, só por fast-forward; devolve o commit integrado.
 - `remover_area(repositorio: Path, area: Path) -> bool` — Tira o worktree do Goal depois da integração; a branch fica. Diz se conseguiu.
-- `instalar_trava(pasta: Path) -> dict[str, str]` — Grava o hook da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
-- `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` de git de escrita, para cada ferramenta de shell dada.
 
 ## `orquestrador/gravacao_do_plano.py`
 
@@ -631,7 +628,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 *serviço* — Roda as sessões dos papéis e registra cada invocação na telemetria.
 
 - `modelo_do_papel(papel: str) -> str` — O modelo configurado para o papel; Opus quando a configuração não diz.
-- `rodar(pedido: PedidoDePapel) -> RespostaDePapel` — A sessão, e a retomada com os problemas quando a saída não confere.
+- `rodar(pedido: PedidoDePapel) -> RespostaDePapel` — A sessão conferida, e o git conferido depois dela: o que o agente mexeu fora da branch do Goal a reprova.
 
 ### Funções do módulo
 
@@ -691,6 +688,32 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 ### Funções do módulo
 
 - `rodar_suite(area: Path, comando: str, banco_descartavel: Path) -> ResultadoDaSuite` — Roda o comando na área e devolve o resultado.
+
+## `orquestrador/trava_do_git.py`
+
+A trava do git nas sessões de agente: as regras, o ambiente e a conferência depois de cada sessão.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DO_COMMITTER_DO_AGENTE` | `str` | `'graphow agente'` |
+| `EMAIL_DO_COMMITTER_DO_AGENTE` | `str` | `'agente@graphow.invalid'` |
+| `HOOKS_DA_TRAVA` | `Mapping[str, str]` | `{'reference-transaction': '#!/bin/sh\n# Trava do graphow orquestrar: a …` |
+| `SUBCOMANDOS_DE_ESCRITA` | `tuple[str, ...]` | `('commit', 'push', 'pull', 'fetch', 'reset', 'checkout', 'switch', 'res…` |
+| `OPCOES_GLOBAIS_NEGADAS` | `tuple[str, ...]` | `('-c', '-C', '--git-dir', '--work-tree', '--exec-path')` |
+| `PADRAO_DO_REFLOG` | `re.Pattern[str]` | `re.compile('^\\S+ \\S+ .*?<(?P<email>[^>]*)> (?P<instante>\\d+) [+-]\\d…` |
+
+### `FotoDoGit`
+
+*DTO imutável* — O repositório antes de uma sessão de agente: as refs (fora a branch do Goal), os checkouts e a configuração.
+
+**Campos:** `area: Path`, `comum: Path`, `ramo_do_goal: str`, `inicio: int`, `refs: Mapping[str, str]`, `checkouts: Mapping[str, str]`, `configuracao: bytes`
+
+### Funções do módulo
+
+- `instalar_trava(pasta: Path) -> dict[str, str]` — Grava os hooks da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
+- `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório ou de configuração.
+- `fotografar(area: Path) -> FotoDoGit` — A foto do repositório da área, tirada logo antes da sessão.
+- `conferir_o_git(foto: FotoDoGit) -> tuple[str, ...]` — O que mudou no git fora da branch do Goal sem ser o humano; desfaz o que dá e devolve o que achou.
 
 ## `orquestrador/validacao_json.py`
 
