@@ -450,7 +450,11 @@ graphow orquestrar --goal goal-relatorio --recusar-plano --motivo "o README fica
 graphow orquestrar --goal goal-relatorio --refazer-aceite C3 --motivo "o teste exige ponto, a spec aceita virgula"
 graphow orquestrar --goal goal-relatorio --descartar-achado achado-goal-relatorio-v4-1 --motivo "aceito o risco"
 graphow orquestrar --goal goal-relatorio --mais-ciclos 1 --motivo "falta so a borda do CRLF"
+graphow orquestrar --goal goal-relatorio --retirar-criterio C4 --motivo "o CSV fica para o proximo Goal"
 graphow orquestrar --goal goal-relatorio --cancelar --motivo "o pedido mudou"
+
+# Quantos ciclos de correcao cada marco tem (padrao: 2); com 0, o primeiro bloqueante para e o humano decide
+graphow orquestrar --spec docs/pedido.md --repo . --modo autonomo --ciclos-de-correcao 0
 
 # Registrar o ciclo de vida de uma execução (chamado pelos hooks do ambiente).
 # Sem --setor, a sessão nasce no ambiente padrão do repositório em que o comando roda
@@ -916,7 +920,9 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    pulado voltam ao autor; o que já passa precisa da justificativa
    (`ja_atendido`, que vale só para os testes que já passam). O que não confere
    volta à mesma sessão até duas vezes; esgotadas, a parada indica
-   `--refazer-aceite`. Conferido, os testes vão num commit, e cada `Criterio`
+   `--refazer-aceite`. Conferido, os testes vão num commit (o arquivo de
+   `aceite/` que o `.gitignore` do projeto ignoraria entra com `git add -f` e
+   faz parte da cópia intocada), e cada `Criterio`
    ganha a ligação aos seus testes. O autor roda no Sonnet por padrão, e o JSON
    dele leva um modelo de comando (`comando_do_teste`) em vez de um comando por
    teste.
@@ -930,10 +936,22 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    sessão nova do executor recebe o briefing montado por código: a spec, o texto
    inteiro dos critérios (com os testes de aceite que os provam) e das decisões,
    os arquivos, os commits das fatias anteriores e o diff resumido da última; na
-   fatia de correção, o achado inteiro e o pedido de escrever o teste de
-   regressão antes. O executor implementa e devolve `pronto`, `duvida` ou
-   `falhou`. O orquestrador confere o git, recusa a fatia que alterou, apagou
-   ou moveu um teste de aceite (se o teste está errado, o caminho é a dúvida),
+   fatia de correção, o achado inteiro com a prova, as chamadas da verificação
+   que falharam (o comando exato, o código de saída e o trecho da saída, para
+   reproduzir) e o pedido de escrever o teste de regressão antes; quando a mesma
+   falha volta no ciclo seguinte, também o diff da correção anterior e a
+   verificação que a reprovou. A correção roda no Opus. O executor implementa e
+   devolve `pronto`, `duvida` ou `falhou`. No modo autônomo, onde ninguém
+   responde, o schema dele não oferece `duvida`: a incerteza que ele resolve
+   pela spec vai em `decisoes` e vira `Decision` "decidida pelo agente", que
+   orienta a fatia e aparece no `--status` e no documento do Goal para o humano
+   revisar; a única parada é `teste_errado`, que pede ao autor de aceite, uma
+   vez por critério, que refaça os testes dele com o argumento do executor no
+   briefing (se o autor os mantém, o porquê volta ao executor, a fatia segue e o
+   desacordo vai à verificação, que julga; as outras fatias seguem). O
+   orquestrador confere o git, recusa a fatia que alterou, apagou ou moveu um
+   teste de aceite (se o teste está errado, o caminho é a dúvida ou o
+   `teste_errado`),
    roda a suíte ele mesmo, sem os testes de aceite, no mesmo bash da ferramenta
    Bash dos agentes (o Git Bash no Windows, nunca o do WSL; `GRAPHOW_SHELL`
    escolhe outro), passa a fatia de risco (a marcada, ou a que já falhou uma
@@ -943,50 +961,66 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    revisão, e o problema da revisão que rejeita vira `Achado` da revisão (com a
    gravidade do código), e não Note. **O aceite fica intocado**
    (`orquestrador/aceite_intocado.py`): a fatia que mexe em `aceite/` (o
-   arquivo ignorado pelo git inclusive) é recusada; a que muda a configuração
-   de teste (conftest, pytest.ini, a seção de teste do pyproject e do
-   setup.cfg, tox.ini, os scripts de teste do package.json, jest, vitest,
-   mocha, sitecustomize, `.pth`, um `pytest.py` na raiz) é recusada salvo
-   quando o plano declarou o arquivo nela, e aí vai à revisão de risco; as
+   arquivo ignorado pelo git inclusive) é recusada. A configuração de teste
+   (conftest, pytest.ini, a seção de teste do pyproject e do setup.cfg,
+   tox.ini, os scripts de teste do package.json, jest, vitest, mocha,
+   sitecustomize, `.pth`, um `pytest.py` na raiz) o executor pode mudar, e a
+   suíte do plano roda com ela; mas os testes de aceite rodam sempre com esses
+   arquivos de volta ao commit do aceite e `aceite/` intocado
+   (`orquestrador/configuracao_do_aceite.py`), e a mudança que o plano não
+   declarou na fatia só manda a fatia à revisão de risco, como sinal. As
    flags `skip-worktree` e `assume-unchanged` do índice saem e reprovam a
-   tentativa (`git update-index` está nas regras negadas). A dúvida vira `Question` e pausa só aquela fatia, sem contar como
+   tentativa (`git update-index` está nas regras negadas). A dúvida (no
+   supervisionado) vira `Question` e pausa só aquela fatia, sem contar como
    falha; a falha ganha uma nova tentativa com o erro, e a segunda falha vira
-   pendência e para o laço. O que não vira commit vai para um `.patch` e sai da
+   pendência e para o laço, menos na correção agrupada, que se divide numa
+   fatia por achado. O que não vira commit vai para um `.patch` e sai da
    área.
 6. **Verificação por marco.** Com as fatias do marco concluídas, uma sessão
    nova do verificador, sem nada de quem implementou, roda a suíte, os testes de
    aceite e o programa de verdade, executa as checagens, sonda as bordas que os
    critérios implicam (negativo, zero, vazio, enorme, codificação, Unicode,
    concorrência, Windows, código de saída, idioma) e dá um parecer por critério
-   que o marco julga (na final, todos, e todas as decisões), com prova, os
-   achados e a lista dos comandos que rodou, cada um com o código de saída e
-   um trecho da saída: sem comando rodado, ou com prova de menos de dez
-   caracteres, a verificação não confere, e cada comando declarado tem de
-   aparecer numa chamada da ferramenta Bash do stream da sessão (o que não
-   aparece volta à mesma sessão uma vez). Depois, o próprio orquestrador roda,
-   no commit verificado, com `aceite/` de volta ao commit do aceite e sem
-   configuração de teste solta, a suíte e os testes de aceite dos critérios que
-   os marcos até este completaram (os dos anteriores, como regressão; na final,
-   também todos de uma vez e a suíte junto com eles, num comando só): a suíte
+   que o marco julga (na final, todos, e todas as decisões), com prova (o
+   comando exato e o que viu) e os achados; também sonda os limites que as
+   decisões implicam (datas máximas, tamanhos, quantidades, repetição). Com
+   prova de menos de dez caracteres, a verificação não confere. Os comandos
+   rodados ela não declara: o orquestrador os tira do stream da sessão, cada
+   chamada da ferramenta Bash com o código de saída e um trecho da saída
+   (`orquestrador/comandos_do_stream.py`), e os grava na verificação; a sessão
+   que não rodou nenhum volta uma vez (na bancada, conferir os comandos que o
+   verificador declarava custou quatro retomadas num Goal só). Depois, o
+   próprio orquestrador roda, no commit verificado, com `aceite/` de volta ao
+   commit do aceite e a configuração de teste daquele commit, a suíte e os
+   testes de aceite dos critérios que os marcos até este completaram (os dos
+   anteriores, como regressão; na final, também todos de uma vez e a suíte
+   junto com eles, num comando só, com a configuração do projeto): a suíte
    vermelha é bloqueante, e o teste de aceite que não passa (o pulado e o xfail
    inclusive) reprova o critério dele, diga o verificador o que disser. **A gravidade é do código**: o verificador diz, por
    achado, os critérios e as decisões que ele toca, e o achado que toca algum é
    bloqueante, sem exceção, mesmo o defeito que já existia; o que ele deixa sem
    citação vai a uma segunda opinião, uma sessão curta sem ferramentas (Sonnet,
-   só os critérios, as decisões e o achado), e só fica acompanhamento se ela
-   também não citar nada (sem resposta, os dois não concordaram, e ele é
-   bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   só os critérios, as decisões e o achado, com uma retomada quando o formato
+   não confere), e só fica acompanhamento se ela também não citar nada (sem
+   resposta, os dois não concordaram, e ele é bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes viram fatias de correção que derivam deles, os do
-   mesmo arquivo (ou, sem local, do mesmo critério) juntos numa fatia só, até
-   dois ciclos por marco. O marco intermediário que esgota os ciclos segue, com
+   mesmo arquivo (o caminho normalizado: `./x.py` é `x.py`, as barras, a caixa
+   no Windows) ou, sem local, do mesmo critério, juntos numa fatia só, até
+   dois ciclos por marco (`--ciclos-de-correcao` muda o número, gravado no
+   Goal). O marco intermediário que esgota os ciclos segue, com
    os bloqueantes abertos, para os marcos seguintes rodarem; a verificação final
    os cobra de novo, com os ciclos dela, e só esgotados esses o laço para. O
    acompanhamento fica como pendência do Goal, no documento e no `--status`.
 7. **Fechamento.** O Goal só fecha com a verificação final limpa no commit
-   atual e nenhum bloqueante aberto, e é o kernel que recusa o resto
-   (`fechamento_sem_verificacao_limpa`). O livro do aceite não se reescreve
-   (`kernel/livro_do_aceite.py`): a verificação e os pareceres dela são
+   atual, `atende` em cada critério e nenhum bloqueante aberto, e é o kernel
+   que recusa o resto (`fechamento_sem_verificacao_limpa`); a regra e o laço só
+   contam a verificação, o `Achado` e a revisão de risco que nasceram de um
+   lote do orquestrador (a proveniência do nó no log). O livro do aceite não se
+   reescreve (`kernel/livro_do_aceite.py`), e cada nó do lote é julgado pelo
+   que ele é no fim do lote, e não operação a operação (a revisão forjou a
+   verificação criando a `Evidence` sem `acao` e escrevendo a ação numa
+   operação seguinte do mesmo lote): a verificação e os pareceres dela são
    imutáveis e só o orquestrador os cria; a ponta da branch, a condução, o plano
    e as ligações do `Criterio` são dele, e o `Criterio` não se remove; o
    `Achado` só anda pelas transições do livro (aberto a corrigido pelo
@@ -1004,21 +1038,36 @@ como `Decision` do humano (`orquestrador/pedidos_do_humano.py`), sempre com
 `--motivo`: `--recusar-plano` (antes de qualquer fatia: o planejador refaz o
 plano com o recusado e o motivo no briefing, e o `Criterio` que sai fica
 retirado), `--refazer-aceite C3` (o autor de aceite reescreve só os testes de
-C3; a resposta do humano à dúvida do executor que marcou `teste_errado` leva
-ao mesmo lugar, e no supervisionado o portão volta), `--descartar-achado`
-(o laço lê o estado do `Achado`, e não o veredito velho da verificação),
-`--mais-ciclos N` (para o marco atual) e `--cancelar`. **Limite da conta.** O
-limite de uso (`usage_limit_reached`, o `rate_limit_event` recusado) não é
+C3, e no supervisionado o portão volta; a dúvida do executor que marcou
+`teste_errado` só leva ao mesmo lugar quando a resposta do humano começa por
+`refazer`, e `manter` devolve a fatia ao executor com o teste como está),
+`--descartar-achado` (o laço lê o estado do `Achado`, e não o veredito velho
+da verificação), `--retirar-criterio C2` (o critério sai da conta do
+fechamento: o pedido é a `Decision` do humano, aparece no `--status` e numa
+seção do documento do Goal, e descarta os Achados abertos que ferem só ele),
+`--mais-ciclos N` (para o marco atual) e `--cancelar`. **Descartar não aprova
+critério**: o Goal com um critério `nao_atende` ou `parcial` na última
+verificação não fecha por descarte (é a decisão do dono do processo, que vale
+sobre o item 7 só nesse ponto); o descarte resolve só o Achado que não deixa
+critério reprovado, e a parada indica `--retirar-criterio`, `--refazer-aceite`
+ou `--cancelar`. **Erros da API.** O limite de uso (`usage_limit_reached`, o
+`rate_limit_event` recusado num stream que não termina em sucesso) não é
 falha da fatia: a tentativa em curso não conta e o laço para com
-`limite_de_uso`, retomável; o erro passageiro da API (sobrecarga, 5xx) repete
-a invocação depois de 30 s, 2 min e 5 min.
+`limite_de_uso`, retomável; o limite que chega na revisão de risco não joga
+fora a entrega do executor, que fica guardada, e a retomada refaz só a
+revisão. O erro passageiro (429 sem limite de uso, 529 ou sobrecarga, 5xx)
+repete a invocação depois de 30 s, 2 min e 5 min; o 4xx é permanente: a
+sessão falha na hora, com o erro da API no motivo, sem espera.
 
 O estado sai do livro-razão e do git, então rodar de novo retoma de onde parou,
 inclusive depois de o processo cair no meio de uma sessão: o plano pago não se
 paga de novo (vale o que o Goal guardou, ou o relido do stream da sessão), nem
 os testes de aceite (a saída conferida do autor vai ao Goal antes do commit), a
 fatia cujo commit já está na branch fecha pelo trailer, sem outro executor, e o
-documento do Goal é sincronizado com as pendências do livro-razão. A mesma spec
+documento do Goal é sincronizado com as pendências do livro-razão. Todo
+documento que o orquestrador escreve vai com quebras LF e só é commitado quando
+muda de fato: a pendência com CRLF (a saída de um programa no Windows) não gera
+mais um commit novo a cada chamada. A mesma spec
 depois de o Goal fechar abre outro, com sufixo (`goal-soma-2`) no slug, nas
 fatias e na branch. Toda falha de domínio (o git que recusa, o lote que o
 kernel recusa, o pedido que não dá para conduzir) vira parada com o motivo,

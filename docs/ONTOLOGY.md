@@ -350,7 +350,12 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   do Goal) que o Goal grava como ponta da branch (`ponta_do_ramo`), com parecer
   `atende` para cada critério e nenhum `Achado` bloqueante fora de `resolvido`
   ou `descartado`. Vale para todo papel, o humano inclusive, e recusa com
-  `fechamento_sem_verificacao_limpa` (kernel/fechamento_do_goal.py).
+  `fechamento_sem_verificacao_limpa` (kernel/fechamento_do_goal.py). Só conta a
+  verificação, o `Achado` e a revisão de risco que nasceram de um lote do
+  `orquestrador` (a proveniência do nó no log): a `Evidence` que outro papel
+  gravou com a ação da verificação não é prova. Descartar o `Achado` não aprova
+  o critério: o critério com `nao_atende` ou `parcial` só sai da conta quando o
+  humano o retira.
 - **O livro do aceite não se reescreve** (kernel/livro_do_aceite.py, para todo
   papel, o humano inclusive). A verificação do Goal só o `orquestrador` a cria,
   com `numero` inteiro, `final` e `veredito` válidos, e depois ninguém a edita,
@@ -366,20 +371,34 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   do aceite só vai a `concluido` pelo orquestrador, num lote em que o
   fechamento é a única mudança (o status e `integrado_em` do Goal e o status da
   Sessao dele); o humano o põe em `cancelado`, com `motivo_do_cancelamento`.
-  Recusa com `alteracao_do_livro_do_aceite`.
+  Recusa com `alteracao_do_livro_do_aceite`. Cada nó que nasce no lote é
+  julgado pelo que ele é no fim do lote (a criação com as escritas do lote por
+  cima), e não operação a operação: a `Evidence` que nasce sem `acao` e a ganha
+  numa escrita seguinte do mesmo lote é verificação, e é recusada se não vem
+  do `orquestrador`; o nó que já existia não vira verificação nem revisão de
+  risco, e o `Criterio` que o humano cria não nasce com propriedade derivada
+  (só `estado: pendente`).
 - **A última verificação** é a mais nova no log, não a de maior número. Ela é
   limpa com veredito `aprovado`, ou quando todo Achado bloqueante dela foi
-  resolvido ou descartado pelo humano; o critério sem `atende` vale quando todo
-  Achado dela que o fere foi descartado; o `Criterio` que uma Decision do humano
-  tirou do plano (`retirado`) sai da conta.
+  resolvido ou descartado pelo humano; o `Criterio` que uma Decision do humano
+  tirou da conta (`retirado`, com o id da Decision, o motivo e quem pediu) sai
+  da conta, e nenhum outro critério sem `atende` vale.
 - **O pedido do humano** ao laço é uma `Decision` com `acao_do_humano`
   (`descartar_achado`, `mais_ciclos`, `cancelar`, `recusar_plano`,
-  `refazer_aceite`), o `goal`, o `alvo` e o `motivo`, produzida pela Sessao do
+  `refazer_aceite`, `retirar_criterio`), o `goal`, o `alvo` e o `motivo`,
+  produzida pela Sessao do
   orquestrador do Goal, por onde ele entra no laço, e com a proveniência do
   humano. Só o humano a cria, e ninguém a edita nem a remove. O Goal guarda os
   pedidos que o laço atendeu (`pedidos_atendidos`) e os planos recusados
   (`planos_recusados`), ambos do orquestrador; o `Criterio` que o plano novo
-  não traz mais fica `retirado`, com a Decision do pedido que recusou o plano.
+  não traz mais fica `retirado`, com a Decision do pedido que recusou o plano,
+  e o que o humano retira por `retirar_criterio` também, com a Decision dele (os
+  Achados abertos que ferem só aquele critério se descartam no mesmo lote).
+- **A decisão do agente.** No modo autônomo, onde ninguém responde, a incerteza
+  que o executor resolve pela spec vira `Decision` com `decidida_pelo_agente`,
+  `fatia`, `questao`, `texto` e `motivo`, do papel `orquestrador`, que `orienta`
+  a fatia; ela aparece no `--status` e no documento do Goal para o humano
+  revisar, e não é pedido ao laço.
 - **A revisão de risco** que rejeita a fatia grava cada problema como `Achado`
   que deriva da Evidence dela, com a gravidade do código; a revisão seguinte
   da fatia que aprova resolve os bloqueantes que ela abriu.

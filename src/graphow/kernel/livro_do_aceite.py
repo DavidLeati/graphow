@@ -24,7 +24,15 @@ papel, o humano inclusive:
   orquestrador;
 - o Goal do aceite (conduzido, ou com Criterio) só vai a `concluido` pelo
   orquestrador, num lote em que o fechamento é a única mudança; o humano o
-  cancela (`cancelado`, com o motivo), e não o conclui.
+  cancela (`cancelado`, com o motivo), e não o conclui;
+- o pedido ao laço (Decision com `acao_do_humano`) só o humano cria, e ninguém
+  o edita nem o remove.
+
+Cada nó que nasce no lote é julgado pelo que ele é no fim do lote (a criação
+com as escritas do lote por cima), e não operação a operação: a revisão da
+rodada 3 forjou a verificação criando a Evidence sem `acao` e escrevendo
+`acao=verificacao_do_goal` e o `deriva_de` numa operação seguinte do mesmo
+lote. E o nó que já existia não vira verificação nem revisão de risco.
 """
 
 from collections.abc import Iterable, Mapping
