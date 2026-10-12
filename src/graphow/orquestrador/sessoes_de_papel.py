@@ -97,11 +97,6 @@ class RespostaDePapel:
     problemas: tuple[str, ...] = ()
     resultados: tuple[ResultadoDeSessao, ...] = ()
 
-    @property
-    def valida(self) -> bool:
-        """A saída conferiu e pode ser gravada."""
-        return self.dados is not None
-
 
 class SessoesDePapel:
     """Roda as sessões dos papéis e registra cada invocação na telemetria."""

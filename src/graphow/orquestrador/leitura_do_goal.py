@@ -156,10 +156,6 @@ class EstadoDoGoal:
         """As fatias que viraram pendência depois da segunda falha."""
         return tuple(fatia for fatia in self.fatias if fatia.status == m.STATUS_BLOQUEADO)
 
-    def todas_concluidas(self) -> bool:
-        """Há fatias e todas fecharam."""
-        return bool(self.fatias) and all(fatia.status == m.STATUS_CONCLUIDO for fatia in self.fatias)
-
 
 def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
     """O estado do Goal no grafo; None quando o Goal não existe."""

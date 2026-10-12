@@ -10,7 +10,7 @@ Ferramentas expostas via Model Context Protocol à sessão do humano (graphow mc
 
 ## Inventário
 
-18 módulos · 2776 linhas · 28 classes
+18 módulos · 2781 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,7 +24,7 @@ Ferramentas expostas via Model Context Protocol à sessão do humano (graphow mc
 | [`mcp/ferramentas_navegacao.py`](#mcpferramentasnavegacao) | 162 | Ferramentas MCP da camada de navegação: Projeto, Setor e Sessão. |
 | [`mcp/ferramentas_posse.py`](#mcpferramentasposse) | 183 | Ferramentas MCP de posse de tarefa: adquirir e devolver a escrita exclusiva. |
 | [`mcp/ferramentas_trabalho.py`](#mcpferramentastrabalho) | 240 | Ferramentas MCP da camada de trabalho: tarefas, questões e patches livres. |
-| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 234 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
+| [`mcp/identidade_sessao.py`](#mcpidentidadesessao) | 239 | Identidade imutável de uma sessão MCP e política de autorização por ferramenta. |
 | [`mcp/orquestracao_tarefa.py`](#mcporquestracaotarefa) | 179 | O que `criar_tarefa` grava para a orquestração: modelo, trilha, entrega, arquivos-alvo, correção, decisões e ligação de escopo. |
 | [`mcp/server.py`](#mcpserver) | 145 | Servidor de Protocolo MCP (Model Context Protocol) para interação com agentes. |
 | [`mcp/stdio_protocolo.py`](#mcpstdioprotocolo) | 195 | Transporte e despacho do protocolo JSON-RPC 2.0 usado pelo servidor MCP stdio. |

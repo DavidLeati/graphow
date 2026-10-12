@@ -23,6 +23,11 @@ from graphow.kernel.politica_governanca import resolver_politica_do_no
 from graphow.kernel.rastreio_projeto import RastreadorProjetoAncestral
 from graphow.kernel.write_kernel import WriteKernel
 
+# A CLI e o servidor stdio só abrem sessão humana (PAPEIS_ACEITOS_NO_MCP); o
+# fluxo de agentes por MCP saiu com o orquestrador em código. Os papéis de agente
+# seguem aceitos aqui porque os testes do MCP em processo exercitam por eles os
+# contratos de papel do kernel (RoleGate, posse, veredito), que ainda valem para
+# o log e só saem com a governança, na fase 4.
 PAPEIS_VALIDOS_EM_SESSAO: frozenset[PapelAutor] = frozenset(
     {
         PapelAutor.HUMANO,

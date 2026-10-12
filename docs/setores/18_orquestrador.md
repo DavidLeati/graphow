@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-22 módulos · 3478 linhas · 43 classes
+22 módulos · 3469 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,12 +23,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 254 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 174 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 247 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 243 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 261 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 139 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 133 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 283 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 296 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 291 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 121 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
@@ -349,7 +349,6 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 - `prontas() -> tuple[FatiaRegistrada, ...]` — As fatias que podem rodar agora, na ordem do plano.
 - `pausadas() -> tuple[FatiaRegistrada, ...]` — As fatias paradas numa dúvida aberta.
 - `bloqueadas() -> tuple[FatiaRegistrada, ...]` — As fatias que viraram pendência depois da segunda falha.
-- `todas_concluidas() -> bool` — Há fatias e todas fecharam.
 
 ### `FatiaRegistrada`
 
@@ -620,8 +619,6 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 *DTO imutável* — A saída conferida, ou os problemas que sobraram, e as invocações que rodaram.
 
 **Campos:** `dados: Mapping[str, Any] | None`, `problemas: tuple[str, ...]`, `resultados: tuple[ResultadoDeSessao, ...]`
-
-- `valida() -> bool` `[property]` — A saída conferiu e pode ser gravada.
 
 ### `SessoesDePapel`
 
