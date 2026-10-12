@@ -22,7 +22,8 @@ from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_AUTOR_DE_ACEITE
 from graphow.orquestrador.git_do_goal import commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
-from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, gravar_aceite, gravar_aceite_proposto
+from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
+from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, commit_da_configuracao, gravar_aceite, gravar_aceite_proposto
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PedidoDoHumano
 from graphow.orquestrador.replanejamento import atendidos_com
@@ -107,8 +108,10 @@ def _conferir(contexto: ContextoDoGoal, estado: EstadoDoGoal, refeito: SaidaDoAc
                  *(f"{caminho} e teste de outro criterio: refaca so os de {criterio}" for caminho in mudados if caminho in alheios)]
     if problemas:
         return tuple(problemas)
+    with configuracao_do_aceite(contexto.area, commit_da_configuracao(estado.aceite)):
+        execucoes = rodar_testes(refeito, rodar)
     return tuple(f"o teste {e.teste} de {criterio} nao passa e nao falha numa assercao dele: {motivo}"
-                 for e in rodar_testes(refeito, rodar) if not e.passou and (motivo := e.vermelho_invalido()))
+                 for e in execucoes if not e.passou and (motivo := e.vermelho_invalido()))
 
 
 def _arquivos_dos_outros(estado: EstadoDoGoal, criterio: str) -> set[str]:
@@ -131,7 +134,8 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite,
     versao = m.versao_do_plano(estado.propriedades)
     gravar_aceite(contexto.livro, AceiteParaGravar(
         novo, commit, arquivos, [], nos_do_plano(estado.plano or {}), id_do_aceite=f"{m.id_do_aceite(contexto.id_goal, versao)}-r{_revisoes(estado) + 1}",
-        revisoes=_revisoes(estado) + 1, atendidos=tuple(atendidos_com(estado, pedido.id)), so=(pedido.alvo,)))
+        revisoes=_revisoes(estado) + 1, atendidos=tuple(atendidos_com(estado, pedido.id)), so=(pedido.alvo,),
+        commit_da_configuracao=commit_da_configuracao(estado.aceite)))
 
 
 def briefing_do_refazer(estado: EstadoDoGoal, pedido: PedidoDoHumano, atual: SaidaDoAceite) -> str:

@@ -28,6 +28,8 @@ from typing import Any
 
 from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
+from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
+from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
 from graphow.orquestrador.briefing import briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
@@ -67,12 +69,12 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
                                         textos=_textos_julgaveis(estado, marco))
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
-    execucoes = _aceite_no_commit(contexto, estado, marco)
+    execucoes, trocados = _aceite_no_commit(contexto, estado, marco)
     registro = RegistroDaVerificacao(
         numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, execucoes), commit=head,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(plano), ciclo=estado.ciclos_do_marco(marco),
         final=marco.final, marco=marco.id, aceite=[execucao.em_json() for execucao in execucoes], resolver=estado.corrigidos(marco),
-        tirado_antes_do_aceite=tirado,
+        tirado_antes_do_aceite=tirado, configuracao_do_aceite=trocados,
     )
     registro = replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
     gravar_verificacao(contexto.livro, registro)
@@ -80,18 +82,27 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     return None
 
 
-def _aceite_no_commit(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> tuple[ExecucaoDeAceite, ...]:
-    """Os testes de aceite dos marcos até este, rodados pelo orquestrador; na final, também o comando de todos e a suíte junto."""
+def _aceite_no_commit(
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado
+) -> tuple[tuple[ExecucaoDeAceite, ...], tuple[str, ...]]:
+    """Os testes de aceite dos marcos até este, com a configuração de teste do aceite; na final, também o de todos e a suíte junto.
+
+    A suíte junto com o aceite roda com a configuração da ponta, a do
+    projeto: ela só acrescenta falha, e cada teste de aceite já rodou isolado.
+    Devolve as execuções e os arquivos de configuração trocados.
+    """
     aceite = SaidaDoAceite.do_livro(estado.aceite)
 
     def rodar(comando: str) -> ResultadoDaSuite:
         return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
 
-    execucoes = rodar_testes(aceite, rodar, criterios_ate_o_marco(estado, marco))
-    if not (marco.final and execucoes):
-        return execucoes
+    with configuracao_do_aceite(contexto.area, commit_da_configuracao(estado.aceite)) as trocados:
+        execucoes = rodar_testes(aceite, rodar, criterios_ate_o_marco(estado, marco))
+        todos = (rodar_o_comando_de_aceite(aceite, rodar),) if marco.final and execucoes else ()
+    if not todos:
+        return execucoes, trocados
     comando_suite = str((estado.plano or {}).get("comando_suite", ""))
-    return (*execucoes, rodar_o_comando_de_aceite(aceite, rodar), rodar_a_suite_com_o_aceite(aceite, comando_suite, rodar))
+    return (*execucoes, *todos, rodar_a_suite_com_o_aceite(aceite, comando_suite, rodar)), trocados
 
 
 def _com_o_aceite(verificacao: Verificacao, execucoes: Sequence[ExecucaoDeAceite]) -> Verificacao:

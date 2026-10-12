@@ -34,13 +34,22 @@ class AceiteParaGravar:
     revisoes: int = 0
     atendidos: tuple[str, ...] = ()
     so: tuple[str, ...] = ()
+    commit_da_configuracao: str = ""
 
     def em_json(self) -> dict[str, Any]:
         """O aceite como propriedade do Goal."""
         return {
             "commit": self.commit, "comando": self.saida.comando_aceite, "resumo": self.saida.resumo, "arquivos": list(self.arquivos),
             "criterios": [{"id": criterio.id, **criterio.em_json()} for criterio in self.saida.criterios], "revisoes": self.revisoes,
+            "commit_da_configuracao": self.commit_da_configuracao or self.commit,
         }
+
+
+def commit_da_configuracao(aceite: Mapping[str, Any] | None) -> str:
+    """O commit cuja configuração de teste vale para o aceite: o do primeiro aceite do plano, que os refeitos guardam."""
+    if not aceite:
+        return ""
+    return str(aceite.get("commit_da_configuracao") or aceite.get("commit") or "")
 
 
 def gravar_aceite_proposto(livro: LivroRazaoDoGoal, proposto: Mapping[str, Any] | None) -> None:

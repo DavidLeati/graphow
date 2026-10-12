@@ -5,6 +5,7 @@ um `aceite/conftest.py` que pula tudo deixava a soma errada fechar o Goal.
 """
 
 import copy
+import json
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from graphow.orquestrador.aceite_intocado import (
     preparar_o_aceite,
     soltos_que_mudam_os_testes,
 )
+from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.trava_do_git import regras_que_negam_git
@@ -53,32 +55,50 @@ def _roteiro(primeira: dict[str, Any], plano: dict[str, Any] | None = None) -> d
     return roteiro
 
 
-@pytest.mark.parametrize(
-    ("arquivos", "trecho"),
-    [
-        ({"aceite/conftest.py": PULA_TUDO}, "criou em aceite/ os arquivos aceite/conftest.py"),
-        ({"conftest.py": PULA_TUDO}, "mexeu na configuracao de teste conftest.py, que o plano nao declarou"),
-        ({"pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-p no:python"\n'}, "configuracao de teste pyproject.toml"),
-        ({"pytest.ini": "[pytest]\naddopts = -k nada\n"}, "configuracao de teste pytest.ini"),
-        ({"sitecustomize.py": "import os\n"}, "configuracao de teste sitecustomize.py"),
-        ({"pytest.py": "print('1 passed in 0.01s')\n"}, "configuracao de teste pytest.py"),
-        ({"package.json": '{"scripts": {"test": "exit 0"}}\n'}, "configuracao de teste package.json"),
-        ({".gitignore": "conftest.py\n", "conftest.py": PULA_TUDO}, "fora do git (ignorada): conftest.py"),
-    ],
-    ids=["conftest-em-aceite", "conftest-na-raiz", "addopts-do-pyproject", "pytest-ini", "sitecustomize", "sombra-do-pytest",
-         "script-de-teste-do-package", "conftest-ignorado"],
-)
-def test_fatia_que_neutraliza_o_aceite_e_recusada_edge_case(tmp_path: Path, arquivos: dict[str, str], trecho: str) -> None:
-    """Caso de borda (bloqueante 1a/1b): a configuração que pularia o aceite não entra; a tentativa seguinte, certa, fecha."""
+def test_fatia_que_cria_em_aceite_e_recusada_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (bloqueante 1a): o `aceite/conftest.py` que pularia tudo não entra; a tentativa seguinte, certa, fecha."""
     bancada = montar_bancada(tmp_path, _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n",
-                                                                **arquivos})))
+                                                                "aceite/conftest.py": PULA_TUDO})))
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     assert parada.fechou, parada.mensagem
-    assert trecho in bancada.chamadas("executor")[1]["stdin"]
-    assert not any((bancada.repositorio / caminho).exists() for caminho in arquivos if caminho != ".gitignore")
-    assert (bancada.repositorio / "soma.py").read_text(encoding="utf-8") == SOMA_CERTA
+    assert "criou em aceite/ os arquivos aceite/conftest.py" in bancada.chamadas("executor")[1]["stdin"]
+    assert not (bancada.repositorio / "aceite" / "conftest.py").exists()
+
+
+@pytest.mark.parametrize(
+    ("arquivos", "trocado"),
+    [
+        ({"conftest.py": PULA_TUDO}, "conftest.py"),
+        ({"pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-p no:python"\n'}, "pyproject.toml"),
+        ({"pytest.ini": "[pytest]\naddopts = -k nada\n"}, "pytest.ini"),
+        ({"pytest.py": "print('1 passed in 0.01s')\n"}, "pytest.py"),
+        ({".gitignore": "conftest.py\n", "conftest.py": PULA_TUDO}, ""),
+    ],
+    ids=["conftest-na-raiz", "addopts-do-pyproject", "pytest-ini", "sombra-do-pytest", "conftest-ignorado"],
+)
+def test_configuracao_que_pularia_o_aceite_nao_o_alcanca_edge_case(tmp_path: Path, arquivos: dict[str, str], trocado: str) -> None:
+    """Caso de borda (ajuste 3): a configuração entra, vai à revisão como sinal, e o aceite roda com a do commit dele e reprova C1.
+
+    A suíte junto com o aceite roda com a configuração do projeto: o `-k nada` e
+    o `-p no:python` também a derrubam, e o laço segue cobrando; aqui só importa
+    que a primeira verificação reprovou C1 com o teste rodado de verdade.
+    """
+    roteiro = _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", **arquivos}))
+    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto(FATIA_CERTA)]
+    roteiro["verificador"] = [verificacao("atende"), verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.fatias[0].falhas == 0
+    primeira = estado.verificacoes[0].propriedades
+    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == "nao_atende"
+    assert trocado in primeira["configuracao_do_aceite"] if trocado else "conftest.py" in primeira["tirado_antes_do_aceite"]
+    revisao = bancada.chamadas("revisor")[0]["stdin"]
+    assert "muda a configuracao de teste" in revisao and "o plano nao declarou" in revisao
 
 
 def test_mudanca_fora_da_parte_de_teste_do_pyproject_passa_direto_nominal(tmp_path: Path) -> None:
@@ -188,3 +208,34 @@ def test_flags_e_soltos_vistos_e_tirados_edge_case(tmp_path: Path) -> None:
 def test_update_index_esta_nas_regras_negadas_nominal() -> None:
     """O executor não roda git update-index: a regra o nega, como nega o commit."""
     assert "Bash(git update-index:*)" in regras_que_negam_git(("Bash",))
+
+
+def test_aceite_roda_com_a_parte_de_teste_do_commit_dele_e_a_area_volta_a_ponta_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (ajuste 3): só a parte de teste volta ao commit do aceite; o resto dos mistos fica, e depois tudo volta à ponta."""
+    repositorio = criar_repositorio(tmp_path / "r", {
+        "pyproject.toml": '[project]\nname = "a"\n\n[tool.pytest.ini_options]\naddopts = "-q"\n',
+        "package.json": '{"name": "a", "scripts": {"test": "node --test", "start": "node a.js"}}\n',
+        "pytest.ini": "[pytest]\n",
+    })
+    aceite = git(repositorio, "rev-parse", "HEAD").strip()
+    (repositorio / "pyproject.toml").write_text('[project]\nname = "a"\ndependencies = ["x"]\n\n[tool.pytest.ini_options]\naddopts = "-k nada"\n',
+                                               encoding="utf-8")
+    (repositorio / "package.json").write_text('{"name": "a", "type": "module", "scripts": {"test": "exit 0", "start": "node b.js"}}\n',
+                                             encoding="utf-8")
+    (repositorio / "conftest.py").write_text(PULA_TUDO, encoding="utf-8")
+    (repositorio / "pytest.ini").unlink()
+    git(repositorio, "add", "-A")
+    git(repositorio, "commit", "-qm", "fatia")
+    ponta = {nome: (repositorio / nome).read_text(encoding="utf-8") for nome in ("pyproject.toml", "package.json", "conftest.py")}
+
+    with configuracao_do_aceite(repositorio, aceite) as trocados:
+        durante = {nome: (repositorio / nome).read_text(encoding="utf-8") if (repositorio / nome).exists() else None
+                   for nome in ("pyproject.toml", "package.json", "conftest.py", "pytest.ini")}
+
+    assert trocados == ("conftest.py", "package.json", "pyproject.toml", "pytest.ini")
+    assert 'dependencies = ["x"]' in durante["pyproject.toml"] and 'addopts = "-q"' in durante["pyproject.toml"]
+    pacote = json.loads(durante["package.json"])
+    assert pacote["type"] == "module" and pacote["scripts"] == {"start": "node b.js", "test": "node --test"}
+    assert durante["conftest.py"] is None and durante["pytest.ini"] == "[pytest]\n"
+    assert {nome: (repositorio / nome).read_text(encoding="utf-8") for nome in ponta} == ponta
+    assert not (repositorio / "pytest.ini").exists() and git(repositorio, "status", "--porcelain").strip() == ""

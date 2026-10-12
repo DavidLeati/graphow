@@ -2,12 +2,11 @@
 
 O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
-trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive),
-que escondeu mudança com as flags do índice ou que mudou a configuração de
-teste sem o plano declarar (orquestrador/aceite_intocado.py), roda a
+trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive)
+ou que escondeu mudança com as flags do índice (orquestrador/aceite_intocado.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
 vermelhos até a fatia que os atende), passa a fatia de risco, e a que mudou a
-configuração de teste declarada, pela revisão
+configuração de teste (o que é sinal, e não recusa), pela revisão
 (orquestrador/revisao_da_fatia.py) e só então commita na branch do Goal, com
 a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
@@ -115,12 +114,17 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
         )
     if not suite.passou:
         return suite.descrever()
-    motivo = de_risco(tentativa.fatia) or (f"muda a configuracao de teste ({', '.join(configuracao)})" if configuracao else "")
+    motivo = de_risco(tentativa.fatia) or _sinal_da_configuracao(tentativa.fatia, configuracao)
     return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo)) if motivo else ""
 
 
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
-    """O problema do que a fatia mudou (flags do índice, aceite/, configuração de teste) e a configuração declarada que mudou."""
+    """O problema do que a fatia mudou (flags do índice, aceite/) e a configuração de teste que ela mudou, que só é sinal.
+
+    A configuração de teste não alcança os testes de aceite, que rodam com a
+    do commit do aceite (orquestrador/configuracao_do_aceite.py): a mudança
+    não é recusada, e vai à revisão de risco.
+    """
     sinalizados = flags_do_indice(contexto.area)
     if sinalizados:
         limpar_flags(contexto.area, sinalizados)
@@ -132,18 +136,17 @@ def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentat
                        | (set(mudados) & set(estado.arquivos_protegidos())))
     if no_aceite:
         return _mexeu_no_aceite(no_aceite), ()
-    ignorados = sorted(set(soltos) - set(mudados))
-    if ignorados:
-        return (f"a fatia deixou configuracao de teste fora do git (ignorada): {', '.join(ignorados)}. O que muda como os "
-                "testes rodam tem de estar no commit e nos arquivos da fatia"), ()
-    configuracao = configuracoes_mudadas(contexto.area, mudados, antes=tentativa.head)
-    fora = [caminho for caminho in configuracao if caminho not in tentativa.fatia.lista(m.CAMPO_ARQUIVOS_ALVO)]
-    if fora:
-        return (f"a fatia mexeu na configuracao de teste {', '.join(fora)}, que o plano nao declarou nos arquivos dela: "
-                "conftest, pytest.ini, a secao [tool.pytest] do pyproject, setup.cfg, tox.ini, os scripts de teste do "
-                "package.json e as configuracoes de jest, vitest e mocha mudam o que os testes de aceite provam. Se a "
-                "mudanca e necessaria, devolva `duvida` com o porque"), ()
+    configuracao = (*configuracoes_mudadas(contexto.area, mudados, antes=tentativa.head), *sorted(set(soltos) - set(mudados)))
     return "", configuracao
+
+
+def _sinal_da_configuracao(fatia: FatiaRegistrada, configuracao: tuple[str, ...]) -> str:
+    """O motivo da revisão da fatia que mudou a configuração de teste, dizendo o que o plano não declarou."""
+    if not configuracao:
+        return ""
+    fora = [caminho for caminho in configuracao if caminho not in fatia.lista(m.CAMPO_ARQUIVOS_ALVO)]
+    nao_declarada = f"; o plano nao declarou {', '.join(fora)}" if fora else ""
+    return f"muda a configuracao de teste ({', '.join(configuracao)}){nao_declarada}"
 
 
 def _mexeu_no_aceite(mexidos: list[str]) -> str:

@@ -42,6 +42,7 @@ class RegistroDaVerificacao:
     aceite: Sequence[Mapping[str, Any]] = ()
     resolver: Sequence[str] = ()
     tirado_antes_do_aceite: Sequence[str] = ()
+    configuracao_do_aceite: Sequence[str] = ()
 
     @property
     def limpa(self) -> bool:
@@ -62,6 +63,7 @@ class RegistroDaVerificacao:
                                       "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
             "aceite_do_orquestrador": [dict(item) for item in self.aceite],
             "tirado_antes_do_aceite": list(self.tirado_antes_do_aceite),
+            "configuracao_do_aceite": list(self.configuracao_do_aceite),
             m.CAMPO_PARECERES: [{"id": p.id, "no": self.nos.get(p.id, ""), "veredito": p.veredito, "prova": p.prova}
                                 for p in (*verificacao.criterios, *verificacao.decisoes)],
             "achados": [id_achado for id_achado, _ in self.achados(id_goal)],
