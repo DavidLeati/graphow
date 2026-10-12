@@ -77,7 +77,7 @@ export class HistoricoView {
           <input type="search" class="entrada mod-busca" data-filtro-texto placeholder="Filtrar eventos…" aria-label="Filtrar eventos">
           <select class="seletor mod-pequeno" data-filtro-papel aria-label="Filtrar por papel">
             <option value="">Todos os papéis</option>
-            ${["humano", "planejador", "executor", "revisor", "sistema"].map((papel) => `<option value="${papel}">${papel}</option>`).join("")}
+            ${["humano", "orquestrador", "planejador", "executor", "revisor", "arbitro", "sistema"].map((papel) => `<option value="${papel}">${papel}</option>`).join("")}
           </select>
           <button class="clicavel-icone" data-ocultar-arranjo aria-label="Ocultar movimentos no canvas"></button>
         </div>

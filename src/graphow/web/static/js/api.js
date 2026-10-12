@@ -87,7 +87,7 @@ export const api = {
   // Os dois gestos do humano sobre o escopo; a resposta traz o placar de depois.
   aprovarPlano: (corpo) => pedir("/api/escopo/aprovar_plano", comCorpo("POST", corpo)),
   responderDesvio: (corpo) => pedir("/api/escopo/responder_desvio", comCorpo("POST", corpo)),
-  // Gesto humano: devolve a posse de qualquer dono, para a tarefa que o subagente deixou travada.
+  // Gesto humano: devolve a posse de qualquer dono, para a tarefa que um agente deixou travada.
   liberarPosse: (id, ramo) => pedir(`/api/tarefas/${encodeURIComponent(id)}/liberar-posse`, comCorpo("POST", { ramo_id: ramo })),
   salvarLayout: (corpo) => pedir("/api/layout", comCorpo("PUT", corpo)),
   // Governança: o catálogo e a política global, a do projeto, o que o árbitro fez e a escrita (sempre humana).

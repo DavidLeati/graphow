@@ -213,7 +213,7 @@ export class ConfiguracoesView {
     return `
       <section class="cfg-secao">
         <h3 class="cfg-titulo">${icone("workflow", { tamanho: 15 })} Operação do projeto</h3>
-        <p class="texto-fraco cfg-secao-texto">Como a orquestração trata este projeto. Vale só aqui, e não depende do preset.</p>
+        <p class="texto-fraco cfg-secao-texto">Quando o gerente grava e, com repositório git, onde o trabalho é integrado. Vale só aqui, e não depende do preset.</p>
         ${htmlDaOperacao(this.catalogo, valores, this.gravando)}
       </section>`;
   }

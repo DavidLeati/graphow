@@ -302,7 +302,7 @@ export class DialogosDoGrafo {
     return this.concluir(recibo, mensagem);
   }
 
-  /** Devolve a posse da Task, de quem quer que a tenha: o gesto humano que destrava o subagente que não voltou. */
+  /** Devolve a posse da Task, de quem quer que a tenha: o gesto humano que destrava a Task do agente que não voltou. */
   async liberarPosse(no) {
     const recibo = await api.liberarPosse(no.id, this.ramo);
     return this.concluir(recibo, recibo.mensagem || "Posse devolvida");
