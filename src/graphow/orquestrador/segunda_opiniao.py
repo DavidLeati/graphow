@@ -5,7 +5,8 @@ decisão é bloqueante, o resto é acompanhamento. Mas quem diz o que ele toca �
 o verificador, e o achado que ele deixa sem citação vira acompanhamento por
 uma opinião só. Para cada achado do verificador sem critério nem decisão, uma
 sessão curta e sem ferramentas (Sonnet por padrão, só texto: os critérios,
-as decisões e o achado) diz o que ele fere. Se ela cita algum, o achado passa
+as decisões e o achado) diz o que ele fere (a saída fora do formato volta a
+ela uma vez). Se ela cita algum, o achado passa
 a tocá-lo e é bloqueante. Se ela também não cita nada, ele fica
 acompanhamento. Se ela não responde, os dois não concordaram, e o achado é
 bloqueante. Cada sessão vai à telemetria do Goal como as outras, com o custo.
@@ -42,7 +43,7 @@ def _julgado(contexto: ContextoDoGoal, achado: Achado, *, textos: Mapping[str, s
     resposta = contexto.sessoes.rodar(PedidoDePapel(
         papel=PAPEL_SEGUNDA_OPINIAO, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=numero,
         briefing=briefing_da_segunda_opiniao(achado, textos), conferir=lambda dados: _conferir(dados, textos),
-        orcamento_restante_usd=contexto.restante(), retomadas=0,
+        orcamento_restante_usd=contexto.restante(), retomadas=1,
     ))
     if resposta.dados is None:
         return replace(achado, sem_acordo=True, segunda_opiniao=MOTIVO_SEM_RESPOSTA)

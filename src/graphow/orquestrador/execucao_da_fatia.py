@@ -62,7 +62,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
             return _retomar_a_revisao(contexto, fatia, entrega)
         estado, fatia = _depois_da_interrupcao(contexto, fatia)
     if fatia.falhas >= MAXIMO_DE_FALHAS:
-        return _virar_pendencia(contexto, fatia, f"falhou {fatia.falhas} vezes; a ultima: {fatia.texto(m.CAMPO_ULTIMO_ERRO)[:500]}")
+        return _esgotou(contexto, fatia, f"falhou {fatia.falhas} vezes; a ultima: {fatia.texto(m.CAMPO_ULTIMO_ERRO)[:500]}")
     numero = fatia.tentativas + 1
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
@@ -209,7 +209,17 @@ def _falhou(contexto: ContextoDoGoal, tentativa: Tentativa, erro: str, *, nota: 
     contexto.livro.registrar_falha(fatia.id, tentativa.numero, erro=erro, patch=patch, falhas=falhas, nota=nota)
     if falhas < MAXIMO_DE_FALHAS:
         return None
-    return _virar_pendencia(contexto, fatia, f"falhou {falhas} vezes; a ultima: {erro[:500]}")
+    return _esgotou(contexto, fatia, f"falhou {falhas} vezes; a ultima: {erro[:500]}")
+
+
+def _esgotou(contexto: ContextoDoGoal, fatia: FatiaRegistrada, motivo: str) -> Parada | None:
+    """A fatia gastou as tentativas: a correção agrupada se divide numa fatia por achado; a outra vira pendência."""
+    estado = contexto.estado()
+    achados = [achado for id_achado in m.achados_da_correcao(fatia.propriedades) if (achado := estado.achado(id_achado))]
+    if len(achados) > 1:
+        contexto.livro.dividir_correcao(fatia, achados)
+        return None
+    return _virar_pendencia(contexto, fatia, motivo)
 
 
 def _virar_pendencia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, motivo: str) -> Parada:

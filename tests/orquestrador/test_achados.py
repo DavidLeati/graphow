@@ -1,10 +1,15 @@
 """O achado da verificação vira nó Achado com a gravidade que o código decide: bloqueante vira correção, acompanhamento vira pendência, nunca Note."""
 
+import os
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.correcoes import agrupar_por_area, normalizar_caminho
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DO_ORQUESTRADOR, Achado
 
@@ -15,6 +20,7 @@ from tests.orquestrador.apoio_laco import (
     Bancada,
     executor_pronto,
     montar_bancada,
+    revisao,
     roteiro_completo,
     segunda_opiniao,
     verificacao,
@@ -162,3 +168,54 @@ def test_segunda_opiniao_que_nao_responde_nao_rebaixa_o_achado_edge_case(tmp_pat
     assert estado is not None
     achado = estado.verificacoes[0].achados[0]
     assert achado.bloqueante and "sem acordo" in achado.texto("segunda_opiniao")
+
+
+@pytest.mark.parametrize(
+    ("locais", "juntos"),
+    [(("./soma.py:3", "soma.py:1"), True), (("src\\soma.py:3", "src/soma.py:1"), True), (("soma.py:1", "README.md:1"), False)],
+)
+def test_agrupamento_compara_o_caminho_normalizado_edge_case(locais: tuple[str, str], juntos: bool) -> None:
+    """Caso de borda (ajuste 7): `./x.py` é `x.py`, a barra invertida é barra; arquivos diferentes não se juntam."""
+    achados = [AchadoRegistrado(f"a{n}", "v", "bloqueante", "aberto", {"local": local, "titulo": f"t{n}"}) for n, local in enumerate(locais)]
+
+    assert (len(agrupar_por_area(achados)) == 1) is juntos
+
+
+def test_caixa_do_caminho_nao_separa_no_windows_edge_case() -> None:
+    """Caso de borda: no Windows, `Soma.py` e `soma.py` são o mesmo arquivo para o agrupamento."""
+    assert normalizar_caminho("./Soma.py") == ("soma.py" if os.name == "nt" else "Soma.py")
+
+
+def test_correcao_agrupada_que_esgota_se_divide_em_uma_por_achado_nominal(tmp_path: Path) -> None:
+    """Ajuste 7: a fatia com os dois achados de soma.py falha duas vezes; ela se divide em duas, que corrigem e fecham o Goal."""
+    em_soma = [{**BLOQUEANTE_DO_README, "titulo": f"soma {n}", "local": f"soma.py:{n}", "criterios": ["C1"]} for n in (1, 3)]
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("atende", em_soma), verificacao("atende")]
+    falha = {"saida": {"status": "falhou", "resumo": "nao deu", "arquivos": [], "testes": [], "duvida": ""}, "custo": 0.1}
+    roteiro["executor"] = [*roteiro["executor"][:2], falha, falha, executor_pronto({"soma.py": "def somar(a, b):\n    return b + a\n"}),
+                           executor_pronto({"soma.py": "def somar(a, b):\n    return a + b\n"})]
+    roteiro["revisor"] = [revisao() for _ in range(4)]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    assert [f.codigo for f in estado.fatias if f.texto("corrige_verificacao")] == ["M1.K1.1.1", "M1.K1.1.2"]
+    agrupada = bancada.kernel.obter_view().obter_no("task-soma-m1-k1-1")
+    assert agrupada is not None and agrupada.obter_propriedade("substituida_por") == "divisao-task-soma-m1-k1-1"
+
+
+def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (ajuste 7): a segunda opinião que cita código que não é do Goal volta a ela uma vez, e a resposta certa vale."""
+    roteiro = roteiro_completo()
+    roteiro["segunda_opiniao"] = [segunda_opiniao("C9"), segunda_opiniao()]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    chamadas = bancada.chamadas("segunda_opiniao")
+    assert len(chamadas) == 2 and "--resume" in chamadas[1]["argv"] and "codigos que nao sao do Goal: C9" in chamadas[1]["stdin"]
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and [a.gravidade for a in estado.verificacoes[-1].achados] == ["acompanhamento"]

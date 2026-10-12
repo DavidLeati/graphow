@@ -22,7 +22,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoP
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.correcoes import agrupar_por_area, propriedades_da_correcao, titulo_da_correcao
-from graphow.orquestrador.leitura_do_goal import AchadoRegistrado
+from graphow.orquestrador.leitura_do_goal import AchadoRegistrado, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
 
@@ -277,6 +277,20 @@ class LivroRazaoDoGoal:
             operacoes += [aresta(id_task, achado.id, TipoAresta.DERIVA_DE) for achado in grupo]
         operacoes.append(propriedade(self.id_goal, m.CAMPO_CICLOS, ciclo))
         self.gravar(operacoes, f"Ciclo {ciclo} de correcao do Goal {self.id_goal}")
+
+    def dividir_correcao(self, fatia: FatiaRegistrada, achados: Sequence[AchadoRegistrado]) -> None:
+        """A correção agrupada que esgotou as tentativas sai do plano e vira uma fatia por achado, no mesmo ciclo."""
+        slug = self.view().obter_no(self.id_goal).obter_propriedade(m.CAMPO_ORQUESTRACAO, {}).get("slug", self.id_goal)
+        operacoes: list[ItemPatch] = [propriedade(fatia.id, m.CAMPO_SUBSTITUIDA, f"divisao-{fatia.id}")]
+        for indice, achado in enumerate(achados, start=1):
+            codigo = f"{fatia.codigo}.{indice}"
+            id_task = m.id_da_fatia(slug, codigo)
+            propriedades = {**propriedades_da_correcao((achado,)), m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo,
+                            m.CAMPO_ORDEM: fatia.ordem, m.CAMPO_CORRIGE: fatia.texto(m.CAMPO_CORRIGE),
+                            m.CAMPO_MARCO: fatia.texto(m.CAMPO_MARCO), m.CAMPO_TENTATIVAS: 0}
+            operacoes += self.produzido(id_task, TipoNo.TASK, titulo_da_correcao((achado,)), propriedades=propriedades)
+            operacoes += [aresta(self.id_goal, id_task, TipoAresta.DECOMPOE), aresta(id_task, achado.id, TipoAresta.DERIVA_DE)]
+        self.gravar(operacoes, f"Correcao {fatia.codigo} dividida em {len(achados)} fatias, uma por achado")
 
     def resolver(self, achados: Sequence[str], justificativa: str) -> None:
         """Os Achados corrigidos passam a resolvidos: a verificação final limpa os confirmou."""
