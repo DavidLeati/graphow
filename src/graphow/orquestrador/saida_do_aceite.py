@@ -83,15 +83,15 @@ class SaidaDoAceite:
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "SaidaDoAceite":
-        """A saída como o autor a devolveu, já conferida pelo schema."""
+        """A saída como o autor a devolveu, já conferida pelo schema; o teste sem comando ganha o do modelo."""
+        modelo = str(dados.get("comando_do_teste", "")).strip()
         return cls(
             resumo=str(dados["resumo"]).strip(),
             comando_aceite=str(dados["comando_aceite"]).strip(),
             criterios=tuple(
                 AceiteDoCriterio(
                     id=str(c["id"]).strip(),
-                    testes=tuple(TesteDeAceite(str(t["arquivo"]).strip().replace("\\", "/"), str(t["nome"]).strip(),
-                                               str(t["comando"]).strip()) for t in c.get("testes", [])),
+                    testes=tuple(_teste(t, modelo) for t in c.get("testes", [])),
                     checagem=_textos(c.get("checagem")),
                     ja_atendido=str(c.get("ja_atendido", "")).strip(),
                 )
@@ -116,6 +116,13 @@ class SaidaDoAceite:
         return ((criterio, teste) for criterio in self.criterios for teste in criterio.testes)
 
 
+def _teste(dados: Mapping[str, Any], modelo: str) -> TesteDeAceite:
+    """O teste do JSON: o comando dele, ou o do modelo com o arquivo e o nome."""
+    arquivo, nome = str(dados["arquivo"]).strip().replace("\\", "/"), str(dados["nome"]).strip()
+    comando = str(dados.get("comando", "")).strip() or modelo.replace("{arquivo}", arquivo).replace("{nome}", nome)
+    return TesteDeAceite(arquivo, nome, comando)
+
+
 def conferir_forma(saida: SaidaDoAceite, criterios: Mapping[str, str], area: Path, *, mudados: Sequence[str]) -> tuple[str, ...]:
     """Uma entrada por critério do plano, o teste certo para o critério `teste`, a checagem para o `checagem` e tudo em aceite/."""
     return (
@@ -126,6 +133,8 @@ def conferir_forma(saida: SaidaDoAceite, criterios: Mapping[str, str], area: Pat
         *(f"o criterio {id_c} se prova por checagem e nao tem a lista em 'checagem'" for id_c, tipo in criterios.items()
           if tipo == a.VERIFICACAO_POR_CHECAGEM and (c := saida.do_criterio(id_c)) is not None and not c.checagem),
         *(problema for criterio, teste in saida.testes() for problema in _problemas_do_teste(criterio.id, teste, area)),
+        *(f"o teste {teste.nome} de {criterio.id} nao tem comando: de-lhe 'comando' ou devolva 'comando_do_teste'"
+          for criterio, teste in saida.testes() if not teste.comando),
         *(f"{caminho} foi criado ou mudado fora de {PASTA_DO_ACEITE}/: o autor de aceite so cria arquivos novos ali"
           for caminho in mudados if not dentro_do_aceite(caminho)),
     )

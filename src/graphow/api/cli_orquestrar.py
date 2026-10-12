@@ -33,7 +33,7 @@ from graphow.orquestrador.pedidos_do_humano import (
     NovoPedido,
     PedidoRecusado,
 )
-from graphow.orquestrador.sessoes_de_papel import MODELO_PADRAO, MODO_DE_PERMISSAO_PADRAO
+from graphow.orquestrador.sessoes_de_papel import MODO_DE_PERMISSAO_PADRAO, modelo_padrao
 from graphow.orquestrador.status import formatar_status
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
 from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria
@@ -66,7 +66,7 @@ def registrar_comando_de_orquestrar(
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
     for papel in PAPEIS:
-        parser.add_argument(f"--modelo-{papel}", default=MODELO_PADRAO, help=f"Modelo do {papel} (padrao: {MODELO_PADRAO})")
+        parser.add_argument(f"--modelo-{papel}", default=modelo_padrao(papel), help=f"Modelo do {papel} (padrao: {modelo_padrao(papel)})")
     parser.add_argument("--permissao", default=MODO_DE_PERMISSAO_PADRAO, help="Modo de permissao das sessoes (padrao: bypassPermissions)")
     parser.add_argument("--tempo-limite", type=float, default=60.0, help="Minutos por sessao de agente (padrao: 60)")
     parser.add_argument("--tempo-limite-suite", type=float, default=30.0, help="Minutos para a suite do projeto (padrao: 30)")

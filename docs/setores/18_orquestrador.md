@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-38 módulos · 6366 linhas · 58 classes
+38 módulos · 6387 linhas · 58 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 59 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 97 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 156 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 160 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 226 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 117 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
@@ -40,10 +40,10 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 259 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
-| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 258 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 267 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 187 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 247 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 306 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 314 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 105 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
@@ -287,9 +287,9 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `FATIA` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'objetivo': TEXTO, 'criterios': …` |
 | `MARCO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'titulo': TEXTO, 'fatias': LISTA_DE_TEXTOS})` |
 | `ESQUEMA_DO_PLANO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'comando_suite': TEXTO, 'criterios': _lista_d…` |
-| `TESTE_DE_ACEITE` | `dict[str, Any]` | `_objeto({'arquivo': TEXTO, 'nome': TEXTO, 'comando': TEXTO})` |
+| `TESTE_DE_ACEITE` | `dict[str, Any]` | `_objeto({'arquivo': TEXTO, 'nome': TEXTO, 'comando': TEXTO}, opcionais=…` |
 | `ACEITE_DO_CRITERIO` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'testes': _lista_de(TESTE_DE_ACEITE), 'checagem':…` |
-| `ESQUEMA_DO_ACEITE` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'comando_aceite': TEXTO, 'criterios': _lista_…` |
+| `ESQUEMA_DO_ACEITE` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'comando_aceite': TEXTO, 'comando_do_teste': …` |
 | `PROBLEMA_DA_REVISAO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
 | `ESQUEMA_DA_REVISAO` | `dict[str, Any]` | `_objeto({'veredito': {'type': 'string', 'enum': ['aprovado', 'rejeitado…` |
 | `ESQUEMA_DA_EXECUCAO` | `dict[str, Any]` | `_objeto({'status': {'type': 'string', 'enum': list(STATUS_DO_EXECUTOR)}…` |
@@ -873,7 +873,7 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 
 **Campos:** `resumo: str`, `comando_aceite: str`, `criterios: tuple[AceiteDoCriterio, ...]`
 
-- `de_json(dados: Mapping[str, Any]) -> 'SaidaDoAceite'` — A saída como o autor a devolveu, já conferida pelo schema.
+- `de_json(dados: Mapping[str, Any]) -> 'SaidaDoAceite'` — A saída como o autor a devolveu, já conferida pelo schema; o teste sem comando ganha o do modelo.
 - `do_livro(aceite: Mapping[str, Any] | None) -> 'SaidaDoAceite'` — Os testes de aceite como o Goal os guarda; vazio quando ainda não há.
 - `do_criterio(id_criterio: str) -> AceiteDoCriterio | None` — O aceite de um critério, pelo código.
 - `testes() -> Iterable[tuple[AceiteDoCriterio, TesteDeAceite]]` — Cada teste com o critério que ele prova.
@@ -1024,6 +1024,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 | `FERRAMENTAS_POR_PAPEL` | `Mapping[str, tuple[str, ...]]` | `{PAPEL_PLANEJADOR: ('Bash', 'Read', 'Glob', 'Grep'), PAPEL_AUTOR_DE_ACE…` |
 | `MODO_DE_PERMISSAO_PADRAO` | `str` | `'bypassPermissions'` |
 | `MODELO_PADRAO` | `str` | `'opus'` |
+| `MODELOS_PADRAO_POR_PAPEL` | `Mapping[str, str]` | `{'aceite': 'sonnet'}` |
 | `FONTES_DE_CONFIGURACAO` | `str` | `'project'` |
 | `ORCAMENTO_MINIMO_DA_SESSAO_USD` | `float` | `0.05` |
 
@@ -1054,6 +1055,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 ### Funções do módulo
 
+- `modelo_padrao(papel: str) -> str` — O modelo do papel quando a chamada não diz outro.
 - `argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]` — O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
 - `ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]` — O JSON da sessão conferido, ou os problemas: o `structured_output`, senão o texto final como JSON.
 - `saida_conferida_da_telemetria(registros: Sequence[SessaoRegistrada], papel: str, problemas: Conferencia) -> Mapping[str, Any] | None` — A saída mais nova do papel, relida do stream gravado, que passa na conferência; None sem nenhuma.

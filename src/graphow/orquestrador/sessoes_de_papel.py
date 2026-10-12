@@ -63,6 +63,14 @@ FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"
 MODELO_PADRAO: str = "opus"
+# Escrever testes de aceite não pede o Opus: na bancada, o autor custou de US$ 1,35 a
+# 2,15 por Goal, a maior parte em saída. O padrão dele é o Sonnet; `--modelo-aceite` muda.
+MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {"aceite": "sonnet"}
+
+
+def modelo_padrao(papel: str) -> str:
+    """O modelo do papel quando a chamada não diz outro."""
+    return MODELOS_PADRAO_POR_PAPEL.get(papel, MODELO_PADRAO)
 FONTES_DE_CONFIGURACAO: str = "project"
 ORCAMENTO_MINIMO_DA_SESSAO_USD: float = 0.05
 
@@ -118,7 +126,7 @@ class SessoesDePapel:
 
     def modelo_do_papel(self, papel: str) -> str:
         """O modelo configurado para o papel; Opus quando a configuração não diz."""
-        return self._configuracao.modelos.get(papel) or MODELO_PADRAO
+        return self._configuracao.modelos.get(papel) or modelo_padrao(papel)
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão conferida, e o clone deixado como estava antes dela; o que foi desfeito vai na resposta."""

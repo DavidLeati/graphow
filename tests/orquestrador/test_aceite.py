@@ -277,3 +277,21 @@ def test_autor_que_esgota_as_retomadas_para_com_a_saida_de_refazer_e_o_humano_or
     assert "a soma da base esta errada: nao ha ja_atendido" in bancada.chamadas("aceite")[3]["stdin"]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.propriedades["pedidos_atendidos"] == ["pedido-goal-soma-1"]
+
+
+def test_aceite_curto_usa_o_modelo_de_comando_e_o_sonnet_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (bancada D): o teste sem comando ganha o do modelo; o autor roda no Sonnet, os outros papéis no Opus."""
+    curto = autor_de_aceite()
+    curto["saida"]["comando_do_teste"] = f'"{sys.executable}" {{arquivo}}'
+    del curto["saida"]["criterios"][0]["testes"][0]["comando"]
+    roteiro = _roteiro_limpo()
+    roteiro["aceite"] = [curto]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    assert estado.aceite["criterios"][0]["testes"][0]["comando"] == f'"{sys.executable}" aceite/aceite_c1.py'
+    modelos = {c["papel"]: c["argv"][c["argv"].index("--model") + 1] for c in bancada.chamadas()}
+    assert modelos["aceite"] == "sonnet" and modelos["executor"] == "opus" and modelos["planejador"] == "opus"

@@ -87,12 +87,16 @@ ESQUEMA_DO_PLANO: dict[str, Any] = _objeto(
     opcionais=("fora_do_escopo",),
 )
 
-TESTE_DE_ACEITE: dict[str, Any] = _objeto({"arquivo": TEXTO, "nome": TEXTO, "comando": TEXTO})
+# O comando de cada teste é opcional: o modelo `comando_do_teste` o monta. O JSON
+# repetia o comando de cada teste, e era a maior parte do que o autor escrevia de
+# saída, paga de novo em cada retomada.
+TESTE_DE_ACEITE: dict[str, Any] = _objeto({"arquivo": TEXTO, "nome": TEXTO, "comando": TEXTO}, opcionais=("comando",))
 ACEITE_DO_CRITERIO: dict[str, Any] = _objeto(
     {"id": TEXTO, "testes": _lista_de(TESTE_DE_ACEITE), "checagem": LISTA_DE_TEXTOS, "ja_atendido": TEXTO_LIVRE}
 )
 ESQUEMA_DO_ACEITE: dict[str, Any] = _objeto(
-    {"resumo": TEXTO, "comando_aceite": TEXTO, "criterios": _lista_de(ACEITE_DO_CRITERIO, 1)}
+    {"resumo": TEXTO, "comando_aceite": TEXTO, "comando_do_teste": TEXTO_LIVRE, "criterios": _lista_de(ACEITE_DO_CRITERIO, 1)},
+    opcionais=("comando_do_teste",),
 )
 
 PROBLEMA_DA_REVISAO: dict[str, Any] = _objeto(
