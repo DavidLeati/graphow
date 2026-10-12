@@ -10,11 +10,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-22 módulos · 3420 linhas · 43 classes
+22 módulos · 3465 linhas · 43 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 149 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 152 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 148 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
@@ -31,7 +31,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 296 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 74 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
-| [`orquestrador/suite.py`](#orquestradorsuite) | 66 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
+| [`orquestrador/suite.py`](#orquestradorsuite) | 108 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 210 | A trava do git nas sessões de agente: as regras, o ambiente e a conferência depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 81 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 183 | Os passos do fim: a verificação adversarial do Goal, as fatias de correção e o fechamento. |
@@ -672,6 +672,9 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
+| `VARIAVEL_DO_SHELL` | `str` | `'GRAPHOW_SHELL'` |
+| `VARIAVEL_DO_GIT_BASH` | `str` | `'CLAUDE_CODE_GIT_BASH_PATH'` |
+| `SHELL_DA_MAQUINA` | `str` | `'o shell da maquina (cmd no Windows, /bin/sh fora dele)'` |
 | `TEMPO_LIMITE_DA_SUITE_S` | `float` | `1800.0` |
 | `LIMITE_DA_SAIDA` | `int` | `20000` |
 | `LIMITE_DO_TRECHO` | `int` | `2000` |
@@ -680,14 +683,16 @@ A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada com
 
 *DTO imutável* — Como a suíte terminou e o fim do que ela imprimiu.
 
-**Campos:** `comando: str`, `codigo: int | None`, `saida: str`, `tempo_esgotado: bool`
+**Campos:** `comando: str`, `codigo: int | None`, `saida: str`, `tempo_esgotado: bool`, `shell: str`
 
 - `passou() -> bool` `[property]` — Saiu com zero dentro do tempo.
 - `descrever() -> str` — O resultado para o briefing da nova tentativa.
 
 ### Funções do módulo
 
-- `rodar_suite(area: Path, comando: str, banco_descartavel: Path) -> ResultadoDaSuite` — Roda o comando na área e devolve o resultado.
+- `shell_dos_agentes() -> Path | None` — O bash em que a ferramenta Bash das sessões roda; None quando a máquina não tem um.
+- `descrever_shell(shell: Path | None) -> str` — O shell da suíte em palavras, para o briefing e para o resultado.
+- `rodar_suite(area: Path, comando: str, banco_descartavel: Path) -> ResultadoDaSuite` — Roda o comando na área, no shell dos agentes, e devolve o resultado.
 
 ## `orquestrador/trava_do_git.py`
 

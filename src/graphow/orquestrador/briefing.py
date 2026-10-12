@@ -15,6 +15,7 @@ from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
+from graphow.orquestrador.suite import descrever_shell, shell_dos_agentes
 
 LIMITE_DO_ERRO: int = 6000
 
@@ -54,6 +55,8 @@ def briefing_do_planejador(estado: EstadoDoGoal, spec: str, tem_fixados: bool) -
     return _juntar([
         f"# Plano do Goal {estado.id_goal}",
         f"O repositorio esta na pasta atual, na branch {ramo}, criada da base.",
+        f"O orquestrador roda o `comando_suite` na raiz da area em {descrever_shell(shell_dos_agentes())}, "
+        "o mesmo shell da sua ferramenta Bash: escreva o comando para ele.",
         aviso,
         "## Spec do Goal\n" + spec.strip(),
         "Devolva o plano no JSON do schema.",

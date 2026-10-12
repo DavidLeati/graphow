@@ -216,7 +216,7 @@ class LivroRazaoDoGoal:
             "fonte": "graphow orquestrar: sessao do verificador",
             "resumo": verificacao.resumo,
             "comandos": [comando.em_json() for comando in verificacao.comandos],
-            "suite_do_orquestrador": {"comando": suite.comando, "codigo": suite.codigo, "passou": suite.passou,
+            "suite_do_orquestrador": {"comando": suite.comando, "shell": suite.shell, "codigo": suite.codigo, "passou": suite.passou,
                                       "tempo_esgotado": suite.tempo_esgotado, "saida": suite.saida[-LIMITE_DO_TRECHO:]},
             "pareceres": [{"id": p.id, "veredito": p.veredito, "prova": p.prova} for p in (*verificacao.criterios, *verificacao.decisoes)],
             "bloqueantes": [achado.em_json() for achado in bloqueantes],
