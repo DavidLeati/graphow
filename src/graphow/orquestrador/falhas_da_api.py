@@ -9,9 +9,11 @@ pelo stream (orquestrador/../sessoes/leitura_stream.py) duas coisas:
 - o limite de uso (o `rate_limit_event` recusado, ou `usage_limit_reached`):
   não adianta insistir; o laço para com o motivo `limite_de_uso`, a tentativa
   em curso não conta, e o Goal se retoma depois da hora em que a janela volta;
-- o erro passageiro (sobrecarga, 5xx, limite de taxa): a mesma invocação se
-  repete depois de uma espera crescente; se não passar, o laço para do mesmo
-  jeito, retomável.
+- o erro passageiro (o 429 que não é o limite de uso, o 529 da sobrecarga e
+  os 5xx): a mesma invocação se repete depois de uma espera crescente; se não
+  passar, o laço para do mesmo jeito, retomável;
+- o 4xx permanente (pedido inválido, sem permissão): não adianta esperar; é
+  falha da sessão, com o erro da API no motivo.
 """
 
 from dataclasses import dataclass
@@ -24,6 +26,8 @@ ERRO_DO_LIMITE_DE_USO: str = "usage_limit_reached"
 RAZAO_DO_ERRO_DA_API: str = "api_error"
 STATUS_DO_LIMITE_DE_TAXA: int = 429
 STATUS_DO_ERRO_DO_SERVIDOR: int = 500
+STATUS_DA_SOBRECARGA: int = 529
+ERRO_DA_SOBRECARGA: str = "overloaded_error"
 
 
 class LimiteDaApi(GraphowError):
@@ -40,18 +44,27 @@ class FalhaDaApi:
 
 
 def falha_da_api(resultado: ResultadoDeSessao) -> FalhaDaApi | None:
-    """A falha da API que o stream da invocação mostra; None quando a sessão não esbarrou na API."""
+    """A falha da API que o stream da invocação mostra; None quando a sessão não esbarrou nela, ou esbarrou e terminou bem.
+
+    O `rate_limit_event` recusado no meio de um stream que termina com um
+    `result` de sucesso não anula o sucesso. Só são passageiros o 429 que
+    não é o limite de uso, o 529 (sobrecarga) e os 5xx; o 4xx é permanente e
+    vira falha da sessão, sem espera, com o erro dito no motivo.
+    """
     leitura = resultado.leitura
     fim = leitura.resultado
+    if fim is not None and not fim.is_error:
+        return None
     limite = leitura.limite_rejeitado
     if limite is not None or (fim is not None and fim.erro_da_api == ERRO_DO_LIMITE_DE_USO):
         tipo = str(limite.get("rateLimitType", "")) if limite else ""
         volta = _hora(limite.get("resetsAt")) if limite else ""
         return FalhaDaApi(True, f"limite de uso da conta{f' ({tipo})' if tipo else ''}", volta)
-    if fim is None or not fim.is_error:
+    if fim is None:
         return None
     status = fim.status_do_erro or 0
-    passageiro = fim.razao_do_fim == RAZAO_DO_ERRO_DA_API or status == STATUS_DO_LIMITE_DE_TAXA or status >= STATUS_DO_ERRO_DO_SERVIDOR
+    passageiro = status in (STATUS_DO_LIMITE_DE_TAXA, STATUS_DA_SOBRECARGA) or status >= STATUS_DO_ERRO_DO_SERVIDOR \
+        or fim.erro_da_api == ERRO_DA_SOBRECARGA
     return FalhaDaApi(False, f"erro da API ({status or '-'} {fim.erro_da_api or fim.razao_do_fim})") if passageiro else None
 
 

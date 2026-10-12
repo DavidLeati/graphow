@@ -25,7 +25,7 @@ from typing import Any
 
 from graphow.core.exceptions import GraphowError
 from graphow.sessoes.executavel import descobrir_executavel
-from graphow.sessoes.leitura_stream import LeituraDoStream, UsoDeTokens, ler_stream
+from graphow.sessoes.leitura_stream import LeituraDoStream, ResultadoDoStream, UsoDeTokens, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao, limpar_ambiente, montar_comando
 
 NO_WINDOWS: bool = os.name == "nt"
@@ -79,7 +79,8 @@ class ResultadoDeSessao:
             ("tempo esgotado", self.tempo_esgotado),
             (f"codigo de saida {self.codigo_saida}", self.codigo_saida not in (0, None) and not self.tempo_esgotado),
             ("sem evento result no stream", resultado is None),
-            (f"result com is_error ({resultado.subtipo if resultado else ''})", bool(resultado and resultado.is_error)),
+            (f"result com is_error ({resultado.subtipo if resultado else ''}){_erro_da_api(resultado)}",
+             bool(resultado and resultado.is_error)),
         )
         return ", ".join(motivo for motivo, aconteceu in motivos if aconteceu)
 
@@ -225,3 +226,10 @@ def em_iso(instante: datetime) -> str:
 def _agora() -> datetime:
     """O relógio da máquina, com fuso."""
     return datetime.now(timezone.utc).astimezone()
+
+
+def _erro_da_api(resultado: ResultadoDoStream | None) -> str:
+    """O erro da API que o resultado traz (status e tipo), para o motivo dizer o que houve; vazio sem ele."""
+    if resultado is None or not (resultado.status_do_erro or resultado.erro_da_api):
+        return ""
+    return f": erro da API {resultado.status_do_erro or '-'} {resultado.erro_da_api or resultado.razao_do_fim}".rstrip()

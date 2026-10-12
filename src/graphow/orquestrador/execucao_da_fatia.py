@@ -15,13 +15,17 @@ pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
 e sai da área, para não vazar para a fatia seguinte.
 """
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.aceite_intocado import configuracoes_mudadas, flags_do_indice, limpar_flags, soltos_que_mudam_os_testes
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
+from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
     commit_da_fatia,
@@ -51,11 +55,12 @@ class Tentativa:
 def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Parada | None:
     """Roda uma tentativa da fatia; a parada diz por que o laço não segue."""
     if fatia.status == m.STATUS_EM_ANDAMENTO:
+        entrega = fatia.propriedades.get(m.CAMPO_ENTREGA_PENDENTE)
         if _concluir_pelo_commit(contexto, fatia):
             return None
-        _registrar_interrupcao(contexto, fatia)
-        estado = contexto.estado()
-        fatia = next(registrada for registrada in estado.fatias if registrada.id == fatia.id)
+        if isinstance(entrega, Mapping) and _reaplicar(contexto, entrega):
+            return _retomar_a_revisao(contexto, fatia, entrega)
+        estado, fatia = _depois_da_interrupcao(contexto, fatia)
     if fatia.falhas >= MAXIMO_DE_FALHAS:
         return _virar_pendencia(contexto, fatia, f"falhou {fatia.falhas} vezes; a ultima: {fatia.texto(m.CAMPO_ULTIMO_ERRO)[:500]}")
     numero = fatia.tentativas + 1
@@ -87,7 +92,11 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         return None
     if saida.status != STATUS_PRONTO:
         return _falhou(contexto, tentativa, f"o executor devolveu {saida.status}: {saida.resumo}")
-    problema = _conferir_a_entrega(contexto, tentativa)
+    try:
+        problema = _conferir_a_entrega(contexto, tentativa)
+    except LimiteDaApi:
+        _guardar_a_entrega(contexto, tentativa, saida)
+        raise
     if isinstance(problema, Parada):
         return problema
     if isinstance(problema, RejeicaoDaRevisao):
@@ -98,6 +107,41 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
                                   achados=m.achados_da_correcao(fatia.propriedades))
     return None
+
+
+def _depois_da_interrupcao(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> tuple[EstadoDoGoal, FatiaRegistrada]:
+    """A tentativa interrompida conta como falha; devolve o estado e a fatia relidos."""
+    _registrar_interrupcao(contexto, fatia)
+    estado = contexto.estado()
+    return estado, next(registrada for registrada in estado.fatias if registrada.id == fatia.id)
+
+
+def _guardar_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa, saida: SaidaDoExecutor) -> None:
+    """A API recusou a revisão de risco: o que o executor entregou vai a um .patch, e a fatia o guarda com a saída dele."""
+    patch = contexto.patch(f"{tentativa.fatia.id}-t{tentativa.numero}-entrega")
+    git = contexto.git
+    git.rodar("add", "-A")
+    patch.parent.mkdir(parents=True, exist_ok=True)
+    patch.write_text(git.rodar("diff", "--cached", "--binary", "HEAD"), encoding="utf-8", newline="\n")
+    git.rodar("reset", "-q")
+    contexto.livro.guardar_entrega(tentativa.fatia.id, {"patch": str(patch), "saida": asdict(saida), "tentativa": tentativa.numero})
+
+
+def _reaplicar(contexto: ContextoDoGoal, entrega: Mapping[str, Any]) -> bool:
+    """A entrega guardada volta à área limpa; falso quando o .patch se perdeu ou não aplica mais."""
+    patch = Path(str(entrega.get("patch", "")))
+    if not patch.is_file():
+        return False
+    descartar_mudancas(contexto.area, contexto.patch("antes-da-entrega-guardada"))
+    return patch.stat().st_size == 0 or contexto.git.tentar("apply", "--binary", str(patch)).codigo == 0
+
+
+def _retomar_a_revisao(contexto: ContextoDoGoal, fatia: FatiaRegistrada, entrega: Mapping[str, Any]) -> Parada | None:
+    """A tentativa que esperava a revisão quando a API a recusou: sem outro executor, confere e revisa de novo a mesma entrega."""
+    numero = int(entrega.get("tentativa") or fatia.tentativas)
+    saida = SaidaDoExecutor.de_json(entrega.get("saida") or {"status": STATUS_PRONTO, "resumo": ""})
+    tentativa = Tentativa(fatia, numero, contexto.git.head())
+    return _depois_da_sessao(contexto, tentativa, saida, desfeito="retomada: a entrega esperava a revisao de risco quando a API a recusou")
 
 
 def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str | Parada | RejeicaoDaRevisao:

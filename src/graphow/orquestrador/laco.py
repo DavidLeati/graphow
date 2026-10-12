@@ -226,10 +226,15 @@ def _etapa_antes_das_fatias(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> E
 
 
 def _parada_do_limite(contexto: ContextoDoGoal, erro: LimiteDaApi) -> Parada:
-    """A API recusou a sessão: a tentativa da fatia em curso não conta, o que ela deixou vai a um .patch, e o laço para."""
+    """A API recusou a sessão: a tentativa da fatia em curso não conta, o que ela deixou vai a um .patch, e o laço para.
+
+    A fatia cuja entrega esperava a revisão de risco fica em andamento, com a
+    entrega guardada: a retomada a reaplica e refaz só a revisão.
+    """
     for fatia in (f for f in contexto.estado().fatias if f.status == m.STATUS_EM_ANDAMENTO):
         descartar_mudancas(contexto.area, contexto.patch(f"{fatia.id}-t{fatia.tentativas}-limite"))
-        contexto.livro.devolver_tentativa(fatia.id, max(fatia.tentativas - 1, 0))
+        if not fatia.propriedades.get(m.CAMPO_ENTREGA_PENDENTE):
+            contexto.livro.devolver_tentativa(fatia.id, max(fatia.tentativas - 1, 0))
     return Parada(
         contexto.id_goal, MotivoDaParada.LIMITE_DE_USO,
         f"{erro.mensagem}. Nao e falha do papel: a tentativa em curso nao conta. Retome com "

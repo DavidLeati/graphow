@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-42 módulos · 6947 linhas · 60 classes
+42 módulos · 7017 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,17 +25,17 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 126 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 166 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 229 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
-| [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 68 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 273 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 119 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 94 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 261 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 266 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 146 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 339 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 289 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 215 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 295 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 217 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 141 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 153 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
@@ -356,6 +356,8 @@ O limite de uso da conta e o erro passageiro da API: não são falha do papel, n
 | `RAZAO_DO_ERRO_DA_API` | `str` | `'api_error'` |
 | `STATUS_DO_LIMITE_DE_TAXA` | `int` | `429` |
 | `STATUS_DO_ERRO_DO_SERVIDOR` | `int` | `500` |
+| `STATUS_DA_SOBRECARGA` | `int` | `529` |
+| `ERRO_DA_SOBRECARGA` | `str` | `'overloaded_error'` |
 
 ### `FalhaDaApi`
 
@@ -369,7 +371,7 @@ O limite de uso da conta e o erro passageiro da API: não são falha do papel, n
 
 ### Funções do módulo
 
-- `falha_da_api(resultado: ResultadoDeSessao) -> FalhaDaApi | None` — A falha da API que o stream da invocação mostra; None quando a sessão não esbarrou na API.
+- `falha_da_api(resultado: ResultadoDeSessao) -> FalhaDaApi | None` — A falha da API que o stream da invocação mostra; None quando a sessão não esbarrou nela, ou esbarrou e terminou bem.
 - `recusa(falha: FalhaDaApi, papel: str) -> LimiteDaApi` — A exceção que para o laço, com o que a API disse e quando retomar.
 
 ## `orquestrador/git_do_goal.py`
@@ -651,6 +653,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `adotar_goal(id_setor: str, spec: str, configuracao: m.ConfiguracaoDoGoal) -> None` — O Goal que o gerente criou passa a ser conduzido: a Sessao do orquestrador, a spec montada e a configuração.
 - `gravar_plano_proposto(dados: Mapping[str, Any]) -> None` — A saída conferida do planejador no Goal, antes de qualquer passo que possa cair no meio.
 - `iniciar_tentativa(id_task: str, tentativa: int) -> None` — A fatia entra em andamento, com a tentativa contada antes de a sessão abrir.
+- `guardar_entrega(id_task: str, entrega: Mapping[str, Any]) -> None` — A entrega pronta do executor fica na fatia (o .patch e a saída): a retomada refaz só a revisão.
 - `devolver_tentativa(id_task: str, tentativas: int) -> None` — A tentativa que a API recusou não conta: a fatia volta a pendente, com as tentativas de antes dela.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
@@ -713,6 +716,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_CORRIGE` | `str` | `'corrige_verificacao'` |
 | `CAMPO_ACHADO` | `str` | `'achado'` |
 | `CAMPO_SUBSTITUIDA` | `str` | `'substituida_por'` |
+| `CAMPO_ENTREGA_PENDENTE` | `str` | `'entrega_pendente'` |
 | `CAMPO_CRITERIO_DO_TESTE` | `str` | `'criterio_do_teste'` |
 | `CAMPO_ACHADOS` | `str` | `'achados'` |
 | `MAXIMO_DE_CICLOS_DE_CORRECAO` | `int` | `2` |

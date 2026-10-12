@@ -4,6 +4,7 @@ Na bancada, a janela de uso estourou e a fatia M2.K1.1 do agenda-salas gastou
 as duas tentativas e as duas retomadas em dez segundos, e virou pendência.
 """
 
+import copy
 from datetime import datetime
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.sessoes.leitura_stream import ler_stream
 from graphow.sessoes.sessao_claude import ResultadoDeSessao
 
-from tests.orquestrador.apoio_laco import montar_bancada, roteiro_completo
+from tests.orquestrador.apoio_laco import PLANO, montar_bancada, revisao, roteiro_completo, verificacao
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 # As linhas do stream da bancada (agenda-salas, M2.K1.1), sem o que não importa.
@@ -93,3 +94,47 @@ def test_erro_passageiro_que_nao_passa_para_o_laco_retomavel_edge_case(tmp_path:
     assert esperas == [30.0, 120.0, 300.0]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.fatias[0].status == "pendente" and not estado.bloqueadas()
+
+
+def _resultado_com(**campos: object) -> ResultadoDeSessao:
+    """O resultado de uma invocação cujo `result` traz os campos dados."""
+    return _resultado([json.dumps({"type": "result", "subtype": "success", "session_id": "s", **campos})])
+
+
+def test_so_e_passageiro_o_429_sem_limite_o_529_e_o_5xx_edge_case() -> None:
+    """Caso de borda (ajuste 5): o 4xx permanente não espera e vira falha clara; o limite recusado com result de sucesso não conta."""
+    passageiros = [falha_da_api(_resultado_com(is_error=True, api_error_status=s, api_error=e, terminal_reason="api_error"))
+                   for s, e in ((429, "rate_limit_error"), (529, "overloaded_error"), (503, "api_error"))]
+    permanente = _resultado_com(is_error=True, api_error_status=400, api_error="invalid_request_error", terminal_reason="api_error")
+    sucesso_com_limite = _resultado([STREAM_DO_LIMITE[1], json.dumps({"type": "result", "subtype": "success", "is_error": False,
+                                                                       "session_id": "s", "result": "ok"})])
+
+    assert all(f is not None and not f.limite_de_uso for f in passageiros)
+    assert falha_da_api(permanente) is None
+    assert "erro da API 400 invalid_request_error" in permanente.motivo_do_erro
+    assert falha_da_api(sucesso_com_limite) is None
+
+
+def test_limite_na_revisao_de_risco_guarda_a_entrega_e_a_retomada_refaz_so_a_revisao_nominal(tmp_path: Path) -> None:
+    """Ajuste 5: a API recusa a revisão de risco de F1; a entrega do executor fica guardada, e a retomada só revisa e commita."""
+    plano = copy.deepcopy(PLANO)
+    plano["fatias"][0].update(risco=True, motivo_do_risco="regra de dominio da soma")
+    roteiro = roteiro_completo()
+    roteiro["planejador"] = [{"saida": plano, "custo": 0.4}]
+    roteiro["executor"] = roteiro["executor"][:2]
+    roteiro["verificador"] = [verificacao("atende")]
+    roteiro["revisor"] = [{"limite": True}, revisao()]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador(esperar=lambda segundos: None)
+
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.LIMITE_DE_USO, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.fatias[0].status == "em_andamento" and estado.fatias[0].falhas == 0
+    assert estado.fatias[0].propriedades["entrega_pendente"]["tentativa"] == 1
+    assert orquestrador.rodar("goal-soma", AUTONOMO).fechou
+    assert [c["papel"] for c in bancada.chamadas()].count("executor") == 2, "F1 nao teve outro executor"
+    final = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert final is not None and final.fatias[0].tentativas == 1 and not final.fatias[0].propriedades.get("entrega_pendente")
+    assert "return a + b" in (bancada.repositorio / "soma.py").read_text(encoding="utf-8")

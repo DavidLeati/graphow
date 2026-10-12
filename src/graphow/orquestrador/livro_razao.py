@@ -144,6 +144,10 @@ class LivroRazaoDoGoal:
             f"Tentativa {tentativa} da fatia {id_task}",
         )
 
+    def guardar_entrega(self, id_task: str, entrega: Mapping[str, Any]) -> None:
+        """A entrega pronta do executor fica na fatia (o .patch e a saída): a retomada refaz só a revisão."""
+        self.gravar([propriedade(id_task, m.CAMPO_ENTREGA_PENDENTE, dict(entrega))], f"Entrega da fatia {id_task} guardada")
+
     def devolver_tentativa(self, id_task: str, tentativas: int) -> None:
         """A tentativa que a API recusou não conta: a fatia volta a pendente, com as tentativas de antes dela."""
         self.gravar(
@@ -171,6 +175,7 @@ class LivroRazaoDoGoal:
                 aresta(id_artefato, id_task, TipoAresta.DERIVA_DE),
                 propriedade(id_task, m.CAMPO_COMMIT, commit),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_CONCLUIDO),
+                propriedade(id_task, m.CAMPO_ENTREGA_PENDENTE, None),
                 *(item for achado in achados for item in (propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_CORRIGIDO),
                                                           propriedade(achado, a.CAMPO_COMMIT_DA_CORRECAO, commit))),
             ],
@@ -194,6 +199,7 @@ class LivroRazaoDoGoal:
                 propriedade(id_task, m.CAMPO_PATCH, patch),
                 propriedade(id_task, m.CAMPO_FALHAS, falhas),
                 propriedade(id_task, m.CAMPO_STATUS, m.STATUS_PENDENTE),
+                propriedade(id_task, m.CAMPO_ENTREGA_PENDENTE, None),
             ],
             f"Tentativa {tentativa} da fatia {id_task} falhou",
         )
