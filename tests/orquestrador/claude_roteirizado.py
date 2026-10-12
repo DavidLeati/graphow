@@ -11,8 +11,8 @@ papel; cada chamada consome a próxima do seu papel. Cada resposta pode:
   git inclusive); o código e a saída de erro de cada um vão para o registro;
 - `custo`: o custo desta invocação; numa sessão retomada o resultado traz o
   acumulado, como o Claude Code faz;
-- `bash`: os comandos das chamadas da ferramenta Bash que o stream mostra, cada
-  uma com o resultado `ok`; sem ele, os `comandos` que a `saida` declara;
+- `bash`: as chamadas da ferramenta Bash que o stream mostra: o comando (com o
+  resultado `ok`), ou {comando, codigo, saida}; sem ele, os `comandos` declarados;
 - `morrer`: sai com 1 sem evento `result`, como um processo que caiu;
 - `limite`: o limite de uso da conta, como o Claude Code o mostra (o
   `rate_limit_event` recusado e o `result` com `usage_limit_reached`), e sai com 1;
@@ -84,10 +84,12 @@ def _executar(resposta: dict) -> list[dict]:
 def _imprimir_chamadas_bash(resposta: dict) -> None:
     saida = resposta.get("saida") if isinstance(resposta.get("saida"), dict) else {}
     declarados = [str(item.get("comando", "")) for item in saida.get("comandos", []) if isinstance(item, dict)]
-    for indice, comando in enumerate(resposta.get("bash", declarados)):
+    for indice, item in enumerate(resposta.get("bash", declarados)):
+        comando, codigo, saida = (item["comando"], item.get("codigo", 0), item.get("saida", "")) if isinstance(item, dict) else (item, 0, "ok")
         chamada = {"type": "tool_use", "id": f"toolu_{indice}", "name": "Bash", "input": {"command": comando}}
         print(json.dumps({"type": "assistant", "message": {"content": [chamada]}}), flush=True)
-        retorno = {"type": "tool_result", "tool_use_id": f"toolu_{indice}", "content": "ok", "is_error": False}
+        conteudo = f"Exit code {codigo}\n{saida}" if codigo else saida
+        retorno = {"type": "tool_result", "tool_use_id": f"toolu_{indice}", "content": conteudo, "is_error": bool(codigo)}
         print(json.dumps({"type": "user", "message": {"content": [retorno]}}), flush=True)
 
 

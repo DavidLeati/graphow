@@ -40,6 +40,7 @@ from graphow.orquestrador.git_do_goal import (
     descartar_mudancas,
     mensagem_do_orquestrador,
 )
+from graphow.orquestrador.historico_da_correcao import tentativas_anteriores
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import propriedade
 from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, RejeicaoDaRevisao, de_risco, revisar_fatia
@@ -51,6 +52,8 @@ from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
 STATUS_PRONTO: str = "pronto"
 STATUS_DUVIDA: str = "duvida"
 STATUS_TESTE_ERRADO: str = "teste_errado"
+# A correção de um bloqueante é o trabalho que já falhou uma vez: roda no modelo mais forte.
+MODELO_DA_CORRECAO: str = "opus"
 
 
 @dataclass(frozen=True)
@@ -82,7 +85,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_EXECUTOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=fatia.id, tentativa=numero,
-            briefing=briefing_do_executor(estado, fatia, _contexto_da_fatia(contexto, estado, numero)),
+            briefing=briefing_do_executor(estado, fatia, _contexto_da_fatia(contexto, estado, numero, fatia=fatia)),
             conferir=lambda dados: SaidaDoExecutor.de_json(dados).conferir(),
             modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(),
             esquema=ESQUEMA_DA_EXECUCAO_AUTONOMA if contexto.configuracao.modo == m.MODO_AUTONOMO else None,
@@ -280,16 +283,19 @@ def _guardar(contexto: ContextoDoGoal, fatia: FatiaRegistrada, sufixo: str) -> s
     return str(caminho) if descartar_mudancas(contexto.area, caminho) else ""
 
 
-def _contexto_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) -> ContextoDaFatia:
-    """Os commits do Goal desde a base e o diff resumido do último."""
+def _contexto_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int, *, fatia: FatiaRegistrada) -> ContextoDaFatia:
+    """Os commits do Goal desde a base, o diff resumido do último e, na correção, as tentativas anteriores da mesma área."""
     git = contexto.git
     entregues = git.commits_desde(contexto.configuracao.base)
     diff = git.resumo_do_diff("HEAD~1", "HEAD") if entregues else ""
-    return ContextoDaFatia(tentativa=numero, entregues=tuple(f"- {linha}" for linha in entregues), diff_da_anterior=diff)
+    return ContextoDaFatia(tentativa=numero, entregues=tuple(f"- {linha}" for linha in entregues), diff_da_anterior=diff,
+                           correcoes_anteriores=tentativas_anteriores(git, estado, fatia))
 
 
 def _modelo(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
-    """O modelo do executor: o configurado, ou o que o plano sugeriu quando a configuração pede."""
+    """O modelo do executor: o configurado, ou o que o plano sugeriu quando a configuração pede; a correção, sempre Opus."""
+    if fatia.texto(m.CAMPO_CORRIGE):
+        return MODELO_DA_CORRECAO
     configurado = contexto.sessoes.modelo_do_papel(PAPEL_EXECUTOR)
     return fatia.texto(m.CAMPO_MODELO) or "opus" if configurado == "sugerido" else configurado
 

@@ -1,5 +1,6 @@
 """O achado da verificação vira nó Achado com a gravidade que o código decide: bloqueante vira correção, acompanhamento vira pendência, nunca Note."""
 
+import copy
 import os
 from pathlib import Path
 from typing import Any
@@ -219,3 +220,25 @@ def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: 
     assert len(chamadas) == 2 and "--resume" in chamadas[1]["argv"] and "codigos que nao sao do Goal: C9" in chamadas[1]["stdin"]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and [a.gravidade for a in estado.verificacoes[-1].achados] == ["acompanhamento"]
+
+
+def test_correcao_leva_o_comando_que_falhou_roda_em_opus_e_ve_a_tentativa_anterior_nominal(tmp_path: Path) -> None:
+    """G: a correção recebe a chamada da verificação que falhou e roda em Opus; a do ciclo seguinte vê o diff da anterior."""
+    em_soma = {**BLOQUEANTE_DO_README, "titulo": "somar com negativos", "local": "soma.py:2", "criterios": ["C1"]}
+    reprovou = {**verificacao("atende", [em_soma]), "bash": [{"comando": "python -c 'print(somar(-2, -3))'", "codigo": 1,
+                                                            "saida": "AssertionError: -5"}]}
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [reprovou, copy.deepcopy(reprovou), verificacao("atende")]
+    roteiro["executor"] = [*roteiro["executor"][:2], executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # 1\n"}),
+                           executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # 2\n"})]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador(modelos={"executor": "sonnet"}).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    primeira, segunda = bancada.chamadas("executor")[2:4]
+    assert "python -c 'print(somar(-2, -3))'` saiu com 1: AssertionError: -5" in primeira["stdin"]
+    assert primeira["argv"][primeira["argv"].index("--model") + 1] == "opus"
+    assert bancada.chamadas("executor")[0]["argv"][bancada.chamadas("executor")[0]["argv"].index("--model") + 1] == "sonnet"
+    assert "A correcao M1.K1.1" in segunda["stdin"] and "+    return a + b  # 1" in segunda["stdin"]
+    assert "A verificacao ver-goal-soma-2, depois dela, disse" in segunda["stdin"]
