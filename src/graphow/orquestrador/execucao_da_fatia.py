@@ -2,9 +2,12 @@
 
 O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
-trava), recusa a fatia que alterou, apagou ou moveu um teste de aceite, roda a
+trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive),
+que escondeu mudança com as flags do índice ou que mudou a configuração de
+teste sem o plano declarar (orquestrador/aceite_intocado.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
-vermelhos até a fatia que os atende), passa a fatia de risco pela revisão
+vermelhos até a fatia que os atende), passa a fatia de risco, e a que mudou a
+configuração de teste declarada, pela revisão
 (orquestrador/revisao_da_fatia.py) e só então commita na branch do Goal, com
 a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
@@ -16,6 +19,7 @@ e sai da área, para não vazar para a fatia seguinte.
 from dataclasses import dataclass
 
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.aceite_intocado import configuracoes_mudadas, flags_do_indice, limpar_flags, soltos_que_mudam_os_testes
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_EXECUTOR
@@ -27,6 +31,7 @@ from graphow.orquestrador.git_do_goal import (
 )
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, de_risco, revisar_fatia
+from graphow.orquestrador.saida_do_aceite import dentro_do_aceite, e_cache
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
@@ -97,9 +102,9 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
 def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str | Parada:
     """Os testes de aceite intocados, a suíte verde sem eles e, na fatia de risco, a revisão; vazio quando tudo passa."""
     estado = contexto.estado()
-    mexidos = sorted(set(contexto.git.caminhos_mudados()) & set(estado.arquivos_protegidos()))
-    if mexidos:
-        return _mexeu_no_aceite(mexidos)
+    problema, configuracao = _conferir_o_que_mudou(contexto, estado, tentativa)
+    if problema:
+        return problema
     plano = estado.plano or {}
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(
@@ -108,14 +113,41 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
         )
     if not suite.passou:
         return suite.descrever()
-    motivo = de_risco(tentativa.fatia)
+    motivo = de_risco(tentativa.fatia) or (f"muda a configuracao de teste ({', '.join(configuracao)})" if configuracao else "")
     return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo)) if motivo else ""
+
+
+def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
+    """O problema do que a fatia mudou (flags do índice, aceite/, configuração de teste) e a configuração declarada que mudou."""
+    sinalizados = flags_do_indice(contexto.area)
+    if sinalizados:
+        limpar_flags(contexto.area, sinalizados)
+        return (f"a fatia escondeu do git os arquivos {', '.join(sinalizados)} com skip-worktree ou assume-unchanged: o "
+                "orquestrador tirou as flags, e a tentativa nao vale (git update-index nao e do executor)"), ()
+    mudados = contexto.git.caminhos_mudados()
+    soltos = soltos_que_mudam_os_testes(contexto.area)
+    no_aceite = sorted({c for c in (*mudados, *soltos) if dentro_do_aceite(c) and not e_cache(c)}
+                       | (set(mudados) & set(estado.arquivos_protegidos())))
+    if no_aceite:
+        return _mexeu_no_aceite(no_aceite), ()
+    ignorados = sorted(set(soltos) - set(mudados))
+    if ignorados:
+        return (f"a fatia deixou configuracao de teste fora do git (ignorada): {', '.join(ignorados)}. O que muda como os "
+                "testes rodam tem de estar no commit e nos arquivos da fatia"), ()
+    configuracao = configuracoes_mudadas(contexto.area, mudados, antes=tentativa.head)
+    fora = [caminho for caminho in configuracao if caminho not in tentativa.fatia.lista(m.CAMPO_ARQUIVOS_ALVO)]
+    if fora:
+        return (f"a fatia mexeu na configuracao de teste {', '.join(fora)}, que o plano nao declarou nos arquivos dela: "
+                "conftest, pytest.ini, a secao [tool.pytest] do pyproject, setup.cfg, tox.ini, os scripts de teste do "
+                "package.json e as configuracoes de jest, vitest e mocha mudam o que os testes de aceite provam. Se a "
+                "mudanca e necessaria, devolva `duvida` com o porque"), ()
+    return "", configuracao
 
 
 def _mexeu_no_aceite(mexidos: list[str]) -> str:
     """O erro da fatia que alterou, apagou ou moveu teste de aceite."""
     return (
-        f"a fatia alterou, apagou ou moveu os testes de aceite {', '.join(mexidos)}: o executor nao os toca, eles provam os "
+        f"a fatia alterou, apagou, moveu ou criou em aceite/ os arquivos {', '.join(mexidos)}: o executor nao toca os testes de aceite, eles provam os "
         "criterios e foram escritos antes, por outra sessao. Se um teste de aceite esta errado, devolva `duvida` com o porque."
     )
 

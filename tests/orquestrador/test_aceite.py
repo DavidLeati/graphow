@@ -18,6 +18,7 @@ from tests.orquestrador.apoio_laco import (
     PLANO,
     SOMA_CERTA,
     VERIFICAR,
+    aceite_em_pytest,
     autor_de_aceite,
     executor_pronto,
     montar_bancada,
@@ -121,7 +122,7 @@ def test_executor_que_mexe_no_teste_de_aceite_e_recusado_nominal(tmp_path: Path)
 
     assert parada.fechou, parada.mensagem
     segunda = bancada.chamadas("executor")[1]["stdin"]
-    assert "alterou, apagou ou moveu os testes de aceite aceite/aceite_c1.py" in segunda
+    assert "alterou, apagou, moveu ou criou em aceite/ os arquivos aceite/aceite_c1.py" in segunda
     assert (bancada.repositorio / "aceite" / "aceite_c1.py").read_text(encoding="utf-8") == ACEITE_C1
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.fatias[0].falhas == 1
@@ -190,27 +191,11 @@ def test_supervisionado_para_depois_do_autor_e_aprova_plano_e_testes_juntos_nomi
     assert "a ultima verificacao foi feita no commit" in recusa.value.contexto["motivo"]
 
 
-ACEITE_PYTEST: str = (
-    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.insert(0, ".")\n\n\n'
-    "def test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n"
-)
-COMANDO_PYTEST: str = f"{PYTHON} -m pytest -q -p no:cacheprovider aceite/aceite_c1.py"
-
-
-def _aceite_em_pytest(conteudo: str) -> dict[str, Any]:
-    """O autor de aceite com o teste de C1 em pytest, rodado pelo pytest."""
-    resposta = autor_de_aceite()
-    resposta["saida"]["comando_aceite"] = COMANDO_PYTEST
-    resposta["saida"]["criterios"][0]["testes"][0]["comando"] = f"{COMANDO_PYTEST}::test_c1_soma"
-    resposta["arquivos"] = {"aceite/aceite_c1.py": conteudo}
-    return resposta
-
-
 def test_teste_vermelho_por_erro_de_coleta_volta_ao_autor_edge_case(tmp_path: Path) -> None:
     """Caso de borda: o teste que falha porque o import do topo quebra a coleta não vale como vermelho; o autor corrige."""
     roteiro = _roteiro_limpo()
     coleta = '"""C1."""\nfrom modulo_que_nao_existe import somar\n\n\ndef test_c1_soma():\n    assert somar(2, 3) == 5\n'
-    roteiro["aceite"] = [_aceite_em_pytest(coleta), _aceite_em_pytest(ACEITE_PYTEST)]
+    roteiro["aceite"] = [aceite_em_pytest(coleta), aceite_em_pytest()]
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
@@ -223,7 +208,7 @@ def test_teste_vermelho_por_erro_de_coleta_volta_ao_autor_edge_case(tmp_path: Pa
 def test_teste_de_aceite_pulado_pelo_modulo_do_executor_nao_passa_edge_case(tmp_path: Path) -> None:
     """Caso de borda (bloqueante 1c): o código que faz o teste de aceite se pular sai com zero, e mesmo assim reprova C1."""
     roteiro = _roteiro_limpo()
-    roteiro["aceite"] = [_aceite_em_pytest(ACEITE_PYTEST)]
+    roteiro["aceite"] = [aceite_em_pytest()]
     pula = ("import sys\n\nif 'pytest' in sys.modules:\n    import pytest\n    pytest.skip('pulado', allow_module_level=True)\n\n\n"
             "def somar(a, b):\n    return a - b\n")
     roteiro["executor"][0] = executor_pronto({"soma.py": pula, "verificar.py": "print('ok')\n"})

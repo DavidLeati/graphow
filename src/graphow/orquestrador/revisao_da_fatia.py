@@ -56,7 +56,7 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_REVISOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=pedido.fatia.id, tentativa=pedido.tentativa,
-            briefing=briefing_do_revisor(estado, pedido.fatia, contexto.git.caminhos_mudados()),
+            briefing=briefing_do_revisor(estado, pedido.fatia, contexto.git.caminhos_mudados(), motivo=pedido.motivo),
             conferir=_conferir, orcamento_restante_usd=contexto.restante(),
         )
     )

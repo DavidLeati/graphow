@@ -7,7 +7,9 @@ decisões, sobre o Goal inteiro), roda a suíte e o programa e sonda as bordas.
 Lista os comandos que rodou, e cada um tem de aparecer nas chamadas Bash do
 stream da sessão. Depois o próprio orquestrador roda nesse commit a suíte do
 plano (sem os testes de aceite) e os testes de aceite dos critérios que o
-marco julga (na final, também o comando de todos): a suíte vermelha é
+marco julga (na final, também o comando de todos), com `aceite/` de volta ao
+commit do aceite e sem configuração de teste solta na área
+(orquestrador/aceite_intocado.py): a suíte vermelha é
 bloqueante, e o teste de aceite vermelho reprova o critério dele e vira Achado
 bloqueante, diga o verificador o que disser.
 
@@ -23,6 +25,7 @@ from dataclasses import replace
 from typing import Any
 
 from graphow.core import aceite as a
+from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.briefing import briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_CICLOS_DE_CORRECAO, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias
@@ -46,6 +49,7 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     if isinstance(dados, Parada):
         return dados
     plano = estado.plano or {}
+    tirado = preparar_o_aceite(contexto.area, str((estado.aceite or {}).get("commit", "")))
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
@@ -57,6 +61,7 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
         numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, execucoes), commit=head,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(plano), ciclo=estado.ciclos_do_marco(marco),
         final=marco.final, marco=marco.id, aceite=[execucao.em_json() for execucao in execucoes], resolver=_corrigidos(estado, marco),
+        tirado_antes_do_aceite=tirado,
     )
     registro = replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
     gravar_verificacao(contexto.livro, registro)

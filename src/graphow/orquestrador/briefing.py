@@ -125,13 +125,13 @@ def _suite_e_aceite(estado: EstadoDoGoal) -> list[str]:
     return linhas
 
 
-def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str:
+def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, motivo: str = "") -> str:
     """O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões e o que mudou."""
     plano = estado.plano or {}
     return _juntar([
         f"# Revisao da fatia de risco {fatia.codigo} do Goal {estado.id_goal}: {fatia.titulo}",
         "A mudanca da fatia esta na pasta atual, fora de commit: veja com `git status` e `git diff HEAD`.",
-        _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), fatia.texto(m.CAMPO_MOTIVO_DO_RISCO)]),
+        _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), f"Por que ela e revisada: {motivo}" if motivo else ""]),
         _bloco("Criterios que a fatia cobre, com os testes de aceite que os provam", _criterios_com_aceite(estado, fatia.lista(m.CAMPO_CRITERIOS))),
         _bloco("Decisoes que o trabalho segue", _decisoes(plano)),
         _bloco("Arquivos mudados", [f"- {caminho}" for caminho in mudados]),

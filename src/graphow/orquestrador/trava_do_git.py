@@ -51,7 +51,7 @@ HOOKS_DA_TRAVA: Mapping[str, str] = {
 SUBCOMANDOS_DE_ESCRITA: tuple[str, ...] = (
     "commit", "push", "pull", "fetch", "reset", "checkout", "switch", "restore", "merge", "rebase", "stash", "branch",
     "tag", "cherry-pick", "revert", "am", "worktree", "update-ref", "symbolic-ref", "notes", "replace", "config",
-    "remote", "gc", "prune", "filter-branch",
+    "remote", "gc", "prune", "filter-branch", "update-index", "sparse-checkout", "read-tree",
 )
 OPCOES_GLOBAIS_NEGADAS: tuple[str, ...] = ("-c", "-C", "--git-dir", "--work-tree", "--exec-path")
 

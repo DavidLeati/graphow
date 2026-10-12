@@ -96,6 +96,22 @@ def autor_de_aceite(ja_atendido: str = "", **campos: Any) -> dict[str, Any]:
     return {"saida": saida, "arquivos": {"aceite/aceite_c1.py": ACEITE_C1}, "custo": 0.2, **campos}
 
 
+ACEITE_PYTEST: str = (
+    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.insert(0, ".")\n\n\n'
+    "def test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n"
+)
+COMANDO_PYTEST: str = f'"{sys.executable}" -m pytest -q -p no:cacheprovider aceite/aceite_c1.py'
+
+
+def aceite_em_pytest(conteudo: str = ACEITE_PYTEST) -> dict[str, Any]:
+    """O autor de aceite com o teste de C1 em pytest, rodado pelo pytest (o que lê o resumo e os pulados)."""
+    resposta = autor_de_aceite()
+    resposta["saida"]["comando_aceite"] = COMANDO_PYTEST
+    resposta["saida"]["criterios"][0]["testes"][0]["comando"] = f"{COMANDO_PYTEST}::test_c1_soma"
+    resposta["arquivos"] = {"aceite/aceite_c1.py": conteudo}
+    return resposta
+
+
 def revisao(veredito: str = "aprovado", **campos: Any) -> dict[str, Any]:
     """Uma resposta do revisor da fatia de risco; a rejeição traz um problema que toca C1."""
     problemas = [] if veredito == "aprovado" else [

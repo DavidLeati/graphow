@@ -10,10 +10,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-31 módulos · 5305 linhas · 54 classes
+32 módulos · 5511 linhas · 54 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 167 | Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste não muda sem o plano dizer. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 135 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 253 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 63 | Os comandos que uma sessão rodou de fato, lidos do stream, contra os que ela declarou na saída. |
@@ -21,9 +22,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 97 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 142 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 154 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 192 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 224 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 367 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
-| [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 115 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
+| [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 117 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 79 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 123 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 201 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
@@ -43,7 +44,29 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 124 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 191 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 196 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+
+## `orquestrador/aceite_intocado.py`
+
+Os testes de aceite rodam sempre da cópia intocada, e a configuração de teste não muda sem o plano dizer.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOMES_DE_CONFIGURACAO` | `frozenset[str]` | `frozenset({'conftest.py', 'pytest.ini', '.pytest.ini', 'pytest.toml', '…` |
+| `PREFIXOS_DE_CONFIGURACAO` | `tuple[str, ...]` | `('jest.config.', 'vitest.config.', 'vitest.workspace.', 'babel.config.'…` |
+| `SUFIXOS_DE_CONFIGURACAO` | `tuple[str, ...]` | `('.pth',)` |
+| `SOMBRAS_DO_RUNNER` | `frozenset[str]` | `frozenset({'pytest.py', 'pytest', '_pytest', 'unittest.py', 'unittest',…` |
+| `SECOES_DE_TESTE` | `Mapping[str, tuple[str, ...]]` | `{'pyproject.toml': ('tool', 'pytest'), 'setup.cfg': ('tool:pytest',), '…` |
+| `PASTAS_DO_AMBIENTE` | `frozenset[str]` | `frozenset({'node_modules', '.venv', 'venv', '.tox', '.nox', '.git', 'si…` |
+
+### Funções do módulo
+
+- `e_configuracao_de_teste(caminho: str) -> bool` — O caminho, relativo à raiz, é de um arquivo que muda como os testes rodam (pelo nome).
+- `configuracoes_mudadas(area: Path, caminhos: Iterable[str]) -> tuple[str, ...]` — Dos caminhos mudados desde o commit `antes`, os de configuração de teste (no pyproject e afins, só a parte de teste).
+- `soltos_que_mudam_os_testes(area: Path) -> tuple[str, ...]` — Os arquivos fora do git (não versionados ou ignorados) que estão em aceite/ ou que configuram os testes.
+- `preparar_o_aceite(area: Path, commit_do_aceite: str) -> tuple[str, ...]` — Antes de rodar os testes de aceite: aceite/ como no commit do aceite e a configuração solta fora; diz o que tirou.
+- `flags_do_indice(area: Path) -> tuple[str, ...]` — Os arquivos com `skip-worktree` (S) ou `assume-unchanged` (letra minúscula) no índice: mudança que o status esconde.
+- `limpar_flags(area: Path, arquivos: Sequence[str]) -> None` — Tira as flags do índice dos arquivos, para o git voltar a ver o que mudou neles.
 
 ## `orquestrador/autor_de_aceite.py`
 
@@ -351,7 +374,7 @@ A verificação gravada no livro-razão: a Evidence, um nó Achado por problema,
 
 *DTO imutável* — O que a verificação deixa no livro-razão: o número, o commit verificado, o parecer e o que o orquestrador rodou.
 
-**Campos:** `numero: int`, `verificacao: Verificacao`, `commit: str`, `commit_do_codigo: str`, `suite: ResultadoDaSuite`, `nos: Mapping[str, str]`, `pendencias: Sequence[Mapping[str, Any]]`, `ciclo: int`, `final: bool`, `marco: str`, `aceite: Sequence[Mapping[str, Any]]`, `resolver: Sequence[str]`
+**Campos:** `numero: int`, `verificacao: Verificacao`, `commit: str`, `commit_do_codigo: str`, `suite: ResultadoDaSuite`, `nos: Mapping[str, str]`, `pendencias: Sequence[Mapping[str, Any]]`, `ciclo: int`, `final: bool`, `marco: str`, `aceite: Sequence[Mapping[str, Any]]`, `resolver: Sequence[str]`, `tirado_antes_do_aceite: Sequence[str]`
 
 - `limpa() -> bool` `[property]` — Sem bloqueante.
 - `propriedades(id_goal: str) -> dict[str, Any]` — As propriedades da Evidence; cada parecer leva o nó do critério ou da decisão que julga.
