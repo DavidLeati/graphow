@@ -154,6 +154,12 @@ def commitar(area: Path, mensagem: str) -> str:
     return git.head()
 
 
+def ultimo_commit_do_arquivo(area: Path, caminho: str) -> str:
+    """O commit mais novo que tocou o arquivo; o HEAD quando nenhum tocou."""
+    git = GitDoGoal(area)
+    return git.rodar("log", "-1", "--format=%H", "--", caminho).strip() or git.head()
+
+
 def descartar_mudancas(area: Path, arquivo_patch: Path) -> bool:
     """Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.
 

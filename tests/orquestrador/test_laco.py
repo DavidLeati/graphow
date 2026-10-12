@@ -9,7 +9,6 @@ from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco, Parada
 from graphow.orquestrador.git_do_goal import GitDoGoal
-from graphow.orquestrador.laco import PedidoInvalido
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.status import formatar_status
 
@@ -325,8 +324,10 @@ def test_goal_do_gerente_sem_repositorio_e_recusado_edge_case(tmp_path: Path) ->
     bancada = montar_bancada(tmp_path, roteiro_completo())
     _goal_do_gerente(bancada)
 
-    with pytest.raises(PedidoInvalido):
-        bancada.orquestrador().rodar("goal-calc", AUTONOMO)
+    parada = bancada.orquestrador().rodar("goal-calc", AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FALHA
+    assert "PedidoInvalido" in parada.mensagem and "--repo" in parada.mensagem
 
 
 def test_goal_com_plano_aprovado_pelo_escopo_governado_segue_o_portao_do_orquestrador_edge_case(tmp_path: Path) -> None:

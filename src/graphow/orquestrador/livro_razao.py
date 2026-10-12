@@ -127,6 +127,10 @@ class LivroRazaoDoGoal:
         rotulo = f"Orquestracao de {self.id_goal}"
         return [no(self.id_sessao, TipoNo.SESSAO, rotulo, propriedades={"status": "ativa"}), aresta(id_setor, self.id_sessao, TipoAresta.CONTEM)]
 
+    def gravar_plano_proposto(self, dados: Mapping[str, Any]) -> None:
+        """A saída conferida do planejador no Goal, antes de qualquer passo que possa cair no meio."""
+        self.gravar([propriedade(self.id_goal, m.CAMPO_PLANO_PROPOSTO, dict(dados))], f"Plano proposto do Goal {self.id_goal}")
+
     def iniciar_tentativa(self, id_task: str, tentativa: int) -> None:
         """A fatia entra em andamento, com a tentativa contada antes de a sessão abrir."""
         self.gravar(

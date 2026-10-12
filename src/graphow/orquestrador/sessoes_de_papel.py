@@ -150,7 +150,7 @@ def argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str,
 
 def ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]:
     """O JSON da sessão conferido, ou os problemas: o `structured_output`, senão o texto final como JSON."""
-    dados = resultado.saida_estruturada if isinstance(resultado.saida_estruturada, dict) else _json_do_texto(resultado.texto_final)
+    dados = _dados_da_leitura(resultado.leitura)
     if dados is None:
         motivo = resultado.motivo_do_erro or "a sessao nao devolveu JSON"
         return None, (f"sem saida estruturada: {motivo}",)
@@ -159,6 +159,35 @@ def ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapp
         return None, problemas
     problemas = pedido.conferir(dados)
     return (None, problemas) if problemas else (dados, ())
+
+
+def _dados_da_leitura(leitura: LeituraDoStream) -> dict[str, Any] | None:
+    """O objeto que a sessão devolveu: o `structured_output`, senão o texto final como JSON."""
+    resultado = leitura.resultado
+    if resultado is None:
+        return None
+    if isinstance(resultado.saida_estruturada, dict):
+        return resultado.saida_estruturada
+    return _json_do_texto(resultado.texto)
+
+
+def saida_conferida_da_telemetria(
+    registros: Sequence[SessaoRegistrada], papel: str, problemas: Conferencia
+) -> Mapping[str, Any] | None:
+    """A saída mais nova do papel, relida do stream gravado, que passa na conferência; None sem nenhuma.
+
+    É o que salva a sessão paga quando o processo caiu entre o fim dela e a
+    gravação do que ela devolveu.
+    """
+    for registro in reversed([registro for registro in registros if registro.papel == papel]):
+        caminho = Path(registro.arquivo_stream)
+        if not caminho.is_file():
+            continue
+        with caminho.open(encoding="utf-8", errors="replace") as stream:
+            dados = _dados_da_leitura(ler_stream(stream))
+        if dados is not None and not problemas(dados):
+            return dados
+    return None
 
 
 def _json_do_texto(texto: str) -> dict[str, Any] | None:

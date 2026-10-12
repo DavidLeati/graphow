@@ -10,24 +10,25 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-20 módulos · 2817 linhas · 38 classes
+21 módulos · 2989 linhas · 40 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 146 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 146 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 75 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
+| [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 114 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 115 | Os schemas da saída de cada papel: o que o planejador, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 142 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 228 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 234 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 115 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 195 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 172 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 241 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 251 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 135 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
-| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 87 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 255 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 138 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 126 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 256 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 203 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 232 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 93 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 73 | O `--status` do orquestrador: onde o Goal está, o que cada fatia fez e quanto as sessões custaram. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 64 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
@@ -124,6 +125,40 @@ O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano 
 - `renderizar_documento(id_goal: str, configuracao: m.ConfiguracaoDoGoal, plano: Plano) -> str` — O documento do Goal recém-planejado, sem pendências ainda.
 - `com_pendencias(documento: str, pendencias: Sequence[Mapping[str, Any]]) -> str` — O documento com a seção de pendências reescrita.
 - `escrever_documento(area: Path, slug: str, conteudo: str) -> Path` — Grava o documento na área do Goal e devolve o caminho.
+
+## `orquestrador/entrada_do_goal.py`
+
+De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PREFIXO_GENERICO_DA_SPEC` | `str` | `'spec-'` |
+| `SUFIXOS_POSSIVEIS` | `int` | `100` |
+
+### `GoalDaSpec`
+
+*DTO imutável* — O Goal que a spec retoma ou cria: o id, o slug (com o sufixo) e se ele já existe.
+
+**Campos:** `id_goal: str`, `slug: str`, `existe: bool`
+
+### `PedidoDeConfiguracao`
+
+*DTO imutável* — O que a configuração de um Goal novo precisa: o Goal, o repositório, a chamada e onde fica o estado.
+
+**Campos:** `id_goal: str`, `slug: str`, `raiz: Path`, `opcoes: OpcoesDoLaco`, `pasta_de_estado: Path`
+
+### `PedidoInvalido` (GraphowError)
+
+*serviço* — O que a chamada pediu não dá para conduzir.
+
+### Funções do módulo
+
+- `goal_da_spec(view: GrafoView, spec: Path, texto: str) -> GoalDaSpec` — O Goal aberto que a mesma spec criou no mesmo repositório, ou o primeiro id livre para um novo.
+- `slug_da_spec(spec: Path, raiz: Path) -> str` — O nome da spec sem o prefixo `spec-`; a spec de nome genérico leva o nome do repositório.
+- `configuracao_nova(pedido: PedidoDeConfiguracao) -> m.ConfiguracaoDoGoal` — A configuração do Goal novo, com os padrões do que a chamada não disse, conferida.
+- `adotar_goal(livro: LivroRazaoDoGoal, estado: EstadoDoGoal, pedido: PedidoDeConfiguracao) -> m.ConfiguracaoDoGoal` — O Goal do gerente passa a ser conduzido: a spec montada dos nós e a configuração da chamada.
+- `pedido_de_adocao(estado: EstadoDoGoal, opcoes: OpcoesDoLaco) -> PedidoDeConfiguracao` — O pedido de configuração do Goal do gerente, que pede o repositório na primeira vez.
+- `atualizar_configuracao(livro: LivroRazaoDoGoal, configuracao: m.ConfiguracaoDoGoal, opcoes: OpcoesDoLaco) -> m.ConfiguracaoDoGoal` — O modo e o orçamento que a chamada pede de novo valem daqui em diante, e ficam gravados.
 
 ## `orquestrador/esquemas.py`
 
@@ -229,6 +264,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `raiz_do_repositorio(pasta: Path) -> Path` — A raiz do repositório git que contém a pasta.
 - `preparar_area(area: AreaDoGoal) -> None` — O worktree do Goal na branch dele: reaproveitado se já existe, criado da base se a branch é nova.
 - `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
+- `ultimo_commit_do_arquivo(area: Path, caminho: str) -> str` — O commit mais novo que tocou o arquivo; o HEAD quando nenhum tocou.
 - `descartar_mudancas(area: Path, arquivo_patch: Path) -> bool` — Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.
 - `restaurar_head(area: Path, ramo: str, esperado: str) -> str` — Desfaz o que o agente fez no git: volta à branch e, com `reset --soft`, ao commit esperado.
 - `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até a branch do Goal, só por fast-forward; devolve o commit integrado.
@@ -257,19 +293,14 @@ O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LIMITE_DE_PASSOS` | `int` | `200` |
-| `PREFIXO_GENERICO_DA_SPEC` | `str` | `'spec-'` |
 
 ### `Orquestrador`
 
 *serviço* — Conduz Goals com as dependências dadas; cada chamada roda até o Goal fechar ou o laço parar.
 
-- `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda.
-- `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar.
+- `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda; a falha de domínio vira parada.
+- `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar; a falha de domínio vira parada.
 - `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano grava a aprovação no Goal, com o commit do documento.
-
-### `PedidoInvalido` (GraphowError)
-
-*serviço* — O que a chamada pediu não dá para conduzir.
 
 ## `orquestrador/leitura_do_goal.py`
 
@@ -355,6 +386,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `produzido(id_no: str, tipo: TipoNo, rotulo: str) -> list[ItemPatch]` — O nó de trabalho pendurado na Sessao do orquestrador.
 - `criar_goal(novo: GoalNovo) -> None` — Projeto e Setor do repositório (se faltam), a Sessao do Goal e o Goal com a spec e a configuração.
 - `adotar_goal(id_setor: str, spec: str, configuracao: m.ConfiguracaoDoGoal) -> None` — O Goal que o gerente criou passa a ser conduzido: a Sessao do orquestrador, a spec montada e a configuração.
+- `gravar_plano_proposto(dados: Mapping[str, Any]) -> None` — A saída conferida do planejador no Goal, antes de qualquer passo que possa cair no meio.
 - `iniciar_tentativa(id_task: str, tentativa: int) -> None` — A fatia entra em andamento, com a tentativa contada antes de a sessão abrir.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro para a próxima.
@@ -388,6 +420,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_SPEC` | `str` | `'spec'` |
 | `CAMPO_ORQUESTRACAO` | `str` | `'orquestracao'` |
 | `CAMPO_PLANO` | `str` | `'plano'` |
+| `CAMPO_PLANO_PROPOSTO` | `str` | `'plano_proposto'` |
 | `CAMPO_CICLOS` | `str` | `'ciclos_de_correcao'` |
 | `CAMPO_PENDENCIAS` | `str` | `'pendencias'` |
 | `CAMPO_INTEGRADO_EM` | `str` | `'integrado_em'` |
@@ -446,7 +479,7 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 
 ### Funções do módulo
 
-- `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — Roda o planejador e grava o plano; a parada diz por que não deu.
+- `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
 
 ## `orquestrador/saidas.py`
 
@@ -574,6 +607,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 - `argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]` — O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
 - `ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]` — O JSON da sessão conferido, ou os problemas: o `structured_output`, senão o texto final como JSON.
+- `saida_conferida_da_telemetria(registros: Sequence[SessaoRegistrada], papel: str, problemas: Conferencia) -> Mapping[str, Any] | None` — A saída mais nova do papel, relida do stream gravado, que passa na conferência; None sem nenhuma.
 - `registro_da_invocacao(pedido: PedidoDePapel, resultado: ResultadoDeSessao) -> SessaoRegistrada` — A invocação como linha de telemetria.
 - `resultados_da_telemetria(registros: Sequence[SessaoRegistrada]) -> tuple[ResultadoDeSessao, ...]` — As invocações relidas dos streams gravados, como a bancada as mede.
 

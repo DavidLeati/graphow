@@ -25,6 +25,9 @@ MODOS: tuple[str, ...] = (MODO_SUPERVISIONADO, MODO_AUTONOMO)
 CAMPO_SPEC: str = "spec"
 CAMPO_ORQUESTRACAO: str = "orquestracao"
 CAMPO_PLANO: str = "plano"
+# A saída do planejador já conferida, gravada antes do commit do documento e do
+# plano: a retomada a reaproveita em vez de pagar outra sessão.
+CAMPO_PLANO_PROPOSTO: str = "plano_proposto"
 CAMPO_CICLOS: str = "ciclos_de_correcao"
 CAMPO_PENDENCIAS: str = "pendencias"
 CAMPO_INTEGRADO_EM: str = "integrado_em"
