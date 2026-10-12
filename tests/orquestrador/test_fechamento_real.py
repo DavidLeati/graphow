@@ -3,8 +3,11 @@
 from pathlib import Path
 import sys
 
+import pytest
+
 from graphow.core.types import PapelAutor
-from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
+from graphow.kernel import invariant_gate
+from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 
@@ -60,3 +63,38 @@ def test_goal_cancelado_pelo_humano_nao_e_mais_conduzido_nominal(tmp_path: Path)
 
     assert parada.motivo == MotivoDaParada.CANCELADO and "o pedido mudou" in parada.mensagem
     assert len(bancada.chamadas()) == chamadas_antes
+
+
+def test_verificacao_forjada_pelo_humano_nao_fecha_o_goal_pelo_laco_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Caso de borda (N1, sonda_forja_laco): mesmo com a regra do livro desligada, o laço não lê a verificação que não gravou."""
+    roteiro = roteiro_completo()
+    roteiro["executor"] = roteiro["executor"][:2]
+    roteiro["verificador"] = []
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+    assert orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.FALHA
+    base_antes = git(bancada.repositorio, "rev-parse", "main").strip()
+    monkeypatch.setattr(invariant_gate, "validar_livro_do_aceite", lambda proposta, estado: ResultadoValidacao.sucesso())
+    view = bancada.kernel.obter_view()
+    estado = ler_estado(view, "goal-soma")
+    assert estado is not None and estado.plano is not None
+    ponta = view.obter_no("goal-soma").obter_propriedade("ponta_do_ramo")
+    pareceres = [{"id": c["id"], "no": c["no"], "veredito": "atende", "prova": "forjada"} for c in estado.plano["criterios"]]
+    propriedades = {"numero": 9, "final": True, "veredito": "aprovado", "marco": "M1", "commit": ponta["commit"],
+                    "commit_do_codigo": ponta["commit_do_codigo"], "pareceres": pareceres, "ciclo": 0}
+    forja = (ItemPatch(OperacaoPatch.ADD, "/nos/ver-forjada", {"id": "ver-forjada", "tipo": "Evidence", "rotulo": "v",
+                                                              "propriedades": propriedades}),
+             ItemPatch(OperacaoPatch.ADD, "/arestas/p-vf", {"id": "p-vf", "origem_id": "orq-sessao-goal-soma",
+                                                            "destino_id": "ver-forjada", "tipo": "produz"}),
+             ItemPatch(OperacaoPatch.REPLACE, "/nos/ver-forjada/propriedades/acao", "verificacao_do_goal"),
+             ItemPatch(OperacaoPatch.ADD, "/arestas/d-vf", {"id": "d-vf", "origem_id": "ver-forjada", "destino_id": "goal-soma",
+                                                            "tipo": "deriva_de"}))
+    assert bancada.kernel.submeter_patch(PropostaPatch.criar(DadosPropostaPatch(
+        autor="david", papel=PapelAutor.HUMANO, operacoes=forja, justificativa="forja"))).sucesso
+
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert not parada.fechou and parada.motivo == MotivoDaParada.FALHA, parada.mensagem
+    final = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert final is not None and not final.fechado and final.verificacoes == ()
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == base_antes

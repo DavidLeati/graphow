@@ -3,7 +3,9 @@
 A verificação é a Evidence que deriva do Goal com a ação da verificação; o
 Achado é o nó que deriva dela, ou da Evidence da revisão de risco de uma
 fatia, com a gravidade que o código decidiu e o estado (aberto, corrigido,
-resolvido, descartado; o acompanhamento, pendente). A ordem é a do log.
+resolvido, descartado; o acompanhamento, pendente). A ordem é a do log. Só
+conta o que nasceu de um lote do orquestrador: a verificação ou o Achado que
+outro papel gravasse não é do laço, e ele não o lê.
 """
 
 from collections.abc import Mapping
@@ -11,9 +13,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.core import aceite as a
-from graphow.core.types import TipoAresta, TipoNo
+from graphow.core.models import NoGrafo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.projection.graph_view import GrafoView
+
+
+def do_orquestrador(no: NoGrafo | None) -> bool:
+    """O nó nasceu de um lote do orquestrador: o laço só lê a verificação, o Achado e a revisão que ele mesmo gravou."""
+    return no is not None and no.proveniencia.papel == PapelAutor.ORQUESTRADOR.value
 
 
 @dataclass(frozen=True)
@@ -77,7 +85,7 @@ class VerificacaoRegistrada:
 def verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada, ...]:
     """As Evidence de verificação ligadas ao Goal, da mais antiga à mais nova."""
     evidencias = [view.obter_no(a.origem_id) for a in view.obter_arestas_entrada(id_goal, TipoAresta.DERIVA_DE)]
-    do_goal = [e for e in evidencias if e is not None and e.obter_propriedade("acao") == m.ACAO_DA_VERIFICACAO]
+    do_goal = [e for e in evidencias if do_orquestrador(e) and e.obter_propriedade("acao") == m.ACAO_DA_VERIFICACAO]
     ordenadas = sorted(do_goal, key=lambda e: (e.ordem.seq_criacao, e.id))
     return tuple(
         VerificacaoRegistrada(
@@ -97,7 +105,7 @@ def verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegi
 def achados_da_evidencia(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegistrado, ...]:
     """Os nós Achado que derivam da verificação, na ordem dos ids."""
     origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_evidencia, TipoAresta.DERIVA_DE))
-    nos = sorted((no for no in origens if no is not None and no.tipo == TipoNo.ACHADO), key=lambda no: (no.ordem.seq_criacao, no.id))
+    nos = sorted((no for no in origens if do_orquestrador(no) and no.tipo == TipoNo.ACHADO), key=lambda no: (no.ordem.seq_criacao, no.id))
     return tuple(
         AchadoRegistrado(no.id, id_evidencia, str(no.obter_propriedade(a.CAMPO_GRAVIDADE) or ""),
                          str(no.obter_propriedade(a.CAMPO_ESTADO) or ""), no.propriedades)
@@ -108,6 +116,6 @@ def achados_da_evidencia(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegi
 def achados_das_revisoes(view: GrafoView, id_task: str) -> tuple[AchadoRegistrado, ...]:
     """Os nós Achado das revisões de risco da fatia, da revisão mais antiga à mais nova."""
     revisoes = [view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_task, TipoAresta.DERIVA_DE)]
-    do_risco = sorted((r for r in revisoes if r is not None and r.obter_propriedade("acao") == a.ACAO_DA_REVISAO_DE_RISCO),
+    do_risco = sorted((r for r in revisoes if do_orquestrador(r) and r.obter_propriedade("acao") == a.ACAO_DA_REVISAO_DE_RISCO),
                       key=lambda r: (r.ordem.seq_criacao, r.id))
     return tuple(achado for revisao in do_risco for achado in achados_da_evidencia(view, revisao.id))

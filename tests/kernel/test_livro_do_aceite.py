@@ -12,7 +12,9 @@ import pytest
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
-from graphow.kernel.patch_models import ItemPatch, OperacaoPatch
+from graphow.kernel import invariant_gate
+from graphow.kernel.fechamento_do_goal import motivos_para_nao_fechar
+from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, ResultadoValidacao
 from graphow.kernel.write_kernel import ResultadoSubmissao
 
 from tests.kernel.test_fechamento_do_goal import (
@@ -221,3 +223,15 @@ def test_aresta_antes_do_no_nem_chega_ao_livro_edge_case() -> None:
     recibo = _tentar(None, [LIGA, *_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA), ACAO], HUMANO)
 
     assert not recibo.sucesso and recibo.modo_de_falha == "referencia_inexistente"
+
+
+def test_verificacao_que_nao_nasceu_do_orquestrador_nao_fecha_nem_com_o_livro_aberto_edge_case(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Caso de borda (N1b): com a regra do livro desligada, a verificação forjada pelo humano entra, mas o fechamento a ignora."""
+    monkeypatch.setattr(invariant_gate, "validar_livro_do_aceite", lambda proposta, estado: ResultadoValidacao.sucesso())
+    kernel = _kernel_com_goal()
+    assert _submeter(kernel, [*_no("ver-f", TipoNo.EVIDENCE, VERIFICACAO_FORJADA), ACAO, LIGA], HUMANO).sucesso
+
+    fechamento = _submeter(kernel, [FECHAR], ORQ)
+
+    assert not fechamento.sucesso and "o Goal nao tem verificacao" in fechamento.mensagem
+    assert motivos_para_nao_fechar(kernel.obter_view(), "goal") == ("o Goal nao tem verificacao",)

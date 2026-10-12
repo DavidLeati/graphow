@@ -24,6 +24,10 @@ conduzido pelo orquestrador (`orquestracao`) ou tem `Criterio` ligado, precisa:
 Quem pode escrever cada uma dessas coisas, e que nada delas se reescreve, é
 outra regra (kernel/livro_do_aceite.py): é ela que impede de trocar a prova no
 mesmo lote que fecha.
+E a regra só conta a verificação, o Achado e a revisão de risco que nasceram
+de um lote do orquestrador (a proveniência do nó no log): a Evidence que outro
+papel gravou com a ação da verificação não é prova, nem que o livro a deixe
+passar.
 
 O Goal de antes do aceite no centro, sem condução nem `Criterio`, fecha como
 fechava: a regra não o alcança.
@@ -129,10 +133,15 @@ def _alcancado(view: GrafoView, goal: NoGrafo) -> bool:
     return a.CAMPO_CONDUCAO in goal.propriedades or bool(_criterios_do_goal(view, goal))
 
 
+def _do_orquestrador(no: NoGrafo | None) -> bool:
+    """O nó nasceu de um lote do orquestrador: só a verificação, o Achado e a revisão dele contam para fechar."""
+    return no is not None and no.proveniencia.papel == PapelAutor.ORQUESTRADOR.value
+
+
 def _verificacoes(view: GrafoView, id_goal: str) -> list[NoGrafo]:
-    """As Evidence de verificação que derivam do Goal, pela ordem do log."""
+    """As Evidence de verificação que o orquestrador gravou derivando do Goal, pela ordem do log."""
     origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_goal, TipoAresta.DERIVA_DE))
-    verificacoes = [no for no in origens if no is not None and no.obter_propriedade(a.CAMPO_ACAO) == a.ACAO_DA_VERIFICACAO]
+    verificacoes = [no for no in origens if _do_orquestrador(no) and no.obter_propriedade(a.CAMPO_ACAO) == a.ACAO_DA_VERIFICACAO]
     return sorted(verificacoes, key=lambda no: (no.ordem.seq_criacao or SEQ_DO_LOTE, no.id))
 
 
@@ -143,9 +152,9 @@ def _ultima_verificacao(view: GrafoView, id_goal: str) -> NoGrafo | None:
 
 
 def _achados_de(view: GrafoView, id_evidencia: str) -> list[NoGrafo]:
-    """Os Achados que derivam da Evidence."""
+    """Os Achados que o orquestrador gravou derivando da Evidence."""
     origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_evidencia, TipoAresta.DERIVA_DE))
-    return [no for no in origens if no is not None and no.tipo == TipoNo.ACHADO]
+    return [no for no in origens if _do_orquestrador(no) and no.tipo == TipoNo.ACHADO]
 
 
 def _bloqueante_encerrado(achado: NoGrafo) -> bool:
@@ -230,7 +239,7 @@ def _achados_do_goal(view: GrafoView, goal: NoGrafo) -> list[NoGrafo]:
     governam = {aresta.origem_id for tipo in (TipoAresta.ESCOPA, TipoAresta.ORIENTA)
                 for aresta in view.obter_arestas_entrada(goal.id, tipo)}
     ferem = [view.obter_no(aresta.origem_id) for id_no in governam for aresta in view.obter_arestas_entrada(id_no, TipoAresta.FERE)]
-    achados = [*(achado for origem in origens for achado in _achados_de(view, origem)), *(no for no in ferem if no is not None)]
+    achados = [*(achado for origem in origens for achado in _achados_de(view, origem)), *(no for no in ferem if _do_orquestrador(no))]
     return list({achado.id: achado for achado in achados}.values())
 
 
@@ -238,4 +247,4 @@ def _revisoes_das_fatias(view: GrafoView, id_goal: str) -> list[str]:
     """As Evidence de revisão de risco que derivam das fatias do Goal."""
     fatias = [aresta.destino_id for aresta in view.obter_arestas_saida(id_goal, TipoAresta.DECOMPOE)]
     revisoes = (view.obter_no(aresta.origem_id) for id_task in fatias for aresta in view.obter_arestas_entrada(id_task, TipoAresta.DERIVA_DE))
-    return [no.id for no in revisoes if no is not None and no.obter_propriedade(a.CAMPO_ACAO) == a.ACAO_DA_REVISAO_DE_RISCO]
+    return [no.id for no in revisoes if _do_orquestrador(no) and no.obter_propriedade(a.CAMPO_ACAO) == a.ACAO_DA_REVISAO_DE_RISCO]
