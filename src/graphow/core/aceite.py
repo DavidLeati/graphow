@@ -99,6 +99,11 @@ PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL: frozenset[str] = frozenset(
 # O pedido do humano ao laço (descartar um Achado, mais ciclos, cancelar,
 # recusar o plano, refazer um aceite): uma Decision que só o humano grava.
 CAMPO_ACAO_DO_HUMANO: str = "acao_do_humano"
+CAMPO_GOAL_DO_PEDIDO: str = "goal"
+CAMPO_ALVO_DO_PEDIDO: str = "alvo"
+# Os pedidos que tiram um critério da conta do fechamento (kernel/retirada_do_criterio.py).
+ACAO_RETIRAR_CRITERIO: str = "retirar_criterio"
+ACAO_RECUSAR_PLANO: str = "recusar_plano"
 STATUS_CONCLUIDO: str = "concluido"
 STATUS_CANCELADO: str = "cancelado"
 CAMPO_MOTIVO_DO_CANCELAMENTO: str = "motivo_do_cancelamento"

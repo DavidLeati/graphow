@@ -47,6 +47,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import PapelAutor, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
+from graphow.kernel.retirada_do_criterio import retirada_valida
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 from graphow.projection.graph_view import GrafoView
 
@@ -130,7 +131,7 @@ def _escreve_concluido(segmentos: list[str], valor: Any) -> bool:
 
 def _alcancado(view: GrafoView, goal: NoGrafo) -> bool:
     """O Goal é conduzido pelo orquestrador ou tem critério de aceite como nó."""
-    return a.CAMPO_CONDUCAO in goal.propriedades or bool(_criterios_do_goal(view, goal))
+    return a.CAMPO_CONDUCAO in goal.propriedades or bool(_todos_os_criterios(view, goal))
 
 
 def _do_orquestrador(no: NoGrafo | None) -> bool:
@@ -185,23 +186,28 @@ def _motivos_da_verificacao(view: GrafoView, goal: NoGrafo, ultima: NoGrafo) -> 
     return motivos
 
 
-def _criterios_do_goal(view: GrafoView, goal: NoGrafo) -> tuple[str, ...]:
-    """Os Criterio que escopam o Goal e os nós que o plano gravado lista como critério, menos os que o humano tirou."""
+def _todos_os_criterios(view: GrafoView, goal: NoGrafo) -> tuple[str, ...]:
+    """Os Criterio que escopam o Goal e os nós que o plano gravado lista como critério, retirados ou não."""
     ligados = [aresta.origem_id for aresta in view.obter_arestas_entrada(goal.id, TipoAresta.ESCOPA)]
     nos = [no for no in (view.obter_no(id_no) for id_no in ligados) if no is not None and no.tipo == TipoNo.CRITERIO]
     plano = goal.obter_propriedade(a.CAMPO_PLANO)
     do_plano = plano.get(a.CAMPO_CRITERIOS_DO_PLANO, []) if isinstance(plano, Mapping) else []
     citados = [str(item.get(a.CAMPO_NO_DO_PARECER)) for item in do_plano if isinstance(item, Mapping) and item.get(a.CAMPO_NO_DO_PARECER)]
-    todos = dict.fromkeys([*(no.id for no in nos), *citados])
-    return tuple(id_no for id_no in todos if not _retirado_pelo_humano(view, id_no))
+    return tuple(dict.fromkeys([*(no.id for no in nos), *citados]))
 
 
-def _retirado_pelo_humano(view: GrafoView, id_criterio: str) -> bool:
-    """O Criterio saiu do plano por uma Decision do humano (o replanejamento que ele pediu)."""
+def _criterios_do_goal(view: GrafoView, goal: NoGrafo) -> tuple[str, ...]:
+    """Os critérios do Goal que contam para fechar: todos, menos os que um pedido do humano retirou."""
+    return tuple(id_no for id_no in _todos_os_criterios(view, goal) if not _retirado_pelo_humano(view, id_no, goal.id))
+
+
+def _retirado_pelo_humano(view: GrafoView, id_criterio: str, id_goal: str) -> bool:
+    """O Criterio saiu da conta pelo pedido do humano que o retira, deste Goal (kernel/retirada_do_criterio.py)."""
     no = view.obter_no(id_criterio)
-    retirado = no.obter_propriedade(a.CAMPO_RETIRADO) if no is not None else None
-    decisao = view.obter_no(str(retirado.get("decisao", ""))) if isinstance(retirado, Mapping) else None
-    return decisao is not None and decisao.tipo == TipoNo.DECISION and decisao.proveniencia.papel == PapelAutor.HUMANO.value
+    if no is None:
+        return False
+    return retirada_valida(no.obter_propriedade(a.CAMPO_RETIRADO), view.obter_no, id_goal=id_goal,
+                           codigo=str(no.obter_propriedade(a.CAMPO_CODIGO) or ""))
 
 
 def _criterios_sem_atende(view: GrafoView, goal: NoGrafo, ultima: NoGrafo) -> list[str]:

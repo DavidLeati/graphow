@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-44 módulos · 7521 linhas · 62 classes
+44 módulos · 7522 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -34,7 +34,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 66 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 266 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 146 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
+| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 147 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 367 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 310 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 219 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
@@ -603,7 +603,7 @@ As verificações do Goal e os nós Achado delas e das revisões de risco, como 
 - `do_orquestrador(no: NoGrafo | None) -> bool` — O nó nasceu de um lote do orquestrador: o laço só lê a verificação, o Achado e a revisão que ele mesmo gravou.
 - `verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada, ...]` — As Evidence de verificação ligadas ao Goal, da mais antiga à mais nova.
 - `criterios_ativos(view: GrafoView, id_goal: str) -> frozenset[str]` — Os nós Criterio que escopam o Goal e que o humano não retirou (por uma Decision dele).
-- `retirado_pelo_humano(view: GrafoView, criterio: NoGrafo) -> bool` — O Criterio traz a retirada por uma Decision que o humano gravou.
+- `retirado_pelo_humano(view: GrafoView, criterio: NoGrafo, id_goal: str) -> bool` — O Criterio traz a retirada pelo pedido do humano que o retira, deste Goal, como o kernel a conta.
 - `achados_da_evidencia(view: GrafoView, id_evidencia: str) -> tuple[AchadoRegistrado, ...]` — Os nós Achado que derivam da verificação, na ordem dos ids.
 - `achados_das_revisoes(view: GrafoView, id_task: str) -> tuple[AchadoRegistrado, ...]` — Os nós Achado das revisões de risco da fatia, da revisão mais antiga à mais nova.
 
@@ -830,9 +830,9 @@ Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravad
 | `PEDIDO_DESCARTAR_ACHADO` | `str` | `'descartar_achado'` |
 | `PEDIDO_MAIS_CICLOS` | `str` | `'mais_ciclos'` |
 | `PEDIDO_CANCELAR` | `str` | `'cancelar'` |
-| `PEDIDO_RECUSAR_PLANO` | `str` | `'recusar_plano'` |
+| `PEDIDO_RECUSAR_PLANO` | `str` | `a.ACAO_RECUSAR_PLANO` |
 | `PEDIDO_REFAZER_ACEITE` | `str` | `'refazer_aceite'` |
-| `PEDIDO_RETIRAR_CRITERIO` | `str` | `'retirar_criterio'` |
+| `PEDIDO_RETIRAR_CRITERIO` | `str` | `a.ACAO_RETIRAR_CRITERIO` |
 | `PEDIDOS` | `frozenset[str]` | `frozenset({PEDIDO_DESCARTAR_ACHADO, PEDIDO_MAIS_CICLOS, PEDIDO_CANCELAR…` |
 | `CAMPO_DECIDIDA_PELO_AGENTE` | `str` | `'decidida_pelo_agente'` |
 | `ESTADOS_QUE_SE_DESCARTAM` | `frozenset[str]` | `frozenset({a.ESTADO_ABERTO, a.ESTADO_CORRIGIDO, a.ESTADO_DO_ACOMPANHAME…` |

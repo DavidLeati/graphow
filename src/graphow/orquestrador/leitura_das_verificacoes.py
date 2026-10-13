@@ -15,6 +15,7 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.kernel.retirada_do_criterio import retirada_valida
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.projection.graph_view import GrafoView
 
@@ -111,14 +112,14 @@ def verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegi
 def criterios_ativos(view: GrafoView, id_goal: str) -> frozenset[str]:
     """Os nós Criterio que escopam o Goal e que o humano não retirou (por uma Decision dele)."""
     origens = (view.obter_no(aresta.origem_id) for aresta in view.obter_arestas_entrada(id_goal, TipoAresta.ESCOPA))
-    return frozenset(no.id for no in origens if no is not None and no.tipo == TipoNo.CRITERIO and not retirado_pelo_humano(view, no))
+    return frozenset(no.id for no in origens
+                     if no is not None and no.tipo == TipoNo.CRITERIO and not retirado_pelo_humano(view, no, id_goal))
 
 
-def retirado_pelo_humano(view: GrafoView, criterio: NoGrafo) -> bool:
-    """O Criterio traz a retirada por uma Decision que o humano gravou."""
-    retirada = criterio.obter_propriedade(a.CAMPO_RETIRADO)
-    decisao = view.obter_no(str(retirada.get("decisao", ""))) if isinstance(retirada, Mapping) else None
-    return decisao is not None and decisao.tipo == TipoNo.DECISION and decisao.proveniencia.papel == PapelAutor.HUMANO.value
+def retirado_pelo_humano(view: GrafoView, criterio: NoGrafo, id_goal: str) -> bool:
+    """O Criterio traz a retirada pelo pedido do humano que o retira, deste Goal, como o kernel a conta."""
+    return retirada_valida(criterio.obter_propriedade(a.CAMPO_RETIRADO), view.obter_no, id_goal=id_goal,
+                           codigo=str(criterio.obter_propriedade(a.CAMPO_CODIGO) or ""))
 
 
 def _reprovados(pareceres: object, ativos: frozenset[str]) -> tuple[str, ...]:

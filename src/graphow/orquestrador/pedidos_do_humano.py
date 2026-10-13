@@ -40,9 +40,9 @@ from graphow.projection.graph_view import GrafoView
 PEDIDO_DESCARTAR_ACHADO: str = "descartar_achado"
 PEDIDO_MAIS_CICLOS: str = "mais_ciclos"
 PEDIDO_CANCELAR: str = "cancelar"
-PEDIDO_RECUSAR_PLANO: str = "recusar_plano"
+PEDIDO_RECUSAR_PLANO: str = a.ACAO_RECUSAR_PLANO
 PEDIDO_REFAZER_ACEITE: str = "refazer_aceite"
-PEDIDO_RETIRAR_CRITERIO: str = "retirar_criterio"
+PEDIDO_RETIRAR_CRITERIO: str = a.ACAO_RETIRAR_CRITERIO
 PEDIDOS: frozenset[str] = frozenset({PEDIDO_DESCARTAR_ACHADO, PEDIDO_MAIS_CICLOS, PEDIDO_CANCELAR, PEDIDO_RECUSAR_PLANO,
                                      PEDIDO_REFAZER_ACEITE, PEDIDO_RETIRAR_CRITERIO})
 # A decisão que o executor do modo autônomo tomou por conta própria (orquestrador/decisoes_do_agente.py).

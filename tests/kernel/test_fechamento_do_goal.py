@@ -7,9 +7,11 @@ import pytest
 
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.kernel import invariant_gate
 from graphow.kernel.composicao import montar_kernel_em_memoria
+from graphow.kernel.fechamento_do_goal import motivos_para_nao_fechar
 from graphow.kernel.papel_do_orquestrador import sessao_do_goal
-from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
+from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
 
 SESSAO: str = sessao_do_goal("goal")
@@ -212,3 +214,46 @@ def test_criar_o_goal_ja_concluido_tambem_e_conferido_edge_case() -> None:
     ], PapelAutor.HUMANO)
 
     assert not recibo.sucesso and "nao tem verificacao" in recibo.mensagem
+
+
+def _pedido(id_no: str, **propriedades: object) -> list[ItemPatch]:
+    """A Decision do humano: um pedido ao laço, ou uma Decision qualquer quando não leva `acao_do_humano`."""
+    return _no(id_no, TipoNo.DECISION, {"motivo": "m", **propriedades})
+
+
+@pytest.mark.parametrize(
+    ("decisao", "vale"),
+    [
+        (_pedido("dec", acao_do_humano="retirar_criterio", goal="goal", alvo="C1"), True),
+        (_pedido("dec", acao_do_humano="recusar_plano", goal="goal", alvo=""), True),
+        (_pedido("dec", texto="usar SQLite"), False),
+        (_pedido("dec", acao_do_humano="retirar_criterio", goal="goal", alvo="C2"), False),
+        (_pedido("dec", acao_do_humano="retirar_criterio", goal="outro-goal", alvo="C1"), False),
+        (_pedido("dec", acao_do_humano="descartar_achado", goal="goal", alvo="C1"), False),
+    ],
+    ids=["retirar-c1", "recusar-plano", "decision-comum", "retirar-outro-criterio", "retirar-de-outro-goal", "outro-pedido"],
+)
+def test_retirada_so_vale_citando_o_pedido_que_retira_o_criterio_edge_case(decisao: list[ItemPatch], vale: bool) -> None:
+    """Caso de borda (rodada 4, item 4): `retirado` cita o retirar_criterio deste critério deste Goal, ou o recusar_plano."""
+    kernel = _kernel_com_goal()
+    assert _submeter(kernel, decisao, PapelAutor.HUMANO).sucesso
+
+    recibo = _submeter(kernel, [_propriedade("crit-1", "retirado", {"decisao": "dec", "motivo": "m"})])
+
+    assert recibo.sucesso is vale, recibo.mensagem
+    assert vale or "cita o pedido do humano que o retira deste Goal" in recibo.mensagem
+
+
+def test_fechamento_nao_conta_a_retirada_que_cita_outra_decision_nem_com_o_livro_aberto_edge_case(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Caso de borda: com a regra do livro desligada, a retirada que cita uma Decision qualquer não tira C1 da conta."""
+    monkeypatch.setattr(invariant_gate, "validar_livro_do_aceite", lambda proposta, estado: ResultadoValidacao.sucesso())
+    kernel = _kernel_com_goal()
+    assert _submeter(kernel, [*_pedido("dec-g", texto="usar SQLite"), *_pedido("ped-2", acao_do_humano="retirar_criterio",
+                                                                               goal="goal", alvo="C9")], PapelAutor.HUMANO).sucesso
+    assert _submeter(kernel, _verificacao(1, veredito="rejeitado", c1="nao_atende")).sucesso
+
+    for decisao in ("dec-g", "ped-2"):
+        assert _submeter(kernel, [_propriedade("crit-1", "retirado", {"decisao": decisao, "motivo": "m"})]).sucesso
+        assert "o criterio crit-1 esta 'nao_atende'" in "; ".join(motivos_para_nao_fechar(kernel.obter_view(), "goal"))

@@ -26,7 +26,10 @@ papel, o humano inclusive:
   orquestrador, num lote em que o fechamento é a única mudança; o humano o
   cancela (`cancelado`, com o motivo), e não o conclui;
 - o pedido ao laço (Decision com `acao_do_humano`) só o humano cria, e ninguém
-  o edita nem o remove.
+  o edita nem o remove;
+- a retirada do Criterio (`retirado`) cita o pedido do humano que o retira
+  deste Goal: o `retirar_criterio` dele ou o `recusar_plano`
+  (kernel/retirada_do_criterio.py), e não qualquer Decision do humano.
 
 Cada nó que nasce no lote é julgado pelo que ele é no fim do lote (a criação
 com as escritas do lote por cima), e não operação a operação: a revisão da
@@ -44,6 +47,7 @@ from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import ArestaGrafo, GrafoEstado
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.papel_do_orquestrador import sessao_do_goal
+from graphow.kernel.retirada_do_criterio import retirada_valida
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 
 PORTAO: str = "InvariantGate"
@@ -252,9 +256,29 @@ def _motivo_na_propriedade(id_no: str, chave: str, item: ItemPatch, *, lote: _Lo
         return _motivo_no_achado(id_no, chave, item, lote=lote)
     if tipo == TipoNo.CRITERIO and chave in a.PROPRIEDADES_DERIVADAS_DO_CRITERIO and lote.papel != ORQUESTRADOR:
         return f"'{chave}' do Criterio vem das verificacoes e do aceite: e do orquestrador"
+    if tipo == TipoNo.CRITERIO and chave == a.CAMPO_RETIRADO and item.op != OperacaoPatch.REMOVE:
+        return _motivo_da_retirada(id_no, item, lote)
     if tipo == TipoNo.GOAL:
         return _motivo_no_goal(id_no, chave, item, lote=lote)
     return ""
+
+
+def _motivo_da_retirada(id_criterio: str, item: ItemPatch, lote: _Lote) -> str:
+    """A retirada cita o pedido do humano que tira este critério de um Goal que ele escopa."""
+    codigo = str(lote.finais(id_criterio).get(a.CAMPO_CODIGO) or "")
+    goals = _goals_do_criterio(id_criterio, lote)
+    if any(retirada_valida(item.value, lote.estado.nos.get, id_goal=id_goal, codigo=codigo) for id_goal in goals):
+        return ""
+    return (f"'retirado' do Criterio '{id_criterio}' cita o pedido do humano que o retira deste Goal "
+            "(retirar_criterio dele, ou recusar_plano), e nao outra Decision")
+
+
+def _goals_do_criterio(id_criterio: str, lote: _Lote) -> tuple[str, ...]:
+    """Os Goals que o Criterio escopa, pelas arestas de antes e as do lote."""
+    antes = ((aresta.origem_id, aresta.destino_id, aresta.tipo.value) for aresta in lote.estado.arestas.values())
+    novas = ((str(v.get("origem_id")), str(v.get("destino_id")), str(v.get("tipo"))) for v in lote.arestas_novas)
+    return tuple(destino for origem, destino, tipo in (*antes, *novas)
+                 if origem == id_criterio and tipo == TipoAresta.ESCOPA.value and lote.tipo(destino) == TipoNo.GOAL)
 
 
 def _motivo_no_achado(id_no: str, chave: str, item: ItemPatch, *, lote: _Lote) -> str:

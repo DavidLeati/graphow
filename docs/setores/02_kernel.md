@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-33 módulos · 5613 linhas · 35 classes
+34 módulos · 5680 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,14 +20,14 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
 | [`kernel/execucao.py`](#kernelexecucao) | 70 | Registro do ciclo de vida de execução de um agente no log compartilhado. |
 | [`kernel/execucao_sem_plano.py`](#kernelexecucaosemplano) | 54 | O executor não assume a Task de um Goal que ainda não tem plano aprovado (D3 do escopo governado). |
-| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 243 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
+| [`kernel/fechamento_do_goal.py`](#kernelfechamentodogoal) | 249 | O Goal só fecha com a prova: a verificação final limpa no commit atual, todo critério atendido e nenhum bloqueante aberto. |
 | [`kernel/forma_do_escopo.py`](#kernelformadoescopo) | 191 | A forma de `Goal.planos` e `Goal.respostas_de_desvio`: listas que só crescem, uma entrada por lote. |
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
 | [`kernel/invariant_gate.py`](#kernelinvariantgate) | 387 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
-| [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 345 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
+| [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 369 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
 | [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
@@ -39,6 +39,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 270 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
+| [`kernel/retirada_do_criterio.py`](#kernelretiradadocriterio) | 37 | O Criterio sai da conta do fechamento só pelo pedido do humano que o retira: `retirar_criterio` dele, ou `recusar_plano` do Goal. |
 | [`kernel/role_gate.py`](#kernelrolegate) | 379 | Portão 2: Validação de Contratos de Permissão por Papel (Role Gate). |
 | [`kernel/schema_gate.py`](#kernelschemagate) | 389 | Portão 1: Validação de Conformidade Estrutural com a Ontologia (Schema Gate). |
 | [`kernel/telemetria.py`](#kerneltelemetria) | 102 | Descrição dos spans que o kernel emite a cada escrita aceita ou recusada. |
@@ -633,6 +634,20 @@ Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia.
 ### Funções do módulo
 
 - `projetar_lote(operacoes: Sequence[ItemPatch], estado: GrafoEstado) -> GrafoEstado` — Antecipa o estado como se o lote já estivesse aplicado, só para consulta.
+
+## `kernel/retirada_do_criterio.py`
+
+O Criterio sai da conta do fechamento só pelo pedido do humano que o retira: `retirar_criterio` dele, ou `recusar_plano` do Goal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PEDIDOS_QUE_RETIRAM` | `frozenset[str]` | `frozenset({a.ACAO_RETIRAR_CRITERIO, a.ACAO_RECUSAR_PLANO})` |
+| `CAMPO_DECISAO_DA_RETIRADA` | `str` | `'decisao'` |
+
+### Funções do módulo
+
+- `pedido_que_retira(decisao: NoGrafo | None) -> bool` — A Decision é o pedido do humano que tira este critério da conta deste Goal.
+- `retirada_valida(retirada: object, obter: Callable[[str], NoGrafo | None]) -> bool` — A retirada gravada cita o pedido do humano que tira este critério deste Goal.
 
 ## `kernel/role_gate.py`
 
