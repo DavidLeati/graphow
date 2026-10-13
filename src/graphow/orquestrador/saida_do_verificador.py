@@ -55,6 +55,7 @@ class Achado:
     origem: str = ORIGEM_DO_VERIFICADOR
     segunda_opiniao: str = ""
     sem_acordo: bool = False
+    reproducao: tuple[str, ...] = ()
 
     @property
     def toca(self) -> tuple[str, ...]:
@@ -72,7 +73,8 @@ class Achado:
         """O achado para a lista de pendências e para o nó Achado."""
         return {"gravidade": self.gravidade, "titulo": self.titulo, "descricao": self.descricao, "prova": self.prova,
                 "local": self.local, "criterios": list(self.criterios), "decisoes": list(self.decisoes),
-                "severidade": self.severidade, "origem": self.origem, "segunda_opiniao": self.segunda_opiniao}
+                "severidade": self.severidade, "origem": self.origem, "segunda_opiniao": self.segunda_opiniao,
+                "reproducao": list(self.reproducao)}
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Achado":
@@ -81,7 +83,7 @@ class Achado:
             titulo=str(dados["titulo"]).strip(), descricao=str(dados["descricao"]).strip(),
             prova=str(dados.get("prova", "")).strip(), local=str(dados.get("local", "")).strip(),
             criterios=_textos(dados.get("criterios")), decisoes=_textos(dados.get("decisoes")),
-            severidade=str(dados.get("severidade", "")),
+            severidade=str(dados.get("severidade", "")), reproducao=_textos(dados.get("reproducao")),
         )
 
 

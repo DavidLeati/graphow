@@ -230,11 +230,16 @@ def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: 
     assert estado is not None and [a.gravidade for a in estado.verificacoes[-1].achados] == ["acompanhamento"]
 
 
+# A sonda negativa que sai com erro de propósito: o verificador a rodou, mas ela não reproduz o achado.
+SONDA_NEGATIVA: dict[str, Any] = {"comando": "python cli.py media", "codigo": 2, "saida": "lista vazia"}
+
+
 def test_correcao_leva_o_comando_que_falhou_roda_em_opus_e_ve_a_tentativa_anterior_nominal(tmp_path: Path) -> None:
-    """G: a correção recebe a chamada da verificação que falhou e roda em Opus; a do ciclo seguinte vê o diff da anterior."""
-    em_soma = {**BLOQUEANTE_DO_README, "titulo": "somar com negativos", "local": "soma.py:2", "criterios": ["C1"]}
+    """G: a correção recebe a chamada que a prova cita e roda em Opus; a do ciclo seguinte vê o diff da anterior."""
+    em_soma = {**BLOQUEANTE_DO_README, "titulo": "somar com negativos", "local": "soma.py:2", "criterios": ["C1"],
+               "prova": "rodei `python -c 'print(somar(-2, -3))'` e o assert viu -5 no lugar de -6"}
     reprovou = {**verificacao("atende", [em_soma]), "bash": [{"comando": "python -c 'print(somar(-2, -3))'", "codigo": 1,
-                                                            "saida": "AssertionError: -5"}]}
+                                                            "saida": "AssertionError: -5"}, SONDA_NEGATIVA]}
     roteiro = roteiro_completo()
     roteiro["verificador"] = [reprovou, copy.deepcopy(reprovou), verificacao("atende")]
     roteiro["executor"] = [*roteiro["executor"][:2], executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # 1\n"}),
@@ -246,7 +251,28 @@ def test_correcao_leva_o_comando_que_falhou_roda_em_opus_e_ve_a_tentativa_anteri
     assert parada.fechou, parada.mensagem
     primeira, segunda = bancada.chamadas("executor")[2:4]
     assert "python -c 'print(somar(-2, -3))'` saiu com 1: AssertionError: -5" in primeira["stdin"]
+    assert "python cli.py media" not in primeira["stdin"], "a sonda negativa esperada nao e reproducao"
     assert primeira["argv"][primeira["argv"].index("--model") + 1] == "opus"
     assert bancada.chamadas("executor")[0]["argv"][bancada.chamadas("executor")[0]["argv"].index("--model") + 1] == "sonnet"
     assert "A correcao M1.K1.1" in segunda["stdin"] and "+    return a + b  # 1" in segunda["stdin"]
     assert "A verificacao ver-goal-soma-2, depois dela, disse" in segunda["stdin"]
+
+
+def test_correcao_recebe_so_as_chamadas_marcadas_como_reproducao_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (rodada 4, item 6): sem citação na prova, vale o que o verificador marcou em `reproducao`, ache-o o stream ou não."""
+    em_soma = {**BLOQUEANTE_DO_README, "titulo": "somar com negativos", "local": "soma.py:2", "criterios": ["C1"],
+               "reproducao": ["python verificar.py --negativos", "python -m pytest -q tests -k negativo"]}
+    reprovou = {**verificacao("atende", [em_soma]), "bash": [{"comando": "python verificar.py  --negativos", "codigo": 1,
+                                                            "saida": "esperava -6"}, SONDA_NEGATIVA]}
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [reprovou, verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    correcao = bancada.chamadas("executor")[2]["stdin"]
+    assert "`python verificar.py  --negativos` saiu com 1: esperava -6" in correcao
+    assert "`python -m pytest -q tests -k negativo` (o verificador o marcou como reproducao)" in correcao
+    assert "lista vazia" not in correcao and "python cli.py media" not in correcao
+    achado = ler_estado(bancada.kernel.obter_view(), "goal-soma").verificacoes[0].achados[0]
+    assert achado.lista("reproducao") == ("python verificar.py --negativos", "python -m pytest -q tests -k negativo")

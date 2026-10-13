@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.historico_da_correcao import chamadas_que_falharam
+from graphow.orquestrador.historico_da_correcao import chamadas_que_reproduzem
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada, MarcoRegistrado
 from graphow.orquestrador.saida_do_aceite import PASTA_DO_ACEITE, SaidaDoAceite
 from graphow.orquestrador.suite import descrever_shell, shell_dos_agentes
@@ -103,7 +103,8 @@ def briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto:
         "Pasta: a area de trabalho do Goal, na branch dele.",
         _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), _correcao(estado, fatia)]),
         _bloco("Achado que esta fatia corrige", _achado_da_correcao(estado, fatia)),
-        _bloco("Comandos da verificacao que falharam (reproduza com eles)", chamadas_que_falharam(estado, fatia)),
+        _bloco("Chamadas da verificacao que reproduzem o achado (rode-as antes e depois da correcao)",
+               chamadas_que_reproduzem(estado, fatia)),
         _bloco("A mesma falha ja teve correcao num ciclo anterior", list(contexto.correcoes_anteriores)),
         _bloco("Criterios que esta fatia cobre, com os testes de aceite que os provam (nao os altere)",
                _criterios_com_aceite(estado, fatia.lista(m.CAMPO_CRITERIOS))),

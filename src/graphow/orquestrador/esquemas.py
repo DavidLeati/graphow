@@ -144,7 +144,9 @@ ACHADO: dict[str, Any] = _objeto(
         "criterios": LISTA_DE_TEXTOS,
         "decisoes": LISTA_DE_TEXTOS,
         "severidade": {"type": "string", "enum": list(SEVERIDADES)},
-    }
+        "reproducao": LISTA_DE_TEXTOS,
+    },
+    opcionais=("reproducao",),
 )
 # O verificador não declara mais os comandos: o orquestrador os tira do stream (orquestrador/comandos_do_stream.py).
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
