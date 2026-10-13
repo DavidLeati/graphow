@@ -7,6 +7,7 @@ import subprocess
 import pytest
 
 from graphow.orquestrador.git_do_goal import (
+    descartar_mudancas,
     AreaDoGoal,
     FalhaDoGitDoGoal,
     GitDoGoal,
@@ -20,7 +21,7 @@ from graphow.orquestrador.git_do_goal import (
 )
 from graphow.orquestrador.trava_do_git import instalar_trava, regras_que_negam_git
 
-from tests.orquestrador.apoio_git import criar_repositorio, git
+from tests.orquestrador.apoio_git import criar_repositorio, git, git_bytes
 
 
 def _area(tmp_path: Path) -> tuple[Path, Path]:
@@ -191,3 +192,24 @@ def test_remover_area_apaga_o_clone_e_a_branch_fica_nominal(tmp_path: Path) -> N
 
     assert not area.exists()
     assert git(repositorio, "rev-parse", "graphow/teste").strip() == commit
+
+
+# Um CSV em ANSI (cp1252) e um texto com CRLF: o .patch lido como texto os corrompia.
+CSV_EM_ANSI: bytes = "codigo;descricao\r\n1;ação de graça\r\n".encode("cp1252")
+TEXTO_COM_CRLF: bytes = b"linha 1\r\nlinha 2\r\n"
+
+
+def test_patch_guarda_e_devolve_o_arquivo_byte_a_byte_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (rodada 4, item 3): o .patch da área guarda o ANSI e o CRLF em bytes, e o `git apply --binary` os devolve iguais."""
+    area = criar_repositorio(tmp_path / "area")
+    (area / "dados.csv").write_bytes(CSV_EM_ANSI)
+    (area / "notas.txt").write_bytes(TEXTO_COM_CRLF)
+    patch = tmp_path / "patches" / "entrega.patch"
+
+    assert descartar_mudancas(area, patch)
+    assert not (area / "dados.csv").exists()
+    git_bytes(area, "apply", "--binary", str(patch))
+
+    assert "\ufffd".encode("utf-8") not in patch.read_bytes()
+    assert (area / "dados.csv").read_bytes() == CSV_EM_ANSI
+    assert (area / "notas.txt").read_bytes() == TEXTO_COM_CRLF

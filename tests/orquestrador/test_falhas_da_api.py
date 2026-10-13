@@ -7,6 +7,7 @@ as duas tentativas e as duas retomadas em dez segundos, e virou pendência.
 import copy
 from datetime import datetime
 import json
+import sys
 from pathlib import Path
 
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
@@ -15,6 +16,7 @@ from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.sessoes.leitura_stream import ler_stream
 from graphow.sessoes.sessao_claude import ResultadoDeSessao
 
+from tests.orquestrador.apoio_git import git_bytes
 from tests.orquestrador.apoio_laco import PLANO, montar_bancada, revisao, roteiro_completo, verificacao
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
@@ -138,3 +140,27 @@ def test_limite_na_revisao_de_risco_guarda_a_entrega_e_a_retomada_refaz_so_a_rev
     final = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert final is not None and final.fatias[0].tentativas == 1 and not final.fatias[0].propriedades.get("entrega_pendente")
     assert "return a + b" in (bancada.repositorio / "soma.py").read_text(encoding="utf-8")
+
+
+ESCREVE_EM_BYTES: str = ("open('dados.csv', 'wb').write('codigo;descricao\\r\\n1;ação\\r\\n'.encode('cp1252')); "
+                         "open('notas.txt', 'wb').write(b'linha 1\\r\\nlinha 2\\r\\n')")
+
+
+def test_entrega_guardada_na_revisao_volta_byte_a_byte_ao_commit_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (rodada 4, item 3): a entrega com ANSI e CRLF guardada no limite da revisão é commitada como o executor a deixou."""
+    plano = copy.deepcopy(PLANO)
+    plano["fatias"][0].update(risco=True, motivo_do_risco="regra de dominio da soma")
+    roteiro = roteiro_completo()
+    roteiro["planejador"] = [{"saida": plano, "custo": 0.4}]
+    roteiro["executor"] = roteiro["executor"][:2]
+    roteiro["executor"][0]["comandos"] = [[sys.executable, "-c", ESCREVE_EM_BYTES]]
+    roteiro["verificador"] = [verificacao("atende")]
+    roteiro["revisor"] = [{"limite": True}, revisao()]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador(esperar=lambda segundos: None)
+
+    assert orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).motivo == MotivoDaParada.LIMITE_DE_USO
+    assert orquestrador.rodar("goal-soma", AUTONOMO).fechou
+
+    assert git_bytes(bancada.repositorio, "show", "main:dados.csv") == "codigo;descricao\r\n1;ação\r\n".encode("cp1252")
+    assert git_bytes(bancada.repositorio, "show", "main:notas.txt") == b"linha 1\r\nlinha 2\r\n"

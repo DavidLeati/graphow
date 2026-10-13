@@ -15,6 +15,13 @@ def git(pasta: Path, *argumentos: str) -> str:
     return feito.stdout
 
 
+def git_bytes(pasta: Path, *argumentos: str) -> bytes:
+    """Roda o git na pasta e devolve a saída em bytes, sem decodificar; falha o teste se o git falhar."""
+    feito = subprocess.run(["git", "-C", str(pasta), *argumentos], capture_output=True, check=False)
+    assert feito.returncode == 0, feito.stderr
+    return feito.stdout
+
+
 def criar_repositorio(pasta: Path, arquivos: dict[str, str] | None = None) -> Path:
     """Um repositório na branch main com um commit inicial e identidade local."""
     pasta.mkdir(parents=True)

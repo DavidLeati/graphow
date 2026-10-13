@@ -72,15 +72,31 @@ class GitDoGoal:
 
     def tentar(self, *argumentos: str) -> SaidaDoGit:
         """O comando, sem recusar quando o git sai com erro."""
+        codigo, saida, erro = self._executar(argumentos)
+        return SaidaDoGit(codigo, _texto_do_git(saida), _texto_do_git(erro))
+
+    def bytes_de(self, *argumentos: str) -> bytes:
+        """A saída padrão em bytes, sem decodificar; recusa quando o git falha.
+
+        É assim que o .patch de uma entrega se guarda: lido como texto, o
+        arquivo em ANSI virava o caractere de substituição e o CRLF virava LF,
+        o `git apply` passava e o arquivo corrompido ia ao commit.
+        """
+        codigo, saida, erro = self._executar(argumentos)
+        if codigo != 0:
+            raise FalhaDoGitDoGoal("git recusou o comando", {"comando": " ".join(argumentos), "pasta": str(self.pasta),
+                                                             "erro": erro.decode("utf-8", errors="replace").strip()})
+        return saida
+
+    def _executar(self, argumentos: tuple[str, ...]) -> tuple[int, bytes, bytes]:
+        """O git na pasta, sem as variáveis que apontariam outro repositório; o código e as duas saídas em bytes."""
         comando = [EXECUTAVEL_DO_GIT, "-C", str(self.pasta), *argumentos]
         ambiente = {nome: valor for nome, valor in os.environ.items() if nome.upper() not in VARIAVEIS_DE_OUTRO_REPOSITORIO}
         try:
-            feito = subprocess.run(
-                comando, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, env=ambiente
-            )
+            feito = subprocess.run(comando, capture_output=True, check=False, env=ambiente)
         except OSError as erro:
             raise FalhaDoGitDoGoal("git indisponivel", {"erro": str(erro)}) from erro
-        return SaidaDoGit(feito.returncode, feito.stdout, feito.stderr)
+        return feito.returncode, feito.stdout, feito.stderr
 
     def rodar(self, *argumentos: str) -> str:
         """A saída padrão; recusa com a saída de erro quando o git falha."""
@@ -290,6 +306,23 @@ def ultimo_commit_do_arquivo(area: Path, caminho: str) -> str:
     return git.rodar("log", "-1", "--format=%H", "--", caminho).strip() or git.head()
 
 
+def _texto_do_git(bruto: bytes) -> str:
+    """A saída do git como texto, como o modo texto do subprocess a dava: UTF-8, e toda quebra de linha como LF."""
+    return bruto.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def guardar_patch(area: Path, arquivo_patch: Path) -> None:
+    """O que está fora de commit, os arquivos novos inclusive, num .patch binário, byte a byte; a área fica como está, no índice.
+
+    O .patch é `git diff --binary` gravado em bytes e se aplica com
+    `git apply --binary`: nada nele passa por texto.
+    """
+    git = GitDoGoal(area)
+    git.rodar("add", "-A")
+    arquivo_patch.parent.mkdir(parents=True, exist_ok=True)
+    arquivo_patch.write_bytes(git.bytes_de("diff", "--cached", "--binary", "HEAD"))
+
+
 def descartar_mudancas(area: Path, arquivo_patch: Path) -> bool:
     """Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.
 
@@ -298,9 +331,7 @@ def descartar_mudancas(area: Path, arquivo_patch: Path) -> bool:
     git = GitDoGoal(area)
     if not git.mudancas():
         return False
-    git.rodar("add", "-A")
-    arquivo_patch.parent.mkdir(parents=True, exist_ok=True)
-    arquivo_patch.write_text(git.rodar("diff", "--cached", "--binary", "HEAD"), encoding="utf-8")
+    guardar_patch(area, arquivo_patch)
     git.rodar("reset", "-q", "--hard", "HEAD")
     git.rodar("clean", "-q", "-fd")
     return True

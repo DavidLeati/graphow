@@ -38,6 +38,7 @@ from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
     commit_da_fatia,
     descartar_mudancas,
+    guardar_patch,
     mensagem_do_orquestrador,
 )
 from graphow.orquestrador.historico_da_correcao import tentativas_anteriores
@@ -154,11 +155,8 @@ def _depois_da_interrupcao(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> 
 def _guardar_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa, saida: SaidaDoExecutor) -> None:
     """A API recusou a revisão de risco: o que o executor entregou vai a um .patch, e a fatia o guarda com a saída dele."""
     patch = contexto.patch(f"{tentativa.fatia.id}-t{tentativa.numero}-entrega")
-    git = contexto.git
-    git.rodar("add", "-A")
-    patch.parent.mkdir(parents=True, exist_ok=True)
-    patch.write_text(git.rodar("diff", "--cached", "--binary", "HEAD"), encoding="utf-8", newline="\n")
-    git.rodar("reset", "-q")
+    guardar_patch(contexto.area, patch)
+    contexto.git.rodar("reset", "-q")
     contexto.livro.guardar_entrega(tentativa.fatia.id, {"patch": str(patch), "saida": asdict(saida), "tentativa": tentativa.numero})
 
 
