@@ -166,10 +166,26 @@ def test_acompanhamento_e_bloqueante_descartado_nao_impedem_o_fechamento_edge_ca
     assert recibo.sucesso, recibo.mensagem
 
 
+def _com_c2(kernel: WriteKernel) -> None:
+    """O segundo critério do Goal, C2, como nó que o escopa."""
+    assert _submeter(kernel, [*_no("crit-2", TipoNo.CRITERIO, {"codigo": "C2", "texto": "subtrair", "verificacao": "teste"}),
+                              _aresta("crit-2", "goal", TipoAresta.ESCOPA)]).sucesso
+
+
+def _verificacao_com_c2(numero: int, *, c1: str, c2: str = "atende") -> list[ItemPatch]:
+    """A verificação final com parecer para C1 e C2."""
+    lote = _verificacao(numero, veredito="rejeitado" if "nao_atende" in (c1, c2) else "aprovado", c1=c1)
+    valor = dict(lote[0].value)
+    valor["propriedades"] = {**valor["propriedades"], "pareceres": [*valor["propriedades"]["pareceres"],
+                                                                    {"id": "C2", "no": "crit-2", "veredito": c2, "prova": "aceite verde"}]}
+    return [ItemPatch(OperacaoPatch.ADD, lote[0].path, valor), *lote[1:]]
+
+
 def test_descarte_nao_aprova_criterio_so_a_retirada_pelo_humano_tira_da_conta_edge_case() -> None:
-    """Caso de borda (ajuste 4): com C1 nao_atende, descartar o Achado não fecha; retirar C1 por Decision do humano fecha."""
+    """Caso de borda (ajuste 4): com C1 nao_atende, descartar o Achado não fecha; retirar C1 por pedido do humano fecha com C2."""
     kernel = _kernel_com_goal()
-    assert _submeter(kernel, [*_verificacao(1, veredito="rejeitado", c1="nao_atende"), *_achado("achado-1", "ver-1", "aberto")]).sucesso
+    _com_c2(kernel)
+    assert _submeter(kernel, [*_verificacao_com_c2(1, c1="nao_atende"), *_achado("achado-1", "ver-1", "aberto")]).sucesso
     assert _submeter(kernel, _mover("achado-1", "descartado", motivo_do_descarte="aceito"), PapelAutor.HUMANO).sucesso
 
     so_descartado = _fechar(kernel)
@@ -257,3 +273,45 @@ def test_fechamento_nao_conta_a_retirada_que_cita_outra_decision_nem_com_o_livro
     for decisao in ("dec-g", "ped-2"):
         assert _submeter(kernel, [_propriedade("crit-1", "retirado", {"decisao": decisao, "motivo": "m"})]).sucesso
         assert "o criterio crit-1 esta 'nao_atende'" in "; ".join(motivos_para_nao_fechar(kernel.obter_view(), "goal"))
+
+
+def _retirar(kernel: WriteKernel, *codigos: str) -> None:
+    """O pedido do humano que retira cada critério, e a retirada que o orquestrador grava ao atendê-lo."""
+    for codigo in codigos:
+        id_no = f"crit-{codigo[1:]}"
+        assert _submeter(kernel, _pedido(f"ped-{codigo}", acao_do_humano="retirar_criterio", goal="goal", alvo=codigo),
+                         PapelAutor.HUMANO).sucesso
+        assert _submeter(kernel, [_propriedade(id_no, "retirado", {"decisao": f"ped-{codigo}", "motivo": "m"})]).sucesso
+
+
+CANCELAR_SEM_CRITERIO: list[ItemPatch] = [_propriedade("goal", "status", "cancelado"),
+                                          _propriedade("goal", "motivo_do_cancelamento", "todos os criterios foram retirados")]
+
+
+def test_goal_com_todos_os_criterios_retirados_nao_conclui_e_o_orquestrador_o_cancela_edge_case() -> None:
+    """Caso de borda (rodada 4, item 1): sem critério na conta, o Goal não conclui; o orquestrador o cancela, com o motivo."""
+    kernel = _kernel_com_goal()
+    _com_c2(kernel)
+    assert _submeter(kernel, _verificacao_com_c2(1, c1="nao_atende", c2="nao_atende")).sucesso
+    _retirar(kernel, "C1", "C2")
+
+    fechar = _fechar(kernel)
+    sem_motivo = _submeter(kernel, CANCELAR_SEM_CRITERIO[:1])
+    cancelar = _submeter(kernel, CANCELAR_SEM_CRITERIO)
+
+    assert not fechar.sucesso and "todos os criterios do Goal foram retirados" in fechar.mensagem
+    assert not sem_motivo.sucesso and "pede 'motivo_do_cancelamento'" in sem_motivo.mensagem
+    assert cancelar.sucesso, cancelar.mensagem
+
+
+def test_orquestrador_nao_cancela_o_goal_com_criterio_na_conta_edge_case() -> None:
+    """Caso de borda: com C2 ainda na conta, o cancelamento é só do humano."""
+    kernel = _kernel_com_goal()
+    _com_c2(kernel)
+    _retirar(kernel, "C1")
+
+    do_orquestrador = _submeter(kernel, CANCELAR_SEM_CRITERIO)
+    do_humano = _submeter(kernel, CANCELAR_SEM_CRITERIO, PapelAutor.HUMANO)
+
+    assert not do_orquestrador.sucesso and "so quando todos os criterios dele foram retirados" in do_orquestrador.mensagem
+    assert do_humano.sucesso, do_humano.mensagem

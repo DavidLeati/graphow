@@ -248,3 +248,25 @@ def test_parada_com_criterio_reprovado_avisa_que_o_descarte_nao_fecha_edge_case(
     assert "A verificacao ver-goal-soma-1 reprova C2:" in parada.mensagem, parada.mensagem
     assert "descartar os achados nao fecha o Goal" in parada.mensagem
     assert "--retirar-criterio <criterio>" in parada.mensagem
+
+
+def test_retirar_todos_os_criterios_cancela_o_goal_sem_integrar_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (rodada 4, item 1, sonda_retirar): retirar C1 e C2 não fecha um Goal vazio; ele vai a cancelado, sem integrar."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("nao_atende", [{**BLOQUEANTE_DO_README, "criterios": ["C2"]}])]
+    bancada = montar_bancada(tmp_path, roteiro)
+    orquestrador = bancada.orquestrador()
+    base = git(bancada.repositorio, "rev-parse", "main")
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco(modo="autonomo", ciclos_de_correcao=0))
+    assert parada.motivo == MotivoDaParada.BLOQUEANTES_RESTANTES, parada.mensagem
+
+    for codigo in ("C1", "C2"):
+        orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_RETIRAR_CRITERIO, f"{codigo} fica para outro Goal", "david", alvo=codigo))
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.CANCELADO, parada.mensagem
+    assert "todos os criterios foram retirados pelo humano" in parada.mensagem and "sem integrar" in parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.cancelado and "C1 (pedido-goal-soma-1)" in estado.propriedades["motivo_do_cancelamento"]
+    assert git(bancada.repositorio, "rev-parse", "main") == base, "o Goal cancelado nao integra"
+    assert orquestrador.rodar("goal-soma", AUTONOMO).motivo == MotivoDaParada.CANCELADO

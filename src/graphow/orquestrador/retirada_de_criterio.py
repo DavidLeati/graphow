@@ -9,6 +9,12 @@ o motivo da retirada. O laço atende o pedido gravando no `Criterio` que ele
 foi `retirado` por aquela Decision (o kernel deixa de cobrá-lo), e o
 documento do Goal ganha a seção dos critérios retirados; o `--status` também
 os mostra.
+
+O Goal só conclui com pelo menos um critério atendido (decisão do dono do
+processo): fechá-lo com todos retirados integrava na base um código que nada
+provou. A retirada do último critério leva o Goal a `cancelado`, no mesmo
+lote, com o motivo, e o laço para sem integrar; o kernel recusa concluir o
+Goal sem critério na conta e só deixa o orquestrador cancelar nesse caso.
 """
 
 from collections.abc import Mapping, Sequence
@@ -17,10 +23,10 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch
-from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, Parada
+from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_retirados, gravar_se_mudou
 from graphow.orquestrador.git_do_goal import mensagem_do_orquestrador
-from graphow.orquestrador.leitura_das_verificacoes import do_orquestrador
+from graphow.orquestrador.leitura_das_verificacoes import criterios_ativos, do_orquestrador
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.livro_razao import propriedade
 from graphow.orquestrador.pedidos_do_humano import (
@@ -55,11 +61,24 @@ def retirar_criterio(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Ped
     """Grava no Criterio a retirada pela Decision do humano e a mostra no documento do Goal."""
     id_no = no_do_criterio(estado, pedido.alvo)
     retirada = {"decisao": pedido.id, "motivo": pedido.motivo, "por": pedido.por, "codigo": pedido.alvo}
+    todas = [*retirados(estado), retirada]
+    ultimo = not (criterios_ativos(contexto.livro.view(), estado.id_goal) - {id_no})
+    motivo = _motivo_do_cancelamento(todas)
+    cancelamento = [propriedade(estado.id_goal, a.CAMPO_STATUS, a.STATUS_CANCELADO),
+                    propriedade(estado.id_goal, a.CAMPO_MOTIVO_DO_CANCELAMENTO, motivo)] if ultimo else []
     contexto.livro.gravar([propriedade(id_no, a.CAMPO_RETIRADO, retirada),
-                           propriedade(estado.id_goal, a.CAMPO_PEDIDOS_ATENDIDOS, atendidos_com(estado, pedido.id))],
+                           propriedade(estado.id_goal, a.CAMPO_PEDIDOS_ATENDIDOS, atendidos_com(estado, pedido.id)), *cancelamento],
                           f"Criterio {pedido.alvo} do Goal {estado.id_goal} retirado pelo humano ({pedido.id})")
-    _documentar(contexto, [*retirados(estado), retirada])
-    return None
+    _documentar(contexto, todas)
+    if not ultimo:
+        return None
+    return Parada(contexto.id_goal, MotivoDaParada.CANCELADO, f"O Goal {estado.id_goal} foi cancelado, sem integrar: {motivo}.")
+
+
+def _motivo_do_cancelamento(retiradas: Sequence[Mapping[str, Any]]) -> str:
+    """Por que o Goal sem critério na conta vai a cancelado, com os critérios e os pedidos que os retiraram."""
+    lista = ", ".join(f"{r['codigo']} ({r['decisao']})" for r in retiradas)
+    return f"todos os criterios foram retirados pelo humano ({lista}); sem criterio atendido o Goal nao conclui nem integra"
 
 
 def retirados(estado: EstadoDoGoal) -> list[Mapping[str, Any]]:

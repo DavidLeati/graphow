@@ -16,7 +16,10 @@ conduzido pelo orquestrador (`orquestracao`) ou tem `Criterio` ligado, precisa:
 - de parecer `atende` nela para cada critério do Goal (todo `Criterio` que o
   escopa e todo nó que o plano gravado lista como critério); descartar o Achado
   não aprova o critério: o único jeito de fechar sem ele é o humano retirá-lo,
-  e o Criterio que uma Decision do humano retirou sai da conta;
+  e o Criterio que o pedido do humano retirou sai da conta;
+- de pelo menos um critério na conta, atendido: o Goal com todos os critérios
+  retirados não conclui (o laço o leva a `cancelado`, sem integrar), porque
+  fechá-lo vazio integrava na base um código que nada provou;
 - e de que nenhum `Achado` bloqueante do Goal (das verificações e das revisões
   de risco dele, ou que fere critério ou decisão dele) siga aberto ou só
   corrigido.
@@ -85,9 +88,19 @@ def motivos_para_nao_fechar(view: GrafoView, id_goal: str) -> tuple[str, ...]:
         return ("o Goal nao tem verificacao",)
     return (
         *_motivos_da_verificacao(view, goal, ultima),
+        *_sem_criterio_na_conta(view, goal),
         *_criterios_sem_atende(view, goal, ultima),
         *_bloqueantes_abertos(view, goal),
     )
+
+
+def _sem_criterio_na_conta(view: GrafoView, goal: NoGrafo) -> list[str]:
+    """O Goal só conclui com pelo menos um critério atendido: sem nenhum na conta, ele não fecha."""
+    if _criterios_do_goal(view, goal):
+        return []
+    if _todos_os_criterios(view, goal):
+        return ["todos os criterios do Goal foram retirados pelo humano: sem criterio atendido o Goal nao conclui (vai a cancelado)"]
+    return ["o Goal nao tem criterio: sem criterio atendido ele nao conclui"]
 
 
 def _com_as_escritas_do_lote(proposta: PropostaPatch, depois: GrafoEstado) -> GrafoEstado:

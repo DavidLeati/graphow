@@ -24,7 +24,9 @@ papel, o humano inclusive:
   orquestrador;
 - o Goal do aceite (conduzido, ou com Criterio) só vai a `concluido` pelo
   orquestrador, num lote em que o fechamento é a única mudança; o humano o
-  cancela (`cancelado`, com o motivo), e não o conclui;
+  cancela (`cancelado`, com o motivo), e não o conclui; o orquestrador o
+  cancela só quando, no fim do lote, todos os critérios do Goal estão
+  retirados por pedido do humano;
 - o pedido ao laço (Decision com `acao_do_humano`) só o humano cria, e ninguém
   o edita nem o remove;
 - a retirada do Criterio (`retirado`) cita o pedido do humano que o retira
@@ -307,9 +309,32 @@ def _motivo_no_goal(id_no: str, chave: str, item: ItemPatch, *, lote: _Lote) -> 
     if item.value == a.STATUS_CONCLUIDO:
         return _motivo_do_fechamento(id_no, lote)
     if item.value == a.STATUS_CANCELADO:
-        motivo = lote.escrito(id_no, a.CAMPO_MOTIVO_DO_CANCELAMENTO)
-        return "" if lote.papel == PapelAutor.HUMANO and motivo else "so o humano cancela o Goal do aceite, com 'motivo_do_cancelamento'"
+        return _motivo_do_cancelamento(id_no, lote)
     return ""
+
+
+def _motivo_do_cancelamento(id_goal: str, lote: _Lote) -> str:
+    """O humano cancela o Goal do aceite com o motivo; o orquestrador, só o que ficou sem nenhum critério na conta."""
+    if not lote.escrito(id_goal, a.CAMPO_MOTIVO_DO_CANCELAMENTO):
+        return "o cancelamento do Goal do aceite pede 'motivo_do_cancelamento'"
+    if lote.papel == PapelAutor.HUMANO or (lote.papel == ORQUESTRADOR and _todos_retirados(id_goal, lote)):
+        return ""
+    return "so o humano cancela o Goal do aceite; o orquestrador, so quando todos os criterios dele foram retirados pelo humano"
+
+
+def _todos_retirados(id_goal: str, lote: _Lote) -> bool:
+    """Todo critério do Goal (os Criterio que o escopam e os do plano) sai do lote retirado pelo pedido do humano."""
+    escopam = (aresta.origem_id for aresta in lote.estado.arestas.values()
+               if aresta.tipo == TipoAresta.ESCOPA and aresta.destino_id == id_goal and lote.tipo(aresta.origem_id) == TipoNo.CRITERIO)
+    plano = lote.finais(id_goal).get(a.CAMPO_PLANO)
+    do_plano = plano.get(a.CAMPO_CRITERIOS_DO_PLANO, []) if isinstance(plano, Mapping) else []
+    citados = (str(item.get(a.CAMPO_NO_DO_PARECER)) for item in do_plano if isinstance(item, Mapping) and item.get(a.CAMPO_NO_DO_PARECER))
+    criterios = tuple(dict.fromkeys([*escopam, *citados]))
+    return bool(criterios) and all(
+        retirada_valida(lote.finais(id_no).get(a.CAMPO_RETIRADO), lote.estado.nos.get, id_goal=id_goal,
+                        codigo=str(lote.finais(id_no).get(a.CAMPO_CODIGO) or ""))
+        for id_no in criterios
+    )
 
 
 def _goal_do_aceite(id_goal: str, lote: _Lote) -> bool:

@@ -55,10 +55,13 @@ def _produzido(id_no: str, tipo: TipoNo, propriedades: dict[str, Any] | None = N
 
 
 def _prova_do_fechamento(id_goal: str = "goal", sessao: str = SESSAO) -> list[ItemPatch]:
-    """A ponta da branch e a verificação final limpa nela: o que o kernel exige para fechar o Goal conduzido."""
-    propriedades = {"acao": "verificacao_do_goal", "numero": 1, "final": True, "veredito": "aprovado", "commit_do_codigo": "abc123"}
-    id_ver = f"ver-{id_goal}"
+    """A ponta da branch, um critério e a verificação final limpa nela, com ele atendido: o que o kernel exige para fechar."""
+    id_ver, id_criterio = f"ver-{id_goal}", f"criterio-{id_goal}"
+    propriedades = {"acao": "verificacao_do_goal", "numero": 1, "final": True, "veredito": "aprovado", "commit_do_codigo": "abc123",
+                    "pareceres": [{"id": "C1", "no": id_criterio, "veredito": "atende", "prova": "aceite verde"}]}
     return [_propriedade(id_goal, "ponta_do_ramo", {"commit": "abc123", "commit_do_codigo": "abc123"}),
+            *_produzido(id_criterio, TipoNo.CRITERIO, {"codigo": "C1", "texto": "c", "verificacao": "teste"}, sessao=sessao),
+            _aresta(id_criterio, id_goal, TipoAresta.ESCOPA),
             *_produzido(id_ver, TipoNo.EVIDENCE, propriedades, sessao=sessao), _aresta(id_ver, id_goal, TipoAresta.DERIVA_DE)]
 
 

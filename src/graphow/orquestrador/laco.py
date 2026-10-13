@@ -245,7 +245,7 @@ def _parada_do_limite(contexto: ContextoDoGoal, erro: LimiteDaApi) -> Parada:
 def _parada_do_cancelamento(estado: EstadoDoGoal) -> Parada:
     """O humano cancelou o Goal: o laço não o conduz mais."""
     motivo = str(estado.propriedades.get(a.CAMPO_MOTIVO_DO_CANCELAMENTO, ""))
-    return Parada(estado.id_goal, MotivoDaParada.CANCELADO, f"O Goal {estado.id_goal} foi cancelado pelo humano: {motivo}")
+    return Parada(estado.id_goal, MotivoDaParada.CANCELADO, f"O Goal {estado.id_goal} foi cancelado: {motivo}")
 
 
 def _portao_do_plano(contexto: ContextoDoGoal) -> Parada:
