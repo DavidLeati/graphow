@@ -10,6 +10,8 @@ import pytest
 from graphow.api.cli_execucao import ExecutorLinhaDeComando
 from graphow.api.cli_parser import construir_parser
 from graphow.api.console import EscritorConsoleEmMemoria
+from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, NovoPedido, PedidoRecusado, gravar_pedido
 from graphow.storage.localizador_banco import AmbienteEmMemoria, LocalizadorBancoEventos
 
 from tests.orquestrador.apoio_laco import CLAUDE_ROTEIRIZADO, montar_bancada, roteiro_completo
@@ -70,3 +72,26 @@ def test_spec_ou_goal_e_obrigatorio_edge_case() -> None:
     """Caso de borda: --spec e --goal são exclusivos, e um deles é obrigatório."""
     with pytest.raises(SystemExit):
         construir_parser().parse_args(["orquestrar", "--status"])
+
+
+@pytest.mark.parametrize(("argumentos", "trecho"), [
+    (["--spec", "x.md", "--ciclos-de-correcao", "-1"], "precisa ser 0 ou mais"),
+    (["--goal", "goal-soma", "--mais-ciclos", "0", "--motivo", "m"], "precisa ser 1 ou mais"),
+    (["--goal", "goal-soma", "--mais-ciclos", "-2", "--motivo", "m"], "precisa ser 1 ou mais"),
+])
+def test_ciclos_negativos_sao_recusados_pela_cli_edge_case(argumentos: list[str], trecho: str, capsys: pytest.CaptureFixture[str]) -> None:
+    """Caso de borda: ciclos negativos tirariam ciclos do marco; a CLI os recusa antes de abrir o banco."""
+    with pytest.raises(SystemExit) as saida:
+        construir_parser().parse_args(["orquestrar", *argumentos])
+
+    assert saida.value.code == 2
+    assert trecho in capsys.readouterr().err
+
+
+def test_ciclos_negativos_sao_recusados_fora_da_cli_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: as opções do laço e o pedido de mais ciclos também recusam o negativo, sem depender da CLI."""
+    with pytest.raises(ValueError, match="nao pode ser negativo"):
+        OpcoesDoLaco(ciclos_de_correcao=-1)
+    bancada = montar_bancada(tmp_path, roteiro_completo())
+    with pytest.raises(PedidoRecusado, match="pede 1 ou mais"):
+        gravar_pedido(bancada.kernel, "goal-soma", NovoPedido(PEDIDO_MAIS_CICLOS, "m", "david", ciclos=-1))

@@ -76,6 +76,11 @@ class OpcoesDoLaco:
     adotar_ramo: bool = False
     ciclos_de_correcao: int | None = None
 
+    def __post_init__(self) -> None:
+        """Ciclos de correção negativos tirariam ciclos que o humano deu; zero é o mínimo."""
+        if self.ciclos_de_correcao is not None and self.ciclos_de_correcao < 0:
+            raise ValueError(f"ciclos_de_correcao nao pode ser negativo: {self.ciclos_de_correcao}")
+
 
 @dataclass(frozen=True)
 class DependenciasDoLaco:

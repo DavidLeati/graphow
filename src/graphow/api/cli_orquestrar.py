@@ -12,6 +12,7 @@ portão que espera o humano ou o orçamento, e com 1 na falha.
 """
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass
 import getpass
 from pathlib import Path
@@ -66,7 +67,7 @@ def registrar_comando_de_orquestrar(
     _registrar_opcoes_do_git(parser)
     parser.add_argument("--modo", choices=MODOS, default=None, help="supervisionado (padrao) ou autonomo; fica gravado no Goal")
     parser.add_argument("--orcamento-usd", type=float, default=None, help="Teto de custo do Goal em dolares (padrao: 30)")
-    parser.add_argument("--ciclos-de-correcao", type=int, default=None,
+    parser.add_argument("--ciclos-de-correcao", type=_inteiro_de_no_minimo(0), default=None,
                         help="Ciclos de correcao por marco (padrao: 2); fica gravado no Goal")
     for papel in PAPEIS:
         parser.add_argument(f"--modelo-{papel}", default=modelo_padrao(papel), help=f"Modelo do {papel} (padrao: {modelo_padrao(papel)})")
@@ -79,7 +80,7 @@ def registrar_comando_de_orquestrar(
 def _registrar_pedidos_do_humano(acao: argparse._MutuallyExclusiveGroup, parser: argparse.ArgumentParser) -> None:
     """As saidas do humano do Goal parado, cada uma com o motivo dele (orquestrador/pedidos_do_humano.py)."""
     acao.add_argument("--descartar-achado", metavar="ID", default="", help="O humano aceita o Achado bloqueante (pede --motivo) e segue")
-    acao.add_argument("--mais-ciclos", metavar="N", type=int, default=0, help="Da N ciclos de correcao ao marco atual (pede --motivo)")
+    acao.add_argument("--mais-ciclos", metavar="N", type=_inteiro_de_no_minimo(1), default=0, help="Da N ciclos de correcao ao marco atual (pede --motivo)")
     acao.add_argument("--cancelar", action="store_true", help="Cancela o Goal (pede --motivo); o laco nao o conduz mais")
     acao.add_argument("--recusar-plano", action="store_true", help="Recusa o plano antes de qualquer fatia (pede --motivo): o planejador o refaz")
     acao.add_argument("--refazer-aceite", metavar="CRITERIO", default="", help="O autor de aceite refaz os testes do criterio (pede --motivo)")
@@ -148,6 +149,19 @@ def _dependencias(argumentos: argparse.Namespace, ambiente: AmbienteDoOrquestrar
         modo_de_permissao=argumentos.permissao,
         tempo_limite_da_sessao_s=argumentos.tempo_limite * SEGUNDOS_POR_MINUTO,
     )
+
+
+def _inteiro_de_no_minimo(minimo: int) -> Callable[[str], int]:
+    """O tipo do argparse para um inteiro de pelo menos `minimo` (os ciclos negativos tirariam ciclos do marco)."""
+    def converter(texto: str) -> int:
+        try:
+            valor = int(texto)
+        except ValueError as erro:
+            raise argparse.ArgumentTypeError(f"'{texto}' nao e um inteiro") from erro
+        if valor < minimo:
+            raise argparse.ArgumentTypeError(f"precisa ser {minimo} ou mais, e veio {valor}")
+        return valor
+    return converter
 
 
 def _opcoes(argumentos: argparse.Namespace) -> OpcoesDoLaco:

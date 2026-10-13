@@ -126,6 +126,8 @@ def gravar_pedido(kernel: WriteKernel, id_goal: str, pedido: NovoPedido, *, extr
     """Grava a Decision do pedido, com o que ele muda no mesmo lote, como o humano; devolve o id dela."""
     if not pedido.motivo.strip():
         raise PedidoRecusado("o pedido do humano pede --motivo", {"acao": pedido.acao})
+    if pedido.acao == PEDIDO_MAIS_CICLOS and pedido.ciclos < 1:
+        raise PedidoRecusado(f"--mais-ciclos pede 1 ou mais, e veio {pedido.ciclos}", {"acao": pedido.acao})
     view = kernel.obter_view()
     id_no = f"pedido-{id_goal}-{len(ler_pedidos(view, id_goal)) + 1}"
     propriedades = {a.CAMPO_ACAO_DO_HUMANO: pedido.acao, "goal": id_goal, "motivo": pedido.motivo.strip(), "alvo": pedido.alvo,
