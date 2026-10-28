@@ -9,7 +9,7 @@ import pytest
 
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
-from graphow.orquestrador.correcoes import agrupar_por_area, normalizar_caminho, propriedades_da_correcao
+from graphow.orquestrador.correcoes import MAXIMO_POR_FATIA, agrupar_o_ciclo, area_do_achado, normalizar_caminho, propriedades_da_correcao
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DO_ORQUESTRADOR, Achado
@@ -18,6 +18,7 @@ from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
     ACOMPANHAMENTO,
     BLOQUEANTE_DO_README,
+    VERIFICAR,
     Bancada,
     executor_pronto,
     montar_bancada,
@@ -75,13 +76,25 @@ def test_briefing_da_correcao_traz_o_achado_inteiro_e_pede_a_regressao_antes_nom
     assert "escreva primeiro o teste de regressao que o reproduz" in achado
 
 
-def test_bloqueantes_do_mesmo_arquivo_viram_uma_fatia_de_correcao_so_nominal(tmp_path: Path) -> None:
-    """Bancada B: dois bloqueantes em soma.py e um no README viram duas fatias; a de soma.py corrige os dois de uma vez."""
-    em_soma = [{**BLOQUEANTE_DO_README, "titulo": f"soma {n}", "local": f"soma.py:{n}", "criterios": ["C1"]} for n in (1, 3)]
+# Três bloqueantes em arquivos diferentes, cada um com a prova que cita o comando que o reproduz.
+EM_TRES_ARQUIVOS: list[dict[str, Any]] = [
+    {**BLOQUEANTE_DO_README, "titulo": "soma com negativos", "local": "soma.py:2", "criterios": ["C1"],
+     "prova": "rodei `python -c 'print(somar(-2, -3))'` e saiu 5"},
+    {**BLOQUEANTE_DO_README, "prova": "rodei `python ler_readme.py` e nao achei exemplo"},
+    {**BLOQUEANTE_DO_README, "titulo": "verificar sem negativos", "local": "verificar.py:2", "criterios": ["C1"],
+     "prova": "rodei `python verificar.py --negativos` e nada testou negativos"},
+]
+CHAMADAS_DOS_TRES: list[dict[str, Any]] = [
+    {"comando": "python -c 'print(somar(-2, -3))'", "codigo": 0, "saida": "5"},
+    {"comando": "python ler_readme.py", "codigo": 1, "saida": "sem exemplo"},
+    {"comando": "python verificar.py --negativos", "codigo": 0, "saida": "ok, nada de negativos"},
+]
+
+
+def test_tres_bloqueantes_em_arquivos_diferentes_viram_uma_fatia_de_correcao_so_nominal(tmp_path: Path) -> None:
+    """T2e.1: três bloqueantes em soma.py, README.md e verificar.py viram uma fatia só, com os três achados no briefing."""
     roteiro = roteiro_completo()
-    roteiro["verificador"] = [verificacao("parcial", [*em_soma, BLOQUEANTE_DO_README]), verificacao("atende")]
-    roteiro["executor"] = [*roteiro["executor"][:2], executor_pronto({"soma.py": "def somar(a, b):\n    return b + a\n"}),
-                           roteiro["executor"][2]]
+    roteiro["verificador"] = [{**verificacao("parcial", EM_TRES_ARQUIVOS), "bash": CHAMADAS_DOS_TRES}, verificacao("atende")]
     bancada = montar_bancada(tmp_path, roteiro)
 
     assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
@@ -89,10 +102,24 @@ def test_bloqueantes_do_mesmo_arquivo_viram_uma_fatia_de_correcao_so_nominal(tmp
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None
     correcoes = [f for f in estado.fatias if f.texto("corrige_verificacao")]
-    assert [(f.codigo, len(f.lista("achados"))) for f in correcoes] == [("M1.K1.1", 2), ("M1.K1.2", 1)]
-    assert correcoes[0].titulo == "Corrige: soma 1 (e mais 1)" and correcoes[0].lista("arquivos_alvo") == ("soma.py",)
+    assert [(f.codigo, len(f.lista("achados"))) for f in correcoes] == [("M1.K1.1", 3)]
+    assert correcoes[0].titulo == "Corrige: soma com negativos (e mais 2)"
+    assert correcoes[0].lista("arquivos_alvo") == ("soma.py", "README.md", "verificar.py")
     assert [a.estado for a in estado.verificacoes[0].achados if a.bloqueante] == ["resolvido"] * 3
-    assert "soma 3" in bancada.chamadas("executor")[2]["stdin"]
+    assert len(bancada.chamadas("executor")) == 3, "duas fatias do plano e uma correcao so"
+    briefing = bancada.chamadas("executor")[2]["stdin"]
+    for achado, chamada in zip(EM_TRES_ARQUIVOS, CHAMADAS_DOS_TRES, strict=True):
+        assert f"Prova (como reproduzir): {achado['prova']}" in briefing
+        assert f"`{chamada['comando']}` saiu com {chamada['codigo']}: {chamada['saida']}" in briefing
+
+
+def test_ciclo_acima_do_maximo_se_divide_em_pedacos_na_ordem_edge_case() -> None:
+    """Caso de borda: a final que cobra os outros marcos passa do teto; o ciclo vira pedaços de 5, na ordem, sem repetir."""
+    achados = [AchadoRegistrado(f"a{n}", "v", "bloqueante", "aberto", {"local": f"f{n}.py:1", "titulo": f"t{n}"}) for n in range(7)]
+
+    grupos = agrupar_o_ciclo([*achados, achados[0]])
+
+    assert [[a.id for a in grupo] for grupo in grupos] == [[f"a{n}" for n in range(MAXIMO_POR_FATIA)], ["a5", "a6"]]
 
 
 def test_acompanhamento_vira_pendencia_e_nenhum_achado_vira_note_nominal(tmp_path: Path) -> None:
@@ -175,15 +202,15 @@ def test_segunda_opiniao_que_nao_responde_nao_rebaixa_o_achado_edge_case(tmp_pat
     ("locais", "juntos"),
     [(("./soma.py:3", "soma.py:1"), True), (("src\\soma.py:3", "src/soma.py:1"), True), (("soma.py:1", "README.md:1"), False)],
 )
-def test_agrupamento_compara_o_caminho_normalizado_edge_case(locais: tuple[str, str], juntos: bool) -> None:
-    """Caso de borda (ajuste 7): `./x.py` é `x.py`, a barra invertida é barra; arquivos diferentes não se juntam."""
+def test_area_do_achado_compara_o_caminho_normalizado_edge_case(locais: tuple[str, str], juntos: bool) -> None:
+    """Caso de borda (ajuste 7): `./x.py` é `x.py`, a barra invertida é barra; arquivos diferentes são áreas diferentes."""
     achados = [AchadoRegistrado(f"a{n}", "v", "bloqueante", "aberto", {"local": local, "titulo": f"t{n}"}) for n, local in enumerate(locais)]
 
-    assert (len(agrupar_por_area(achados)) == 1) is juntos
+    assert (len({area_do_achado(achado) for achado in achados}) == 1) is juntos
 
 
 def test_caixa_do_caminho_nao_separa_no_windows_edge_case() -> None:
-    """Caso de borda: no Windows, `Soma.py` e `soma.py` são o mesmo arquivo para o agrupamento."""
+    """Caso de borda: no Windows, `Soma.py` e `soma.py` são o mesmo arquivo para a área do achado."""
     assert normalizar_caminho("./Soma.py") == ("soma.py" if os.name == "nt" else "Soma.py")
 
 
@@ -195,15 +222,14 @@ def test_correcao_lista_todos_os_arquivos_que_o_local_cita_edge_case() -> None:
     assert propriedades_da_correcao(grupo)["arquivos_alvo"] == ["cli.py", "estatistica.py", "src/soma.py"]
 
 
-def test_correcao_agrupada_que_esgota_se_divide_em_uma_por_achado_nominal(tmp_path: Path) -> None:
-    """Ajuste 7: a fatia com os dois achados de soma.py falha duas vezes; ela se divide em duas, que corrigem e fecham o Goal."""
-    em_soma = [{**BLOQUEANTE_DO_README, "titulo": f"soma {n}", "local": f"soma.py:{n}", "criterios": ["C1"]} for n in (1, 3)]
+def test_correcao_agrupada_que_falha_duas_vezes_se_divide_em_uma_por_achado_nominal(tmp_path: Path) -> None:
+    """T2e.2: a fatia com os três achados de arquivos diferentes falha duas vezes; ela se divide em três, que fecham o Goal."""
     roteiro = roteiro_completo()
-    roteiro["verificador"] = [verificacao("atende", em_soma), verificacao("atende")]
+    roteiro["verificador"] = [verificacao("parcial", EM_TRES_ARQUIVOS), verificacao("atende")]
     falha = {"saida": {"status": "falhou", "resumo": "nao deu", "arquivos": [], "testes": [], "duvida": ""}, "custo": 0.1}
     roteiro["executor"] = [*roteiro["executor"][:2], falha, falha, executor_pronto({"soma.py": "def somar(a, b):\n    return b + a\n"}),
-                           executor_pronto({"soma.py": "def somar(a, b):\n    return a + b\n"})]
-    roteiro["revisor"] = [revisao() for _ in range(4)]
+                           roteiro["executor"][2], executor_pronto({"verificar.py": VERIFICAR + "assert somar(-2, -3) == -5\n"})]
+    roteiro["revisor"] = [revisao() for _ in range(6)]
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
@@ -211,9 +237,13 @@ def test_correcao_agrupada_que_esgota_se_divide_em_uma_por_achado_nominal(tmp_pa
     assert parada.fechou, parada.mensagem
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None
-    assert [f.codigo for f in estado.fatias if f.texto("corrige_verificacao")] == ["M1.K1.1.1", "M1.K1.1.2"]
+    divididas = [f for f in estado.fatias if f.texto("corrige_verificacao")]
+    assert [(f.codigo, f.lista("achados"), f.lista("arquivos_alvo")) for f in divididas] == [
+        ("M1.K1.1.1", ("achado-goal-soma-v1-1",), ("soma.py",)), ("M1.K1.1.2", ("achado-goal-soma-v1-2",), ("README.md",)),
+        ("M1.K1.1.3", ("achado-goal-soma-v1-3",), ("verificar.py",))]
     agrupada = bancada.kernel.obter_view().obter_no("task-soma-m1-k1-1")
     assert agrupada is not None and agrupada.obter_propriedade("substituida_por") == "divisao-task-soma-m1-k1-1"
+    assert len(agrupada.obter_propriedade("achados")) == 3
 
 
 def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: Path) -> None:

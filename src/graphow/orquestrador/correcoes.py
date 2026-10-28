@@ -1,13 +1,22 @@
-"""As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só.
+"""As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só.
 
 Na bancada da fase 2, cada bloqueante virava uma fatia e uma sessão de
 executor: os 8 bloqueantes de um marco do estoque-loja estavam todos no mesmo
 arquivo, e cada sessão pagava de novo a partida a frio, para mexer no mesmo
-lugar. Agora os bloqueantes se juntam pela área: o arquivo do `local` do
-achado; sem local, o primeiro critério ou decisão que ele fere; sem nada,
-ele sozinho. Um grupo passa de `MAXIMO_POR_FATIA` achados só se dividindo,
-para a sessão não virar um marco inteiro. O caminho se compara normalizado
-(`./x.py` é `x.py`, a barra invertida é barra e, no Windows, a caixa não conta).
+lugar. Depois os bloqueantes se juntaram pela área (o arquivo do `local`),
+mas os de arquivos diferentes ainda pagavam uma partida a frio cada. Agora
+o ciclo inteiro vira uma fatia só: a verificação abre no máximo
+`TETO_DE_BLOQUEANTES` bloqueantes (orquestrador/saida_do_verificador.py), e a
+sessão de correção leva todos, com as provas e as chamadas que os
+reproduzem. Só a verificação final, que cobra também os bloqueantes que os
+outros marcos deixaram, passa do teto; aí o ciclo se divide em fatias de
+`MAXIMO_POR_FATIA`, na ordem, para a sessão não virar um marco inteiro.
+
+A área do achado (o arquivo do local, sem local o primeiro critério ou
+decisão que ele fere) segue servindo para achar a correção de um ciclo
+anterior na mesma área (orquestrador/historico_da_correcao.py). O caminho se
+compara normalizado (`./x.py` é `x.py`, a barra invertida é barra e, no
+Windows, a caixa não conta).
 
 A fatia agrupada que falha duas vezes não vira pendência inteira: ela se
 divide numa fatia por achado (orquestrador/execucao_da_fatia.py), para que os
@@ -15,7 +24,7 @@ que dão para corrigir sejam corrigidos. O que a tentativa agrupada fez não se
 aproveita em parte: a entrega é um commit só, provado pela suíte inteira, e
 não há como saber que pedaço do diff corrige que achado; ela fica no .patch.
 
-Os arquivos da fatia são todos os que o local cita (`cli.py:28; estatistica.py:32`),
+Os arquivos da fatia são todos os que os locais citam (`cli.py:28; estatistica.py:32`),
 e não só o primeiro: na fumaça real da rodada 3, a correção listava só `cli.py`,
 o executor se ateve a ele, e a verificação seguinte achou a causa em
 `estatistica.py`.
@@ -28,8 +37,9 @@ from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
+from graphow.orquestrador.saida_do_verificador import TETO_DE_BLOQUEANTES
 
-MAXIMO_POR_FATIA: int = 6
+MAXIMO_POR_FATIA: int = TETO_DE_BLOQUEANTES
 # Um caminho com extensão no texto do local (`src/x.py`, `C:/x.py`, `.\\x.py`); `1.5` não é caminho.
 CAMINHO_NO_LOCAL: re.Pattern[str] = re.compile(r"(?:[A-Za-z]:)?[\w./\\-]*\w\.[A-Za-z][A-Za-z0-9]{0,7}\b")
 
@@ -51,16 +61,10 @@ def area_do_achado(achado: AchadoRegistrado) -> str:
     return f"criterio:{feridos[0]}" if feridos else f"achado:{achado.id}"
 
 
-def agrupar_por_area(achados: Iterable[AchadoRegistrado]) -> list[tuple[AchadoRegistrado, ...]]:
-    """Os achados em grupos da mesma área, na ordem em que cada área apareceu, sem repetir achado."""
-    grupos: dict[str, list[AchadoRegistrado]] = {}
-    vistos: set[str] = set()
-    for achado in achados:
-        if achado.id not in vistos:
-            vistos.add(achado.id)
-            grupos.setdefault(area_do_achado(achado), []).append(achado)
-    return [tuple(grupo[inicio:inicio + MAXIMO_POR_FATIA]) for grupo in grupos.values()
-            for inicio in range(0, len(grupo), MAXIMO_POR_FATIA)]
+def agrupar_o_ciclo(achados: Iterable[AchadoRegistrado]) -> list[tuple[AchadoRegistrado, ...]]:
+    """Os bloqueantes do ciclo numa fatia só, na ordem e sem repetir achado; acima de `MAXIMO_POR_FATIA`, em pedaços dele."""
+    unicos = list({achado.id: achado for achado in achados}.values())
+    return [tuple(unicos[inicio:inicio + MAXIMO_POR_FATIA]) for inicio in range(0, len(unicos), MAXIMO_POR_FATIA)]
 
 
 def _arquivo_do_local(local: str) -> str:

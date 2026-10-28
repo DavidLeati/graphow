@@ -21,7 +21,7 @@ from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.correcoes import agrupar_por_area, propriedades_da_correcao, titulo_da_correcao
+from graphow.orquestrador.correcoes import agrupar_o_ciclo, propriedades_da_correcao, titulo_da_correcao
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
@@ -259,16 +259,17 @@ class LivroRazaoDoGoal:
     def criar_correcoes(
         self, id_evidencia: str, achados: Sequence[AchadoRegistrado], *, ciclo: int, ordem: int, marco: str = ""
     ) -> None:
-        """Os Achados bloqueantes viram fatias de correção do marco, os do mesmo arquivo juntos, cada uma derivando dos dela.
+        """Os Achados bloqueantes do ciclo viram uma fatia de correção do marco, que deriva de todos eles.
 
         O código é `<marco>.K<ciclo>.<n>`; `ciclos_de_correcao` no Goal guarda o
         ciclo das últimas correções abertas (a conta por marco sai das fatias).
-        Na bancada, os 8 bloqueantes de um marco estavam todos no mesmo arquivo e
-        viraram 8 sessões de executor: juntos, são 2 (orquestrador/correcoes.py).
+        Na bancada, os 8 bloqueantes de um marco viraram 8 sessões de executor;
+        agora o ciclo é uma sessão só, e só a final que cobra os outros marcos
+        passa do teto e se divide (orquestrador/correcoes.py).
         """
         slug = self.view().obter_no(self.id_goal).obter_propriedade(m.CAMPO_ORQUESTRACAO, {}).get("slug", self.id_goal)
         operacoes: list[ItemPatch] = []
-        for indice, grupo in enumerate(agrupar_por_area(achados), start=1):
+        for indice, grupo in enumerate(agrupar_o_ciclo(achados), start=1):
             codigo = f"{marco}.K{ciclo}.{indice}" if marco else f"K{ciclo}.{indice}"
             id_task = m.id_da_fatia(slug, codigo)
             propriedades = {**propriedades_da_correcao(grupo), m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo,

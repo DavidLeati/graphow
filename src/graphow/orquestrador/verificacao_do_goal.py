@@ -2,8 +2,8 @@
 
 Com as fatias do marco concluídas, o marco é verificado por uma sessão nova
 do verificador (orquestrador/verificacao_do_marco.py). Os Achados bloqueantes
-viram fatias de correção do marco, os do mesmo arquivo juntos numa fatia só,
-até dois ciclos por marco. O marco segue quando a verificação dele sai limpa;
+viram a fatia de correção do marco, todos os do ciclo numa fatia só, até
+dois ciclos por marco. O marco segue quando a verificação dele sai limpa;
 o marco intermediário que esgota os ciclos também segue, com os bloqueantes
 abertos, para que os marcos seguintes rodem. O último marco é a verificação
 final, sobre o Goal inteiro: ela cobra de novo os bloqueantes que os outros

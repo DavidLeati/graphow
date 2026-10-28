@@ -80,7 +80,7 @@ CAMPO_SUBSTITUIDA: str = "substituida_por"
 CAMPO_ENTREGA_PENDENTE: str = "entrega_pendente"
 # A dúvida do executor que diz que um teste de aceite está errado: o critério dele.
 CAMPO_CRITERIO_DO_TESTE: str = "criterio_do_teste"
-# A fatia de correção junta os bloqueantes do mesmo arquivo (ou do mesmo critério): os ids de todos eles.
+# A fatia de correção junta os bloqueantes do ciclo: os ids de todos eles.
 CAMPO_ACHADOS: str = "achados"
 # Os ciclos de correção que cada marco tem antes de o laço seguir sem ele (ou, na final, parar).
 MAXIMO_DE_CICLOS_DE_CORRECAO: int = 2
