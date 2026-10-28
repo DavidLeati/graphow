@@ -2,15 +2,20 @@
 
 Mudar o teste de aceite não é o único jeito de neutralizá-lo: um
 `aceite/conftest.py` que pula tudo, um `conftest.py` na raiz, o `addopts` do
-pyproject, um `sitecustomize.py`, um módulo `pytest.py` na raiz que imita o
-runner, um arquivo ignorado pelo git (que o commit não mostra), ou as flags
-`skip-worktree` e `assume-unchanged` do índice, que escondem a mudança do
-`git status`. As defesas, em camadas:
+pyproject, um `sitecustomize.py`, um módulo `pytest.py` que imita o runner
+(na T2a, o que imprimia "1 passed" dava verde), um arquivo ignorado pelo git
+(que o commit não mostra), ou as flags `skip-worktree` e `assume-unchanged`
+do índice, que escondem a mudança do `git status`. As defesas, em camadas:
 
 - antes de rodar os testes de aceite, `aceite/` volta ao commit do aceite, e o
   que o executor pôs lá (ignorado inclusive) sai; a configuração de teste
   solta (não versionada ou ignorada) em qualquer lugar sai também;
 - a fatia que mexe em `aceite/`, ignorado inclusive, é recusada;
+- a fatia que cria um arquivo ou uma pasta com o nome do módulo do runner
+  (`pytest.py`, `pytest/`, `_pytest/`, `unittest.py`, `unittest/`), em
+  qualquer pasta fora do ambiente, é recusada sempre: qualquer pasta pode
+  entrar no `sys.path` (a raiz, `src/`, o `pythonpath` do pytest, a pasta de
+  cada teste sem `__init__.py`);
 - a configuração de teste versionada que o executor mudou não é recusada: o
   aceite roda com ela, sem contar como verde o teste pulado ou o que não
   rodou, e de novo com a do commit do aceite; o teste que muda de resultado
@@ -104,10 +109,31 @@ def _secao_ini(conteudo: str, cabecalho: str) -> str:
     return "\n".join(linhas[inicio:fim])
 
 
+def sombra_do_runner(caminho: str) -> str:
+    """O trecho do caminho até o primeiro nome que sombreia o runner (`src/pytest.py`, `tests/unittest`); vazio sem ele."""
+    partes = caminho.replace("\\", "/").strip("/").split("/")
+    indice = next((n for n, parte in enumerate(partes) if parte in SOMBRAS_DO_RUNNER), None)
+    return "/".join(partes[: indice + 1]) if indice is not None and not _do_ambiente(caminho) else ""
+
+
+def tirar_sombras_do_runner(area: Path, caminhos: Iterable[str], *, antes: str) -> tuple[str, ...]:
+    """As sombras do runner que não existiam no commit `antes`, entre os caminhos e os arquivos fora do git: saem do disco.
+
+    A sombra sai já, como as flags do índice: a ignorada pelo git ficaria na
+    área e recusaria a tentativa seguinte também.
+    """
+    git = GitDoGoal(area)
+    sombras = {sombra for caminho in (*caminhos, *_fora_do_git(area)) if (sombra := sombra_do_runner(caminho))}
+    novas = tuple(sorted(sombra for sombra in sombras if git.tentar("cat-file", "-e", f"{antes}:{sombra}").codigo != 0))
+    for sombra in novas:
+        _apagar(area / sombra)
+    return novas
+
+
 def soltos_que_mudam_os_testes(area: Path) -> tuple[str, ...]:
-    """Os arquivos fora do git (não versionados ou ignorados) que estão em aceite/ ou que configuram os testes."""
+    """Os arquivos fora do git (não versionados ou ignorados) que estão em aceite/, que configuram os testes ou sombreiam o runner."""
     return tuple(caminho for caminho in _fora_do_git(area) if (dentro_do_aceite(caminho) and not e_cache(caminho))
-                 or e_configuracao_de_teste(caminho))
+                 or e_configuracao_de_teste(caminho) or sombra_do_runner(caminho))
 
 
 def _fora_do_git(area: Path) -> list[str]:

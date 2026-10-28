@@ -2,8 +2,9 @@
 
 O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
-trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive)
-ou que escondeu mudança com as flags do índice (orquestrador/aceite_intocado.py), roda a
+trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive),
+que escondeu mudança com as flags do índice ou que criou um módulo com o nome
+do runner de testes (orquestrador/aceite_intocado.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
 vermelhos até a fatia que os atende), passa a fatia de risco, e a que mudou a
 configuração de teste (o que é sinal, e não recusa), pela revisão
@@ -21,7 +22,13 @@ from pathlib import Path
 from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.aceite_intocado import configuracoes_mudadas, flags_do_indice, limpar_flags, soltos_que_mudam_os_testes
+from graphow.orquestrador.aceite_intocado import (
+    configuracoes_mudadas,
+    flags_do_indice,
+    limpar_flags,
+    soltos_que_mudam_os_testes,
+    tirar_sombras_do_runner,
+)
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import MAXIMO_DE_FALHAS, ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.decisoes_do_agente import (
@@ -196,7 +203,7 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
 
 
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
-    """O problema do que a fatia mudou (flags do índice, aceite/) e a configuração de teste que ela mudou, que só é sinal.
+    """O problema do que a fatia mudou (flags do índice, sombra do runner, aceite/) e a configuração de teste que ela mudou, que só é sinal.
 
     A mudança de configuração de teste não é recusada: o aceite roda com ela
     e com a do commit do aceite, e a diferença vai ao verificador
@@ -208,6 +215,9 @@ def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentat
         return (f"a fatia escondeu do git os arquivos {', '.join(sinalizados)} com skip-worktree ou assume-unchanged: o "
                 "orquestrador tirou as flags, e a tentativa nao vale (git update-index nao e do executor)"), ()
     mudados = contexto.git.caminhos_mudados()
+    sombras = tirar_sombras_do_runner(contexto.area, mudados, antes=tentativa.head)
+    if sombras:
+        return _sombreou_o_runner(sombras), ()
     soltos = soltos_que_mudam_os_testes(contexto.area)
     no_aceite = sorted({c for c in (*mudados, *soltos) if dentro_do_aceite(c) and not e_cache(c)}
                        | (set(mudados) & set(estado.arquivos_protegidos())))
@@ -224,6 +234,15 @@ def _sinal_da_configuracao(fatia: FatiaRegistrada, configuracao: tuple[str, ...]
     fora = [caminho for caminho in configuracao if caminho not in fatia.lista(m.CAMPO_ARQUIVOS_ALVO)]
     nao_declarada = f"; o plano nao declarou {', '.join(fora)}" if fora else ""
     return f"muda a configuracao de teste ({', '.join(configuracao)}){nao_declarada}"
+
+
+def _sombreou_o_runner(sombras: tuple[str, ...]) -> str:
+    """O erro da fatia que criou arquivo ou pasta com o nome do módulo de um runner de testes."""
+    return (
+        f"a fatia criou {', '.join(sombras)}, com o nome do modulo de um runner de testes (pytest, _pytest, unittest): numa "
+        "pasta do sys.path ele toma o lugar do runner, e um pytest.py que imprime '1 passed' daria verde. O orquestrador os "
+        "apagou, e a tentativa nao vale: de outro nome ao modulo."
+    )
 
 
 def _mexeu_no_aceite(mexidos: list[str]) -> str:

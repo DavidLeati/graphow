@@ -17,6 +17,7 @@ from graphow.orquestrador.aceite_intocado import (
     flags_do_indice,
     preparar_o_aceite,
     soltos_que_mudam_os_testes,
+    sombra_do_runner,
 )
 from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
@@ -75,18 +76,16 @@ def test_fatia_que_cria_em_aceite_e_recusada_edge_case(tmp_path: Path) -> None:
         ({"conftest.py": MARCA_XFAIL}, "conftest.py", "nao_atende"),
         ({"pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-p no:python"\n'}, "pyproject.toml", "nao_atende"),
         ({"pytest.ini": "[pytest]\naddopts = -k nada\n"}, "pytest.ini", "nao_atende"),
-        ({"pytest.py": "print('1 passed in 0.01s')\n"}, "pytest.py", "diferenca"),
         ({".gitignore": "conftest.py\n", "conftest.py": PULA_TUDO}, "", "nao_atende"),
     ],
-    ids=["conftest-na-raiz", "xfail-no-conftest", "addopts-do-pyproject", "pytest-ini", "sombra-do-pytest", "conftest-ignorado"],
+    ids=["conftest-na-raiz", "xfail-no-conftest", "addopts-do-pyproject", "pytest-ini", "conftest-ignorado"],
 )
 def test_configuracao_que_neutralizaria_o_aceite_nao_da_verde_edge_case(tmp_path: Path, arquivos: dict[str, str], trocado: str, c1: str) -> None:
     """Caso de borda (rodada 4, item 2): a configuração entra, vai à revisão como sinal, e o aceite com ela não conta o que ela pula.
 
     O teste pulado, o xfail, o desselecionado e o arquivo solto reprovam C1 já
-    na rodada com a configuração entregue. A sombra do pytest, que imprime um resumo
-    verde, passa nela e falha com a configuração do commit do aceite: a
-    diferença vai ao verificador julgar, e não reprova C1 sozinha.
+    na rodada com a configuração entregue. A sombra do runner não chega aqui:
+    a fatia que a cria é recusada (test_sombra_do_runner_e_recusada_na_fatia_edge_case).
     """
     roteiro = _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", **arquivos}))
     roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto(FATIA_CERTA)]
@@ -98,16 +97,49 @@ def test_configuracao_que_neutralizaria_o_aceite_nao_da_verde_edge_case(tmp_path
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.fatias[0].falhas == 0
     primeira = estado.verificacoes[0].propriedades
-    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == ("atende" if c1 == "diferenca" else "nao_atende")
+    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == c1
     assert trocado in primeira["configuracao_do_aceite"] if trocado else "conftest.py" in primeira["tirado_antes_do_aceite"]
-    if c1 == "diferenca":
-        assert [(d["teste"], d["com_a_entregue"], d["com_a_do_aceite"]) for d in primeira["diferencas_de_configuracao"]][0] == (
-            "test_c1_soma", True, False)
-        briefing = bancada.chamadas("verificador")[0]["stdin"]
-        assert "A configuracao de teste mudou desde o commit do aceite (pytest.py)" in briefing
-        assert "test_c1_soma de C1: passa com a configuracao entregue; falha" in briefing
     revisao = bancada.chamadas("revisor")[0]["stdin"]
     assert "muda a configuracao de teste" in revisao and "o plano nao declarou" in revisao
+
+
+SOMBRA_DO_PYTEST: str = "print('1 passed in 0.01s')\n"
+
+
+@pytest.mark.parametrize(
+    ("arquivos", "sombra"),
+    [({"pytest.py": SOMBRA_DO_PYTEST}, "pytest.py"),
+     ({".gitignore": "src/\n", "src/_pytest/__init__.py": SOMBRA_DO_PYTEST}, "src/_pytest")],
+    ids=["pytest-na-raiz", "_pytest-ignorado-em-src"],
+)
+def test_sombra_do_runner_e_recusada_na_fatia_edge_case(tmp_path: Path, arquivos: dict[str, str], sombra: str) -> None:
+    """T2b.4: o `pytest.py` que imprime "1 passed" (o da T2a) não entra, nem escondido pelo .gitignore numa pasta do sys.path.
+
+    A tentativa não vale, a sombra sai do disco, e a seguinte, certa, fecha com o aceite rodado de verdade.
+    """
+    roteiro = _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", **arquivos}))
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.fatias[0].falhas == 1
+    assert f"a fatia criou {sombra}, com o nome do modulo de um runner" in bancada.chamadas("executor")[1]["stdin"]
+    assert not (bancada.repositorio / sombra).exists() and sombra not in git(bancada.repositorio, "ls-tree", "-r", "--name-only", "main")
+    aceite = estado.verificacoes[-1].propriedades["aceite_do_orquestrador"]
+    assert [(e["teste"], e["passou"]) for e in aceite][0] == ("test_c1_soma", True)
+
+
+@pytest.mark.parametrize(
+    ("caminho", "sombra"),
+    [("pytest.py", "pytest.py"), ("src/pytest/__init__.py", "src/pytest"), ("tests/unittest/test_a.py", "tests/unittest"),
+     ("lib/_pytest/x.py", "lib/_pytest"), ("src/unittest.py", "src/unittest.py"), (".venv/Lib/site-packages/pytest/__init__.py", ""),
+     ("node_modules/pytest.py", ""), ("tests/test_pytest.py", ""), ("pytest_plugin.py", "")],
+)
+def test_sombra_do_runner_pelo_caminho_edge_case(caminho: str, sombra: str) -> None:
+    """Caso de borda: o nome do módulo do runner em qualquer pasta sombreia; o que está no ambiente instalado, não."""
+    assert sombra_do_runner(caminho) == sombra
 
 
 # O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol.
