@@ -15,7 +15,8 @@ do índice, que escondem a mudança do `git status`. As defesas, em camadas:
   (`pytest.py`, `pytest/`, `_pytest/`, `unittest.py`, `unittest/`), em
   qualquer pasta fora do ambiente, é recusada sempre: qualquer pasta pode
   entrar no `sys.path` (a raiz, `src/`, o `pythonpath` do pytest, a pasta de
-  cada teste sem `__init__.py`);
+  cada teste sem `__init__.py`). E o aceite em Python roda com `-P`, sem a
+  pasta atual no `sys.path` (orquestrador/saida_do_aceite.py);
 - a configuração de teste versionada que o executor mudou não é recusada: o
   aceite roda com ela, sem contar como verde o teste pulado ou o que não
   rodou, e de novo com a do commit do aceite; o teste que muda de resultado

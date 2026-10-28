@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from graphow.orquestrador import saida_do_aceite as sa
 from graphow.orquestrador.aceite_intocado import (
     configuracoes_mudadas,
     e_configuracao_de_teste,
@@ -22,11 +23,13 @@ from graphow.orquestrador.aceite_intocado import (
 from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
+from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
 from graphow.orquestrador.trava_do_git import regras_que_negam_git
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
 from tests.orquestrador.apoio_laco import (
     ACEITE_PYTEST,
+    COMANDO_PYTEST,
     PLANO,
     SOMA_CERTA,
     SOMA_ERRADA,
@@ -142,9 +145,42 @@ def test_sombra_do_runner_pelo_caminho_edge_case(caminho: str, sombra: str) -> N
     assert sombra_do_runner(caminho) == sombra
 
 
-# O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol.
+def test_sombra_do_pytest_na_raiz_nao_da_verde_no_aceite_edge_case(tmp_path: Path) -> None:
+    """T2b.4: com um `pytest.py` que imprime "1 passed" na raiz, o aceite roda com -P o pytest de verdade, e o teste falha."""
+    (tmp_path / "pytest.py").write_text(SOMBRA_DO_PYTEST, encoding="utf-8")
+    (tmp_path / "aceite").mkdir()
+    (tmp_path / "aceite" / "aceite_c1.py").write_text("def test_c1_soma():\n    assert 2 + 3 == 0\n", encoding="utf-8")
+    teste = sa.TesteDeAceite("aceite/aceite_c1.py", "test_c1_soma", f"{COMANDO_PYTEST}::test_c1_soma")
+
+    def rodar(comando: str) -> ResultadoDaSuite:
+        return rodar_suite(tmp_path, comando, tmp_path / "descartavel.db")
+
+    [execucao] = sa.rodar_testes(sa.SaidaDoAceite("", COMANDO_PYTEST, (sa.AceiteDoCriterio("C1", (teste,)),)), rodar)
+
+    assert "1 passed in 0.01s" in rodar(teste.comando).saida, "sem o -P, a sombra seria o runner"
+    assert " -P -m pytest " in execucao.comando and not execucao.passou and execucao.vermelho_invalido() == ""
+
+
+@pytest.mark.parametrize(
+    ("comando", "esperado"),
+    [("python -m pytest -q aceite/a.py::t", "python -P -m pytest -q aceite/a.py::t"),
+     ('"C:/Py 3/python.exe" aceite/a.py', '"C:/Py 3/python.exe" -P aceite/a.py'),
+     ("C:\\v\\Scripts\\python.exe -m pytest a", "C:\\v\\Scripts\\python.exe -P -m pytest a"),
+     ("cd x && PYTHONPATH=src python3.12 -m unittest a", "cd x && PYTHONPATH=src python3.12 -P -m unittest a"),
+     ("uv run python -m pytest a; py -m pytest b", "uv run python -P -m pytest a; py -P -m pytest b"),
+     ("python -P -m pytest a", "python -P -m pytest a"), ("pytest -k python aceite", "pytest -k python aceite"),
+     ("node --test aceite/a.test.js", "node --test aceite/a.test.js"), ("python aceite/test_python.py", "python -P aceite/test_python.py")],
+)
+def test_aceite_em_python_roda_sem_a_pasta_atual_no_caminho_edge_case(comando: str, esperado: str) -> None:
+    """Caso de borda: o -P vai em cada interpretador Python na posição de comando, e só nele."""
+    assert sa.sem_a_pasta_atual(comando) == esperado
+
+
+# O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol. Com o
+# `-P` do aceite a raiz não entra sozinha: o teste a põe no fim do caminho, e o `pythonpath` do pytest vem antes dela.
 ACEITE_PELO_CAMINHO_DO_PYTEST: str = (
-    '"""C1: somar(2, 3) devolve 5."""\n\n\ndef test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n'
+    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.append(".")\n\n\n'
+    "def test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n"
 )
 LAYOUT_SRC: dict[str, str] = {
     "soma.py": SOMA_ERRADA, "src/soma.py": SOMA_CERTA, "pyproject.toml": '[tool.pytest.ini_options]\npythonpath = ["src"]\n',

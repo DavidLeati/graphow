@@ -16,7 +16,9 @@ teste que já passa sem implementação é sinalizado, porque ou o critério já
 atendido pelo código (e a justificativa diz por quê), ou o teste não prova
 nada; e o que falha tem de falhar numa asserção dele, lida na saída do runner
 (orquestrador/resultado_de_teste.py), e não por import, coleta, comando ou
-nome errado. O que não confere volta à mesma sessão, até duas vezes.
+nome errado. O que não confere volta à mesma sessão, até duas vezes. Todo
+teste de aceite em Python roda com `-P`, sem a pasta atual no `sys.path`
+(`sem_a_pasta_atual`), para que um módulo com o nome do runner não o troque.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -202,27 +204,51 @@ class ExecucaoDeAceite:
                 "passou": self.passou, "motivo": self.motivo, "saida": self.saida[-LIMITE_DA_SAIDA_REGISTRADA:]}
 
 
+# O interpretador Python na posição de comando (no começo, depois de &&, ||, ;, | ou "(", das variáveis de
+# ambiente e de `uv run` e afins), com aspas ou sem, que ainda não leva -P.
+_PYTHON_NO_COMANDO: re.Pattern[str] = re.compile(
+    r"(?P<antes>(?:^|&&|\|\||[;|(])\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:uv|poetry|pipenv|pdm)\s+run\s+)?)"
+    r"(?P<python>\"(?:[^\"]*[\\/])?(?:python[\d.]*|py)(?:\.exe)?\"|(?:[^\s\"';&|()]*[\\/])?(?:python[\d.]*|py)(?:\.exe)?)"
+    r"(?=\s|$)(?!\s+-P(?:\s|$))",
+    re.IGNORECASE,
+)
+
+
+def sem_a_pasta_atual(comando: str) -> str:
+    """O comando com `-P` em cada interpretador Python que ele chama: nem a pasta atual nem a do script entram no `sys.path`.
+
+    Com `python -m pytest`, a pasta atual vem primeiro no `sys.path`, e um
+    `pytest.py` nela toma o lugar do runner: na T2a, o que imprimia "1
+    passed" dava verde. O `-P` (Python 3.11+) a tira de lá, e nem um arquivo
+    novo desses é importado. Vale para toda rodada do aceite, a do autor
+    inclusive: o teste que precisa da raiz no caminho a põe ele mesmo.
+    """
+    return _PYTHON_NO_COMANDO.sub(lambda achado: f"{achado.group('antes')}{achado.group('python')} -P", comando)
+
+
 def rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None = None) -> tuple[ExecucaoDeAceite, ...]:
-    """Cada teste de aceite dos critérios dados (todos, sem eles), rodado pelo comando dele."""
+    """Cada teste de aceite dos critérios dados (todos, sem eles), rodado pelo comando dele, sem a pasta atual no caminho."""
     escolhidos = None if criterios is None else set(criterios)
     return tuple(
-        _execucao(criterio.id, teste.nome, teste.comando, rodar=rodar)
+        _execucao(criterio.id, teste.nome, sem_a_pasta_atual(teste.comando), rodar=rodar)
         for criterio, teste in saida.testes() if escolhidos is None or criterio.id in escolhidos
     )
 
 
 def rodar_o_comando_de_aceite(saida: SaidaDoAceite, rodar: Rodar) -> ExecucaoDeAceite:
-    """O comando que roda todos os testes de aceite, de uma vez."""
-    return _execucao("", TESTE_DO_COMANDO_DE_ACEITE, saida.comando_aceite, rodar=rodar)
+    """O comando que roda todos os testes de aceite, de uma vez, sem a pasta atual no caminho."""
+    return _execucao("", TESTE_DO_COMANDO_DE_ACEITE, sem_a_pasta_atual(saida.comando_aceite), rodar=rodar)
 
 
 def rodar_a_suite_com_o_aceite(saida: SaidaDoAceite, comando_suite: str, rodar: Rodar) -> ExecucaoDeAceite:
     """A suíte do projeto e todos os testes de aceite num comando só, com os arquivos de aceite na área.
 
     É o que pega a interação que nenhum dos dois mostra sozinho: o teste de
-    aceite que quebra a suíte, a suíte que depende de estar sem eles.
+    aceite que quebra a suíte, a suíte que depende de estar sem eles. Só a
+    parte do aceite leva o `-P`: a suíte roda como o plano a declarou.
     """
-    return _execucao("", TESTE_DA_SUITE_COM_O_ACEITE, f"{comando_suite} && {saida.comando_aceite}", rodar=rodar, so_o_codigo=True)
+    comando = f"{comando_suite} && {sem_a_pasta_atual(saida.comando_aceite)}"
+    return _execucao("", TESTE_DA_SUITE_COM_O_ACEITE, comando, rodar=rodar, so_o_codigo=True)
 
 
 def _execucao(criterio: str, teste: str, comando: str, *, rodar: Rodar, so_o_codigo: bool = False) -> ExecucaoDeAceite:
