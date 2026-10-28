@@ -44,7 +44,8 @@ EM_C1: dict[str, Any] = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring"
 def _parado_no_limite(tmp_path: Path, depois: list[dict[str, Any]]) -> tuple[Bancada, str]:
     """O Goal parado depois dos dois ciclos da final, com um bloqueante em C1; o roteiro segue com as verificações dadas."""
     roteiro = roteiro_completo()
-    roteiro["verificador"] = [verificacao("atende", [EM_C1]) for _ in range(3)] + depois
+    persistentes = [verificacao("atende", [{**EM_C1, "persiste": f"achado-goal-soma-v{n}-1"}]) for n in (1, 2)]
+    roteiro["verificador"] = [verificacao("atende", [EM_C1]), *persistentes, *depois]
     roteiro["executor"] = [*roteiro["executor"][:2], *(executor_pronto({"soma.py": f"def somar(a, b):\n    return a + b  # {n}\n"})
                                                         for n in range(1, 4))]
     bancada = montar_bancada(tmp_path, roteiro)
@@ -70,7 +71,8 @@ def test_achado_descartado_pelo_humano_destrava_o_goal_e_ele_fecha_nominal(tmp_p
     assert achado is not None and achado.obter_propriedade("estado") == "descartado"
     assert achado.obter_propriedade("motivo_do_descarte") == "a docstring fica para depois"
     assert pedido is not None and pedido.tipo == TipoNo.DECISION and pedido.proveniencia.papel == "humano"
-    assert len(bancada.chamadas("verificador")) == 3, "o descarte nao pede verificacao nova"
+    verificacoes = [c["papel"] for c in bancada.chamadas() if c["papel"] in ("verificador", "conferencia")]
+    assert verificacoes == ["verificador", "conferencia", "conferencia"], "o descarte nao pede verificacao nova"
 
 
 def test_mais_ciclos_dados_pelo_humano_abrem_outra_correcao_nominal(tmp_path: Path) -> None:

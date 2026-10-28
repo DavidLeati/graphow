@@ -8,7 +8,10 @@ decisões, o comando da suíte, o que as fatias anteriores entregaram (assuntos
 e hashes dos commits, diff resumido da anterior), a resposta do humano à
 dúvida dele e, numa nova tentativa, o erro da anterior. O verificador recebe
 só a spec, o plano, os testes de aceite e o commit: nada das sessões que
-implementaram.
+implementaram. A conferência, a verificação de depois de uma correção,
+recebe um briefing curto: os critérios, os achados que ela confere com a prova
+e as chamadas que os reproduzem, os pareceres da verificação anterior e o diff
+das correções (orquestrador/tipo_da_verificacao.py).
 """
 
 from collections.abc import Mapping, Sequence
@@ -17,6 +20,7 @@ from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.historico_da_correcao import chamadas_que_reproduzem
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada, MarcoRegistrado
 from graphow.orquestrador.saida_do_aceite import PASTA_DO_ACEITE, SaidaDoAceite
 from graphow.orquestrador.suite import descrever_shell, shell_dos_agentes
@@ -267,6 +271,52 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         "cite o comando que rodou e o que ele mostrou. Depois de voce, ele roda a suite nesse commit: suite vermelha "
         "reprova a entrega.",
     ])
+
+
+@dataclass(frozen=True)
+class PedidoDaConferencia:
+    """O que a conferência confere: os achados que as correções trataram, o commit de onde elas partiram e o diff delas."""
+
+    conferidos: Sequence[AchadoRegistrado]
+    antes: str
+    diff: str
+    diferencas: Sequence[str] = ()
+
+
+def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRegistrado, pedido: PedidoDaConferencia) -> str:
+    """O pedido curto da conferência: os critérios, os achados a reproduzir, os pareceres de antes e o diff das correções."""
+    plano = estado.plano or {}
+    anterior = estado.verificacoes_do_marco(marco)[-1] if estado.verificacoes_do_marco(marco) else None
+    pareceres = anterior.propriedades.get(m.CAMPO_PARECERES) if anterior else None
+    alvo = f"da verificacao final ({marco.id}), sobre o Goal inteiro" if marco.final else f"do marco {marco.id} ({marco.titulo})"
+    return _juntar([
+        f"# Conferencia do Goal {estado.id_goal}: {estado.rotulo}",
+        f"Commit conferido: {commit}. A pasta atual esta nesse commit. As correcoes partiram de {pedido.antes[:12] or '?'}. "
+        f"Esta e a conferencia {alvo}: confira as correcoes, sem cacar bordas novas.",
+        _bloco("Suite", [f"`{plano.get('comando_suite', '')}`"]),
+        _bloco("Criterios que esta conferencia julga, com os testes de aceite e a checagem", _criterios_com_aceite(estado, marco.criterios)),
+        _bloco("Testes de aceite", [f"`{(estado.aceite or {}).get('comando', '')}` roda todos; o orquestrador roda cada um."]),
+        _bloco("O aceite com a configuracao entregue e com a do commit do aceite (um parecer por diferenca)", list(pedido.diferencas)),
+        _bloco("Decisoes", _decisoes(plano)),
+        _bloco("Achados conferidos (reproduza cada um)", [linha for achado in pedido.conferidos for linha in _conferido(achado)]),
+        _bloco(f"Pareceres da verificacao anterior ({anterior.id if anterior else '-'})",
+               [f"- {p.get('id')} {p.get('veredito')}: {p.get('prova', '')}" for p in (pareceres or []) if isinstance(p, Mapping)]),
+        f"## Diff das correcoes\n```diff\n{pedido.diff}\n```" if pedido.diff else "",
+        "Devolva a conferencia no JSON do schema, com um parecer para cada criterio acima"
+        + (" e para cada decisao" if marco.final else "") + (", e um em `diferencas` para cada diferenca acima" if pedido.diferencas else "")
+        + ". Em `achados`, liste o conferido que persiste (`persiste` = o id dele) e a regressao de criterio (`regressao`: true). "
+        "O achado novo que nao e regressao nao vira correcao.",
+    ])
+
+
+def _conferido(achado: AchadoRegistrado) -> list[str]:
+    """Um achado conferido: o id, o título, o que ele fere, a prova e os comandos que o reproduzem."""
+    toca = ", ".join((*achado.lista("criterios"), *achado.lista("decisoes")))
+    return [
+        f"- {achado.id}: {achado.texto('titulo')}" + (f" (fere {toca})" if toca else ""),
+        f"  Prova: {achado.texto('prova')}",
+        *(f"  Reproduza com: `{comando}`" for comando in achado.lista("reproducao")),
+    ]
 
 
 def _desacordos(estado: EstadoDoGoal) -> list[str]:

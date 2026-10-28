@@ -27,7 +27,7 @@ def formatar_status(estado: EstadoDoGoal, registros: Sequence[SessaoRegistrada])
     linhas.extend(_linhas_do_aceite(estado))
     linhas.extend(["Fatias:", *(_linha_da_fatia(fatia) for fatia in estado.fatias)] if estado.fatias else [])
     linhas.extend(
-        ["Verificacoes:", *(f"  {v.id} ({v.marco or '-'}): {v.veredito} em {v.commit[:12]} ({len(v.bloqueantes())} bloqueante(s))"
+        ["Verificacoes:", *(f"  {v.id} ({v.marco or '-'}, {v.tipo or '-'}): {v.veredito} em {v.commit[:12]} ({len(v.bloqueantes())} bloqueante(s))"
                             for v in estado.verificacoes)] if estado.verificacoes else []
     )
     abertos = [a for v in estado.verificacoes for a in v.bloqueantes() if a.estado not in ("resolvido", "descartado")]

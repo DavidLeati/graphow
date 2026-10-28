@@ -64,6 +64,11 @@ class VerificacaoRegistrada:
     marco: str = ""
     reprovados: tuple[str, ...] = ()
 
+    @property
+    def tipo(self) -> str:
+        """A caçada, a do marco ou a conferência; vazio na verificação de antes dos tipos."""
+        return str(self.propriedades.get(m.CAMPO_TIPO_DA_VERIFICACAO) or "")
+
     def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
         """Os nós Achado bloqueantes desta verificação."""
         return tuple(achado for achado in self.achados if achado.bloqueante)

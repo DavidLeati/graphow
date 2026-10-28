@@ -2,7 +2,10 @@
 
 O papel sai do `--append-system-prompt-file` (o nome do prompt do pacote). O
 roteiro (`GRAPHOW_TESTE_ROTEIRO`) é um JSON com uma lista de respostas por
-papel; cada chamada consome a próxima do seu papel. Cada resposta pode:
+papel; cada chamada consome a próxima do seu papel. As verificações dos três
+tipos (o `verificador` da caçada, o `marco` e a `conferencia`) consomem uma
+lista só, a do `verificador`: a ordem delas é uma só, e o registro guarda o
+papel do prompt. Cada resposta pode:
 
 - `saida`: o objeto que vai em `structured_output` (e, em texto, em `result`);
 - `texto`: o `result` em texto, quando a saída estruturada não vem;
@@ -39,7 +42,12 @@ def _valor(argv: list[str], opcao: str) -> str:
     return argv[argv.index(opcao) + 1] if opcao in argv else ""
 
 
+# Os papéis das verificações que respondem pela lista do verificador.
+VERIFICACOES = ("marco", "conferencia")
+
+
 def _proxima(papel: str) -> dict:
+    papel = "verificador" if papel in VERIFICACOES else papel
     roteiro = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"])
     estado_path = roteiro.with_suffix(".estado.json")
     estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})

@@ -1,8 +1,9 @@
 """A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só.
 
-A Evidence de verificação deriva do Goal e guarda o número, o marco, se é a
-final, o commit e o commit do código verificados, os comandos do verificador,
-a suíte e os testes de aceite que o orquestrador rodou, e um parecer por
+A Evidence de verificação deriva do Goal e guarda o número, o tipo (`caca`,
+`marco` ou `conferencia`), o marco, se é a final, o commit e o commit do
+código verificados, os comandos do verificador, a suíte e os testes de aceite
+que o orquestrador rodou, e um parecer por
 critério e decisão com o nó de cada um. Cada achado vira um nó Achado que
 deriva da Evidence e fere (`fere`) os critérios e as decisões que toca, com a
 gravidade que o código decidiu: o bloqueante nasce aberto e vai virar fatia de
@@ -45,6 +46,7 @@ class RegistroDaVerificacao:
     configuracao_do_aceite: Sequence[str] = ()
     aceite_com_a_configuracao_do_aceite: Sequence[Mapping[str, Any]] = ()
     diferencas_de_configuracao: Sequence[Mapping[str, Any]] = ()
+    tipo: str = ""
 
     @property
     def limpa(self) -> bool:
@@ -56,9 +58,9 @@ class RegistroDaVerificacao:
         verificacao, suite = self.verificacao, self.suite
         return {
             "acao": m.ACAO_DA_VERIFICACAO, m.CAMPO_VEREDITO: m.VEREDITO_LIMPO if self.limpa else m.VEREDITO_COM_BLOQUEANTE,
-            m.CAMPO_NUMERO: self.numero, m.CAMPO_FINAL: self.final, a.CAMPO_MARCO: self.marco,
+            m.CAMPO_NUMERO: self.numero, m.CAMPO_TIPO_DA_VERIFICACAO: self.tipo, m.CAMPO_FINAL: self.final, a.CAMPO_MARCO: self.marco,
             m.CAMPO_COMMIT: self.commit, m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo, m.CAMPO_CICLO: self.ciclo,
-            "fonte": "graphow orquestrar: sessao do verificador",
+            "fonte": f"graphow orquestrar: sessao do verificador ({self.tipo or 'caca'})",
             "resumo": verificacao.resumo,
             "comandos": [comando.em_json() for comando in verificacao.comandos],
             "suite_do_orquestrador": {"comando": suite.comando, "shell": suite.shell, "codigo": suite.codigo, "passou": suite.passou,
@@ -84,7 +86,7 @@ def gravar_verificacao(livro: LivroRazaoDoGoal, registro: RegistroDaVerificacao)
     id_evidencia = m.id_da_verificacao(livro.id_goal, registro.numero)
     bloqueantes = len(registro.verificacao.bloqueantes())
     alvo = f"marco {registro.marco}" if registro.marco and not registro.final else "Goal inteiro"
-    rotulo = f"Verificacao {registro.numero} ({alvo}) em {registro.commit[:12]}: " + (f"{bloqueantes} bloqueante(s)" if bloqueantes else "limpa")
+    rotulo = f"Verificacao {registro.numero} ({registro.tipo or 'caca'}, {alvo}) em {registro.commit[:12]}: " + (f"{bloqueantes} bloqueante(s)" if bloqueantes else "limpa")
     operacoes = [
         *livro.produzido(id_evidencia, TipoNo.EVIDENCE, rotulo, propriedades=registro.propriedades(livro.id_goal)),
         aresta(id_evidencia, livro.id_goal, TipoAresta.DERIVA_DE),

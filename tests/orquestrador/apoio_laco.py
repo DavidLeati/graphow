@@ -143,6 +143,24 @@ def roteiro_completo() -> dict[str, list[dict[str, Any]]]:
     }
 
 
+SEM_DOCSTRING: dict[str, Any] = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring", "local": "soma.py:1", "criterios": ["C1"]}
+SOMA_COM_DOCSTRING: str = 'def somar(a, b):\n    """Soma."""\n    return a + b\n'
+README_COM_EXEMPLO: str = "# brinquedo\nUse somar(a, b): somar(2, 3) == 5.\n"
+
+
+def roteiro_em_dois_marcos_com_um_ciclo_cada() -> dict[str, list[dict[str, Any]]]:
+    """F1 (C1) no marco M1 e F2 (C2) no M2, o final; cada marco acha um bloqueante, corrige e sai limpo na conferência."""
+    plano = copy.deepcopy(PLANO)
+    plano["marcos"] = [{"id": "M1", "titulo": "Soma", "fatias": ["F1"]}, {"id": "M2", "titulo": "README", "fatias": ["F2"]}]
+    roteiro = roteiro_completo()
+    roteiro["planejador"] = [{"saida": plano, "custo": 0.4}]
+    roteiro["verificador"] = [verificacao("atende", [SEM_DOCSTRING]), verificacao("atende"),
+                              verificacao("parcial", [BLOQUEANTE_DO_README]), verificacao("atende")]
+    roteiro["executor"] = [executor_pronto({"soma.py": SOMA_CERTA, "verificar.py": VERIFICAR}), executor_pronto({"soma.py": SOMA_COM_DOCSTRING}),
+                           executor_pronto({"README.md": "# brinquedo\nUse somar(a, b).\n"}), executor_pronto({"README.md": README_COM_EXEMPLO})]
+    return roteiro
+
+
 @dataclass
 class Bancada:
     """O que um teste do laço monta: o repositório, a spec, o kernel, a telemetria e o roteiro."""

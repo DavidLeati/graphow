@@ -22,6 +22,11 @@ sai antes da suíte. Antes do aceite, o que estiver fora de commit sai da área:
 o processo que caiu no meio da rodada com a configuração do commit do aceite
 deixou a área com ela, e a retomada rodaria a rodada "entregue" com a errada.
 
+A sessão é de um dos três tipos (orquestrador/tipo_da_verificacao.py): a do
+marco intermediário e a caçada da primeira final, com o briefing inteiro, e a
+conferência de depois de cada correção, com o briefing curto dela; o tipo vai
+na Evidence.
+
 Num marco intermediário o parecer sobre um critério que só um marco seguinte
 completa não conta, e o achado não pode tocar esse critério: ele ainda não foi
 construído. A verificação, os Achados e as pendências vão ao livro-razão num
@@ -36,10 +41,9 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit, rodar_o_aceite
-from graphow.orquestrador.briefing import briefing_do_verificador
+from graphow.orquestrador.briefing import PedidoDaConferencia, briefing_da_conferencia, briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
-from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
@@ -49,6 +53,7 @@ from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, 
 from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
+from graphow.orquestrador.tipo_da_verificacao import TipoDaVerificacao, diff_das_correcoes, escolher_o_tipo
 
 
 def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:
@@ -61,14 +66,15 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     tirado = preparar_o_aceite(contexto.area, commit_do_aceite)
     aceite = rodar_o_aceite(contexto, estado, criterios_ate_o_marco(estado, marco), final=marco.final)
     descartar_mudancas(contexto.area, contexto.patch(f"aceite-{len(estado.verificacoes) + 1}"))
-    dados = _sessao_do_verificador(contexto, estado, marco, head=head, aceite=aceite)
+    tipo = escolher_o_tipo(estado, marco)
+    dados = _sessao_do_verificador(contexto, estado, marco, head=head, aceite=aceite, tipo=tipo)
     if isinstance(dados, Parada):
         return dados
     tirado = (*tirado, *preparar_o_aceite(contexto.area, commit_do_aceite))
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
-    registro = _registro(contexto, estado, marco, dados=dados, suite=suite, aceite=aceite, head=head, tirado=tirado)
+    registro = _registro(contexto, estado, marco, dados=dados, suite=suite, aceite=aceite, head=head, tirado=tirado, tipo=tipo)
     gravar_verificacao(contexto.livro, registro)
     sincronizar_documento(contexto, registro.pendencias, numero=registro.numero)
     return None
@@ -77,11 +83,11 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
 def _registro(
     contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *,
     dados: tuple[Mapping[str, Any], tuple[ComandoRodado, ...]], suite: ResultadoDaSuite, aceite: AceiteNoCommit, head: str,
-    tirado: Sequence[str],
+    tirado: Sequence[str], tipo: TipoDaVerificacao,
 ) -> RegistroDaVerificacao:
-    """A verificação julgada, com a segunda opinião, a suíte e o aceite do orquestrador, pronta para o livro-razão."""
+    """A verificação julgada (na conferência, com o destino dela), com a segunda opinião, a suíte e o aceite do orquestrador."""
     saida, chamadas = dados
-    julgada = replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas)
+    julgada = tipo.ajustar(replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas))
     verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
@@ -92,7 +98,7 @@ def _registro(
         aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco),
         tirado_antes_do_aceite=tuple(dict.fromkeys(tirado)), configuracao_do_aceite=aceite.trocados,
         aceite_com_a_configuracao_do_aceite=[execucao.em_json() for execucao in aceite.com_a_do_aceite],
-        diferencas_de_configuracao=aceite.diferencas_em_json(verificacao.diferencas),
+        diferencas_de_configuracao=aceite.diferencas_em_json(verificacao.diferencas), tipo=tipo.tipo,
     )
     return replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
 
@@ -159,9 +165,10 @@ def nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
 
 
 def _sessao_do_verificador(
-    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str, aceite: AceiteNoCommit
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str, aceite: AceiteNoCommit,
+    tipo: TipoDaVerificacao,
 ) -> tuple[Mapping[str, Any], tuple[ComandoRodado, ...]] | Parada:
-    """A saída conferida do verificador e as chamadas Bash que o stream dele mostra; ou a parada.
+    """A saída conferida do verificador do tipo dado e as chamadas Bash que o stream dele mostra; ou a parada.
 
     A sessão roda num contexto novo e não deixa mudança na área. Os comandos
     da verificação saem do stream, com o código e o trecho da saída: o
@@ -173,12 +180,11 @@ def _sessao_do_verificador(
     numero = len(estado.verificacoes) + 1
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
-            papel=PAPEL_VERIFICADOR, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=numero,
-            briefing=briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
-                                             diferencas=aceite.para_o_verificador()),
+            papel=tipo.papel, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=numero,
+            briefing=_briefing(contexto, estado, marco, head=head, aceite=aceite, tipo=tipo),
             conferir=lambda dados: conferir_verificacao(
                 Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes),
-                diferencas=aceite.chaves_a_julgar(),
+                diferencas=aceite.chaves_a_julgar(), conferidos=tuple(achado.id for achado in tipo.conferidos),
             ),
             orcamento_restante_usd=contexto.restante(), exige_bash=True,
         )
@@ -188,6 +194,19 @@ def _sessao_do_verificador(
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, "A verificacao nao conferiu: " + "; ".join(resposta.problemas))
     chamadas = chamadas_bash(resultado.arquivo_stream for resultado in resposta.resultados)
     return resposta.dados, tuple(ComandoRodado(c.comando, c.codigo, c.saida) for c in chamadas)
+
+
+def _briefing(
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str, aceite: AceiteNoCommit,
+    tipo: TipoDaVerificacao,
+) -> str:
+    """O briefing inteiro da caçada e do marco, ou o curto da conferência, com o diff das correções."""
+    if not tipo.conferencia:
+        return briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
+                                       diferencas=aceite.para_o_verificador())
+    diff = diff_das_correcoes(contexto.git, tipo.antes, contexto.configuracao.slug)
+    pedido = PedidoDaConferencia(tipo.conferidos, tipo.antes, diff, aceite.para_o_verificador())
+    return briefing_da_conferencia(estado, head, marco=marco, pedido=pedido)
 
 
 def _pendencias_depois(

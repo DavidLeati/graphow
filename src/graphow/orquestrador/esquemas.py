@@ -19,11 +19,15 @@ PAPEL_AUTOR_DE_ACEITE: str = "aceite"
 PAPEL_EXECUTOR: str = "executor"
 # O revisor da fatia de risco, e só dela: julga o diff antes do commit.
 PAPEL_REVISOR: str = "revisor"
+# A verificação tem três tipos, cada um com o papel, o prompt, o schema e o modelo dele (orquestrador/tipo_da_verificacao.py):
+# a caçada adversarial, uma vez, na primeira verificação final; a do marco intermediário; e a conferência dos ciclos.
 PAPEL_VERIFICADOR: str = "verificador"
+PAPEL_VERIFICADOR_DO_MARCO: str = "marco"
+PAPEL_CONFERENCIA: str = "conferencia"
 # A sessão curta, sem ferramentas, que diz o que o achado sem citação fere (orquestrador/segunda_opiniao.py).
 PAPEL_SEGUNDA_OPINIAO: str = "segunda_opiniao"
 PAPEIS: tuple[str, ...] = (PAPEL_PLANEJADOR, PAPEL_AUTOR_DE_ACEITE, PAPEL_EXECUTOR, PAPEL_REVISOR, PAPEL_VERIFICADOR,
-                           PAPEL_SEGUNDA_OPINIAO)
+                           PAPEL_VERIFICADOR_DO_MARCO, PAPEL_CONFERENCIA, PAPEL_SEGUNDA_OPINIAO)
 # Os prompts de papel moram no pacote e vão à sessão por `--append-system-prompt-file`:
 # nada é instalado em ~/.claude para o orquestrador funcionar.
 PASTA_DOS_PROMPTS: Path = Path(__file__).parent / "prompts"
@@ -156,18 +160,35 @@ ACHADO: dict[str, Any] = _objeto(
 PARECER_DA_DIFERENCA: dict[str, Any] = _objeto(
     {"criterio": TEXTO_LIVRE, "teste": TEXTO, "parecer": {"type": "string", "enum": list(PARECERES_DA_DIFERENCA)}, "motivo": PROVA}
 )
-# O verificador não declara mais os comandos: o orquestrador os tira do stream (orquestrador/comandos_do_stream.py).
-# `diferencas` é opcional no schema, que é o mesmo em toda verificação; a falta do parecer pedido a conferência acusa.
-ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
-    {
-        "resumo": TEXTO,
-        "criterios": _lista_de(PARECER, 1),
-        "decisoes": _lista_de(PARECER),
-        "achados": _lista_de(ACHADO),
-        "diferencas": _lista_de(PARECER_DA_DIFERENCA),
-    },
-    opcionais=("diferencas",),
+# Na conferência, o achado diz se é o achado conferido que persiste (o id dele) ou uma regressão de critério:
+# o achado novo que não é nenhum dos dois não vira correção (orquestrador/tipo_da_verificacao.py).
+ACHADO_DA_CONFERENCIA: dict[str, Any] = _objeto(
+    {**ACHADO["properties"], "persiste": TEXTO_LIVRE, "regressao": {"type": "boolean"}},
+    opcionais=("reproducao", "decisao_do_limite", "persiste", "regressao"),
 )
+
+
+def _esquema_da_verificacao(achado: Mapping[str, Any]) -> dict[str, Any]:
+    """O schema de uma verificação com o achado dado.
+
+    O verificador não declara mais os comandos: o orquestrador os tira do
+    stream (orquestrador/comandos_do_stream.py). `diferencas` é opcional no
+    schema; a falta do parecer pedido a conferência da saída acusa.
+    """
+    return _objeto(
+        {
+            "resumo": TEXTO,
+            "criterios": _lista_de(PARECER, 1),
+            "decisoes": _lista_de(PARECER),
+            "achados": _lista_de(achado),
+            "diferencas": _lista_de(PARECER_DA_DIFERENCA),
+        },
+        opcionais=("diferencas",),
+    )
+
+
+ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _esquema_da_verificacao(ACHADO)
+ESQUEMA_DA_CONFERENCIA: dict[str, Any] = _esquema_da_verificacao(ACHADO_DA_CONFERENCIA)
 
 ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto(
     {"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "alcance": ALCANCE, "motivo": TEXTO}
@@ -179,6 +200,8 @@ ESQUEMA_POR_PAPEL: Mapping[str, Mapping[str, Any]] = {
     PAPEL_EXECUTOR: ESQUEMA_DA_EXECUCAO,
     PAPEL_REVISOR: ESQUEMA_DA_REVISAO,
     PAPEL_VERIFICADOR: ESQUEMA_DA_VERIFICACAO,
+    PAPEL_VERIFICADOR_DO_MARCO: ESQUEMA_DA_VERIFICACAO,
+    PAPEL_CONFERENCIA: ESQUEMA_DA_CONFERENCIA,
     PAPEL_SEGUNDA_OPINIAO: ESQUEMA_DA_SEGUNDA_OPINIAO,
 }
 

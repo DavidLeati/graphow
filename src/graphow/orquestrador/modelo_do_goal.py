@@ -107,6 +107,8 @@ CAMPO_ABERTA_POR: str = "aberta_por"
 CAMPO_VEREDITO: str = a.CAMPO_VEREDITO
 CAMPO_CICLO: str = "ciclo"
 CAMPO_NUMERO: str = a.CAMPO_NUMERO
+# O tipo da verificação: a caçada, a do marco ou a conferência (orquestrador/tipo_da_verificacao.py).
+CAMPO_TIPO_DA_VERIFICACAO: str = "tipo_da_verificacao"
 CAMPO_FINAL: str = a.CAMPO_FINAL
 CAMPO_PARECERES: str = a.CAMPO_PARECERES
 ACAO_DA_VERIFICACAO: str = a.ACAO_DA_VERIFICACAO

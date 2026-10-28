@@ -36,11 +36,13 @@ from graphow.orquestrador.comandos_do_stream import comandos_bash, comandos_nao_
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_AUTOR_DE_ACEITE,
+    PAPEL_CONFERENCIA,
     PAPEL_EXECUTOR,
     PAPEL_PLANEJADOR,
     PAPEL_REVISOR,
     PAPEL_SEGUNDA_OPINIAO,
     PAPEL_VERIFICADOR,
+    PAPEL_VERIFICADOR_DO_MARCO,
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
@@ -63,6 +65,8 @@ FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
     PAPEL_REVISOR: ("Bash", "Read", "Glob", "Grep"),
     PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_VERIFICADOR_DO_MARCO: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_CONFERENCIA: ("Bash", "Read", "Glob", "Grep"),
     PAPEL_SEGUNDA_OPINIAO: (),
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"
@@ -71,7 +75,10 @@ MODELO_PADRAO: str = "opus"
 RECUOS_DO_ERRO_DA_API_S: tuple[float, ...] = (30.0, 120.0, 300.0)
 # Escrever testes de aceite não pede o Opus: na bancada, o autor custou de US$ 1,35 a
 # 2,15 por Goal, a maior parte em saída. O padrão dele é o Sonnet; `--modelo-aceite` muda.
-MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {"aceite": "sonnet", "segunda_opiniao": "sonnet"}
+# A verificação do marco e a conferência só conferem o que já está escrito (critérios, achados
+# conferidos): Sonnet. A caçada adversarial, uma vez por Goal, segue no Opus do verificador.
+MODELOS_PADRAO_POR_PAPEL: Mapping[str, str] = {PAPEL_AUTOR_DE_ACEITE: "sonnet", PAPEL_SEGUNDA_OPINIAO: "sonnet",
+                                               PAPEL_VERIFICADOR_DO_MARCO: "sonnet", PAPEL_CONFERENCIA: "sonnet"}
 
 
 def modelo_padrao(papel: str) -> str:

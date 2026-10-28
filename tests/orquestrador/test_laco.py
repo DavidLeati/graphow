@@ -10,6 +10,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoP
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco, Parada
 from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.leitura_do_goal import ler_estado
+from graphow.orquestrador.sessoes_de_papel import argumentos_do_papel
 from graphow.orquestrador.status import formatar_status
 
 from tests.orquestrador.apoio_git import git
@@ -79,8 +80,7 @@ def test_sessoes_rodam_sem_mcp_com_schema_prompt_do_pacote_e_git_travado_nominal
 
     chamadas = bancada.chamadas()
 
-    assert [c["papel"] for c in chamadas] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "verificador",
-                                       "segunda_opiniao"]
+    assert [c["papel"] for c in chamadas] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "conferencia"]
     for chamada in chamadas:
         argv = chamada["argv"]
         assert "--strict-mcp-config" in argv and "--json-schema" in argv
@@ -93,8 +93,10 @@ def test_sessoes_rodam_sem_mcp_com_schema_prompt_do_pacote_e_git_travado_nominal
     executor = chamadas[2]["argv"]
     assert executor[executor.index("--tools") + 1] == "Bash,Read,Edit,Write,Glob,Grep"
     assert "Edit" not in chamadas[4]["argv"][chamadas[4]["argv"].index("--tools") + 1]
-    opiniao = chamadas[-1]["argv"]
-    assert opiniao[opiniao.index("--tools") + 1] == "" and opiniao[opiniao.index("--model") + 1] == "sonnet"
+    conferencia = chamadas[-1]["argv"]
+    assert conferencia[conferencia.index("--tools") + 1] == "Bash,Read,Glob,Grep" and conferencia[conferencia.index("--model") + 1] == "sonnet"
+    opiniao = argumentos_do_papel("segunda_opiniao", 1.0)
+    assert opiniao[opiniao.index("--tools") + 1] == ""
 
 
 def test_briefing_do_executor_traz_criterios_decisoes_e_o_que_ja_foi_entregue_nominal(completo: tuple[Bancada, Parada]) -> None:
@@ -120,14 +122,13 @@ def test_telemetria_registra_cada_sessao_com_custo_fora_do_grafo_nominal(complet
     totais = bancada.telemetria.totais("goal-soma")
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
 
-    assert [r.papel for r in registros] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "verificador",
-                                           "segunda_opiniao"]
+    assert [r.papel for r in registros] == ["planejador", "aceite", "executor", "executor", "verificador", "executor", "conferencia"]
     assert registros[2].fatia == "task-soma-f1" and registros[2].session_id
-    assert round(totais.custo_usd, 2) == 2.51
+    assert round(totais.custo_usd, 2) == 2.50
     assert not [no for no in bancada.kernel.obter_view().listar_todos_os_nos() if no.tipo.value == "Run"]
     assert estado is not None
     linhas = "\n".join(formatar_status(estado, registros))
-    assert "Sessoes: 8 invocacao(oes) em 8 sessao(oes) | US$ 2.51" in linhas
+    assert "Sessoes: 7 invocacao(oes) em 7 sessao(oes) | US$ 2.50" in linhas
 
 
 def test_status_mostra_o_aceite_os_criterios_os_marcos_e_os_achados_nominal(completo: tuple[Bancada, Parada]) -> None:
@@ -141,7 +142,8 @@ def test_status_mostra_o_aceite_os_criterios_os_marcos_e_os_achados_nominal(comp
     assert f"Aceite: commit {estado.aceite['commit'][:12]}, `{estado.aceite['comando']}`" in linhas
     assert "Criterios: C1 atende, C2 atende" in linhas
     assert "Marco M1 (final): fatias F1, F2; verificado limpo" in linhas
-    assert any(linha.startswith("  ver-goal-soma-1 (M1): rejeitado") for linha in linhas)
+    assert any(linha.startswith("  ver-goal-soma-1 (M1, caca): rejeitado") for linha in linhas)
+    assert any(linha.startswith("  ver-goal-soma-2 (M1, conferencia): aprovado") for linha in linhas)
     assert not any(linha.startswith("Achados bloqueantes sem resolver") for linha in linhas)
 
 
@@ -240,7 +242,7 @@ def test_saida_invalida_volta_a_mesma_sessao_uma_vez_edge_case(tmp_path: Path) -
     assert "nao conferiu" in retomada["stdin"] and "talvez" in retomada["stdin"]
     registros = bancada.telemetria.listar("goal-soma")
     assert [r.retomada for r in registros if r.fatia == "task-soma-f1"] == [False, True]
-    assert round(bancada.telemetria.totais("goal-soma").custo_usd, 2) == 2.51
+    assert round(bancada.telemetria.totais("goal-soma").custo_usd, 2) == 2.50
 
 
 def test_duas_falhas_viram_pendencia_e_o_laco_para_edge_case(tmp_path: Path) -> None:

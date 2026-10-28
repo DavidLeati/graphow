@@ -219,6 +219,7 @@ def test_correcao_agrupada_que_esgota_se_divide_em_uma_por_achado_nominal(tmp_pa
 def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: Path) -> None:
     """Caso de borda (ajuste 7): a segunda opinião que cita código que não é do Goal volta a ela uma vez, e a resposta certa vale."""
     roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("parcial", [BLOQUEANTE_DO_README, ACOMPANHAMENTO]), verificacao("atende")]
     roteiro["segunda_opiniao"] = [segunda_opiniao("C9"), segunda_opiniao()]
     bancada = montar_bancada(tmp_path, roteiro)
 
@@ -227,7 +228,9 @@ def test_segunda_opiniao_fora_do_formato_ganha_uma_retomada_edge_case(tmp_path: 
     chamadas = bancada.chamadas("segunda_opiniao")
     assert len(chamadas) == 2 and "--resume" in chamadas[1]["argv"] and "codigos que nao sao do Goal: C9" in chamadas[1]["stdin"]
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
-    assert estado is not None and [a.gravidade for a in estado.verificacoes[-1].achados] == ["acompanhamento"]
+    assert estado is not None
+    assert [(a.texto("titulo"), a.gravidade) for a in estado.verificacoes[0].achados] == [
+        ("README sem exemplo", "bloqueante"), ("nome do modulo", "acompanhamento")]
 
 
 # A sonda negativa que sai com erro de propósito: o verificador a rodou, mas ela não reproduz o achado.
@@ -241,7 +244,9 @@ def test_correcao_leva_o_comando_que_falhou_roda_em_opus_e_ve_a_tentativa_anteri
     reprovou = {**verificacao("atende", [em_soma]), "bash": [{"comando": "python -c 'print(somar(-2, -3))'", "codigo": 1,
                                                             "saida": "AssertionError: -5"}, SONDA_NEGATIVA]}
     roteiro = roteiro_completo()
-    roteiro["verificador"] = [reprovou, copy.deepcopy(reprovou), verificacao("atende")]
+    persiste = copy.deepcopy(reprovou)
+    persiste["saida"]["achados"][0]["persiste"] = "achado-goal-soma-v1-1"
+    roteiro["verificador"] = [reprovou, persiste, verificacao("atende")]
     roteiro["executor"] = [*roteiro["executor"][:2], executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # 1\n"}),
                            executor_pronto({"soma.py": "def somar(a, b):\n    return a + b  # 2\n"})]
     bancada = montar_bancada(tmp_path, roteiro)

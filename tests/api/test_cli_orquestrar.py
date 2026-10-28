@@ -14,7 +14,7 @@ from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_MAIS_CICLOS, NovoPedido, PedidoRecusado, gravar_pedido
 from graphow.storage.localizador_banco import AmbienteEmMemoria, LocalizadorBancoEventos
 
-from tests.orquestrador.apoio_laco import CLAUDE_ROTEIRIZADO, montar_bancada, roteiro_completo
+from tests.orquestrador.apoio_laco import CLAUDE_ROTEIRIZADO, montar_bancada, roteiro_completo, roteiro_em_dois_marcos_com_um_ciclo_cada
 
 
 def _executavel(pasta: Path) -> Path:
@@ -57,7 +57,30 @@ def test_orquestrar_da_spec_fecha_o_goal_e_o_status_mostra_o_custo_nominal(tmp_p
     assert (tmp_path / "dados" / "orquestrar" / "goal-soma" / "sessoes").is_dir()
     assert codigo_do_status == 0
     assert status[1].startswith("Goal goal-soma: Soma de dois numeros [fechado]")
-    assert any(linha.startswith("Sessoes: 8 invocacao(oes)") and "US$ 2.51" in linha for linha in status)
+    assert any(linha.startswith("Sessoes: 7 invocacao(oes)") and "US$ 2.50" in linha for linha in status)
+
+
+def test_comando_montado_pela_cli_usa_sonnet_no_marco_e_na_conferencia_e_opus_na_cacada_nominal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T2d.4: com os padroes da CLI, o `--model` das sessoes e sonnet no marco e na conferencia e opus na cacada."""
+    bancada = montar_bancada(tmp_path, roteiro_em_dois_marcos_com_um_ciclo_cada())
+    monkeypatch.setenv("GRAPHOW_CLAUDE", str(_executavel(tmp_path / "bin")))
+    monkeypatch.setenv("GRAPHOW_TESTE_ROTEIRO", str(bancada.roteiro))
+    monkeypatch.setenv("GRAPHOW_TESTE_REGISTRO", str(bancada.registro))
+    banco = tmp_path / "dados" / "graphow.db"
+    argumentos = ["--db", str(banco), "orquestrar", "--spec", str(bancada.spec), "--repo", str(bancada.repositorio), "--modo", "autonomo"]
+
+    codigo, linhas = _rodar(argumentos, tmp_path / "dados")
+    _, status = _rodar(["--db", str(banco), "orquestrar", "--goal", "goal-soma", "--status"], tmp_path / "dados")
+
+    assert codigo == 0, linhas
+    modelos = [(c["papel"], c["argv"][c["argv"].index("--model") + 1]) for c in bancada.chamadas()
+               if c["papel"] in ("marco", "conferencia", "verificador")]
+    assert modelos == [("marco", "sonnet"), ("conferencia", "sonnet"), ("verificador", "opus"), ("conferencia", "sonnet")]
+    padroes = construir_parser().parse_args(["orquestrar", "--goal", "g"])
+    assert (padroes.modelo_marco, padroes.modelo_conferencia, padroes.modelo_verificador) == ("sonnet", "sonnet", "opus")
+    assert sum("conferencia" in linha for linha in status if linha.startswith("  ver-goal-soma-")) == 2, status
 
 
 def test_status_de_goal_que_nao_existe_sai_com_1_edge_case(tmp_path: Path) -> None:

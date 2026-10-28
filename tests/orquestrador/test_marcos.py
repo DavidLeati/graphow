@@ -47,8 +47,8 @@ def test_cada_marco_tem_o_verificador_dele_e_o_ultimo_e_o_final_nominal(tmp_path
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
     assert parada.fechou, parada.mensagem
-    assert [c["papel"] for c in bancada.chamadas()] == ["planejador", "aceite", "executor", "verificador", "executor", "verificador"]
-    do_marco, final = (chamada["stdin"] for chamada in bancada.chamadas("verificador"))
+    assert [c["papel"] for c in bancada.chamadas()] == ["planejador", "aceite", "executor", "marco", "executor", "verificador"]
+    do_marco, final = bancada.chamadas("marco")[0]["stdin"], bancada.chamadas("verificador")[0]["stdin"]
     assert "verificacao do marco M1 (Soma), fatias F1" in do_marco
     assert "- C1 (teste)" in do_marco and "- C2 (checagem)" not in do_marco
     assert "verificacao final (M2), sobre o Goal inteiro" in final and "- C2 (checagem)" in final
@@ -108,6 +108,11 @@ def test_marco_intermediario_roda_de_novo_o_aceite_dos_marcos_anteriores_edge_ca
     assert [f.codigo for f in estado.fatias] == ["F1", "F2", "F3", "M2.K1.1"]
 
 
+def _persiste(achado: dict[str, Any], numero: int) -> dict[str, Any]:
+    """O achado que a conferência acha de novo: o primeiro bloqueante da verificação de número dado persiste."""
+    return {**achado, "persiste": f"achado-goal-soma-v{numero}-1"}
+
+
 def _soma(n: int) -> dict[str, Any]:
     """Uma correção que reescreve a soma, marcada com o número dela."""
     return executor_pronto({"soma.py": f"def somar(a, b):\n    return a + b  # {n}\n"})
@@ -116,7 +121,8 @@ def _soma(n: int) -> dict[str, Any]:
 def test_marco_que_esgota_os_ciclos_segue_e_a_final_cobra_o_bloqueante_dele_edge_case(tmp_path: Path) -> None:
     """Caso de borda (bancada B): M1 esgota os dois ciclos com bloqueante; F2 roda mesmo assim, e a final o corrige e fecha."""
     bloqueante_em_c1 = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring", "local": "soma.py:1", "criterios": ["C1"]}
-    verificacoes = [verificacao("atende", [bloqueante_em_c1]) for _ in range(3)] + [verificacao("atende") for _ in range(2)]
+    verificacoes = [verificacao("atende", [bloqueante_em_c1]), verificacao("atende", [_persiste(bloqueante_em_c1, 1)]),
+                    verificacao("atende", [_persiste(bloqueante_em_c1, 2)])] + [verificacao("atende") for _ in range(2)]
     roteiro = _roteiro_em_dois_marcos(verificacoes)
     roteiro["executor"] = [roteiro["executor"][0], _soma(1), _soma(2), roteiro["executor"][1], _soma(3)]
     bancada = montar_bancada(tmp_path, roteiro)
@@ -136,7 +142,9 @@ def test_marco_que_esgota_os_ciclos_segue_e_a_final_cobra_o_bloqueante_dele_edge
 def test_final_que_esgota_os_ciclos_para_com_os_bloqueantes_abertos_edge_case(tmp_path: Path) -> None:
     """Caso de borda: a final segue com bloqueante depois dos dois ciclos dela; o laço para, e o kernel não fecha."""
     bloqueante_em_c1 = {**BLOQUEANTE_DO_README, "titulo": "somar sem docstring", "criterios": ["C1"]}
-    roteiro = _roteiro_em_dois_marcos([verificacao("atende")] + [verificacao("atende", [bloqueante_em_c1]) for _ in range(3)])
+    roteiro = _roteiro_em_dois_marcos([verificacao("atende"), verificacao("atende", [bloqueante_em_c1]),
+                                       verificacao("atende", [_persiste(bloqueante_em_c1, 2)]),
+                                       verificacao("atende", [_persiste(bloqueante_em_c1, 3)])])
     roteiro["executor"] += [_soma(1), _soma(2)]
     bancada = montar_bancada(tmp_path, roteiro)
 

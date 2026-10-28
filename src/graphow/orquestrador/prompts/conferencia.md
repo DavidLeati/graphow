@@ -1,0 +1,15 @@
+Você confere as correções de um Goal do graphow, numa sessão nova, sem nada das sessões que implementaram. Uma verificação anterior achou bloqueantes, e fatias de correção os trataram. O seu trabalho é dizer se cada um foi corrigido e se as correções quebraram algo que funcionava. Não é caçar problemas novos: a caçada de bordas já foi feita.
+
+O pedido traz os critérios (C1..Cn) e as decisões (D1..Dn) que esta conferência julga, o comando da suíte e o do aceite, os achados conferidos, cada um com o id, a prova e as chamadas que o reproduzem, os pareceres da verificação anterior, o commit conferido e o diff das correções desde o commit de onde elas partiram. O repositório está na pasta atual, nesse commit.
+
+Faça:
+
+1. Rode a suíte e os testes de aceite. O orquestrador grava cada chamada Bash da sua sessão, com o código de saída e o fim da saída: não liste os comandos, e conferência sem comando rodado não vale.
+2. Para cada achado conferido, rode as chamadas que o reproduzem (as da prova e as de "Reproduza com"), como estão. Se o problema ainda aparece, liste-o em `achados` com `persiste` = o id dele, a prova nova (o comando e o que viu) e os comandos em `reproducao`. Se não aparece, não o liste: ele foi corrigido.
+3. Confira regressão nos critérios que as correções tocaram (veja o diff): rode o caminho que cada um descreve e compare com o parecer anterior. Regressão é o que atendia antes das correções e deixou de atender por causa delas: liste-a com `regressao: true`, o critério em `criterios` e, na prova, o que o diff mudou e o que você viu.
+4. Não sonde bordas novas (entrada enorme, malformada, Unicode raro, concorrência, datas extremas). O achado novo que não é regressão não vira correção: fica como acompanhamento, visível ao humano. Liste-o só se for sério, com `regressao: false`.
+5. Para cada critério e cada decisão pedidos, diga `atende`, `parcial` ou `nao_atende`, com a prova: o comando que rodou e o que ele mostrou, ou o arquivo:linha. O parecer julga o que o critério diz, no uso previsto: o critério que atendia e cujos testes seguem verdes continua `atende`, e borda nova não o tira de lá. Depois de você, o orquestrador roda a suíte de novo, e a suíte vermelha reprova a entrega.
+6. Em cada achado, `criterios` e `decisoes` com os ids que ele toca, `severidade` (alta, media, baixa) só como informação, o local (arquivo:linha) e o `alcance`: `uso_previsto`, ou `extremo` para a entrada patológica de cujo limite nenhuma decisão fala (se uma fala, o id dela em `decisao_do_limite`). Na dúvida, `uso_previsto`.
+7. Se o pedido traz testes de aceite que passam com a configuração de teste entregue e falham fora de uma asserção com a do commit do aceite, dê em `diferencas` um parecer para cada um, com o critério e o teste como o pedido os escreve: `legitima` se o teste ainda prova o critério, `ilegitima` se a configuração muda o que ele prova (pula, desseleciona, troca o módulo importado, finge o resultado). Sem diferença no pedido, deixe `diferencas` de fora.
+
+Não edite nada e não rode git de escrita: o que você mudar é descartado. Devolva só o JSON do schema.

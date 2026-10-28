@@ -976,9 +976,27 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    pendência e para o laço, menos na correção agrupada, que se divide numa
    fatia por achado. O que não vira commit vai para um `.patch` e sai da
    área.
-6. **Verificação por marco.** Com as fatias do marco concluídas, uma sessão
+6. **Verificação por marco.** A verificação tem três tipos, cada um com
+   prompt, schema e modelo próprios (`orquestrador/tipo_da_verificacao.py`):
+   a do **marco** intermediário (`marco`, Sonnet), a primeira dele, confere só
+   os critérios do marco, rodando os testes e o programa, sem sondar bordas;
+   a **caçada** (`caca`, Opus), adversarial e com sondagem de bordas, roda uma
+   vez, na primeira verificação final, sobre o Goal inteiro; e a
+   **conferência** (`conferencia`, Sonnet) roda depois de cada ciclo de
+   correção, em qualquer marco, com um briefing curto (os achados que as
+   correções trataram, as provas e as chamadas que os reproduzem, os pareceres
+   de antes e o diff das correções): roda a suíte e o aceite, reproduz cada
+   achado e confere regressão nos critérios que as correções tocaram. Na
+   conferência, o achado que persiste (`persiste`, o id dele) é bloqueante, a
+   regressão de critério (`regressao`) segue a regra de sempre, e o achado novo
+   que não é regressão vira acompanhamento marcado "achado novo da
+   conferencia, sem regressao", sem segunda opinião (na bancada de 12/10, cada
+   verificação depois de uma correção era outra caçada, que achava bordas
+   novas, e o laço não convergia). O tipo vai na verificação e no `--status`,
+   e a conferência final limpa no commit atual vale como a verificação final.
+   Com as fatias do marco concluídas, uma sessão
    nova do verificador, sem nada de quem implementou, roda a suíte, os testes de
-   aceite e o programa de verdade, executa as checagens, sonda as bordas que os
+   aceite e o programa de verdade, executa as checagens, na caçada sonda as bordas que os
    critérios implicam (negativo, zero, vazio, enorme, codificação, Unicode,
    concorrência, Windows, código de saída, idioma) e dá um parecer por critério
    que o marco julga (na final, todos, e todas as decisões), com prova (o
@@ -1096,8 +1114,10 @@ nunca exceção.
 | Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
 
 Modelo por papel: `--modelo-planejador`, `--modelo-aceite`, `--modelo-executor`,
-`--modelo-revisor`, `--modelo-verificador` e `--modelo-segunda_opiniao`, Opus
-por padrão, menos o autor de aceite e a segunda opinião, Sonnet (`sugerido` no
+`--modelo-revisor`, `--modelo-verificador` (a caçada), `--modelo-marco`,
+`--modelo-conferencia` e `--modelo-segunda_opiniao`, Opus
+por padrão, menos o autor de aceite, a verificação do marco, a conferência e a
+segunda opinião, Sonnet (`sugerido` no
 executor segue o modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 `--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
 Goal (o clone da área, os streams das sessões, os patches e a trava do git) fica
