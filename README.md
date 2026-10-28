@@ -965,8 +965,8 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    (conftest, pytest.ini, a seção de teste do pyproject e do setup.cfg,
    tox.ini, os scripts de teste do package.json, jest, vitest, mocha,
    sitecustomize, `.pth`, um `pytest.py` na raiz) o executor pode mudar, e a
-   suíte do plano roda com ela; mas os testes de aceite rodam sempre com esses
-   arquivos de volta ao commit do aceite e `aceite/` intocado
+   suíte do plano e os testes de aceite rodam com ela, com `aceite/` intocado;
+   quando ela mudou, o aceite roda também com a do commit do aceite
    (`orquestrador/configuracao_do_aceite.py`), e a mudança que o plano não
    declarou na fatia só manda a fatia à revisão de risco, como sinal. As
    flags `skip-worktree` e `assume-unchanged` do índice saem e reprovam a
@@ -991,9 +991,12 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    que não rodou nenhum volta uma vez (na bancada, conferir os comandos que o
    verificador declarava custou quatro retomadas num Goal só). Depois, o
    próprio orquestrador roda, no commit verificado, com `aceite/` de volta ao
-   commit do aceite e a configuração de teste daquele commit, a suíte e os
-   testes de aceite dos critérios que os marcos até este completaram (os dos
-   anteriores, como regressão; na final, também todos de uma vez e a suíte
+   commit do aceite e a configuração de teste entregue (e, se ela mudou, também
+   com a daquele commit: o teste que só passa com a entregue e, com a do
+   aceite, falha numa asserção reprova o critério; o que falha por import vai
+   ao verificador, que deve um parecer), a suíte e os testes de aceite dos
+   critérios que os marcos até este completaram (os dos anteriores, como
+   regressão; na final, também todos de uma vez e a suíte
    junto com eles, num comando só, com a configuração do projeto): a suíte
    vermelha é bloqueante, e o teste de aceite que não passa (o pulado e o xfail
    inclusive) reprova o critério dele, diga o verificador o que disser. **A gravidade é do código**: o verificador diz, por
@@ -1077,7 +1080,7 @@ nunca exceção.
 | :--- | :--- |
 | Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
 | Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez (o autor de aceite, duas) |
-| O aceite prova o que diz | O teste de aceite roda da cópia do commit do aceite, sem arquivo solto do executor, com a configuração de teste entregue e, quando ela mudou, também com a do commit do aceite (o teste que muda de resultado vai ao verificador julgar), e conta como verde só quando a saída do runner diz que passou sem pular; o kernel recusa toda reescrita do livro do aceite (a verificação, o `Achado`, o `Criterio`, a ponta, o fechamento) |
+| O aceite prova o que diz | O teste de aceite roda da cópia do commit do aceite, sem arquivo solto do executor, com a configuração de teste entregue e, quando ela mudou, também com a do commit do aceite (o teste que só passa com a entregue reprova o critério quando, com a do commit do aceite, falha numa asserção; quando falha por import ou coleta, o verificador deve um parecer `legitima` ou `ilegitima`), e conta como verde só quando a saída do runner diz que passou sem pular; o kernel recusa toda reescrita do livro do aceite (a verificação, o `Achado`, o `Criterio`, a ponta, o fechamento) |
 | O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal e o fast-forward da integração). Dentro do clone, três camadas em profundidade (`orquestrador/trava_do_git.py`): as regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push; o ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`; e, depois de cada sessão, o clone volta ao que era (a branch do Goal no commit de antes, com o commit que escapou de volta à árvore por `reset --soft`, as outras refs, a configuração e os hooks), sem reprovar a sessão, porque no clone só o agente mexe. Nada fora do clone é conferido nem desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |

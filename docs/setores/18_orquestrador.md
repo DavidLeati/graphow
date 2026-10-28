@@ -10,15 +10,15 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-46 módulos · 7934 linhas · 64 classes
+46 módulos · 8093 linhas · 65 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 212 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
-| [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 98 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
+| [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 195 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 304 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 305 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -26,7 +26,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 135 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 175 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 183 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 339 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
@@ -47,7 +47,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 293 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 190 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 241 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 75 | A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 350 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -57,7 +57,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 220 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 222 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 93 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
 ## `orquestrador/aceite_intocado.py`
@@ -92,16 +92,23 @@ O aceite que o orquestrador roda no commit verificado: com a configuração entr
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LIMITE_DO_MOTIVO` | `int` | `300` |
+| `LIMITE_DE_CADA_SAIDA` | `int` | `900` |
+| `DESTINO_DO_CODIGO` | `str` | `'achado_automatico'` |
+| `DESTINO_DO_VERIFICADOR` | `str` | `'verificador'` |
 
 ### `AceiteNoCommit`
 
 *DTO imutável* — As execuções do aceite com a configuração entregue e, quando ela mudou, com a do commit do aceite.
 
-**Campos:** `execucoes: tuple[ExecucaoDeAceite, ...]`, `com_a_do_aceite: tuple[ExecucaoDeAceite, ...]`, `trocados: tuple[str, ...]`
+**Campos:** `execucoes: tuple[ExecucaoDeAceite, ...]`, `com_a_do_aceite: tuple[ExecucaoDeAceite, ...]`, `trocados: tuple[str, ...]`, `commit: str`
 
-- `diferencas() -> tuple[tuple[ExecucaoDeAceite, ExecucaoDeAceite], ...]` — Cada teste que passou numa configuração e não na outra: (com a entregue, com a do aceite).
-- `diferencas_em_json() -> list[dict[str, Any]]` — As diferenças como a verificação as grava.
-- `para_o_verificador() -> list[str]` — As diferenças para o verificador julgar, com os arquivos de configuração que mudaram.
+- `diferencas() -> tuple[Par, ...]` — Cada teste que passou numa configuração e não na outra: (com a entregue, com a do aceite).
+- `escondidas() -> tuple[Par, ...]` — Os que, com a configuração do aceite, falham numa asserção: a entregue esconde uma falha real.
+- `a_julgar() -> tuple[Par, ...]` — Os que, com a configuração do aceite, falham por import, coleta ou ambiente: vão ao verificador.
+- `chaves_a_julgar() -> tuple[tuple[str, str], ...]` — O critério e o teste de cada diferença que pede o parecer do verificador.
+- `diferencas_em_json(pareceres: Sequence[ParecerDaDiferenca]) -> list[dict[str, Any]]` — As diferenças como a verificação as grava, com quem as julgou e o parecer do verificador, quando houve.
+- `para_o_verificador() -> list[str]` — As diferenças que o verificador julga, com o fim das duas saídas, o commit do aceite e o que mudou.
+- `julgar(verificacao: Verificacao) -> Verificacao` — A verificação com o que as diferenças decidem: a falha escondida reprova o critério, e o `ilegitima` vira bloqueante.
 
 ### Funções do módulo
 
@@ -383,6 +390,7 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `ESQUEMA_DA_EXECUCAO_AUTONOMA` | `dict[str, Any]` | `{**ESQUEMA_DA_EXECUCAO, 'properties': {**ESQUEMA_DA_EXECUCAO['propertie…` |
 | `PARECER` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'veredito': {'type': 'string', 'enum': list(VERED…` |
 | `ACHADO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
+| `PARECER_DA_DIFERENCA` | `dict[str, Any]` | `_objeto({'criterio': TEXTO_LIVRE, 'teste': TEXTO, 'parecer': {'type': '…` |
 | `ESQUEMA_DA_VERIFICACAO` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'criterios': _lista_de(PARECER, 1), 'decisoes…` |
 | `ESQUEMA_DA_SEGUNDA_OPINIAO` | `dict[str, Any]` | `_objeto({'criterios': LISTA_DE_TEXTOS, 'decisoes': LISTA_DE_TEXTOS, 'mo…` |
 | `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_…` |
@@ -1083,6 +1091,9 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 | `ORIGEM_DA_REVISAO` | `str` | `'revisao_de_risco'` |
 | `TITULO_DA_SUITE_VERMELHA` | `str` | `'A suite do plano falhou no commit verificado'` |
 | `LIMITE_DA_PROVA` | `int` | `2000` |
+| `PARECER_LEGITIMA` | `str` | `'legitima'` |
+| `PARECER_ILEGITIMA` | `str` | `'ilegitima'` |
+| `PARECERES_DA_DIFERENCA` | `tuple[str, ...]` | `(PARECER_LEGITIMA, PARECER_ILEGITIMA)` |
 
 ### `Achado`
 
@@ -1109,11 +1120,21 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 
 **Campos:** `id: str`, `veredito: str`, `prova: str`
 
+### `ParecerDaDiferenca`
+
+*DTO imutável* — O que o verificador julgou de um teste de aceite que só passa com a configuração entregue.
+
+**Campos:** `criterio: str`, `teste: str`, `parecer: str`, `motivo: str`
+
+- `chave() -> tuple[str, str]` `[property]` — O critério e o teste, como a diferença os tem.
+- `em_json() -> dict[str, str]` — O parecer para gravar com a diferença.
+- `de_json(dados: Mapping[str, Any]) -> 'ParecerDaDiferenca'` — O parecer como o verificador o devolveu.
+
 ### `Verificacao`
 
 *DTO imutável* — O que o verificador devolveu de um marco, ou do Goal inteiro na verificação final.
 
-**Campos:** `resumo: str`, `criterios: tuple[Parecer, ...]`, `decisoes: tuple[Parecer, ...]`, `achados: tuple[Achado, ...]`, `comandos: tuple[ComandoRodado, ...]`
+**Campos:** `resumo: str`, `criterios: tuple[Parecer, ...]`, `decisoes: tuple[Parecer, ...]`, `achados: tuple[Achado, ...]`, `comandos: tuple[ComandoRodado, ...]`, `diferencas: tuple[ParecerDaDiferenca, ...]`
 
 - `de_json(dados: Mapping[str, Any]) -> 'Verificacao'` — A verificação como o verificador a devolveu.
 - `com_achado_do_orquestrador(titulo: str, descricao: str, criterios: tuple[str, ...]) -> 'Verificacao'` — A verificação com o que o orquestrador viu falhar no commit verificado (a suíte, um teste de aceite).
@@ -1124,7 +1145,7 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 
 ### Funções do módulo
 
-- `conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]` — Um parecer por critério e por decisão pedidos e achado que toca só o que pode tocar (os comandos vêm do stream).
+- `conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]` — Um parecer por critério, por decisão e por diferença de configuração pedidos, e achado que toca só o que pode tocar.
 
 ## `orquestrador/saidas.py`
 

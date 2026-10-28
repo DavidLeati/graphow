@@ -10,8 +10,9 @@ mudou, também com a do commit do aceite (orquestrador/aceite_no_commit.py).
 Depois, uma sessão nova do verificador confere a entrega: julga os critérios
 que o marco completou (no último marco, a verificação final, todos os
 critérios e todas as decisões, sobre o Goal inteiro), roda a suíte e o
-programa, sonda as bordas e julga a diferença entre as duas configurações,
-quando há. Os comandos que ele rodou o orquestrador tira do stream da sessão,
+programa, sonda as bordas e dá um parecer sobre cada diferença entre as duas
+configurações que o código não decidiu sozinho (orquestrador/aceite_no_commit.py).
+Os comandos que ele rodou o orquestrador tira do stream da sessão,
 com o código de saída e um trecho da saída, e grava na verificação. Por fim o
 orquestrador roda a suíte do plano (sem os testes de aceite): a suíte vermelha
 é bloqueante, e o teste de aceite vermelho com a configuração entregue reprova
@@ -82,13 +83,13 @@ def _registro(
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
     registro = RegistroDaVerificacao(
-        numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, aceite.execucoes), commit=head,
+        numero=len(estado.verificacoes) + 1, verificacao=aceite.julgar(_com_o_aceite(verificacao, aceite.execucoes)), commit=head,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(estado.plano or {}),
         ciclo=estado.ciclos_do_marco(marco), final=marco.final, marco=marco.id,
         aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco),
         tirado_antes_do_aceite=tuple(dict.fromkeys(tirado)), configuracao_do_aceite=aceite.trocados,
         aceite_com_a_configuracao_do_aceite=[execucao.em_json() for execucao in aceite.com_a_do_aceite],
-        diferencas_de_configuracao=aceite.diferencas_em_json(),
+        diferencas_de_configuracao=aceite.diferencas_em_json(verificacao.diferencas),
     )
     return replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
 
@@ -173,7 +174,8 @@ def _sessao_do_verificador(
             briefing=briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
                                              diferencas=aceite.para_o_verificador()),
             conferir=lambda dados: conferir_verificacao(
-                Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes)
+                Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes),
+                diferencas=aceite.chaves_a_julgar(),
             ),
             orcamento_restante_usd=contexto.restante(), exige_bash=True,
         )

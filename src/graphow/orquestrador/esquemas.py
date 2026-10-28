@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from graphow.core import aceite as a
+from graphow.orquestrador.saida_do_verificador import PARECERES_DA_DIFERENCA
 
 PAPEL_PLANEJADOR: str = "planejador"
 # O autor de aceite: uma sessão separada do executor, depois do plano, que escreve os testes de aceite.
@@ -148,14 +149,21 @@ ACHADO: dict[str, Any] = _objeto(
     },
     opcionais=("reproducao",),
 )
+# O parecer sobre o teste de aceite que só passa com a configuração entregue (orquestrador/aceite_no_commit.py).
+PARECER_DA_DIFERENCA: dict[str, Any] = _objeto(
+    {"criterio": TEXTO_LIVRE, "teste": TEXTO, "parecer": {"type": "string", "enum": list(PARECERES_DA_DIFERENCA)}, "motivo": PROVA}
+)
 # O verificador não declara mais os comandos: o orquestrador os tira do stream (orquestrador/comandos_do_stream.py).
+# `diferencas` é opcional no schema, que é o mesmo em toda verificação; a falta do parecer pedido a conferência acusa.
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
     {
         "resumo": TEXTO,
         "criterios": _lista_de(PARECER, 1),
         "decisoes": _lista_de(PARECER),
         "achados": _lista_de(ACHADO),
-    }
+        "diferencas": _lista_de(PARECER_DA_DIFERENCA),
+    },
+    opcionais=("diferencas",),
 )
 
 ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto({"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "motivo": TEXTO})

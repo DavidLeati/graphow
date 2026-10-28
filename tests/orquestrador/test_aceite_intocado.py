@@ -176,58 +176,6 @@ def test_aceite_em_python_roda_sem_a_pasta_atual_no_caminho_edge_case(comando: s
     assert sa.sem_a_pasta_atual(comando) == esperado
 
 
-# O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol. Com o
-# `-P` do aceite a raiz não entra sozinha: o teste a põe no fim do caminho, e o `pythonpath` do pytest vem antes dela.
-ACEITE_PELO_CAMINHO_DO_PYTEST: str = (
-    '"""C1: somar(2, 3) devolve 5."""\nimport sys\n\nsys.path.append(".")\n\n\n'
-    "def test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n"
-)
-LAYOUT_SRC: dict[str, str] = {
-    "soma.py": SOMA_ERRADA, "src/soma.py": SOMA_CERTA, "pyproject.toml": '[tool.pytest.ini_options]\npythonpath = ["src"]\n',
-    "verificar.py": "import sys\nsys.path.insert(0, 'src')\nfrom soma import somar\nassert somar(2, 3) == 5\nprint('ok')\n",
-}
-
-
-def test_layout_src_que_o_repositorio_entregue_aprova_fecha_e_a_diferenca_vai_ao_verificador_nominal(tmp_path: Path) -> None:
-    """Rodada 4, item 2 (sonda_isol): o aceite com a configuração entregue aprova o layout `src/`; a do commit do aceite, não.
-
-    O critério vale pela configuração entregue, e o Goal fecha; a diferença fica
-    gravada na verificação e vai ao verificador, que a julgou legítima.
-    """
-    roteiro = _roteiro(executor_pronto(LAYOUT_SRC))
-    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
-    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2]]
-    bancada = montar_bancada(tmp_path, roteiro)
-
-    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
-
-    assert parada.fechou, parada.mensagem
-    final = ler_estado(bancada.kernel.obter_view(), "goal-soma").verificacoes[-1].propriedades
-    assert {(e["teste"], e["passou"]) for e in final["aceite_do_orquestrador"]} >= {("test_c1_soma", True)}
-    assert [(e["teste"], e["passou"]) for e in final["aceite_com_a_configuracao_do_aceite"]][0] == ("test_c1_soma", False)
-    assert final["configuracao_do_aceite"] == ["pyproject.toml"]
-    diferencas = {(d["teste"], d["com_a_entregue"], d["com_a_do_aceite"]) for d in final["diferencas_de_configuracao"]}
-    assert ("test_c1_soma", True, False) in diferencas
-    assert "Julgue se a mudanca e legitima" in bancada.chamadas("verificador")[0]["stdin"]
-
-
-def test_diferenca_que_o_verificador_julga_ilegitima_vira_bloqueante_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: o verificador que julga a mudança de configuração ilegítima registra o achado em C1, e o código o faz bloqueante."""
-    roteiro = _roteiro(executor_pronto(LAYOUT_SRC))
-    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
-    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto({"notas.txt": "x\n"})]
-    ilegitima = {"titulo": "pythonpath troca o modulo que o aceite importa", "descricao": "o aceite de C1 importa src/soma.py",
-                 "prova": "`python -m pytest aceite` passa so com o pythonpath novo", "local": "pyproject.toml:2", "criterios": ["C1"],
-                 "decisoes": [], "severidade": "alta"}
-    roteiro["verificador"] = [verificacao("atende", [ilegitima]), verificacao("atende")]
-    bancada = montar_bancada(tmp_path, roteiro)
-
-    bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
-
-    primeira = ler_estado(bancada.kernel.obter_view(), "goal-soma").verificacoes[0]
-    assert [(a.texto("titulo"), a.gravidade) for a in primeira.achados] == [("pythonpath troca o modulo que o aceite importa", "bloqueante")]
-
-
 def test_mudanca_fora_da_parte_de_teste_do_pyproject_passa_direto_nominal(tmp_path: Path) -> None:
     """O pyproject que só ganha o nome do projeto não é configuração de teste: a fatia entra na primeira, sem revisão."""
     bancada = montar_bancada(tmp_path, _roteiro(executor_pronto({**FATIA_CERTA, "pyproject.toml": '[project]\nname = "b"\n'})))

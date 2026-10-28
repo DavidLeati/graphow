@@ -11,6 +11,12 @@ defeito que "já existia antes"; só o que não toca nada é acompanhamento. O q
 o próprio orquestrador viu falhar (a suíte, o teste de aceite) é bloqueante
 por origem. A `severidade` que o verificador sugere fica gravada, informativa,
 e não muda o destino.
+
+Quando a configuração de teste entregue faz passar um teste de aceite que a do
+commit do aceite reprova fora de uma asserção (import, coleta, ambiente), o
+verificador julga a diferença: cada uma pede um parecer, `legitima` ou
+`ilegitima`, com o motivo, e faltar parecer é saída inválida
+(orquestrador/aceite_no_commit.py).
 """
 
 from collections.abc import Mapping, Sequence
@@ -25,6 +31,9 @@ ORIGEM_DA_REVISAO: str = "revisao_de_risco"
 TITULO_DA_SUITE_VERMELHA: str = "A suite do plano falhou no commit verificado"
 # Quanto do fim da saída vai como prova do achado que o orquestrador registra.
 LIMITE_DA_PROVA: int = 2000
+PARECER_LEGITIMA: str = "legitima"
+PARECER_ILEGITIMA: str = "ilegitima"
+PARECERES_DA_DIFERENCA: tuple[str, ...] = (PARECER_LEGITIMA, PARECER_ILEGITIMA)
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -39,6 +48,31 @@ class Parecer:
     id: str
     veredito: str
     prova: str
+
+
+@dataclass(frozen=True)
+class ParecerDaDiferenca:
+    """O que o verificador julgou de um teste de aceite que só passa com a configuração entregue."""
+
+    criterio: str
+    teste: str
+    parecer: str
+    motivo: str
+
+    @property
+    def chave(self) -> tuple[str, str]:
+        """O critério e o teste, como a diferença os tem."""
+        return (self.criterio, self.teste)
+
+    def em_json(self) -> dict[str, str]:
+        """O parecer para gravar com a diferença."""
+        return {"parecer": self.parecer, "motivo_do_parecer": self.motivo}
+
+    @classmethod
+    def de_json(cls, dados: Mapping[str, Any]) -> "ParecerDaDiferenca":
+        """O parecer como o verificador o devolveu."""
+        return cls(str(dados.get("criterio", "")).strip(), str(dados["teste"]).strip(), str(dados["parecer"]),
+                   str(dados["motivo"]).strip())
 
 
 @dataclass(frozen=True)
@@ -120,6 +154,7 @@ class Verificacao:
     decisoes: tuple[Parecer, ...] = ()
     achados: tuple[Achado, ...] = field(default_factory=tuple)
     comandos: tuple[ComandoRodado, ...] = ()
+    diferencas: tuple[ParecerDaDiferenca, ...] = ()
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Verificacao":
@@ -130,6 +165,7 @@ class Verificacao:
             decisoes=tuple(_parecer(item) for item in dados.get("decisoes", [])),
             achados=tuple(Achado.de_json(item) for item in dados["achados"]),
             comandos=_comandos(dados.get("comandos")),
+            diferencas=tuple(ParecerDaDiferenca.de_json(item) for item in dados.get("diferencas", [])),
         )
 
     def com_achado_do_orquestrador(self, titulo: str, descricao: str, criterios: tuple[str, ...] = ()) -> "Verificacao":
@@ -169,12 +205,13 @@ def _lados(id_parecer: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 
 
 def conferir_verificacao(
-    verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str], *, conhecidos: Sequence[str] | None = None
+    verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str], *, conhecidos: Sequence[str] | None = None,
+    diferencas: Sequence[tuple[str, str]] = (),
 ) -> tuple[str, ...]:
-    """Um parecer por critério e por decisão pedidos e achado que toca só o que pode tocar (os comandos vêm do stream).
+    """Um parecer por critério, por decisão e por diferença de configuração pedidos, e achado que toca só o que pode tocar.
 
     O que o achado pode tocar é o que a verificação julga, ou, quando dito, os
-    critérios já entregues e as decisões (`conhecidos`).
+    critérios já entregues e as decisões (`conhecidos`). Os comandos vêm do stream.
     """
     dados = [parecer.id for parecer in verificacao.criterios]
     dadas = [parecer.id for parecer in verificacao.decisoes]
@@ -187,4 +224,18 @@ def conferir_verificacao(
             f"o achado '{achado.titulo}' toca {id_c}, que nao e criterio nem decisao desta verificacao"
             for achado in verificacao.achados for id_c in achado.toca if id_c not in tocaveis
         ),
+        *_conferir_diferencas(verificacao.diferencas, diferencas),
+    )
+
+
+def _conferir_diferencas(dados: Sequence[ParecerDaDiferenca], pedidas: Sequence[tuple[str, str]]) -> tuple[str, ...]:
+    """Um parecer por diferença pedida, sem repetir e sem parecer de diferença que o pedido não trouxe."""
+    chaves = [parecer.chave for parecer in dados]
+    return (
+        *(f"falta o parecer da diferenca de configuracao do teste {teste} de {criterio or 'todos'}"
+          for criterio, teste in pedidas if (criterio, teste) not in chaves),
+        *(f"parecer da diferenca do teste {teste} de {criterio or 'todos'} repetido"
+          for criterio, teste in sorted({c for c in chaves if chaves.count(c) > 1})),
+        *(f"o parecer da diferenca do teste {teste} de {criterio or 'todos'} nao corresponde a nenhuma diferenca do pedido"
+          for criterio, teste in chaves if (criterio, teste) not in pedidas),
     )
