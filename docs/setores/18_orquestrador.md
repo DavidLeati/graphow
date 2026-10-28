@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-46 módulos · 8096 linhas · 65 classes
+46 módulos · 8140 linhas · 65 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -26,7 +26,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 135 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 183 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 188 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 339 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
@@ -47,9 +47,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 293 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 241 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 274 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 75 | A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem. |
+| [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 81 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 350 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
@@ -389,10 +389,11 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `ESQUEMA_DA_EXECUCAO` | `dict[str, Any]` | `_objeto({'status': {'type': 'string', 'enum': list(STATUS_DO_EXECUTOR)}…` |
 | `ESQUEMA_DA_EXECUCAO_AUTONOMA` | `dict[str, Any]` | `{**ESQUEMA_DA_EXECUCAO, 'properties': {**ESQUEMA_DA_EXECUCAO['propertie…` |
 | `PARECER` | `dict[str, Any]` | `_objeto({'id': TEXTO, 'veredito': {'type': 'string', 'enum': list(VERED…` |
+| `ALCANCE` | `Mapping[str, Any]` | `{'type': 'string', 'enum': list(ALCANCES)}` |
 | `ACHADO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
 | `PARECER_DA_DIFERENCA` | `dict[str, Any]` | `_objeto({'criterio': TEXTO_LIVRE, 'teste': TEXTO, 'parecer': {'type': '…` |
 | `ESQUEMA_DA_VERIFICACAO` | `dict[str, Any]` | `_objeto({'resumo': TEXTO, 'criterios': _lista_de(PARECER, 1), 'decisoes…` |
-| `ESQUEMA_DA_SEGUNDA_OPINIAO` | `dict[str, Any]` | `_objeto({'criterios': LISTA_DE_TEXTOS, 'decisoes': LISTA_DE_TEXTOS, 'mo…` |
+| `ESQUEMA_DA_SEGUNDA_OPINIAO` | `dict[str, Any]` | `_objeto({'criterios': LISTA_DE_TEXTOS, 'decisoes': LISTA_DE_TEXTOS, 'al…` |
 | `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_…` |
 
 ### Funções do módulo
@@ -1094,17 +1095,21 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 | `PARECER_LEGITIMA` | `str` | `'legitima'` |
 | `PARECER_ILEGITIMA` | `str` | `'ilegitima'` |
 | `PARECERES_DA_DIFERENCA` | `tuple[str, ...]` | `(PARECER_LEGITIMA, PARECER_ILEGITIMA)` |
+| `ALCANCE_USO_PREVISTO` | `str` | `'uso_previsto'` |
+| `ALCANCE_EXTREMO` | `str` | `'extremo'` |
+| `ALCANCES` | `tuple[str, ...]` | `(ALCANCE_USO_PREVISTO, ALCANCE_EXTREMO)` |
 
 ### `Achado`
 
-*DTO imutável* — Um problema achado na verificação: o que é, a prova, onde, o que ele toca e de quem veio.
+*DTO imutável* — Um problema achado na verificação: o que é, a prova, onde, o que ele toca, o alcance e de quem veio.
 
-**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`, `segunda_opiniao: str`, `sem_acordo: bool`, `reproducao: tuple[str, ...]`
+**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`, `segunda_opiniao: str`, `sem_acordo: bool`, `reproducao: tuple[str, ...]`, `alcance: str`, `decisao_do_limite: str`, `alcance_da_segunda_opiniao: str`
 
-- `toca() -> tuple[str, ...]` `[property]` — Os critérios e as decisões que o achado toca, sem repetir.
-- `gravidade() -> str` `[property]` — Bloqueante quando toca critério ou decisão, quando o orquestrador viu falhar ou quando a segunda opinião não concordou.
+- `toca() -> tuple[str, ...]` `[property]` — Os critérios e as decisões que o achado toca, sem repetir; a decisão que fala do limite inclusive.
+- `extremo() -> bool` `[property]` — Entrada extrema de cujo limite nenhuma decisão fala, sem a segunda opinião dizer que é de uso previsto.
+- `gravidade() -> str` `[property]` — Bloqueante quando o orquestrador viu falhar, quando a segunda opinião não concordou ou quando toca algo e não é extremo.
 - `em_json() -> dict[str, Any]` — O achado para a lista de pendências e para o nó Achado.
-- `de_json(dados: Mapping[str, Any]) -> 'Achado'` — O achado como o verificador o devolveu.
+- `de_json(dados: Mapping[str, Any]) -> 'Achado'` — O achado como o verificador o devolveu; sem alcance, de uso previsto.
 
 ### `ComandoRodado`
 
@@ -1139,12 +1144,13 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 - `de_json(dados: Mapping[str, Any]) -> 'Verificacao'` — A verificação como o verificador a devolveu.
 - `com_achado_do_orquestrador(titulo: str, descricao: str, criterios: tuple[str, ...]) -> 'Verificacao'` — A verificação com o que o orquestrador viu falhar no commit verificado (a suíte, um teste de aceite).
 - `com_parecer(id_criterio: str, veredito: str, prova: str) -> 'Verificacao'` — A verificação com o parecer do critério trocado pelo que o orquestrador viu.
-- `bloqueantes() -> tuple[Achado, ...]` — Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum achado toca, um sintético.
-- `acompanhamentos() -> tuple[Achado, ...]` — Os achados que não tocam critério nem decisão.
+- `bloqueantes() -> tuple[Achado, ...]` — Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum bloqueante toca, um sintético.
+- `acompanhamentos() -> tuple[Achado, ...]` — Os achados que não tocam critério nem decisão e os de entrada extrema.
 - `achados_finais() -> tuple[Achado, ...]` — Os bloqueantes e depois os acompanhamentos, na ordem em que viram nós Achado.
 
 ### Funções do módulo
 
+- `alcance_de(valor: object) -> str` — O alcance dito; o que falta ou não é um dos dois é uso previsto, o que não rebaixa nada.
 - `conferir_verificacao(verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str]) -> tuple[str, ...]` — Um parecer por critério, por decisão e por diferença de configuração pedidos, e achado que toca só o que pode tocar.
 
 ## `orquestrador/saidas.py`
@@ -1215,7 +1221,7 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 
 ## `orquestrador/segunda_opiniao.py`
 
-A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento exige que dois concordem.
+A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
@@ -1223,8 +1229,8 @@ A segunda opinião sobre o achado sem citação: rebaixá-lo a acompanhamento ex
 
 ### Funções do módulo
 
-- `com_a_segunda_opiniao(contexto: ContextoDoGoal, verificacao: Verificacao) -> Verificacao` — A verificação com cada achado sem citação julgado de novo, numa sessão própria, contra os critérios e decisões dados.
-- `briefing_da_segunda_opiniao(achado: Achado, textos: Mapping[str, str]) -> str` — O pedido: os critérios e as decisões com o texto, e o achado inteiro.
+- `com_a_segunda_opiniao(contexto: ContextoDoGoal, verificacao: Verificacao) -> Verificacao` — A verificação com cada achado que uma opinião só rebaixaria julgado de novo, numa sessão própria, contra os critérios e decisões dados.
+- `briefing_da_segunda_opiniao(achado: Achado, textos: Mapping[str, str]) -> str` — O pedido: os critérios e as decisões com o texto, e o achado inteiro, com o que o verificador citou e sem o alcance dele.
 
 ## `orquestrador/sessoes_de_papel.py`
 

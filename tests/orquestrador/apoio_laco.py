@@ -65,11 +65,11 @@ def verificacao(c2: str = "atende", achados: list[dict[str, Any]] | None = None)
 
 BLOQUEANTE_DO_README: dict[str, Any] = {
     "titulo": "README sem exemplo", "descricao": "falta um exemplo de somar", "prova": "README.md lido: nenhum exemplo",
-    "local": "README.md:1", "criterios": ["C2"], "decisoes": [], "severidade": "alta",
+    "local": "README.md:1", "criterios": ["C2"], "decisoes": [], "severidade": "alta", "alcance": "uso_previsto",
 }
 ACOMPANHAMENTO: dict[str, Any] = {
     "titulo": "nome do modulo", "descricao": "soma.py poderia ser calc.py", "prova": "soma.py:1 lido, nome generico",
-    "local": "soma.py:1", "criterios": [], "decisoes": [], "severidade": "baixa",
+    "local": "soma.py:1", "criterios": [], "decisoes": [], "severidade": "baixa", "alcance": "uso_previsto",
 }
 
 
@@ -120,10 +120,11 @@ def revisao(veredito: str = "aprovado", **campos: Any) -> dict[str, Any]:
     return {"saida": {"veredito": veredito, "resumo": "diff lido e testes rodados", "problemas": problemas}, "custo": 0.2, **campos}
 
 
-def segunda_opiniao(*criterios: str, **campos: Any) -> dict[str, Any]:
-    """Uma resposta da segunda opinião sobre o achado sem citação: os critérios que ele fere (nenhum, sem argumentos)."""
+def segunda_opiniao(*criterios: str, alcance: str = "uso_previsto", **campos: Any) -> dict[str, Any]:
+    """Uma resposta da segunda opinião: os critérios que o achado fere (nenhum, sem argumentos) e o alcance."""
     motivo = "fere " + ", ".join(criterios) if criterios else "e so gosto: ninguem pediu"
-    return {"saida": {"criterios": list(criterios), "decisoes": [], "motivo": motivo}, "custo": 0.01, **campos}
+    saida = {"criterios": list(criterios), "decisoes": [], "alcance": alcance, "motivo": motivo}
+    return {"saida": saida, "custo": 0.01, **campos}
 
 
 def roteiro_completo() -> dict[str, list[dict[str, Any]]]:

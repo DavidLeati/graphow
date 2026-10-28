@@ -51,7 +51,7 @@ Especificação semântica do grafo agêntico bilateral para alinhamento entre h
 | `Run` | Registro de uma execução de agente (modelo, tokens, latência). | `sistema` |
 | `Note` | Anotação textual livre sem contrato semântico estrito. Com `acao: condensacao_de_sessao`, é a condensação em prosa de uma sessão encerrada. | `humano`, `planejador`, `executor`, `revisor`, `arbitro` |
 | `Criterio` | Critério de aceite do Goal, com `escopa` para ele: `codigo` (`C1`...), `texto` completo, `verificacao` (`teste` ou `checagem`) e `estado` (`pendente`, `atende`, `parcial`, `nao_atende`), que as verificações do orquestrador lhe dão. O orquestrador grava nele também os testes de aceite (`testes_de_aceite`), a lista de checagem e, quando o código já o atendia, a justificativa (`ja_atendido`). Substitui a `Constraint` com `tipo: criterio_aceite`, que os Goals antigos seguem lendo. | `humano` (o gerente); `orquestrador`, no Goal que conduz |
-| `Achado` | Problema que uma verificação do orquestrador achou: `titulo`, `descricao`, `prova`, `local` (arquivo:linha), os critérios e as decisões que ele toca (arestas `fere`), a `severidade` que o verificador sugeriu (informativa) e a `gravidade` que o código decide: `bloqueante` quando fere critério ou decisão, `acompanhamento` quando não fere nada. O bloqueante nasce `aberto`, fica `corrigido` quando a fatia de correção entrega e `resolvido` quando a verificação seguinte sai limpa; o acompanhamento fica `pendente`, como pendência do Goal. Nunca vira `Note`. | `orquestrador`; `humano` |
+| `Achado` | Problema que uma verificação do orquestrador achou: `titulo`, `descricao`, `prova`, `local` (arquivo:linha), os critérios e as decisões que ele toca (arestas `fere`), a `severidade` que o verificador sugeriu (informativa) o `alcance` da entrada (`uso_previsto` ou `extremo`) e a `gravidade` que o código decide: `bloqueante` quando fere critério ou decisão com entrada de uso previsto, `acompanhamento` quando não fere nada ou quando a entrada é extrema e a segunda opinião concorda. O bloqueante nasce `aberto`, fica `corrigido` quando a fatia de correção entrega e `resolvido` quando a verificação seguinte sai limpa; o acompanhamento fica `pendente`, como pendência do Goal. Nunca vira `Note`. | `orquestrador`; `humano` |
 | `Aprendizado` | Memória de longo prazo: o que sobrevive ao projeto. O rótulo é a afirmação em uma linha; `como_aplicar` diz o que fazer com ela; `alcance: global` só pelo humano; `valido_ate` é lido pela vista; promovido, guarda `promovido_por` e `promovido_por_papel`. Registra quem detém `deriva_de`. | `humano`, `executor`, `revisor` |
 
 ### 2.3 Propriedades da Orquestração
@@ -340,8 +340,8 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   `Criterio` do humano o orquestrador só escreve essas propriedades derivadas.
 - **Achado.** O nó `Achado` deriva da verificação que o achou e fere, por `fere`,
   o critério ou a decisão que ele toca. A gravidade é do código: o achado que
-  fere algo é `bloqueante`, sem exceção, e o que não fere nada é
-  `acompanhamento`. O bloqueante vira fatia de correção (`Task` que deriva do
+  fere algo com entrada de uso previsto é `bloqueante`, e o que não fere nada,
+  ou cuja entrada é extrema nas duas opiniões, é `acompanhamento`. O bloqueante vira fatia de correção (`Task` que deriva do
   `Achado`); o acompanhamento fica como pendência do Goal.
 - **Fechamento.** O `InvariantGate` só deixa o `Goal` conduzido pelo
   orquestrador, ou com `Criterio` ligado, ir para `concluido` quando a última

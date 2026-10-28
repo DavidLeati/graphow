@@ -76,7 +76,7 @@ O Graphow adota uma ontologia formal rígida (detalhada na [Especificação Onto
 - **`Question`**: Dúvida ou ambiguidade que **bloqueia** uma tarefa.
 - **`Constraint`**: Restrição inviolável que escopa objetivos e tarefas.
 - **`Criterio`**: Critério de aceite do `Goal` (ontologia 1.7.0): código (`C1`), texto completo, tipo de verificação (`teste` ou `checagem`) e o estado que as verificações lhe dão (`pendente`, `atende`, `parcial`, `nao_atende`), com os testes de aceite que o provam.
-- **`Achado`**: Problema que uma verificação achou, com a prova, o local e os critérios ou decisões que ele fere (`fere`). A gravidade é decidida por código: bloqueante quando fere algo, acompanhamento quando não. Nunca vira `Note`.
+- **`Achado`**: Problema que uma verificação achou, com a prova, o local e os critérios ou decisões que ele fere (`fere`). A gravidade é decidida por código: bloqueante quando fere algo com entrada de uso previsto, acompanhamento quando não fere nada ou quando a entrada é extrema e a segunda opinião concorda. Nunca vira `Note`.
 - **`Artifact`**: Entregável concreto de código, documento ou configuração.
 - **`Evidence`**: Dado empírico, benchmark ou prova que justifica decisões.
 - **`Run`**: Registro de execução e telemetria de um modelo de IA.
@@ -1000,12 +1000,18 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    junto com eles, num comando só, com a configuração do projeto): a suíte
    vermelha é bloqueante, e o teste de aceite que não passa (o pulado e o xfail
    inclusive) reprova o critério dele, diga o verificador o que disser. **A gravidade é do código**: o verificador diz, por
-   achado, os critérios e as decisões que ele toca, e o achado que toca algum é
-   bloqueante, sem exceção, mesmo o defeito que já existia; o que ele deixa sem
-   citação vai a uma segunda opinião, uma sessão curta sem ferramentas (Sonnet,
-   só os critérios, as decisões e o achado, com uma retomada quando o formato
-   não confere), e só fica acompanhamento se ela também não citar nada (sem
-   resposta, os dois não concordaram, e ele é bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   achado, os critérios e as decisões que ele toca e o `alcance` da entrada
+   (`uso_previsto`, a que a spec, as decisões ou um usuário normal produzem, ou
+   `extremo`, a patológica, como NUL, id de 4300 dígitos ou o ano 9999, de cujo
+   limite nenhuma decisão fala; a decisão que fala dele vai em
+   `decisao_do_limite` e faz o achado de uso previsto). O achado de uso
+   previsto que toca algum é bloqueante, mesmo o defeito que já existia; o que
+   ele deixa sem citação ou julga extremo vai a uma segunda opinião, uma sessão
+   curta sem ferramentas (Sonnet, só os critérios, as decisões e o achado, sem o
+   alcance do verificador, com uma retomada quando o formato não confere), que
+   também diz o que ele fere e o alcance. Ele só fica acompanhamento se ela
+   também não citar nada ou também disser extremo (sem resposta, os dois não
+   concordaram, e ele é bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes viram fatias de correção que derivam deles, os do
    mesmo arquivo (o caminho normalizado: `./x.py` é `x.py`, as barras, a caixa

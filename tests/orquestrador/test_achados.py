@@ -32,7 +32,7 @@ AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 MENOR_QUE_TOCA_C2: dict[str, Any] = {
     "titulo": "README sem o resultado do exemplo", "descricao": "o exemplo nao diz o que somar devolve",
     "prova": "README.md lido: 'Use somar(a, b).' sem resultado", "local": "README.md:2", "criterios": ["C2"],
-    "decisoes": [], "severidade": "baixa",
+    "decisoes": [], "severidade": "baixa", "alcance": "uso_previsto",
 }
 
 

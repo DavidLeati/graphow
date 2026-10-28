@@ -5,12 +5,20 @@ chamou de bloqueantes (o título contado em unidades UTF-16 contra "até 200
 caracteres", a quantidade negativa que aumentava o saldo, o CSV em ANSI com
 traceback), mas os classificaram como acompanhamento, e o Goal fechou com eles.
 Por isso o verificador não diz mais a gravidade: diz, por achado, os critérios
-e as decisões que ele toca (a lista pode ser vazia) e a prova. O código decide:
-o achado que toca critério ou decisão é bloqueante, sem exceção, inclusive o
-defeito que "já existia antes"; só o que não toca nada é acompanhamento. O que
-o próprio orquestrador viu falhar (a suíte, o teste de aceite) é bloqueante
-por origem. A `severidade` que o verificador sugere fica gravada, informativa,
-e não muda o destino.
+e as decisões que ele toca (a lista pode ser vazia), a prova e o alcance. O
+código decide: o achado que toca critério ou decisão é bloqueante, inclusive o
+defeito que "já existia antes", quando é de uso previsto; o que não toca nada
+e o de entrada extrema são acompanhamento. Na bancada de 12/10 a regra sem o
+alcance virou esteira: cada verificação caçava uma borda patológica nova (NUL,
+surrogate, id de 4300 dígitos, a última semana de 9999), toda borda tocava
+algum critério, e nenhum Goal fechou. Extremo é a entrada patológica de cujo
+limite nenhuma decisão fala; quando uma fala (D3, "não ocupar a sala para
+sempre", diante de uma série até 9999), o verificador a cita em
+`decisao_do_limite`, e o achado é de uso previsto e toca a decisão. Rebaixar
+a extremo exige que a segunda opinião concorde (orquestrador/segunda_opiniao.py).
+O que o próprio orquestrador viu falhar (a suíte, o teste de aceite) é
+bloqueante por origem. A `severidade` que o verificador sugere fica gravada,
+informativa, e não muda o destino.
 
 Quando a configuração de teste entregue faz passar um teste de aceite que a do
 commit do aceite reprova fora de uma asserção (import, coleta, ambiente), o
@@ -34,11 +42,20 @@ LIMITE_DA_PROVA: int = 2000
 PARECER_LEGITIMA: str = "legitima"
 PARECER_ILEGITIMA: str = "ilegitima"
 PARECERES_DA_DIFERENCA: tuple[str, ...] = (PARECER_LEGITIMA, PARECER_ILEGITIMA)
+# De onde vem a entrada que dispara o achado: do uso que a spec, as decisões ou um usuário normal produzem, ou de um extremo.
+ALCANCE_USO_PREVISTO: str = "uso_previsto"
+ALCANCE_EXTREMO: str = "extremo"
+ALCANCES: tuple[str, ...] = (ALCANCE_USO_PREVISTO, ALCANCE_EXTREMO)
 
 
 def _textos(valor: object) -> tuple[str, ...]:
     """A lista de textos do JSON, sem vazios."""
     return tuple(str(item).strip() for item in valor if str(item).strip()) if isinstance(valor, list) else ()
+
+
+def alcance_de(valor: object) -> str:
+    """O alcance dito; o que falta ou não é um dos dois é uso previsto, o que não rebaixa nada."""
+    return ALCANCE_EXTREMO if str(valor or "").strip() == ALCANCE_EXTREMO else ALCANCE_USO_PREVISTO
 
 
 @dataclass(frozen=True)
@@ -77,7 +94,7 @@ class ParecerDaDiferenca:
 
 @dataclass(frozen=True)
 class Achado:
-    """Um problema achado na verificação: o que é, a prova, onde, o que ele toca e de quem veio."""
+    """Um problema achado na verificação: o que é, a prova, onde, o que ele toca, o alcance e de quem veio."""
 
     titulo: str
     descricao: str
@@ -90,16 +107,26 @@ class Achado:
     segunda_opiniao: str = ""
     sem_acordo: bool = False
     reproducao: tuple[str, ...] = ()
+    alcance: str = ALCANCE_USO_PREVISTO
+    decisao_do_limite: str = ""
+    # Vazio quando a segunda opinião não julgou o achado.
+    alcance_da_segunda_opiniao: str = ""
 
     @property
     def toca(self) -> tuple[str, ...]:
-        """Os critérios e as decisões que o achado toca, sem repetir."""
-        return tuple(dict.fromkeys((*self.criterios, *self.decisoes)))
+        """Os critérios e as decisões que o achado toca, sem repetir; a decisão que fala do limite inclusive."""
+        return tuple(dict.fromkeys((*self.criterios, *self.decisoes, *((self.decisao_do_limite,) if self.decisao_do_limite else ()))))
+
+    @property
+    def extremo(self) -> bool:
+        """Entrada extrema de cujo limite nenhuma decisão fala, sem a segunda opinião dizer que é de uso previsto."""
+        return (self.alcance == ALCANCE_EXTREMO and not self.decisao_do_limite
+                and self.alcance_da_segunda_opiniao != ALCANCE_USO_PREVISTO)
 
     @property
     def gravidade(self) -> str:
-        """Bloqueante quando toca critério ou decisão, quando o orquestrador viu falhar ou quando a segunda opinião não concordou."""
-        if self.toca or self.origem == ORIGEM_DO_ORQUESTRADOR or self.sem_acordo:
+        """Bloqueante quando o orquestrador viu falhar, quando a segunda opinião não concordou ou quando toca algo e não é extremo."""
+        if self.origem == ORIGEM_DO_ORQUESTRADOR or self.sem_acordo or (self.toca and not self.extremo):
             return a.GRAVIDADE_BLOQUEANTE
         return a.GRAVIDADE_ACOMPANHAMENTO
 
@@ -108,16 +135,18 @@ class Achado:
         return {"gravidade": self.gravidade, "titulo": self.titulo, "descricao": self.descricao, "prova": self.prova,
                 "local": self.local, "criterios": list(self.criterios), "decisoes": list(self.decisoes),
                 "severidade": self.severidade, "origem": self.origem, "segunda_opiniao": self.segunda_opiniao,
-                "reproducao": list(self.reproducao)}
+                "reproducao": list(self.reproducao), "alcance": self.alcance, "decisao_do_limite": self.decisao_do_limite,
+                "alcance_da_segunda_opiniao": self.alcance_da_segunda_opiniao}
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Achado":
-        """O achado como o verificador o devolveu."""
+        """O achado como o verificador o devolveu; sem alcance, de uso previsto."""
         return cls(
             titulo=str(dados["titulo"]).strip(), descricao=str(dados["descricao"]).strip(),
             prova=str(dados.get("prova", "")).strip(), local=str(dados.get("local", "")).strip(),
             criterios=_textos(dados.get("criterios")), decisoes=_textos(dados.get("decisoes")),
             severidade=str(dados.get("severidade", "")), reproducao=_textos(dados.get("reproducao")),
+            alcance=alcance_de(dados.get("alcance")), decisao_do_limite=str(dados.get("decisao_do_limite", "") or "").strip(),
         )
 
 
@@ -179,9 +208,13 @@ class Verificacao:
         return replace(self, criterios=pareceres)
 
     def bloqueantes(self) -> tuple[Achado, ...]:
-        """Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum achado toca, um sintético."""
+        """Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum bloqueante toca, um sintético.
+
+        O critério reprovado que só um achado extremo toca ganha o sintético:
+        sem ele, a verificação não teria o que corrigir e ainda assim não fecharia.
+        """
         declarados = tuple(achado for achado in self.achados if achado.gravidade == a.GRAVIDADE_BLOQUEANTE)
-        tocados = {id_c for achado in self.achados for id_c in achado.toca}
+        tocados = {id_c for achado in declarados for id_c in achado.toca}
         sinteticos = tuple(
             Achado(f"{parecer.id} {parecer.veredito}", parecer.prova, parecer.prova, "", *_lados(parecer.id),
                    origem=ORIGEM_DO_ORQUESTRADOR)
@@ -191,7 +224,7 @@ class Verificacao:
         return declarados + sinteticos
 
     def acompanhamentos(self) -> tuple[Achado, ...]:
-        """Os achados que não tocam critério nem decisão."""
+        """Os achados que não tocam critério nem decisão e os de entrada extrema."""
         return tuple(achado for achado in self.achados if achado.gravidade == a.GRAVIDADE_ACOMPANHAMENTO)
 
     def achados_finais(self) -> tuple[Achado, ...]:

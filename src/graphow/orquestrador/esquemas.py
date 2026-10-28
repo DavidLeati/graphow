@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from graphow.core import aceite as a
-from graphow.orquestrador.saida_do_verificador import PARECERES_DA_DIFERENCA
+from graphow.orquestrador.saida_do_verificador import ALCANCES, PARECERES_DA_DIFERENCA
 
 PAPEL_PLANEJADOR: str = "planejador"
 # O autor de aceite: uma sessão separada do executor, depois do plano, que escreve os testes de aceite.
@@ -134,7 +134,8 @@ ESQUEMA_DA_EXECUCAO_AUTONOMA: dict[str, Any] = {
 PARECER: dict[str, Any] = _objeto(
     {"id": TEXTO, "veredito": {"type": "string", "enum": list(VEREDITOS_DE_CRITERIO)}, "prova": PROVA}
 )
-# A gravidade não vem do verificador: o código a decide pelo que o achado toca
+ALCANCE: Mapping[str, Any] = {"type": "string", "enum": list(ALCANCES)}
+# A gravidade não vem do verificador: o código a decide pelo que o achado toca e pelo alcance
 # (orquestrador/saida_do_verificador.py). A severidade é a opinião dele, informativa.
 ACHADO: dict[str, Any] = _objeto(
     {
@@ -146,8 +147,10 @@ ACHADO: dict[str, Any] = _objeto(
         "decisoes": LISTA_DE_TEXTOS,
         "severidade": {"type": "string", "enum": list(SEVERIDADES)},
         "reproducao": LISTA_DE_TEXTOS,
+        "alcance": ALCANCE,
+        "decisao_do_limite": TEXTO_LIVRE,
     },
-    opcionais=("reproducao",),
+    opcionais=("reproducao", "decisao_do_limite"),
 )
 # O parecer sobre o teste de aceite que só passa com a configuração entregue (orquestrador/aceite_no_commit.py).
 PARECER_DA_DIFERENCA: dict[str, Any] = _objeto(
@@ -166,7 +169,9 @@ ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _objeto(
     opcionais=("diferencas",),
 )
 
-ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto({"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "motivo": TEXTO})
+ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto(
+    {"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "alcance": ALCANCE, "motivo": TEXTO}
+)
 
 ESQUEMA_POR_PAPEL: Mapping[str, Mapping[str, Any]] = {
     PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO,

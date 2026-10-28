@@ -50,7 +50,7 @@ VERIFICACAO: dict[str, Any] = {
                   {"id": "C2", "veredito": "parcial", "prova": "README sem exemplo"}],
     "decisoes": [{"id": "D1", "veredito": "atende", "prova": "sem import externo"}],
     "achados": [{"titulo": "nome", "descricao": "renomear", "prova": "soma.py:1 lido, nome generico", "local": "soma.py:1",
-                 "criterios": [], "decisoes": [], "severidade": "baixa"}],
+                 "criterios": [], "decisoes": [], "severidade": "baixa", "alcance": "uso_previsto"}],
 }
 
 
