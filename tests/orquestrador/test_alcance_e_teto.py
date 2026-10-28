@@ -1,4 +1,7 @@
-"""O alcance do achado: o de entrada extrema vira acompanhamento quando as duas opiniões concordam (T2c).
+"""O alcance do achado e o teto de bloqueantes por verificação (T2c).
+
+O achado de entrada extrema vira acompanhamento quando as duas opiniões
+concordam, e uma verificação abre no máximo 5 bloqueantes.
 
 Na bancada de 12/10 cada verificação caçava uma borda patológica nova (NUL,
 surrogate, id de 4300 dígitos, a última semana de 9999), toda borda tocava
@@ -10,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.documento_do_goal import com_pendencias
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import Achado, Verificacao, conferir_verificacao
 
@@ -117,3 +121,49 @@ def test_decisao_do_limite_dispensa_a_segunda_opiniao_e_vira_correcao_edge_case(
     achado = estado.verificacoes[0].achados[0]
     assert (achado.gravidade, achado.estado) == ("bloqueante", "resolvido")
     assert bancada.chamadas("segunda_opiniao") == []
+
+
+def _oito_bloqueantes() -> list[dict[str, Any]]:
+    """Oito achados de uso previsto que tocam C2, na ordem de prioridade do verificador."""
+    return [{**EXTREMO_QUE_TOCA_C2, "titulo": f"README falha {n}", "alcance": "uso_previsto"} for n in range(1, 9)]
+
+
+def test_de_oito_bloqueantes_cinco_seguem_e_tres_viram_acompanhamento_marcado_nominal() -> None:
+    """T2c.3: os 5 primeiros pela ordem do verificador seguem bloqueantes; os outros 3 são acompanhamento com a marca."""
+    lida = Verificacao.de_json({**verificacao("parcial")["saida"], "achados": _oito_bloqueantes()})
+
+    assert [achado.titulo for achado in lida.bloqueantes()] == [f"README falha {n}" for n in range(1, 6)]
+    excedentes = lida.acompanhamentos()
+    assert [achado.titulo for achado in excedentes] == ["README falha 6", "README falha 7", "README falha 8"]
+    assert {(achado.gravidade, achado.em_json()["marca"]) for achado in excedentes} == {("acompanhamento", "excedeu o teto do ciclo")}
+    assert com_pendencias("# Goal\n", [excedentes[0].em_json()]).count("- [acompanhamento: excedeu o teto do ciclo] README falha 6") == 1
+
+
+def test_o_que_o_orquestrador_viu_falhar_fica_dentro_do_teto_edge_case() -> None:
+    """Caso de borda: a suíte vermelha, listada depois dos achados do verificador, fica; sai o quinto do verificador."""
+    lida = Verificacao.de_json({**verificacao("parcial")["saida"], "achados": _oito_bloqueantes()})
+
+    com_a_suite = lida.com_achado_do_orquestrador("A suite do plano falhou no commit verificado", "1 failed")
+
+    assert [achado.titulo for achado in com_a_suite.bloqueantes()] == [
+        *(f"README falha {n}" for n in range(1, 5)), "A suite do plano falhou no commit verificado"]
+    assert len(com_a_suite.achados_finais()) == 9 and len(lida.achados_finais()) == 8
+
+
+def test_excedentes_do_teto_ficam_visiveis_como_pendencia_no_laco_nominal(tmp_path: Path) -> None:
+    """T2c.3 no laço: os 5 bloqueantes viram correção; os 3 do teto ficam nós Achado pendentes e pendências marcadas."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("parcial", _oito_bloqueantes()), verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    primeira = estado.verificacoes[0]
+    assert [a.texto("titulo") for a in primeira.bloqueantes()] == [f"README falha {n}" for n in range(1, 6)]
+    assert [(p["titulo"], p["marca"]) for p in estado.pendencias] == [
+        (f"README falha {n}", "excedeu o teto do ciclo") for n in (6, 7, 8)]
+    assert {a.estado for a in primeira.achados if not a.bloqueante} == {"pendente"}
+    documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
+    assert documento.count("[acompanhamento: excedeu o teto do ciclo]") == 3

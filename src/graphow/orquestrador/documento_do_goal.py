@@ -106,10 +106,11 @@ def com_pendencias(documento: str, pendencias: Sequence[Mapping[str, Any]]) -> s
 
 
 def _linha_da_pendencia(item: Mapping[str, Any]) -> str:
-    """Uma pendência com a gravidade, o local e a origem."""
+    """Uma pendência com a gravidade (e a marca do teto, se passou dele), o local e a origem."""
     local = f" ({item['local']})" if item.get("local") else ""
+    marca = f": {item['marca']}" if item.get("marca") else ""
     achado = f", Achado {item['achado']}" if item.get("achado") else ""
-    return f"- [{item.get('gravidade', 'pendencia')}] {item.get('titulo', '')}{local}: {item.get('descricao', '')} " \
+    return f"- [{item.get('gravidade', 'pendencia')}{marca}] {item.get('titulo', '')}{local}: {item.get('descricao', '')} " \
            f"Origem: {item.get('origem', '')}{achado}."
 
 

@@ -20,6 +20,12 @@ O que o próprio orquestrador viu falhar (a suíte, o teste de aceite) é
 bloqueante por origem. A `severidade` que o verificador sugere fica gravada,
 informativa, e não muda o destino.
 
+Uma verificação abre no máximo 5 bloqueantes (`TETO_DE_BLOQUEANTES`): o
+primeiro marco da agenda, na bancada, abriu 12, e cada correção trazia bordas
+novas. Os de maior prioridade ficam; o resto vira acompanhamento marcado
+"excedeu o teto do ciclo", visível nas pendências, e volta a bloquear se uma
+verificação seguinte o achar de novo.
+
 Quando a configuração de teste entregue faz passar um teste de aceite que a do
 commit do aceite reprova fora de uma asserção (import, coleta, ambiente), o
 verificador julga a diferença: cada uma pede um parecer, `legitima` ou
@@ -46,6 +52,9 @@ PARECERES_DA_DIFERENCA: tuple[str, ...] = (PARECER_LEGITIMA, PARECER_ILEGITIMA)
 ALCANCE_USO_PREVISTO: str = "uso_previsto"
 ALCANCE_EXTREMO: str = "extremo"
 ALCANCES: tuple[str, ...] = (ALCANCE_USO_PREVISTO, ALCANCE_EXTREMO)
+# Quantos bloqueantes uma verificação abre no máximo; os que passam disso ficam visíveis como acompanhamento.
+TETO_DE_BLOQUEANTES: int = 5
+MARCA_DO_TETO: str = "excedeu o teto do ciclo"
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -111,6 +120,7 @@ class Achado:
     decisao_do_limite: str = ""
     # Vazio quando a segunda opinião não julgou o achado.
     alcance_da_segunda_opiniao: str = ""
+    excedeu_o_teto: bool = False
 
     @property
     def toca(self) -> tuple[str, ...]:
@@ -125,7 +135,12 @@ class Achado:
 
     @property
     def gravidade(self) -> str:
-        """Bloqueante quando o orquestrador viu falhar, quando a segunda opinião não concordou ou quando toca algo e não é extremo."""
+        """Bloqueante quando o orquestrador viu falhar, quando a segunda opinião não concordou ou quando toca algo e não é extremo.
+
+        O que passou do teto da verificação é acompanhamento, seja o que for.
+        """
+        if self.excedeu_o_teto:
+            return a.GRAVIDADE_ACOMPANHAMENTO
         if self.origem == ORIGEM_DO_ORQUESTRADOR or self.sem_acordo or (self.toca and not self.extremo):
             return a.GRAVIDADE_BLOQUEANTE
         return a.GRAVIDADE_ACOMPANHAMENTO
@@ -136,7 +151,8 @@ class Achado:
                 "local": self.local, "criterios": list(self.criterios), "decisoes": list(self.decisoes),
                 "severidade": self.severidade, "origem": self.origem, "segunda_opiniao": self.segunda_opiniao,
                 "reproducao": list(self.reproducao), "alcance": self.alcance, "decisao_do_limite": self.decisao_do_limite,
-                "alcance_da_segunda_opiniao": self.alcance_da_segunda_opiniao}
+                "alcance_da_segunda_opiniao": self.alcance_da_segunda_opiniao,
+                "marca": MARCA_DO_TETO if self.excedeu_o_teto else ""}
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Achado":
@@ -208,6 +224,24 @@ class Verificacao:
         return replace(self, criterios=pareceres)
 
     def bloqueantes(self) -> tuple[Achado, ...]:
+        """Os bloqueantes dentro do teto, na ordem de sempre."""
+        return self._no_teto()[0]
+
+    def _no_teto(self) -> tuple[tuple[Achado, ...], tuple[Achado, ...]]:
+        """Os bloqueantes dentro do teto e os que passaram dele, marcados.
+
+        Ficam os de maior prioridade: os que o orquestrador viu falhar (a suíte,
+        o teste de aceite, o critério reprovado sem achado), que são fato, e
+        depois os do verificador, na ordem em que ele os listou. Com até o teto,
+        nada muda; a saída mantém a ordem, e o id de cada nó Achado com ela.
+        """
+        candidatos = self._candidatos()
+        ordem = sorted(range(len(candidatos)), key=lambda i: candidatos[i].origem != ORIGEM_DO_ORQUESTRADOR)
+        dentro = set(ordem[:TETO_DE_BLOQUEANTES])
+        return (tuple(c for i, c in enumerate(candidatos) if i in dentro),
+                tuple(replace(c, excedeu_o_teto=True) for i, c in enumerate(candidatos) if i not in dentro))
+
+    def _candidatos(self) -> tuple[Achado, ...]:
         """Os achados bloqueantes e, para o critério ou decisão sem `atende` que nenhum bloqueante toca, um sintético.
 
         O critério reprovado que só um achado extremo toca ganha o sintético:
@@ -224,8 +258,8 @@ class Verificacao:
         return declarados + sinteticos
 
     def acompanhamentos(self) -> tuple[Achado, ...]:
-        """Os achados que não tocam critério nem decisão e os de entrada extrema."""
-        return tuple(achado for achado in self.achados if achado.gravidade == a.GRAVIDADE_ACOMPANHAMENTO)
+        """Os achados que não tocam critério nem decisão, os de entrada extrema e, marcados, os bloqueantes que passaram do teto."""
+        return tuple(achado for achado in self.achados if achado.gravidade == a.GRAVIDADE_ACOMPANHAMENTO) + self._no_teto()[1]
 
     def achados_finais(self) -> tuple[Achado, ...]:
         """Os bloqueantes e depois os acompanhamentos, na ordem em que viram nós Achado."""

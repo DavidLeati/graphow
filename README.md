@@ -1011,7 +1011,10 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    alcance do verificador, com uma retomada quando o formato não confere), que
    também diz o que ele fere e o alcance. Ele só fica acompanhamento se ela
    também não citar nada ou também disser extremo (sem resposta, os dois não
-   concordaram, e ele é bloqueante). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   concordaram, e ele é bloqueante). Uma verificação abre no máximo 5
+   bloqueantes: ficam os que o orquestrador viu falhar e depois os do
+   verificador, na ordem dele; o resto vira acompanhamento marcado "excedeu o
+   teto do ciclo", visível nas pendências. A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes viram fatias de correção que derivam deles, os do
    mesmo arquivo (o caminho normalizado: `./x.py` é `x.py`, as barras, a caixa
