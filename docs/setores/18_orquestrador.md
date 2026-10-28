@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-45 módulos · 7764 linhas · 63 classes
+46 módulos · 7934 linhas · 64 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,12 +18,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 98 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 297 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 304 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 101 | As fatias de correção de um ciclo: os bloqueantes do mesmo arquivo, ou do mesmo critério, juntos numa fatia só. |
-| [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 73 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
+| [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 135 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 175 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
@@ -41,7 +41,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 219 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 171 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 239 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
@@ -58,6 +58,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 220 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 93 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
 ## `orquestrador/aceite_intocado.py`
 
@@ -274,6 +275,7 @@ O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite
 | `CAMPO_RESPOSTA_DO_AUTOR` | `str` | `'resposta_do_autor_de_aceite'` |
 | `CAMPO_DESACORDO` | `str` | `'desacordo_sobre_o_teste'` |
 | `CAMPO_CRITERIOS_REFEITOS` | `str` | `'criterios_refeitos_pelo_agente'` |
+| `CAMPO_REFEITO_SEM_VERMELHO` | `str` | `'refeito_sem_vermelho'` |
 | `PREFIXO_DO_PEDIDO_AUTOMATICO` | `str` | `'auto-'` |
 
 ### Funções do módulo
@@ -912,6 +914,13 @@ Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, co
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CHAVE_DO_REFEITO` | `str` | `'refeito'` |
+| `CHAVE_SEM_VERMELHO` | `str` | `'sem_vermelho'` |
+
+### `Refeito`
+
+*DTO imutável* — O que a sessão do autor deu: o aceite novo, ou os problemas; `sem_vermelho` diz por que ficou o teste antigo.
+
+**Campos:** `aceite: SaidaDoAceite | None`, `problemas: tuple[str, ...]`, `sem_vermelho: str`
 
 ### Funções do módulo
 
@@ -1361,4 +1370,18 @@ A verificação de um marco: uma sessão nova do verificador, a suíte que o orq
 - `decisoes_do_plano(estado: EstadoDoGoal) -> tuple[str, ...]` — Os ids das decisões do plano.
 - `nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]` — O nó do livro-razão de cada critério e decisão do plano, pelo código.
 - `sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]]) -> None` — Reescreve a seção de pendências do documento como o livro-razão a tem e commita, se ele mudou.
+
+## `orquestrador/vermelho_do_refeito.py`
+
+O teste de aceite refeito só vale se falhar contra o código de antes da implementação.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PASTA_DO_CHECKOUT` | `str` | `'antes-do-refeito'` |
+
+### Funções do módulo
+
+- `commit_de_antes(contexto: ContextoDoGoal, estado: EstadoDoGoal, criterio: str) -> str` — O commit anterior à primeira fatia que cobre o critério, achada pelo trailer; a ponta, quando nenhuma delas commitou.
+- `checkout_de_antes(area: Path, destino: Path, commit: str) -> Iterator[Path]` — Um clone local da área no commit dado, com o `aceite/` da área por cima; sai no fim, mesmo quando o bloco falha.
+- `conferir_o_vermelho_de_antes(contexto: ContextoDoGoal, estado: EstadoDoGoal, refeito: SaidaDoAceite) -> tuple[str, ...]` — Os testes refeitos do critério que não falham numa asserção contra o código de antes; vazio quando todos falham.
 

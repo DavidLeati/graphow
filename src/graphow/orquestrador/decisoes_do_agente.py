@@ -35,6 +35,8 @@ CAMPO_TESTE_ERRADO: str = "teste_errado"
 CAMPO_RESPOSTA_DO_AUTOR: str = "resposta_do_autor_de_aceite"
 CAMPO_DESACORDO: str = "desacordo_sobre_o_teste"
 CAMPO_CRITERIOS_REFEITOS: str = "criterios_refeitos_pelo_agente"
+# O refazer pedido pelo humano cujo teste novo não falhou antes da implementação: ficou o antigo, e a verificação julga.
+CAMPO_REFEITO_SEM_VERMELHO: str = "refeito_sem_vermelho"
 PREFIXO_DO_PEDIDO_AUTOMATICO: str = "auto-"
 
 

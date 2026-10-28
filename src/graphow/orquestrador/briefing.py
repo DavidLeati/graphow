@@ -269,7 +269,11 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
 
 
 def _desacordos(estado: EstadoDoGoal) -> list[str]:
-    """O executor que disse que um teste de aceite está errado e o autor que o manteve: a verificação julga o critério."""
+    """O executor que disse que um teste de aceite está errado e o autor que o manteve: a verificação julga o critério.
+
+    Também o refazer pedido pelo humano que ficou com o teste antigo, porque o
+    novo não falhava antes da implementação (orquestrador/refazer_aceite.py).
+    """
     linhas = []
     for fatia in estado.fatias:
         resposta, desacordo = fatia.propriedades.get("resposta_do_autor_de_aceite"), fatia.propriedades.get("desacordo_sobre_o_teste")
@@ -278,6 +282,9 @@ def _desacordos(estado: EstadoDoGoal) -> list[str]:
                           f"{resposta.get('resumo', '')}")
         if isinstance(desacordo, Mapping):
             linhas.append(f"- {desacordo.get('criterio')}: o executor de {fatia.codigo} insistiu: {desacordo.get('argumento', '')}")
+    refeitos = estado.propriedades.get("refeito_sem_vermelho")
+    linhas += [f"- {item.get('criterio')}: o humano pediu para refazer o teste ({item.get('motivo', '')}); {item.get('porque', '')}"
+               for item in (refeitos if isinstance(refeitos, list) else []) if isinstance(item, Mapping)]
     return linhas
 
 
