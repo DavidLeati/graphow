@@ -18,7 +18,9 @@ orquestrador roda a suíte do plano (sem os testes de aceite): a suíte vermelha
 é bloqueante, e o teste de aceite vermelho com a configuração entregue reprova
 o critério dele e vira Achado bloqueante, diga o verificador o que disser. O
 aceite roda antes da sessão, que não o alcança; o que ela deixar em `aceite/`
-sai antes da suíte.
+sai antes da suíte. Antes do aceite, o que estiver fora de commit sai da área:
+o processo que caiu no meio da rodada com a configuração do commit do aceite
+deixou a área com ela, e a retomada rodaria a rodada "entregue" com a errada.
 
 Num marco intermediário o parecer sobre um critério que só um marco seguinte
 completa não conta, e o achado não pode tocar esse critério: ele ainda não foi
@@ -55,6 +57,7 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     if sem_orcamento is not None:
         return sem_orcamento
     head, plano, commit_do_aceite = contexto.git.head(), estado.plano or {}, str((estado.aceite or {}).get("commit", ""))
+    descartar_mudancas(contexto.area, contexto.patch(f"antes-da-verificacao-{len(estado.verificacoes) + 1}"))
     tirado = preparar_o_aceite(contexto.area, commit_do_aceite)
     aceite = rodar_o_aceite(contexto, estado, criterios_ate_o_marco(estado, marco), final=marco.final)
     descartar_mudancas(contexto.area, contexto.patch(f"aceite-{len(estado.verificacoes) + 1}"))

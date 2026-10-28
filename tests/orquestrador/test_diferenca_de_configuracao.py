@@ -17,6 +17,7 @@ from typing import Any
 
 import pytest
 
+from graphow.orquestrador import configuracao_do_aceite as cda
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit
 from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
 from graphow.orquestrador.leitura_do_goal import VerificacaoRegistrada, ler_estado
@@ -27,12 +28,14 @@ from tests.orquestrador.apoio_laco import (
     SOMA_CERTA,
     SOMA_ERRADA,
     Bancada,
+    Queda,
     aceite_em_pytest,
     executor_pronto,
     montar_bancada,
     verificacao,
 )
 from tests.orquestrador.test_aceite_intocado import AUTONOMO, FATIA_CERTA, _roteiro
+from tests.orquestrador.test_retomada import cai_uma_vez
 
 # O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol. Com o
 # `-P` do aceite a raiz não entra sozinha: o teste a põe no fim do caminho, e o `pythonpath` do pytest vem antes dela.
@@ -187,3 +190,19 @@ def test_comando_de_todos_so_conta_sem_diferenca_de_teste_sozinho_edge_case() ->
     assert juntos.chaves_a_julgar() == (("C1", "test_a"),) and juntos.escondidas() == ()
     assert so_todos.chaves_a_julgar() == (("", "comando_aceite"),)
 
+
+def test_queda_na_segunda_rodada_retoma_com_a_configuracao_entregue_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T2a2.4: o processo cai com a área na configuração do aceite; a retomada a descarta e roda o aceite com a entregue."""
+    bancada = _bancada_do_layout(tmp_path, [_verificacao_com_parecer("legitima") for _ in range(2)])
+    monkeypatch.setattr(cda, "_voltar_a_ponta", cai_uma_vez(cda._voltar_a_ponta))
+
+    with pytest.raises(Queda):
+        bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    assert all(arquivo.read_text(encoding="utf-8") != PYTHONPATH_SRC for arquivo in (bancada.raiz / "estado").rglob("pyproject.toml"))
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    primeira = _verificacoes(bancada)[0].propriedades
+    assert [(e["teste"], e["passou"]) for e in primeira["aceite_do_orquestrador"]][0] == ("test_c1_soma", True)
+    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == "atende"
+    assert list((bancada.raiz / "estado").rglob("antes-da-verificacao-1.patch"))
