@@ -1,19 +1,23 @@
 """A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão.
 
-Ao fim de cada marco, com as fatias dele concluídas, uma sessão nova do
-verificador confere a entrega no commit atual: julga os critérios que o marco
-completou (no último marco, a verificação final, todos os critérios e todas as
-decisões, sobre o Goal inteiro), roda a suíte e o programa e sonda as bordas.
-Os comandos que ele rodou o orquestrador tira do stream da sessão, com o
-código de saída e um trecho da saída, e grava na verificação. Depois o próprio orquestrador roda nesse commit a suíte do
-plano (sem os testes de aceite) e os testes de aceite dos critérios que os
-marcos até este completaram (os dos marcos anteriores, como regressão; na
-final, também o comando de todos e, num comando só, a suíte com todos os
-testes de aceite), com `aceite/` de volta ao
-commit do aceite e sem configuração de teste solta na área
-(orquestrador/aceite_intocado.py): a suíte vermelha é
-bloqueante, e o teste de aceite vermelho reprova o critério dele e vira Achado
-bloqueante, diga o verificador o que disser.
+Ao fim de cada marco, com as fatias dele concluídas, o orquestrador roda no
+commit atual os testes de aceite dos critérios que os marcos até este
+completaram (os dos marcos anteriores, como regressão; na final, também o
+comando de todos e, num comando só, a suíte com todos os testes de aceite),
+com `aceite/` de volta ao commit do aceite e sem arquivo solto nele
+(orquestrador/aceite_intocado.py), com a configuração entregue e, se ela
+mudou, também com a do commit do aceite (orquestrador/aceite_no_commit.py).
+Depois, uma sessão nova do verificador confere a entrega: julga os critérios
+que o marco completou (no último marco, a verificação final, todos os
+critérios e todas as decisões, sobre o Goal inteiro), roda a suíte e o
+programa, sonda as bordas e julga a diferença entre as duas configurações,
+quando há. Os comandos que ele rodou o orquestrador tira do stream da sessão,
+com o código de saída e um trecho da saída, e grava na verificação. Por fim o
+orquestrador roda a suíte do plano (sem os testes de aceite): a suíte vermelha
+é bloqueante, e o teste de aceite vermelho com a configuração entregue reprova
+o critério dele e vira Achado bloqueante, diga o verificador o que disser. O
+aceite roda antes da sessão, que não o alcança; o que ela deixar em `aceite/`
+sai antes da suíte.
 
 Num marco intermediário o parecer sobre um critério que só um marco seguinte
 completa não conta, e o achado não pode tocar esse critério: ele ainda não foi
@@ -28,8 +32,7 @@ from typing import Any
 
 from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
-from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
-from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
+from graphow.orquestrador.aceite_no_commit import AceiteNoCommit, rodar_o_aceite
 from graphow.orquestrador.briefing import briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
@@ -37,14 +40,7 @@ from graphow.orquestrador.esquemas import PAPEL_VERIFICADOR
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
-from graphow.orquestrador.saida_do_aceite import (
-    TESTE_DA_SUITE_COM_O_ACEITE,
-    ExecucaoDeAceite,
-    SaidaDoAceite,
-    rodar_a_suite_com_o_aceite,
-    rodar_o_comando_de_aceite,
-    rodar_testes,
-)
+from graphow.orquestrador.saida_do_aceite import TESTE_DA_SUITE_COM_O_ACEITE, ExecucaoDeAceite
 from graphow.orquestrador.comandos_do_stream import chamadas_bash
 from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, ComandoRodado, Verificacao, conferir_verificacao
 from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
@@ -57,54 +53,44 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
-    head = contexto.git.head()
-    dados = _sessao_do_verificador(contexto, estado, marco, head=head)
+    head, plano, commit_do_aceite = contexto.git.head(), estado.plano or {}, str((estado.aceite or {}).get("commit", ""))
+    tirado = preparar_o_aceite(contexto.area, commit_do_aceite)
+    aceite = rodar_o_aceite(contexto, estado, criterios_ate_o_marco(estado, marco), final=marco.final)
+    descartar_mudancas(contexto.area, contexto.patch(f"aceite-{len(estado.verificacoes) + 1}"))
+    dados = _sessao_do_verificador(contexto, estado, marco, head=head, aceite=aceite)
     if isinstance(dados, Parada):
         return dados
-    plano = estado.plano or {}
-    tirado = preparar_o_aceite(contexto.area, str((estado.aceite or {}).get("commit", "")))
+    tirado = (*tirado, *preparar_o_aceite(contexto.area, commit_do_aceite))
     with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
-    dados, chamadas = dados
-    julgada = replace(_so_o_que_o_marco_julga(Verificacao.de_json(dados), estado, marco), comandos=chamadas)
-    verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
-    if not suite.passou:
-        verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
-    execucoes, trocados = _aceite_no_commit(contexto, estado, marco)
-    registro = RegistroDaVerificacao(
-        numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, execucoes), commit=head,
-        commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(plano), ciclo=estado.ciclos_do_marco(marco),
-        final=marco.final, marco=marco.id, aceite=[execucao.em_json() for execucao in execucoes], resolver=estado.corrigidos(marco),
-        tirado_antes_do_aceite=tirado, configuracao_do_aceite=trocados,
-    )
-    registro = replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
+    registro = _registro(contexto, estado, marco, dados=dados, suite=suite, aceite=aceite, head=head, tirado=tirado)
     gravar_verificacao(contexto.livro, registro)
     sincronizar_documento(contexto, registro.pendencias, numero=registro.numero)
     return None
 
 
-def _aceite_no_commit(
-    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado
-) -> tuple[tuple[ExecucaoDeAceite, ...], tuple[str, ...]]:
-    """Os testes de aceite dos marcos até este, com a configuração de teste do aceite; na final, também o de todos e a suíte junto.
-
-    A suíte junto com o aceite roda com a configuração da ponta, a do
-    projeto: ela só acrescenta falha, e cada teste de aceite já rodou isolado.
-    Devolve as execuções e os arquivos de configuração trocados.
-    """
-    aceite = SaidaDoAceite.do_livro(estado.aceite)
-
-    def rodar(comando: str) -> ResultadoDaSuite:
-        return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
-
-    with configuracao_do_aceite(contexto.area, commit_da_configuracao(estado.aceite)) as trocados:
-        execucoes = rodar_testes(aceite, rodar, criterios_ate_o_marco(estado, marco))
-        todos = (rodar_o_comando_de_aceite(aceite, rodar),) if marco.final and execucoes else ()
-    if not todos:
-        return execucoes, trocados
-    comando_suite = str((estado.plano or {}).get("comando_suite", ""))
-    return (*execucoes, *todos, rodar_a_suite_com_o_aceite(aceite, comando_suite, rodar)), trocados
+def _registro(
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *,
+    dados: tuple[Mapping[str, Any], tuple[ComandoRodado, ...]], suite: ResultadoDaSuite, aceite: AceiteNoCommit, head: str,
+    tirado: Sequence[str],
+) -> RegistroDaVerificacao:
+    """A verificação julgada, com a segunda opinião, a suíte e o aceite do orquestrador, pronta para o livro-razão."""
+    saida, chamadas = dados
+    julgada = replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas)
+    verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
+    if not suite.passou:
+        verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
+    registro = RegistroDaVerificacao(
+        numero=len(estado.verificacoes) + 1, verificacao=_com_o_aceite(verificacao, aceite.execucoes), commit=head,
+        commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(estado.plano or {}),
+        ciclo=estado.ciclos_do_marco(marco), final=marco.final, marco=marco.id,
+        aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco),
+        tirado_antes_do_aceite=tuple(dict.fromkeys(tirado)), configuracao_do_aceite=aceite.trocados,
+        aceite_com_a_configuracao_do_aceite=[execucao.em_json() for execucao in aceite.com_a_do_aceite],
+        diferencas_de_configuracao=aceite.diferencas_em_json(),
+    )
+    return replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
 
 
 def _com_o_aceite(verificacao: Verificacao, execucoes: Sequence[ExecucaoDeAceite]) -> Verificacao:
@@ -169,7 +155,7 @@ def nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]:
 
 
 def _sessao_do_verificador(
-    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado, *, head: str, aceite: AceiteNoCommit
 ) -> tuple[Mapping[str, Any], tuple[ComandoRodado, ...]] | Parada:
     """A saída conferida do verificador e as chamadas Bash que o stream dele mostra; ou a parada.
 
@@ -184,7 +170,8 @@ def _sessao_do_verificador(
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_VERIFICADOR, id_goal=contexto.id_goal, pasta=contexto.area, tentativa=numero,
-            briefing=briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco),
+            briefing=briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
+                                             diferencas=aceite.para_o_verificador()),
             conferir=lambda dados: conferir_verificacao(
                 Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes)
             ),

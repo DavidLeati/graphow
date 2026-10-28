@@ -42,6 +42,7 @@ PULA_TUDO: str = (
     "import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n"
     "        item.add_marker(pytest.mark.skip(reason='x'))\n"
 )
+MARCA_XFAIL: str = PULA_TUDO.replace("skip(", "xfail(")
 FATIA_CERTA: dict[str, str] = {"soma.py": SOMA_CERTA, "verificar.py": VERIFICAR}
 
 
@@ -68,22 +69,24 @@ def test_fatia_que_cria_em_aceite_e_recusada_edge_case(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("arquivos", "trocado"),
+    ("arquivos", "trocado", "c1"),
     [
-        ({"conftest.py": PULA_TUDO}, "conftest.py"),
-        ({"pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-p no:python"\n'}, "pyproject.toml"),
-        ({"pytest.ini": "[pytest]\naddopts = -k nada\n"}, "pytest.ini"),
-        ({"pytest.py": "print('1 passed in 0.01s')\n"}, "pytest.py"),
-        ({".gitignore": "conftest.py\n", "conftest.py": PULA_TUDO}, ""),
+        ({"conftest.py": PULA_TUDO}, "conftest.py", "nao_atende"),
+        ({"conftest.py": MARCA_XFAIL}, "conftest.py", "nao_atende"),
+        ({"pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-p no:python"\n'}, "pyproject.toml", "nao_atende"),
+        ({"pytest.ini": "[pytest]\naddopts = -k nada\n"}, "pytest.ini", "nao_atende"),
+        ({"pytest.py": "print('1 passed in 0.01s')\n"}, "pytest.py", "diferenca"),
+        ({".gitignore": "conftest.py\n", "conftest.py": PULA_TUDO}, "", "nao_atende"),
     ],
-    ids=["conftest-na-raiz", "addopts-do-pyproject", "pytest-ini", "sombra-do-pytest", "conftest-ignorado"],
+    ids=["conftest-na-raiz", "xfail-no-conftest", "addopts-do-pyproject", "pytest-ini", "sombra-do-pytest", "conftest-ignorado"],
 )
-def test_configuracao_que_pularia_o_aceite_nao_o_alcanca_edge_case(tmp_path: Path, arquivos: dict[str, str], trocado: str) -> None:
-    """Caso de borda (ajuste 3): a configuração entra, vai à revisão como sinal, e o aceite roda com a do commit dele e reprova C1.
+def test_configuracao_que_neutralizaria_o_aceite_nao_da_verde_edge_case(tmp_path: Path, arquivos: dict[str, str], trocado: str, c1: str) -> None:
+    """Caso de borda (rodada 4, item 2): a configuração entra, vai à revisão como sinal, e o aceite com ela não conta o que ela pula.
 
-    A suíte junto com o aceite roda com a configuração do projeto: o `-k nada` e
-    o `-p no:python` também a derrubam, e o laço segue cobrando; aqui só importa
-    que a primeira verificação reprovou C1 com o teste rodado de verdade.
+    O teste pulado, o xfail, o desselecionado e o arquivo solto reprovam C1 já
+    na rodada com a configuração entregue. A sombra do pytest, que imprime um resumo
+    verde, passa nela e falha com a configuração do commit do aceite: a
+    diferença vai ao verificador julgar, e não reprova C1 sozinha.
     """
     roteiro = _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", **arquivos}))
     roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto(FATIA_CERTA)]
@@ -95,10 +98,66 @@ def test_configuracao_que_pularia_o_aceite_nao_o_alcanca_edge_case(tmp_path: Pat
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.fatias[0].falhas == 0
     primeira = estado.verificacoes[0].propriedades
-    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == "nao_atende"
+    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == ("atende" if c1 == "diferenca" else "nao_atende")
     assert trocado in primeira["configuracao_do_aceite"] if trocado else "conftest.py" in primeira["tirado_antes_do_aceite"]
+    if c1 == "diferenca":
+        assert [(d["teste"], d["com_a_entregue"], d["com_a_do_aceite"]) for d in primeira["diferencas_de_configuracao"]][0] == (
+            "test_c1_soma", True, False)
+        briefing = bancada.chamadas("verificador")[0]["stdin"]
+        assert "A configuracao de teste mudou desde o commit do aceite (pytest.py)" in briefing
+        assert "test_c1_soma de C1: passa com a configuracao entregue; falha" in briefing
     revisao = bancada.chamadas("revisor")[0]["stdin"]
     assert "muda a configuracao de teste" in revisao and "o plano nao declarou" in revisao
+
+
+# O aceite que importa `soma` pelo caminho que o pytest monta (sem pôr a raiz na frente), como na sonda_isol.
+ACEITE_PELO_CAMINHO_DO_PYTEST: str = (
+    '"""C1: somar(2, 3) devolve 5."""\n\n\ndef test_c1_soma():\n    from soma import somar\n    assert somar(2, 3) == 5\n'
+)
+LAYOUT_SRC: dict[str, str] = {
+    "soma.py": SOMA_ERRADA, "src/soma.py": SOMA_CERTA, "pyproject.toml": '[tool.pytest.ini_options]\npythonpath = ["src"]\n',
+    "verificar.py": "import sys\nsys.path.insert(0, 'src')\nfrom soma import somar\nassert somar(2, 3) == 5\nprint('ok')\n",
+}
+
+
+def test_layout_src_que_o_repositorio_entregue_aprova_fecha_e_a_diferenca_vai_ao_verificador_nominal(tmp_path: Path) -> None:
+    """Rodada 4, item 2 (sonda_isol): o aceite com a configuração entregue aprova o layout `src/`; a do commit do aceite, não.
+
+    O critério vale pela configuração entregue, e o Goal fecha; a diferença fica
+    gravada na verificação e vai ao verificador, que a julgou legítima.
+    """
+    roteiro = _roteiro(executor_pronto(LAYOUT_SRC))
+    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
+    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2]]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    final = ler_estado(bancada.kernel.obter_view(), "goal-soma").verificacoes[-1].propriedades
+    assert {(e["teste"], e["passou"]) for e in final["aceite_do_orquestrador"]} >= {("test_c1_soma", True)}
+    assert [(e["teste"], e["passou"]) for e in final["aceite_com_a_configuracao_do_aceite"]][0] == ("test_c1_soma", False)
+    assert final["configuracao_do_aceite"] == ["pyproject.toml"]
+    diferencas = {(d["teste"], d["com_a_entregue"], d["com_a_do_aceite"]) for d in final["diferencas_de_configuracao"]}
+    assert ("test_c1_soma", True, False) in diferencas
+    assert "Julgue se a mudanca e legitima" in bancada.chamadas("verificador")[0]["stdin"]
+
+
+def test_diferenca_que_o_verificador_julga_ilegitima_vira_bloqueante_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: o verificador que julga a mudança de configuração ilegítima registra o achado em C1, e o código o faz bloqueante."""
+    roteiro = _roteiro(executor_pronto(LAYOUT_SRC))
+    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
+    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto({"notas.txt": "x\n"})]
+    ilegitima = {"titulo": "pythonpath troca o modulo que o aceite importa", "descricao": "o aceite de C1 importa src/soma.py",
+                 "prova": "`python -m pytest aceite` passa so com o pythonpath novo", "local": "pyproject.toml:2", "criterios": ["C1"],
+                 "decisoes": [], "severidade": "alta"}
+    roteiro["verificador"] = [verificacao("atende", [ilegitima]), verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    primeira = ler_estado(bancada.kernel.obter_view(), "goal-soma").verificacoes[0]
+    assert [(a.texto("titulo"), a.gravidade) for a in primeira.achados] == [("pythonpath troca o modulo que o aceite importa", "bloqueante")]
 
 
 def test_mudanca_fora_da_parte_de_teste_do_pyproject_passa_direto_nominal(tmp_path: Path) -> None:

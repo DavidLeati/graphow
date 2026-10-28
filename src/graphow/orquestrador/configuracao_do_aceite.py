@@ -1,15 +1,16 @@
-"""Os testes de aceite rodam com a configuração de teste do commit do aceite, mexa o executor no que mexer.
+"""A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou.
 
 O executor pode precisar mudar a configuração de teste do projeto (um
 `conftest.py` com uma fixture, o `addopts` do pyproject, o script de teste do
-package.json), e a suíte do plano roda com o que ele deixou. Os testes de
-aceite, não: enquanto eles rodam, cada arquivo de configuração de teste volta
-ao que era no commit do aceite, quem nasceu depois sai e quem foi apagado
-volta; nos arquivos mistos (pyproject.toml, setup.cfg, package.json) só a
-parte de teste volta, e o resto (as dependências, o `type` do pacote) fica
-como o executor deixou. Depois, a área volta à ponta. Assim nenhuma mudança
-de configuração alcança o que prova os critérios, e a fatia que a fez não
-precisa ser recusada: ela vai à revisão de risco, como sinal.
+package.json), e a suíte do plano e o aceite rodam com o que ele deixou
+(orquestrador/aceite_no_commit.py). Quando ela mudou, o aceite roda também com
+a do commit do aceite: enquanto essa rodada roda, cada arquivo de
+configuração de teste volta ao que era naquele commit, quem nasceu depois sai
+e quem foi apagado volta; nos arquivos mistos (pyproject.toml, setup.cfg,
+package.json) só a parte de teste volta, e o resto (as dependências, o `type`
+do pacote) fica como o executor deixou. Depois, a área volta à ponta. O teste
+que dá resultado diferente nas duas rodadas vai ao verificador, que julga se
+a mudança é legítima; a fatia que a fez vai à revisão de risco, como sinal.
 """
 
 from collections.abc import Callable, Iterator, Mapping

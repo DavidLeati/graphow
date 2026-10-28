@@ -25,7 +25,6 @@ from graphow.orquestrador.esquemas import PAPEL_AUTOR_DE_ACEITE
 from graphow.orquestrador.git_do_goal import arquivos_do_commit, commit_da_fatia, descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.livro_razao import propriedade
 from graphow.orquestrador.aceite_intocado import forcar_o_aceite_no_indice
-from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, commit_da_configuracao, gravar_aceite, gravar_aceite_proposto
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PedidoDoHumano
@@ -114,8 +113,7 @@ def _conferir(contexto: ContextoDoGoal, estado: EstadoDoGoal, refeito: SaidaDoAc
                  *(f"{caminho} e teste de outro criterio: refaca so os de {criterio}" for caminho in mudados if caminho in alheios)]
     if problemas:
         return tuple(problemas)
-    with configuracao_do_aceite(contexto.area, commit_da_configuracao(estado.aceite)):
-        execucoes = rodar_testes(refeito, rodar)
+    execucoes = rodar_testes(refeito, rodar)
     return tuple(f"o teste {e.teste} de {criterio} nao passa e nao falha numa assercao dele: {motivo}"
                  for e in execucoes if not e.passou and (motivo := e.vermelho_invalido()))
 

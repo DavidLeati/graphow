@@ -198,9 +198,9 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
     """O problema do que a fatia mudou (flags do índice, aceite/) e a configuração de teste que ela mudou, que só é sinal.
 
-    A configuração de teste não alcança os testes de aceite, que rodam com a
-    do commit do aceite (orquestrador/configuracao_do_aceite.py): a mudança
-    não é recusada, e vai à revisão de risco.
+    A mudança de configuração de teste não é recusada: o aceite roda com ela
+    e com a do commit do aceite, e a diferença vai ao verificador
+    (orquestrador/aceite_no_commit.py); a fatia vai à revisão de risco.
     """
     sinalizados = flags_do_indice(contexto.area)
     if sinalizados:

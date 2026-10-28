@@ -1,4 +1,4 @@
-"""Os testes de aceite rodam sempre da cópia intocada, com a configuração de teste do commit do aceite.
+"""Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta.
 
 Mudar o teste de aceite não é o único jeito de neutralizá-lo: um
 `aceite/conftest.py` que pula tudo, um `conftest.py` na raiz, o `addopts` do
@@ -11,10 +11,11 @@ runner, um arquivo ignorado pelo git (que o commit não mostra), ou as flags
   que o executor pôs lá (ignorado inclusive) sai; a configuração de teste
   solta (não versionada ou ignorada) em qualquer lugar sai também;
 - a fatia que mexe em `aceite/`, ignorado inclusive, é recusada;
-- a configuração de teste versionada que o executor mudou não alcança os
-  testes de aceite: enquanto eles rodam, ela volta à do commit do aceite
-  (orquestrador/configuracao_do_aceite.py); a mudança não é recusada, e vai à
-  revisão de risco como sinal;
+- a configuração de teste versionada que o executor mudou não é recusada: o
+  aceite roda com ela, sem contar como verde o teste pulado ou o que não
+  rodou, e de novo com a do commit do aceite; o teste que muda de resultado
+  vai ao verificador julgar (orquestrador/aceite_no_commit.py), e a fatia que
+  a mudou vai à revisão de risco como sinal;
 - antes do commit, as flags do índice são conferidas: as que houver são
   limpas e a fatia falha.
 

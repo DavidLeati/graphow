@@ -243,7 +243,8 @@ def _falha_anterior(fatia: FatiaRegistrada) -> list[str]:
     return linhas
 
 
-def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str], *, marco: MarcoRegistrado) -> str:
+def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str], *, marco: MarcoRegistrado,
+                            diferencas: Sequence[str] = ()) -> str:
     """O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou."""
     plano = estado.plano or {}
     return _juntar([
@@ -252,8 +253,9 @@ def briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequen
         _alcance_do_marco(marco),
         _bloco("Suite", [f"`{plano.get('comando_suite', '')}`"]),
         _bloco("Criterios que esta verificacao julga, com os testes de aceite e a checagem", _criterios_com_aceite(estado, marco.criterios)),
-        _bloco("Testes de aceite", [f"`{(estado.aceite or {}).get('comando', '')}` roda todos. Depois de voce, o orquestrador "
-                                    "roda cada teste de aceite dos criterios julgados: teste vermelho reprova o criterio."]),
+        _bloco("Testes de aceite", [f"`{(estado.aceite or {}).get('comando', '')}` roda todos. O orquestrador roda cada teste "
+                                    "de aceite dos criterios julgados, com a configuracao entregue: teste vermelho reprova o criterio."]),
+        _bloco("O aceite com a configuracao entregue e com a do commit do aceite (julgue a diferenca)", list(diferencas)),
         _bloco("Decisoes", _decisoes(plano)),
         _bloco("Desacordos sobre testes de aceite (julgue o criterio)", _desacordos(estado)),
         _bloco("Commits do Goal desde a base", list(entregues)),
