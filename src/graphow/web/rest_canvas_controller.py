@@ -237,17 +237,19 @@ class CanvasWebController:
         return self._submeter_operacoes(operacoes, meta)
 
     def _operacoes_de_filiacao(self, req: RequisicaoNovoNo, id_no: str) -> list[ItemPatch]:
-        """Arestas que penduram o nó novo na hierarquia, no mesmo lote que o cria.
+        """Arestas que penduram o nó novo na hierarquia e o ligam ao que ele deriva, no mesmo lote que o cria.
 
         Criar o Setor num pedido e a aresta `contem` em outro deixava um Setor
         órfão sempre que o segundo pedido falhasse. No mesmo lote, o portão
-        recusa os dois juntos — é o que o MCP já fazia em `criar_setor`.
+        recusa os dois juntos — é o que o MCP já fazia em `criar_setor`. O
+        `deriva_de` vai junto pela mesma razão, e porque o kernel só isenta da
+        âncora o Artifact cujos `deriva_de` à ação externa já estão no lote.
         """
         vinculos = (
             (TipoAresta.PRODUZ, "prod", req.sessao_id),
             (TipoAresta.CONTEM, "cont", req.contido_em),
         )
-        return [
+        hierarquia = [
             ItemPatch(
                 op=OperacaoPatch.ADD,
                 path=f"/arestas/{prefixo}-{id_no}",
@@ -256,6 +258,10 @@ class CanvasWebController:
             for tipo, prefixo, origem in vinculos
             if origem is not None
         ]
+        derivacoes = [ItemPatch(op=OperacaoPatch.ADD, path=f"/arestas/deriv-{id_no}-{destino}", value={
+            "id": f"deriv-{id_no}-{destino}", "origem_id": id_no, "destino_id": destino, "tipo": TipoAresta.DERIVA_DE.value})
+            for destino in req.deriva_de]
+        return hierarquia + derivacoes
 
     def criar_aresta(self, req: RequisicaoNovaAresta) -> RespostaReciboWeb:
         """Processa a criação de uma nova aresta tipada entre dois nós."""

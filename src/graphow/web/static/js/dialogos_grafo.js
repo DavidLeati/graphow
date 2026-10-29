@@ -1,12 +1,14 @@
 /**
  * Diálogos que escrevem no grafo: criar nó, contêiner, aresta e ramo, e excluir.
  *
- * Três correções moram aqui. O contêiner novo nasce pendurado no pai no mesmo
+ * Quatro correções moram aqui. O contêiner novo nasce pendurado no pai no mesmo
  * lote (`contido_em`), em vez de nascer órfão. A aresta oferece primeiro os
- * tipos que o portão aceita para aquele par, lidos de `/api/ontologia`. E o nó
- * criado num ponto do canvas nasce naquele ponto, não no fim da pilha.
+ * tipos que o portão aceita para aquele par, lidos de `/api/ontologia`. O nó
+ * criado num ponto do canvas nasce naquele ponto, não no fim da pilha. E o
+ * Artifact nasce com a âncora e o `deriva_de` no mesmo lote (artifact_do_canvas.js).
  */
 import { api } from "./api.js";
+import { pedidoDoArtifact, tasksOferecidas } from "./artifact_do_canvas.js";
 import { escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
 import { abrirModal, avisar, confirmar, pedirTexto } from "./modais.js";
@@ -29,13 +31,13 @@ const CORPO_POR_TIPO = {
     dica: "O contexto e a ambiguidade, por extenso.",
     exemploDeTitulo: "Ex.: Qual formato de autenticação usar?",
   },
-  // O kernel recusa o Artifact sem âncora (artifact_sem_ancora): no canvas, a
-  // âncora é o commit. O documento fora de git, com sha256 e caminho, vem do agente.
+  // No Artifact o corpo é o resumo da entrega; a âncora (commit, ou sha256 e
+  // caminho) e a Task de origem têm campos próprios (blocoDoArtifact).
   Artifact: {
-    chave: "commit",
-    rotulo: "Commit",
-    nota: "hash de 40 caracteres do commit que traz a entrega",
-    dica: "Ex.: o que `git rev-parse HEAD` imprime depois do commit da entrega.",
+    chave: "resumo",
+    rotulo: "Resumo",
+    nota: "o que a entrega é",
+    dica: "Ex.: o relatório de setembro, enviado à diretoria por e-mail.",
     exemploDeTitulo: "Ex.: Autenticação JWT entregue",
   },
 };
@@ -109,7 +111,8 @@ export class DialogosDoGrafo {
         <label class="campo"><span class="campo-rotulo">Sessão</span>
           <select class="seletor" data-campo="sessao">${this.opcoesDeSessao(sessaoId ?? this.sessaoSugerida())}</select></label>
         <label class="campo"><span class="campo-rotulo" data-rotulo-corpo></span>
-          <textarea class="entrada mod-area" data-campo="corpo" rows="3"></textarea></label>`,
+          <textarea class="entrada mod-area" data-campo="corpo" rows="3"></textarea></label>
+        <div data-bloco-artifact></div>`,
       botoes: [
         { rotulo: "Cancelar" },
         { rotulo: "Criar nó", primario: true, acao: (modal) => this.enviarNovoNo(modal, { x, y }) },
@@ -118,17 +121,36 @@ export class DialogosDoGrafo {
     });
   }
 
-  /** O campo de texto longo acompanha o tipo escolhido: numa dúvida ele é a pergunta. */
+  /** O campo de texto longo acompanha o tipo escolhido: numa dúvida ele é a pergunta; no Artifact, vem o bloco da âncora. */
   ligarCorpoDoTipo(modal) {
-    const aplicar = () => {
+    const aplicar = (evento) => {
       const tipo = modal.querySelector("input[name=tipo-no]:checked")?.value || "Task";
       const corpo = corpoDoTipo(tipo);
       modal.querySelector("[data-rotulo-corpo]").innerHTML = `${escapeHtml(corpo.rotulo)} <span class="texto-fraco">(${escapeHtml(corpo.nota)})</span>`;
       modal.querySelector("[data-campo=corpo]").placeholder = corpo.dica;
       modal.querySelector("[data-campo=rotulo]").placeholder = corpo.exemploDeTitulo;
+      // Só a troca de tipo refaz o bloco: refazê-lo a cada campo mudado apagaria o que o humano escreveu nele.
+      if (!evento || evento.target?.name === "tipo-no") modal.querySelector("[data-bloco-artifact]").innerHTML = tipo === "Artifact" ? this.blocoDoArtifact() : "";
     };
     modal.addEventListener("change", aplicar);
     aplicar();
+  }
+
+  /** A Task de origem e a âncora do Artifact: o commit, ou, fora de git, o sha256 e o caminho do documento. */
+  blocoDoArtifact() {
+    const selecionado = this.state.selectedElement?.type === "node" ? this.state.selectedElement.data : null;
+    const tasks = tasksOferecidas(this.state.nodes.values());
+    const opcoes = tasks.map((task) => `<option value="${escapeHtml(task.id)}" ${task.id === selecionado?.id ? "selected" : ""}>${escapeHtml(task.rotulo)}</option>`);
+    return `
+      <label class="campo"><span class="campo-rotulo">Deriva de <span class="texto-fraco">(a Task que ele entrega; a aresta vai no mesmo lote)</span></span>
+        <select class="seletor" data-campo="deriva_de"><option value="">Nenhuma</option>${opcoes.join("")}</select></label>
+      <label class="campo"><span class="campo-rotulo">Commit <span class="texto-fraco">(40 ou 64 caracteres)</span></span>
+        <input type="text" class="entrada" data-campo="commit" placeholder="O que git rev-parse HEAD imprime depois do commit da entrega"></label>
+      <label class="campo"><span class="campo-rotulo">Ou, fora de git: sha256 <span class="texto-fraco">(do conteúdo do documento)</span></span>
+        <input type="text" class="entrada" data-campo="sha256" placeholder="sha256sum relatorio.md, ou Get-FileHash no Windows"></label>
+      <label class="campo"><span class="campo-rotulo">Caminho <span class="texto-fraco">(onde o documento mora)</span></span>
+        <input type="text" class="entrada" data-campo="caminho" placeholder="Ex.: relatorios/setembro.md"></label>
+      <p class="campo-nota">Sem commit nem sha256, o kernel só aceita o Artifact que deriva de Task de ação externa.</p>`;
   }
 
   async enviarNovoNo(modal, { x, y }) {
@@ -149,8 +171,13 @@ export class DialogosDoGrafo {
     if (campo("corpo")) propriedades[corpoDoTipo(tipo).chave] = campo("corpo");
     const ponto = x !== null && y !== null ? { x, y } : this.centroDoCanvas?.();
     if (ponto) Object.assign(propriedades, { pos_x: Math.round(ponto.x), pos_y: Math.round(ponto.y) });
+    const lido = (nome) => modal.querySelector(`[data-campo=${nome}]`)?.value || "";
+    const artifact = tipo === "Artifact"
+      ? pedidoDoArtifact({ commit: lido("commit"), sha256: lido("sha256"), caminho: lido("caminho"), deriva_de: [lido("deriva_de")] })
+      : { propriedades: {}, deriva_de: [] };
+    Object.assign(propriedades, artifact.propriedades);
     const id = novoIdDeNo(tipo);
-    const recibo = await api.criarNo({ id_no: id, tipo, rotulo, propriedades, sessao_id: sessao, ramo_id: this.ramo });
+    const recibo = await api.criarNo({ id_no: id, tipo, rotulo, propriedades, sessao_id: sessao, ramo_id: this.ramo, deriva_de: artifact.deriva_de });
     const criou = await this.concluir(recibo, `${apresentarTipo(tipo).nome} criado`);
     if (criou) this.aoCriar?.(id, { tipo, sessao_id: sessao });
     return criou;

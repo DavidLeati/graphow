@@ -75,7 +75,9 @@ class RequisicaoNovoNo:
     sessão do servidor, não do corpo da requisição.
 
     `sessao_id` pendura trabalho numa Sessão com `produz`; `contido_em` pendura
-    um contêiner no pai com `contem`. Os dois viajam no mesmo lote que o nó.
+    um contêiner no pai com `contem`; `deriva_de` liga o nó (o Artifact) às
+    Tasks de que ele deriva. Todos viajam no mesmo lote que o nó: o Artifact
+    sem âncora da ação externa só passa com o `deriva_de` já no lote.
     """
 
     tipo: str
@@ -85,6 +87,7 @@ class RequisicaoNovoNo:
     propriedades: Mapping[str, Any] = field(default_factory=dict)
     ramo_id: str = "main"
     contido_em: str | None = None
+    deriva_de: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

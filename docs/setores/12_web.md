@@ -10,16 +10,16 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-31 módulos · 3733 linhas · 60 classes
+31 módulos · 3749 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`web/catalogo_governanca.py`](#webcatalogogovernanca) | 129 | O catálogo de governança publicado para a interface: gestos, valores aceitos e presets. |
 | [`web/colapso_visual.py`](#webcolapsovisual) | 162 | Recorte do canvas no servidor: colapso em super-nós, escopo ativo e gargalos. |
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
-| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 226 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
+| [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 233 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 347 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 350 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
@@ -27,7 +27,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
 | [`web/ontologia_publica.py`](#webontologiapublica) | 44 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 119 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 385 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 391 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_escopo_controller.py`](#webrestescopocontroller) | 128 | Controlador REST do escopo de um Goal: o placar e os dois gestos do humano, aprovar o plano e responder o desvio. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |
@@ -240,7 +240,7 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 *DTO imutável* — DTO imutável de entrada para criação de novo nó via interface.
 
-**Campos:** `tipo: str`, `rotulo: str`, `id_no: str | None`, `sessao_id: str | None`, `propriedades: Mapping[str, Any]`, `ramo_id: str`, `contido_em: str | None`
+**Campos:** `tipo: str`, `rotulo: str`, `id_no: str | None`, `sessao_id: str | None`, `propriedades: Mapping[str, Any]`, `ramo_id: str`, `contido_em: str | None`, `deriva_de: tuple[str, ...]`
 
 ### `RequisicaoPromocaoDeAprendizado`
 

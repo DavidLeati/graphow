@@ -50,7 +50,14 @@ def converter_novo_no(payload: Mapping[str, Any]) -> RequisicaoNovoNo:
         propriedades=dict(payload.get("propriedades", {})),
         ramo_id=extrair_ramo(payload),
         contido_em=payload.get("contido_em"),
+        deriva_de=_ids(payload.get("deriva_de")),
     )
+
+
+def _ids(bruto: Any) -> tuple[str, ...]:
+    """A lista de ids do corpo, sem vazios nem repetição, na ordem declarada; vazia quando não é lista."""
+    lista = bruto if isinstance(bruto, (list, tuple)) else []
+    return tuple(dict.fromkeys(str(item).strip() for item in lista if str(item).strip()))
 
 
 def converter_nova_aresta(payload: Mapping[str, Any]) -> RequisicaoNovaAresta:
