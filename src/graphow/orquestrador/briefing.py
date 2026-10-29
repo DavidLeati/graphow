@@ -281,6 +281,7 @@ class PedidoDaConferencia:
     antes: str
     diff: str
     diferencas: Sequence[str] = ()
+    excedentes: Sequence[AchadoRegistrado] = ()
 
 
 def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRegistrado, pedido: PedidoDaConferencia) -> str:
@@ -299,6 +300,8 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
         _bloco("O aceite com a configuracao entregue e com a do commit do aceite (um parecer por diferenca)", list(pedido.diferencas)),
         _bloco("Decisoes", _decisoes(plano)),
         _bloco("Achados conferidos (reproduza cada um)", [linha for achado in pedido.conferidos for linha in _conferido(achado)]),
+        _bloco("Excedentes do teto do ciclo (nao precisa reproduzi-los; se der com um, liste-o em `achados` com `persiste` = o id)",
+               [f"- {achado.id}: {achado.texto('titulo')} ({achado.texto('local') or 'sem local'})" for achado in pedido.excedentes]),
         _bloco(f"Pareceres da verificacao anterior ({anterior.id if anterior else '-'})",
                [f"- {p.get('id')} {p.get('veredito')}: {p.get('prova', '')}" for p in (pareceres or []) if isinstance(p, Mapping)]),
         f"## Diff das correcoes\n```diff\n{pedido.diff}\n```" if pedido.diff else "",

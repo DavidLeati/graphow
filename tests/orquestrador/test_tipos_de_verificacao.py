@@ -124,7 +124,7 @@ def test_conferencia_que_diz_persistir_achado_que_nao_confere_e_recusada_edge_ca
 
     problemas = conferir_verificacao(Verificacao.de_json(saida), ("C1", "C2"), ("D1",), conferidos=("achado-goal-soma-v1-1",))
 
-    assert problemas == ("o achado 'README sem exemplo' persiste achado-inventado, que nao e achado conferido",)
+    assert problemas == ("o achado 'README sem exemplo' persiste achado-inventado, que nao e achado conferido nem excedente do teto",)
 
 
 def test_goal_fecha_na_conferencia_final_limpa_e_o_kernel_aceita_nominal(tmp_path: Path) -> None:

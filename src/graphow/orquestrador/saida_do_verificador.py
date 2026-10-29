@@ -23,11 +23,13 @@ informativa, e não muda o destino.
 Uma verificação abre no máximo 5 bloqueantes novos (`TETO_DE_BLOQUEANTES`):
 o primeiro marco da agenda, na bancada, abriu 12, e cada correção trazia
 bordas novas. Os de maior prioridade ficam; o resto vira acompanhamento
-marcado "excedeu o teto do ciclo", visível nas pendências. O teto vale para os
-bloqueantes novos do ciclo (os da caçada, os de regressão): o achado que
-persiste segue bloqueante e não conta nele. Na revisão da T2c+T2d, a
-conferência reproduziu os 5 da caçada e achou uma regressão; o 5º persistente
-passou do teto, e o fecho o deu por resolvido.
+marcado "excedeu o teto do ciclo", visível nas pendências, e volta a bloquear
+quando a conferência o acha de novo e cita o id dele em `persiste` (o briefing
+dela lista os excedentes do marco). O teto vale para os bloqueantes novos do
+ciclo (os da caçada, os de regressão): o achado que persiste segue bloqueante
+e não conta nele. Na revisão da T2c+T2d, a conferência reproduziu os 5 da
+caçada e achou uma regressão; o 5º persistente passou do teto, e o fecho o deu
+por resolvido.
 
 Na conferência, que roda depois de cada ciclo de correção, a gravidade tem
 mais uma regra (orquestrador/tipo_da_verificacao.py): cada achado conferido
@@ -334,13 +336,14 @@ def _lados(id_parecer: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 
 def conferir_verificacao(
     verificacao: Verificacao, criterios: Sequence[str], decisoes: Sequence[str], *, conhecidos: Sequence[str] | None = None,
-    diferencas: Sequence[tuple[str, str]] = (), conferidos: Sequence[str] = (),
+    diferencas: Sequence[tuple[str, str]] = (), conferidos: Sequence[str] = (), excedentes: Sequence[str] = (),
 ) -> tuple[str, ...]:
     """Um parecer por critério, por decisão e por diferença de configuração pedidos, e achado que toca só o que pode tocar.
 
     O que o achado pode tocar é o que a verificação julga, ou, quando dito, os
     critérios já entregues e as decisões (`conhecidos`). Na conferência, um
-    parecer por achado conferido. Os comandos vêm do stream.
+    parecer por achado conferido, e o `persiste` cita um conferido ou um
+    excedente do teto. Os comandos vêm do stream.
     """
     dados = [parecer.id for parecer in verificacao.criterios]
     dadas = [parecer.id for parecer in verificacao.decisoes]
@@ -354,20 +357,20 @@ def conferir_verificacao(
             for achado in verificacao.achados for id_c in achado.toca if id_c not in tocaveis
         ),
         *_conferir_diferencas(verificacao.diferencas, diferencas),
-        *_conferir_os_conferidos(verificacao, conferidos),
+        *_conferir_os_conferidos(verificacao, conferidos, excedentes),
     )
 
 
-def _conferir_os_conferidos(verificacao: Verificacao, conferidos: Sequence[str]) -> tuple[str, ...]:
-    """Um parecer por achado conferido, sem repetir nem inventar, e o `persiste` do achado só com um conferido que persiste."""
+def _conferir_os_conferidos(verificacao: Verificacao, conferidos: Sequence[str], excedentes: Sequence[str]) -> tuple[str, ...]:
+    """Um parecer por conferido, sem repetir nem inventar, e o `persiste` só com um conferido que persiste ou um excedente."""
     dados = [parecer.achado for parecer in verificacao.conferidos]
     corrigidos = set(verificacao.confirmados)
     return (
         *(f"falta o parecer do achado conferido {id_a} (corrigido ou persiste)" for id_a in conferidos if id_a not in dados),
         *(f"parecer do achado conferido {id_a} repetido" for id_a in sorted({i for i in dados if dados.count(i) > 1})),
         *(f"o parecer de {id_a} nao corresponde a nenhum achado conferido" for id_a in dados if id_a not in conferidos),
-        *(f"o achado '{achado.titulo}' persiste {achado.persiste}, que nao e achado conferido"
-          for achado in verificacao.achados if achado.persiste and achado.persiste not in conferidos),
+        *(f"o achado '{achado.titulo}' persiste {achado.persiste}, que nao e achado conferido nem excedente do teto"
+          for achado in verificacao.achados if achado.persiste and achado.persiste not in (*conferidos, *excedentes)),
         *(f"o achado '{achado.titulo}' persiste {achado.persiste}, e o parecer dele diz corrigido"
           for achado in verificacao.achados if achado.persiste in corrigidos),
     )

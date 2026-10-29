@@ -1038,7 +1038,9 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    verificador, na ordem dele; o resto vira acompanhamento marcado "excedeu o
    teto do ciclo", visível nas pendências. O achado que persiste não conta no
    teto e segue bloqueante (na revisão, o 5º persistente passava do teto e o
-   fecho o dava por resolvido). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   fecho o dava por resolvido). O excedente volta a bloquear quando a
+   conferência o acha de novo e cita o id dele em `persiste` (o briefing dela
+   lista os excedentes do marco). A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes do ciclo viram uma fatia de correção só, que
    deriva de todos eles, mesmo em arquivos diferentes, e leva no briefing cada

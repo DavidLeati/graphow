@@ -25,7 +25,10 @@ Na revisão da T2c+T2d, o achado conferido que a conferência não listava conta
 como corrigido, e o que ela achava de novo sem o `persiste` (opcional) virava
 acompanhamento novo: um defeito que persistia sumia do ciclo. Agora o silêncio
 não resolve nada: só o parecer `corrigido` confirma a correção, e o `persiste`
-sem achado listado vira o bloqueante, com o que o achado conferido dizia.
+sem achado listado vira o bloqueante, com o que o achado conferido dizia. O
+acompanhamento que passou do teto de bloqueantes (o excedente) vai na lista
+da conferência com o id: se ela o acha de novo e o cita em `persiste`, ele
+volta a bloquear, em vez de virar achado novo sem regressão.
 
 O tipo vai na Evidence da verificação (`tipo_da_verificacao`) e no `--status`.
 """
@@ -33,13 +36,20 @@ O tipo vai na Evidence da verificação (`tipo_da_verificacao`) e no `--status`.
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.esquemas import PAPEL_CONFERENCIA, PAPEL_VERIFICADOR, PAPEL_VERIFICADOR_DO_MARCO
 from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
-from graphow.orquestrador.saida_do_verificador import ORIGEM_DO_VERIFICADOR, Achado, ParecerDoConferido, Verificacao
+from graphow.orquestrador.saida_do_verificador import (
+    MARCA_DO_TETO,
+    ORIGEM_DO_VERIFICADOR,
+    Achado,
+    ParecerDoConferido,
+    Verificacao,
+)
 
 TIPO_CACA: str = "caca"
 TIPO_MARCO: str = "marco"
@@ -54,16 +64,27 @@ LIMITE_DO_DIFF_DAS_CORRECOES: int = 8000
 
 @dataclass(frozen=True)
 class TipoDaVerificacao:
-    """O tipo da verificação que o laço vai rodar e, na conferência, os achados que ela confere e de onde as correções partiram."""
+    """O tipo da verificação que o laço vai rodar e, na conferência, os achados que ela confere, os excedentes e de onde partiu."""
 
     tipo: str
     conferidos: tuple[AchadoRegistrado, ...] = ()
     antes: str = ""
+    excedentes: tuple[AchadoRegistrado, ...] = ()
 
     @property
     def papel(self) -> str:
         """O papel da sessão: o prompt, o schema e o modelo do tipo."""
         return PAPEL_DO_TIPO[self.tipo]
+
+    @property
+    def ids_dos_conferidos(self) -> tuple[str, ...]:
+        """Os ids dos achados que a conferência confere: cada um pede um parecer."""
+        return tuple(achado.id for achado in self.conferidos)
+
+    @property
+    def ids_dos_excedentes(self) -> tuple[str, ...]:
+        """Os ids dos excedentes do teto que a conferência pode citar em `persiste`."""
+        return tuple(achado.id for achado in self.excedentes)
 
     @property
     def conferencia(self) -> bool:
@@ -72,7 +93,7 @@ class TipoDaVerificacao:
 
     def ajustar(self, verificacao: Verificacao) -> Verificacao:
         """Na conferência, cada achado do verificador com o destino dela; nos outros tipos, como veio."""
-        return na_conferencia(verificacao, self.conferidos) if self.conferencia else verificacao
+        return na_conferencia(verificacao, self.conferidos, self.excedentes) if self.conferencia else verificacao
 
 
 def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado) -> TipoDaVerificacao:
@@ -81,7 +102,9 @@ def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado) -> TipoDaVerif
     if not verificacoes:
         return TipoDaVerificacao(TIPO_CACA if marco.final else TIPO_MARCO)
     ultima = verificacoes[-1]
-    return TipoDaVerificacao(TIPO_CONFERENCIA, _conferidos(estado, ultima.id), ultima.commit)
+    excedentes = tuple(achado for v in (estado.verificacoes if marco.final else verificacoes) for achado in v.achados
+                       if achado.texto("marca") == MARCA_DO_TETO and achado.estado == a.ESTADO_DO_ACOMPANHAMENTO)
+    return TipoDaVerificacao(TIPO_CONFERENCIA, _conferidos(estado, ultima.id), ultima.commit, excedentes)
 
 
 def _conferidos(estado: EstadoDoGoal, id_verificacao: str) -> tuple[AchadoRegistrado, ...]:
@@ -91,17 +114,19 @@ def _conferidos(estado: EstadoDoGoal, id_verificacao: str) -> tuple[AchadoRegist
     return tuple(achado for id_achado in ids if (achado := estado.achado(id_achado)) is not None)
 
 
-def na_conferencia(verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado]) -> Verificacao:
+def na_conferencia(
+    verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado], excedentes: Sequence[AchadoRegistrado] = ()
+) -> Verificacao:
     """A conferência com o destino de cada achado do verificador e um bloqueante por conferido que persiste.
 
-    O que persiste toca também o que o achado conferido tocava, e é
-    bloqueante; o que é regressão segue a regra de sempre; o achado novo que
+    O que persiste (um conferido ou um excedente do teto) toca também o que o
+    original tocava, e é bloqueante; o que é regressão segue a regra de sempre; o achado novo que
     não é regressão vira acompanhamento marcado. Os do orquestrador (a suíte,
     o teste de aceite) ficam como vieram. O parecer `persiste` que nenhum
     achado listado repete vira o achado, com o que o conferido dizia e a
     prova do parecer.
     """
-    por_id = {achado.id: achado for achado in conferidos}
+    por_id = {achado.id: achado for achado in (*excedentes, *conferidos)}
     achados = tuple(_com_o_destino(achado, por_id) for achado in verificacao.achados)
     listados = {achado.persiste for achado in achados}
     repetidos = tuple(_o_que_persiste(parecer, por_id[parecer.achado]) for parecer in verificacao.conferidos

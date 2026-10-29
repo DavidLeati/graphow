@@ -28,6 +28,7 @@ AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 V1_1: str = "achado-goal-soma-v1-1"
 V1_2: str = "achado-goal-soma-v1-2"
 V2_6: str = "achado-goal-soma-v2-6"
+V1_6: str = "achado-goal-soma-v1-6"
 SEM_EXEMPLO: str = "# brinquedo\nUse somar(a, b) agora.\n"
 PROVA_QUE_PERSISTE: str = "grep -c somar README.md: 1, ainda sem exemplo com resultado"
 
@@ -179,3 +180,37 @@ def test_persistentes_nao_contam_no_teto_dos_novos_edge_case() -> None:
 
     assert [a.titulo for a in julgada.bloqueantes()] == [*(f"README falha {i}" for i in range(1, 6)), "persiste 1", "persiste 2"]
     assert [(a.titulo, a.marca) for a in julgada.acompanhamentos()] == [("README falha 6", MARCA_DO_TETO)]
+
+
+def test_excedente_da_cacada_reachado_com_persiste_volta_a_bloquear_nominal(tmp_path: Path) -> None:
+    """T2f.3 (S4): a caçada abre 8; o 6º passa do teto; a conferência o acha de novo e cita o id dele, e ele volta a bloquear."""
+    roteiro = roteiro_completo()
+    reachado = {**_falhas(6)[5], "prova": "README.md:2 lido de novo: a falha 6 segue", "persiste": V1_6}
+    roteiro["verificador"] = [verificacao("parcial", _falhas(8)), verificacao("atende", [reachado]), verificacao("atende")]
+    roteiro["executor"].append(executor_pronto({"README.md": README_COM_EXEMPLO + "Sem a falha 6.\n"}))
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = _estado(bancada)
+    excedente = estado.achado(V1_6)
+    assert excedente is not None and (excedente.gravidade, excedente.texto("marca")) == ("acompanhamento", MARCA_DO_TETO)
+    assert f"- {V1_6}: README falha 6" in bancada.chamadas("conferencia")[0]["stdin"], "o briefing da conferencia lista o excedente"
+    de_novo = estado.verificacoes[1].achados[0]
+    assert (de_novo.gravidade, de_novo.texto("persiste"), de_novo.texto("marca")) == ("bloqueante", V1_6, "")
+    assert [f.codigo for f in estado.fatias if de_novo.id in f.lista("achados")] == ["M1.K2.1"]
+    assert de_novo.estado == "resolvido"
+
+
+def test_conferencia_que_cita_o_excedente_do_teto_confere_edge_case() -> None:
+    """Caso de borda: o `persiste` com o id de um excedente do teto não é recusado; com um id que não é nenhum dos dois, é."""
+    saida = _conferencia([(V1_1, "corrigido")], [{**BLOQUEANTE_DO_README, "persiste": V1_6}])["saida"]
+    inventado = _conferencia([(V1_1, "corrigido")], [{**BLOQUEANTE_DO_README, "persiste": "achado-inventado"}])["saida"]
+
+    problemas = [conferir_verificacao(Verificacao.de_json(dados), ("C1", "C2"), ("D1",), conferidos=(V1_1,), excedentes=(V1_6,))
+                 for dados in (saida, inventado)]
+
+    assert problemas[0] == ()
+    assert problemas[1] == ("o achado 'README sem exemplo' persiste achado-inventado, que nao e achado conferido nem "
+                                   "excedente do teto",)

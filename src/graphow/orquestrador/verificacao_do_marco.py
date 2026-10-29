@@ -184,7 +184,7 @@ def _sessao_do_verificador(
             briefing=_briefing(contexto, estado, marco, head=head, aceite=aceite, tipo=tipo),
             conferir=lambda dados: conferir_verificacao(
                 Verificacao.de_json(dados), marco.criterios, exigidas, conhecidos=(*conhecidos, *decisoes),
-                diferencas=aceite.chaves_a_julgar(), conferidos=tuple(achado.id for achado in tipo.conferidos),
+                diferencas=aceite.chaves_a_julgar(), conferidos=tipo.ids_dos_conferidos, excedentes=tipo.ids_dos_excedentes,
             ),
             orcamento_restante_usd=contexto.restante(), exige_bash=True,
         )
@@ -205,7 +205,7 @@ def _briefing(
         return briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
                                        diferencas=aceite.para_o_verificador())
     diff = diff_das_correcoes(contexto.git, tipo.antes, contexto.configuracao.slug)
-    pedido = PedidoDaConferencia(tipo.conferidos, tipo.antes, diff, aceite.para_o_verificador())
+    pedido = PedidoDaConferencia(tipo.conferidos, tipo.antes, diff, aceite.para_o_verificador(), tipo.excedentes)
     return briefing_da_conferencia(estado, head, marco=marco, pedido=pedido)
 
 
