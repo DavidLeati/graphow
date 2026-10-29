@@ -2,19 +2,22 @@
 
 É função pura sobre o texto do comando (orquestrador/leitura_do_shell.py o
 quebra em comandos simples). Cada invocação de git é achada onde estiver:
-- depois de `&&`, `||`, `;`, `|`, num subshell, numa substituição (`$(...)`,
-  crase), dentro de `bash -c`/`sh -c`, de `cmd /c`, de `powershell -Command`,
-  de `eval`, `alias`, `trap`, do heredoc que um shell lê e do `find -exec`;
+- depois de `&&`, `||`, `;`, `|`, num subshell, num `case`, numa substituição
+  (`$(...)`, crase), dentro de `bash -c`/`sh -c`, de `cmd /c`, de `eval`,
+  `alias`, `trap`, do heredoc que um shell lê e do `find -exec`;
 - com prefixo de variável, chamada por `env`, `command`, `exec`, `xargs`,
-  `timeout` e afins, por caminho absoluto, como `git.exe` ou em maiúsculas.
-Passam só `status`, `diff`, `log`, `show`, `blame`, `ls-files` e `rev-parse`,
-com as opções delas, e com as opções globais que não trocam configuração nem
-programa (`-C`, `--no-pager`...). `git -c`, `--config-env` e `--exec-path`
-são recusados, como a variável `GIT_*` ou `PATH` na frente do git: com eles,
-até uma leitura roda o programa que o agente escolher. Recusa também o que
-não lê: texto que não fecha, programa cujo nome só se sabe ao rodar, shell
-que lê comandos da entrada padrão. Script em arquivo e interpretador (`python
--c`, `node -e`) ficam fora: para eles valem as outras camadas da trava.
+  `timeout`, `coproc`, `wsl`, `npx -c`/`npm exec` e afins, por caminho
+  absoluto, como `git.exe`, em maiúsculas ou como `git-<sub>`.
+Quais argumentos do git passam é de orquestrador/leituras_do_git.py. O que
+roda texto que a trava não lê é opaco: o shell que lê da entrada padrão, de
+`/dev/stdin`, de `/dev/fd/*` ou de `<(...)`, o `source` deles, o PowerShell, o
+`sed` com `e`, o `awk` com `system` ou `|`, o programa ou o argumento de
+executor que só se sabe ao rodar (`"$PY"`, `timeout $T`). O comando com um
+opaco é recusado se cita git em qualquer ponto, aspas à parte. Recusa
+também o texto que não fecha, o `bash -c` cujo texto só se sabe ao rodar, o
+shell que lê de um pipe e o `hash -p` que dá outro nome a git, shell ou
+executor. Script em arquivo e interpretador (`python -c`, `node -e`) ficam
+fora: para eles valem as outras camadas da trava.
 """
 
 from collections.abc import Callable, Iterable, Mapping
@@ -22,40 +25,45 @@ from dataclasses import dataclass, replace
 from itertools import chain
 import re
 
-from graphow.orquestrador.leitura_do_shell import ComandoIlegivel, ComandoSimples, Palavra, ler_shell
+from graphow.orquestrador.leitura_do_shell import PALAVRAS_RESERVADAS, ComandoIlegivel, ComandoSimples, Palavra, ler_shell
+from graphow.orquestrador.leituras_do_git import LEITURAS_EM_TEXTO, motivo_do_git
+from graphow.orquestrador.sed_e_awk import awk_roda_comando, sed_roda_comando
 
-LEITURAS_DO_GIT: tuple[str, ...] = ("status", "diff", "log", "show", "blame", "ls-files", "rev-parse")
-OPCOES_GLOBAIS_COM_VALOR: frozenset[str] = frozenset({"-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix"})
-OPCOES_GLOBAIS_SEM_VALOR: frozenset[str] = frozenset({
-    "--no-pager", "-p", "--paginate", "-P", "--bare", "--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs",
-    "--glob-pathspecs", "--noglob-pathspecs", "--icase-pathspecs", "--no-optional-locks", "--no-advice",
-})
 PROGRAMAS_DO_GIT: frozenset[str] = frozenset({"git"})
 SHELLS: frozenset[str] = frozenset({"bash", "sh", "zsh", "dash", "ksh", "ash", "mksh", "fish"})
-SHELLS_DO_WINDOWS: frozenset[str] = frozenset({"cmd", "powershell", "pwsh"})
 # Programas que rodam outro programa: o git ou o shell achado nos argumentos deles é invocação.
 EXECUTORES: frozenset[str] = frozenset({
     "env", "exec", "nohup", "time", "nice", "timeout", "sudo", "doas", "xargs", "stdbuf", "ionice", "setsid", "watch",
     "strace", "ltrace", "flock", "chronic", "unbuffer", "winpty", "taskset", "chrt", "start", "builtin", "busybox",
-    "parallel", "caffeinate",
+    "parallel", "caffeinate", "coproc", "wsl",
 })
 # Os que entregam o argumento a um shell (`watch 'git commit'`, `flock arq -c 'git push'`).
 EXECUTORES_PELO_SHELL: frozenset[str] = frozenset({"watch", "flock", "parallel"})
-PALAVRAS_RESERVADAS: frozenset[str] = frozenset({"!", "{", "}", "if", "then", "else", "elif", "fi", "do", "done",
-                                                 "while", "until", "function"})
+# Programas comuns: achados nos argumentos de um executor, são o programa que ele roda (`xargs grep -n git`).
+PROGRAMAS_COMUNS: frozenset[str] = frozenset({
+    "grep", "egrep", "fgrep", "rg", "ag", "ack", "cat", "head", "tail", "wc", "sort", "uniq", "cut", "tr", "ls", "echo",
+    "printf", "python", "python3", "py", "pytest", "node", "rm", "cp", "mv", "mkdir", "touch", "test", "diff", "jq",
+    "make", "cargo", "go", "uv", "pip", "ruff", "mypy", "tee", "du", "stat", "file", "basename", "dirname", "realpath",
+})
 SUFIXOS_DE_EXECUTAVEL: tuple[str, ...] = (".exe", ".cmd", ".bat", ".com")
 OPCOES_DO_SHELL_COM_VALOR: frozenset[str] = frozenset({"-o", "+o", "-O", "+O", "--rcfile", "--init-file"})
 FIM_DO_EXEC_DO_FIND: frozenset[str] = frozenset({";", "+"})
+# O arquivo que é a entrada padrão: o script lido dele é texto que a trava não vê.
+DA_ENTRADA: re.Pattern[str] = re.compile(r"-|/dev/stdin|/dev/fd/\d+|/proc/[^/]+/fd/\d+")
 LIMITE_DE_ANINHAMENTO: int = 8
-LEITURAS_EM_TEXTO: str = ", ".join(LEITURAS_DO_GIT)
 
 
 @dataclass(frozen=True)
 class Decisao:
-    """Se o comando passa e, quando não passa, o motivo que vai ao agente."""
+    """Se o comando passa e, quando não passa, o motivo que vai ao agente.
+
+    `opaco` é o texto que a trava não leu num trecho liberado; `decidir` o
+    recusa quando o comando cita git.
+    """
 
     permitido: bool
     motivo: str = ""
+    opaco: str = ""
 
 
 LIBERADO: Decisao = Decisao(True)
@@ -76,10 +84,25 @@ class _Chamada:
         """As palavras depois do nome do programa."""
         return self.palavras[1:]
 
+    @property
+    def programa(self) -> str:
+        """O nome do programa chamado."""
+        return nome_do_programa(self.palavras[0].texto)
+
 
 def decidir(comando: str) -> Decisao:
     """Se o comando Bash passa pela trava do git: só as leituras do git passam, e o que não se lê é recusado."""
-    return _decidir_texto(comando, 0)
+    decisao = _decidir_texto(comando, 0)
+    if not decisao.permitido:
+        return decisao
+    if decisao.opaco and cita_git(comando):
+        return _recusa(f"{decisao.opaco}, e o comando cita git")
+    return LIBERADO
+
+
+def cita_git(texto: str) -> bool:
+    """O texto tem `git` em algum ponto, sem contar aspas e barras (`g"i"t` cita)."""
+    return "git" in re.sub(r"[\"'\\]", "", texto).lower()
 
 
 def nome_do_programa(texto: str) -> str:
@@ -94,9 +117,19 @@ def _recusa(motivo: str) -> Decisao:
                           f"Passam so as leituras ({LEITURAS_EM_TEXTO}).")
 
 
-def _primeira_recusa(decisoes: Iterable[Decisao]) -> Decisao:
-    """A primeira recusa da sequência, ou a liberação quando nenhuma recusa."""
-    return next((decisao for decisao in decisoes if not decisao.permitido), LIBERADO)
+def _opaco(motivo: str) -> Decisao:
+    """O trecho liberado com texto que a trava não lê."""
+    return Decisao(True, opaco=motivo)
+
+
+def _juntar(decisoes: Iterable[Decisao]) -> Decisao:
+    """A primeira recusa da sequência; sem recusa, o primeiro opaco, ou a liberação."""
+    achada = LIBERADO
+    for decisao in decisoes:
+        if not decisao.permitido:
+            return decisao
+        achada = achada if achada.opaco else decisao
+    return achada
 
 
 def _decidir_texto(texto: str, profundidade: int) -> Decisao:
@@ -109,7 +142,7 @@ def _decidir_texto(texto: str, profundidade: int) -> Decisao:
         return _recusa(f"a trava nao conseguiu ler o comando ({erro}) e recusa o que nao le")
     substituicoes = (_decidir_texto(interno, profundidade + 1) for interno in leitura.substituicoes)
     comandos = (_decidir_comando(comando, profundidade) for comando in leitura.comandos)
-    return _primeira_recusa(chain(substituicoes, comandos))
+    return _juntar(chain(substituicoes, comandos))
 
 
 def _decidir_comando(comando: ComandoSimples, profundidade: int) -> Decisao:
@@ -128,8 +161,10 @@ def _decidir_chamada(chamada: _Chamada) -> Decisao:
     if not resto:
         return LIBERADO
     if resto[0].dinamica:
-        return _recusa(f"o nome do programa so se sabe ao rodar ({resto[0].texto or '$(...)'})")
-    tratador = TRATADORES.get(nome_do_programa(resto[0].texto))
+        return _opaco(f"o nome do programa so se sabe ao rodar ({resto[0].texto or '$(...)'})")
+    if chamada.programa.startswith("git-"):
+        return _git(replace(chamada, palavras=(Palavra("git"), Palavra(chamada.programa[4:]), *resto[1:])))
+    tratador = TRATADORES.get(chamada.programa)
     return tratador(chamada) if tratador else LIBERADO
 
 
@@ -143,14 +178,8 @@ def _git(chamada: _Chamada) -> Decisao:
     perigosas = [p.nome_atribuido for p in chamada.atribuicoes if _variavel_perigosa(p.nome_atribuido)]
     if perigosas:
         return _recusa(f"git com {perigosas[0]}=... na frente: a variavel troca repositorio, configuracao ou programa")
-    subcomando, motivo = _subcomando_do_git(chamada.argumentos)
-    if subcomando is None:
-        return _recusa(motivo)
-    if subcomando.dinamica:
-        return _recusa("o subcomando do git so se sabe ao rodar")
-    if subcomando.texto in LEITURAS_DO_GIT:
-        return LIBERADO
-    return _recusa(f"git {subcomando.texto} recusado")
+    motivo = motivo_do_git(chamada.argumentos)
+    return _recusa(motivo) if motivo else LIBERADO
 
 
 def _variavel_perigosa(nome: str) -> bool:
@@ -158,38 +187,33 @@ def _variavel_perigosa(nome: str) -> bool:
     return nome.upper().startswith("GIT_") or nome.upper() == "PATH"
 
 
-def _subcomando_do_git(argumentos: tuple[Palavra, ...]) -> tuple[Palavra | None, str]:
-    """O subcomando depois das opções globais; sem ele, o motivo da recusa."""
-    indice = 0
-    while indice < len(argumentos):
-        palavra = argumentos[indice]
-        opcao = palavra.texto.split("=", 1)[0]
-        if palavra.dinamica:
-            return None, "opcao do git que so se sabe ao rodar"
-        if not palavra.texto.startswith("-"):
-            return palavra, ""
-        if palavra.texto.startswith("-c") or opcao in ("--config-env", "--exec-path"):
-            return None, f"git {palavra.texto}: a opcao troca a configuracao ou o programa do git"
-        if opcao not in OPCOES_GLOBAIS_COM_VALOR | OPCOES_GLOBAIS_SEM_VALOR:
-            return None, f"git {palavra.texto}: opcao que a trava nao libera"
-        indice += 2 if palavra.texto in OPCOES_GLOBAIS_COM_VALOR else 1
-    return None, "git sem subcomando"
+def _da_entrada(palavra: Palavra) -> bool:
+    """O script que vem da entrada padrão, de `/dev/fd/*` ou que só se sabe ao rodar (`<(...)`, `$F`)."""
+    return palavra.dinamica or bool(DA_ENTRADA.fullmatch(palavra.texto))
 
 
 def _shell(chamada: _Chamada) -> Decisao:
-    """`bash -c "..."` lê o texto; `bash arquivo` fica fora; o shell que lê a entrada padrão só com heredoc."""
-    argumentos, indice, com_c = chamada.argumentos, 0, False
+    """`bash -c "..."` lê o texto; `bash arquivo` fica fora; o script da entrada é opaco; o heredoc é lido."""
+    argumentos, indice, letras = chamada.argumentos, 0, ""
     while indice < len(argumentos) and argumentos[indice].texto[:1] in ("-", "+"):
         opcao = argumentos[indice].texto
-        com_c = com_c or (not opcao.startswith("--") and "c" in opcao[1:])
+        letras += "" if opcao.startswith("--") else opcao[1:]
         indice += 2 if opcao in OPCOES_DO_SHELL_COM_VALOR else 1
-    if com_c:
+    if "c" in letras:
         return _texto_dado(argumentos[indice:indice + 1], chamada, "o shell -c")
-    if indice < len(argumentos):
-        return LIBERADO
+    if indice < len(argumentos) and "s" not in letras:
+        return _opaco("o shell le o script da entrada padrao ou de um <(...)") if _da_entrada(argumentos[indice]) else LIBERADO
     if chamada.entrada is None or chamada.entrada_dinamica:
         return _recusa("o shell le os comandos da entrada padrao, que a trava nao ve")
     return _decidir_texto(chamada.entrada, chamada.profundidade + 1)
+
+
+def _source(chamada: _Chamada) -> Decisao:
+    """`source arquivo` fica fora, como `bash arquivo`; o da entrada padrão ou de `<(...)` é opaco."""
+    primeiro = chamada.argumentos[:1]
+    if not primeiro:
+        return _recusa("source sem arquivo")
+    return _opaco("o source le da entrada padrao ou de um <(...)") if _da_entrada(primeiro[0]) else LIBERADO
 
 
 def _texto_dado(palavras: tuple[Palavra, ...], chamada: _Chamada, quem: str) -> Decisao:
@@ -201,52 +225,56 @@ def _texto_dado(palavras: tuple[Palavra, ...], chamada: _Chamada, quem: str) -> 
     return _decidir_texto(" ".join(palavra.texto for palavra in palavras), chamada.profundidade + 1)
 
 
-def _shell_do_windows(chamada: _Chamada) -> Decisao:
-    """`cmd /c ...`, `powershell -Command ...`: o que vem depois das opções é lido como comando."""
+def _cmd(chamada: _Chamada) -> Decisao:
+    """`cmd /c ...`: o que vem depois das opções é lido como comando."""
     argumentos = chamada.argumentos
     inicio = next((i for i, p in enumerate(argumentos) if p.texto[:1] not in ("-", "/")), len(argumentos))
-    if any(_codificado(p.texto) for p in argumentos[:inicio]):
-        return _recusa("powershell -EncodedCommand: a trava nao le o comando codificado")
     resto = argumentos[inicio:]
     if any(caractere in p.texto for p in resto for caractere in "^%"):
         return _recusa("cmd com ^ ou %: a trava nao le o que o cmd expande")
     if not resto:
         return LIBERADO if chamada.entrada is None else _recusa("o shell le os comandos da entrada padrao")
-    return _texto_dado(resto, chamada, nome_do_programa(chamada.palavras[0].texto))
+    return _texto_dado(resto, chamada, "cmd")
+
+
+def _powershell(chamada: _Chamada) -> Decisao:
+    """O texto do PowerShell não se lê como Bash (`iex`, `&`, `Start-Process`): é opaco; o codificado, recusado."""
+    if any(_codificado(p.texto) for p in chamada.argumentos if p.texto[:1] in ("-", "/")):
+        return _recusa("powershell -EncodedCommand: a trava nao le o comando codificado")
+    return _opaco("o comando do PowerShell, que a trava nao le")
 
 
 def _codificado(opcao: str) -> bool:
-    """`-EncodedCommand` do PowerShell, abreviado ou não (`-e`, `-ec`, `-enc`...)."""
-    minusculo = opcao.lower()
+    """`-EncodedCommand` do PowerShell, abreviado ou não (`-e`, `-ec`, `-enc`...), com `-` ou `/`."""
+    minusculo = "-" + opcao.lower()[1:]
     return minusculo == "-ec" or (len(minusculo) > 1 and "-encodedcommand".startswith(minusculo))
 
 
 def _executor(chamada: _Chamada) -> Decisao:
-    """O programa que roda outro: o git ou o shell achado nos argumentos é decidido dali em diante."""
-    argumentos = chamada.argumentos
-    for indice in range(len(argumentos)):
-        decisao = _argumento_do_executor(chamada, indice)
-        if decisao is not None:
-            return decisao
-    return LIBERADO
+    """O programa que roda outro: o programa achado nos argumentos é decidido dali em diante, e a varredura para."""
+    decisoes: list[Decisao] = []
+    for indice in range(len(chamada.argumentos)):
+        decisao, achou_o_programa = _argumento_do_executor(chamada, indice)
+        decisoes.append(decisao)
+        if achou_o_programa or not decisao.permitido:
+            break
+    return _juntar(decisoes)
 
 
-def _argumento_do_executor(chamada: _Chamada, indice: int) -> Decisao | None:
-    """A decisão que um argumento do executor dá; None quando a varredura segue."""
+def _argumento_do_executor(chamada: _Chamada, indice: int) -> tuple[Decisao, bool]:
+    """A decisão de um argumento do executor e se ele é o programa que o executor roda."""
     argumentos = chamada.argumentos
     palavra = argumentos[indice]
     if palavra.atribuicao:
-        return None
+        return LIBERADO, False
     if palavra.dinamica:
-        return _recusa(f"{nome_do_programa(chamada.palavras[0].texto)} com argumento que so se sabe ao rodar")
-    if nome_do_programa(palavra.texto) in PROGRAMAS_DO_GIT | SHELLS | SHELLS_DO_WINDOWS:
+        return _opaco(f"{chamada.programa} com argumento que so se sabe ao rodar"), False
+    nome = nome_do_programa(palavra.texto)
+    if nome in PROGRAMAS_COMUNS or nome in TRATADORES or nome.startswith("git-"):
         antes = tuple(p for p in argumentos[:indice] if p.atribuicao)
-        return _decidir_chamada(replace(chamada, palavras=argumentos[indice:], atribuicoes=(*chamada.atribuicoes, *antes)))
+        return _decidir_chamada(replace(chamada, palavras=argumentos[indice:], atribuicoes=(*chamada.atribuicoes, *antes))), True
     texto = _texto_que_o_executor_roda(chamada, indice)
-    if texto is None:
-        return None
-    decisao = _decidir_texto(texto, chamada.profundidade + 1)
-    return None if decisao.permitido else decisao
+    return (LIBERADO if texto is None else _decidir_texto(texto, chamada.profundidade + 1)), False
 
 
 def _texto_que_o_executor_roda(chamada: _Chamada, indice: int) -> str | None:
@@ -255,7 +283,7 @@ def _texto_que_o_executor_roda(chamada: _Chamada, indice: int) -> str | None:
     Os outros executores passam o argumento como argumento: o `-c "..."` de
     um `python` embrulhado por `timeout` não é comando de shell.
     """
-    programa, argumentos = nome_do_programa(chamada.palavras[0].texto), chamada.argumentos
+    programa, argumentos = chamada.programa, chamada.argumentos
     texto, anterior = argumentos[indice].texto, argumentos[indice - 1].texto if indice else ""
     if programa == "env" and anterior in ("-S", "--split-string"):
         return texto
@@ -264,6 +292,41 @@ def _texto_que_o_executor_roda(chamada: _Chamada, indice: int) -> str | None:
     if programa in EXECUTORES_PELO_SHELL and any(espaco in texto for espaco in " \t\n;&|"):
         return texto
     return None
+
+
+def _npx(chamada: _Chamada) -> Decisao:
+    """`npx -c 'texto'` (`--call`) roda o texto num shell; fora dele, o npx é executor."""
+    argumentos = chamada.argumentos
+    textos = [argumentos[i + 1:i + 2] for i, p in enumerate(argumentos) if p.texto in ("-c", "--call")]
+    textos += [(replace(p, texto=p.texto.split("=", 1)[1]),) for p in argumentos if p.texto.startswith("--call=")]
+    return _juntar(chain((_texto_dado(texto, chamada, "npx -c") for texto in textos), (_executor(chamada),)))
+
+
+def _npm(chamada: _Chamada) -> Decisao:
+    """`npm exec` e `npm x` (e os do pnpm e do yarn) rodam como o `npx`."""
+    inicio = next((i for i, p in enumerate(chamada.argumentos) if p.texto in ("exec", "x", "dlx")), None)
+    return LIBERADO if inicio is None else _npx(replace(chamada, palavras=chamada.argumentos[inicio:]))
+
+
+def _hash(chamada: _Chamada) -> Decisao:
+    """`hash -p caminho nome` dá ao programa outro nome: recusado quando ele é git, shell ou executor."""
+    argumentos = chamada.argumentos
+    alvos = [argumentos[i + 1] for i, p in enumerate(argumentos[:-1]) if p.texto == "-p"]
+    if any(alvo.dinamica for alvo in alvos):
+        return _opaco("hash -p de um programa que so se sabe ao rodar")
+    decididos = [alvo.texto for alvo in alvos if nome_do_programa(alvo.texto) in TRATADORES or
+                 nome_do_programa(alvo.texto).startswith("git-")]
+    return _recusa(f"hash -p da outro nome a {decididos[0]}, que a trava decide pelo nome") if decididos else LIBERADO
+
+
+def _sed(chamada: _Chamada) -> Decisao:
+    """O sed com `e` (ou com script que só se sabe ao rodar) roda texto num shell: é opaco."""
+    return _opaco("o sed com e roda o texto num shell") if sed_roda_comando(chamada.argumentos) else LIBERADO
+
+
+def _awk(chamada: _Chamada) -> Decisao:
+    """O awk com `system` ou `|` (ou com programa que só se sabe ao rodar) roda comando: é opaco."""
+    return _opaco("o awk com system ou | roda comando") if awk_roda_comando(chamada.argumentos) else LIBERADO
 
 
 def _command(chamada: _Chamada) -> Decisao:
@@ -280,7 +343,7 @@ def _eval(chamada: _Chamada) -> Decisao:
 def _alias(chamada: _Chamada) -> Decisao:
     """`alias g='git commit'`: o valor de cada alias é lido como comando."""
     valores = (palavra.texto.split("=", 1)[1] for palavra in chamada.argumentos if "=" in palavra.texto)
-    return _primeira_recusa(_decidir_texto(valor, chamada.profundidade + 1) for valor in valores)
+    return _juntar(_decidir_texto(valor, chamada.profundidade + 1) for valor in valores)
 
 
 def _trap(chamada: _Chamada) -> Decisao:
@@ -296,7 +359,7 @@ def _find(chamada: _Chamada) -> Decisao:
     argumentos = chamada.argumentos
     inicios = [i + 1 for i, p in enumerate(argumentos) if p.texto in ("-exec", "-execdir", "-ok", "-okdir")]
     programas = (replace(chamada, palavras=_ate_o_fim_do_exec(argumentos[i:])) for i in inicios)
-    return _primeira_recusa(_decidir_chamada(programa) for programa in programas)
+    return _juntar(_decidir_chamada(programa) for programa in programas)
 
 
 def _ate_o_fim_do_exec(palavras: tuple[Palavra, ...]) -> tuple[Palavra, ...]:
@@ -308,11 +371,9 @@ def _ate_o_fim_do_exec(palavras: tuple[Palavra, ...]) -> tuple[Palavra, ...]:
 TRATADORES: Mapping[str, Callable[[_Chamada], Decisao]] = {
     **{programa: _git for programa in PROGRAMAS_DO_GIT},
     **{programa: _shell for programa in SHELLS},
-    **{programa: _shell_do_windows for programa in SHELLS_DO_WINDOWS},
     **{programa: _executor for programa in EXECUTORES},
-    "command": _command,
-    "eval": _eval,
-    "alias": _alias,
-    "trap": _trap,
-    "find": _find,
+    "cmd": _cmd, "powershell": _powershell, "pwsh": _powershell, "command": _command, "eval": _eval, "alias": _alias,
+    "trap": _trap, "find": _find, "source": _source, ".": _source, "hash": _hash, "npx": _npx, "bunx": _npx, "pnpx": _npx,
+    "npm": _npm, "pnpm": _npm, "yarn": _npm, "sed": _sed, "gsed": _sed, "awk": _awk, "gawk": _awk, "mawk": _awk,
+    "nawk": _awk,
 }

@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-55 módulos · 10633 linhas · 82 classes
+57 módulos · 10897 linhas · 83 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -32,7 +32,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 382 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
-| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 318 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
+| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 379 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
@@ -41,7 +41,8 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/laco.py`](#orquestradorlaco) | 320 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 371 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
+| [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 396 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
+| [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 133 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 345 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
@@ -55,6 +56,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
+| [`orquestrador/sed_e_awk.py`](#orquestradorsedeawk) | 45 | Quando o `sed` e o `awk` rodam comando: a trava os trata como texto que ela não lê (orquestrador/git_no_comando.py). |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 400 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
@@ -595,20 +597,16 @@ A decisão da trava do git sobre um comando Bash do agente: só as leituras do g
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `LEITURAS_DO_GIT` | `tuple[str, ...]` | `('status', 'diff', 'log', 'show', 'blame', 'ls-files', 'rev-parse')` |
-| `OPCOES_GLOBAIS_COM_VALOR` | `frozenset[str]` | `frozenset({'-C', '--git-dir', '--work-tree', '--namespace', '--super-pr…` |
-| `OPCOES_GLOBAIS_SEM_VALOR` | `frozenset[str]` | `frozenset({'--no-pager', '-p', '--paginate', '-P', '--bare', '--no-repl…` |
 | `PROGRAMAS_DO_GIT` | `frozenset[str]` | `frozenset({'git'})` |
 | `SHELLS` | `frozenset[str]` | `frozenset({'bash', 'sh', 'zsh', 'dash', 'ksh', 'ash', 'mksh', 'fish'})` |
-| `SHELLS_DO_WINDOWS` | `frozenset[str]` | `frozenset({'cmd', 'powershell', 'pwsh'})` |
 | `EXECUTORES` | `frozenset[str]` | `frozenset({'env', 'exec', 'nohup', 'time', 'nice', 'timeout', 'sudo', '…` |
 | `EXECUTORES_PELO_SHELL` | `frozenset[str]` | `frozenset({'watch', 'flock', 'parallel'})` |
-| `PALAVRAS_RESERVADAS` | `frozenset[str]` | `frozenset({'!', '{', '}', 'if', 'then', 'else', 'elif', 'fi', 'do', 'do…` |
+| `PROGRAMAS_COMUNS` | `frozenset[str]` | `frozenset({'grep', 'egrep', 'fgrep', 'rg', 'ag', 'ack', 'cat', 'head', …` |
 | `SUFIXOS_DE_EXECUTAVEL` | `tuple[str, ...]` | `('.exe', '.cmd', '.bat', '.com')` |
 | `OPCOES_DO_SHELL_COM_VALOR` | `frozenset[str]` | `frozenset({'-o', '+o', '-O', '+O', '--rcfile', '--init-file'})` |
 | `FIM_DO_EXEC_DO_FIND` | `frozenset[str]` | `frozenset({';', '+'})` |
+| `DA_ENTRADA` | `re.Pattern[str]` | `re.compile('-|/dev/stdin|/dev/fd/\\d+|/proc/[^/]+/fd/\\d+')` |
 | `LIMITE_DE_ANINHAMENTO` | `int` | `8` |
-| `LEITURAS_EM_TEXTO` | `str` | `', '.join(LEITURAS_DO_GIT)` |
 | `LIBERADO` | `Decisao` | `Decisao(True)` |
 | `TRATADORES` | `Mapping[str, Callable[[_Chamada], Decisao]]` | `{**{programa: _git for programa in PROGRAMAS_DO_GIT}, **{programa: _she…` |
 
@@ -616,7 +614,7 @@ A decisão da trava do git sobre um comando Bash do agente: só as leituras do g
 
 *DTO imutável* — Se o comando passa e, quando não passa, o motivo que vai ao agente.
 
-**Campos:** `permitido: bool`, `motivo: str`
+**Campos:** `permitido: bool`, `motivo: str`, `opaco: str`
 
 ### `_Chamada`
 
@@ -625,10 +623,12 @@ A decisão da trava do git sobre um comando Bash do agente: só as leituras do g
 **Campos:** `palavras: tuple[Palavra, ...]`, `atribuicoes: tuple[Palavra, ...]`, `entrada: str | None`, `entrada_dinamica: bool`, `profundidade: int`
 
 - `argumentos() -> tuple[Palavra, ...]` `[property]` — As palavras depois do nome do programa.
+- `programa() -> str` `[property]` — O nome do programa chamado.
 
 ### Funções do módulo
 
 - `decidir(comando: str) -> Decisao` — Se o comando Bash passa pela trava do git: só as leituras do git passam, e o que não se lê é recusado.
+- `cita_git(texto: str) -> bool` — O texto tem `git` em algum ponto, sem contar aspas e barras (`g"i"t` cita).
 - `nome_do_programa(texto: str) -> str` — O nome do programa sem a pasta, em minúsculas e sem `.exe` (o Windows não distingue caixa).
 
 ## `orquestrador/gravacao_da_verificacao.py`
@@ -848,7 +848,9 @@ A leitura de um comando Bash em comandos simples, para a trava do git decidir so
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `SEPARADORES` | `tuple[str, ...]` | `('&&', '||', ';;', '|&', ';', '|', '&', '(', ')')` |
+| `SEPARADORES` | `tuple[str, ...]` | `('&&', '||', ';;&', ';;', ';&', '|&', ';', '|', '&', '(', ')')` |
+| `FIM_DO_ITEM_DO_CASE` | `frozenset[str]` | `frozenset({';;', ';;&', ';&'})` |
+| `PALAVRAS_RESERVADAS` | `frozenset[str]` | `frozenset({'!', '{', '}', 'if', 'then', 'else', 'elif', 'fi', 'do', 'do…` |
 | `REDIRECIONAMENTOS` | `tuple[str, ...]` | `('<<<', '<<-', '&>>', '<<', '>>', '<&', '>&', '<>', '>|', '&>', '<', '>…` |
 | `INICIO_DE_OPERADOR` | `str` | `';&|()<>'` |
 | `ESCAPAVEIS_NAS_ASPAS` | `str` | `'$`"\\\n'` |
@@ -891,6 +893,31 @@ A leitura de um comando Bash em comandos simples, para a trava do git decidir so
 - `substituicoes_em(texto: str) -> list[str]` — O texto de cada `$(...)` e crase de um trecho que o shell expande sem separar em palavras.
 - `fechamento(texto: str, abre: int) -> int` — O índice do parêntese ou da chave que fecha o de `abre`, pulando aspas e escapes.
 - `fim_das_aspas(texto: str, abre: int) -> int` — O índice da aspa que fecha a de `abre`; nas duplas, pula escapes e substituições.
+
+## `orquestrador/leituras_do_git.py`
+
+Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LEITURAS_DO_GIT` | `tuple[str, ...]` | `('status', 'diff', 'log', 'show', 'blame', 'ls-files', 'rev-parse', 'gr…` |
+| `LEITURAS_EM_TEXTO` | `str` | `', '.join(LEITURAS_DO_GIT) + ', branch que lista, stash list/show e rem…` |
+| `OPCOES_GLOBAIS_COM_VALOR` | `frozenset[str]` | `frozenset({'-C', '--git-dir', '--work-tree', '--namespace', '--super-pr…` |
+| `OPCOES_GLOBAIS_SEM_VALOR` | `frozenset[str]` | `frozenset({'--no-pager', '-p', '--paginate', '-P', '--bare', '--no-repl…` |
+| `OPCOES_DE_LISTAR_BRANCH` | `frozenset[str]` | `frozenset({'--show-current', '-a', '--all', '-r', '--remotes', '-v', '-…` |
+| `OPCOES_QUE_GRAVAM` | `tuple[tuple[str, int], ...]` | `(('--output', 4), ('--open-files-in-pager', 4))` |
+| `LEITURAS_EM_PARTE` | `Mapping[str, Callable[[tuple[Palavra, ...]], bool]]` | `{'branch': _branch_que_lista, 'stash': _stash_que_lista, 'remote': _rem…` |
+
+### `_Subcomando`
+
+*DTO imutável* — O subcomando achado depois das opções globais e o que vem depois dele.
+
+**Campos:** `nome: str`, `argumentos: tuple[Palavra, ...]`
+
+### Funções do módulo
+
+- `motivo_do_git(argumentos: tuple[Palavra, ...]) -> str` — Por que a trava recusa o git com estes argumentos; vazio quando é leitura que passa.
+- `chave_inofensiva(atribuicao: str) -> bool` — A chave do `git -c chave=valor` só muda a saída: `core.quotepath` ou `color.*` (nenhum `*.command`).
 
 ## `orquestrador/livro_razao.py`
 
@@ -1436,6 +1463,23 @@ A saída de cada papel como objeto tipado, com a conferência que o schema não 
 ### Funções do módulo
 
 - `conferir_plano(plano: Plano, fixados: IdsFixados) -> tuple[str, ...]` — Os problemas de sentido do plano; vazio quando ele pode ser gravado.
+
+## `orquestrador/sed_e_awk.py`
+
+Quando o `sed` e o `awk` rodam comando: a trava os trata como texto que ela não lê (orquestrador/git_no_comando.py).
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SED_QUE_RODA` | `re.Pattern[str]` | `re.compile('(?:^|[^A-Za-z0-9_\\\\])[gpiImM0-9]*e(?:$|[\\s;}])')` |
+| `AWK_QUE_RODA` | `re.Pattern[str]` | `re.compile('system|\\|')` |
+| `OPCOES_COM_PROGRAMA_DO_SED` | `frozenset[str]` | `frozenset({'-e', '--expression'})` |
+| `OPCOES_COM_VALOR_DO_SED` | `frozenset[str]` | `frozenset({'-f', '--file', '-l', '--line-length'})` |
+| `OPCOES_COM_VALOR_DO_AWK` | `frozenset[str]` | `frozenset({'-F', '-v', '-f'})` |
+
+### Funções do módulo
+
+- `sed_roda_comando(argumentos: tuple[Palavra, ...]) -> bool` — O sed tem `e` no programa, ou um programa que só se sabe ao rodar.
+- `awk_roda_comando(argumentos: tuple[Palavra, ...]) -> bool` — O awk tem `system` ou `|` no programa, ou um programa que só se sabe ao rodar.
 
 ## `orquestrador/segunda_opiniao.py`
 

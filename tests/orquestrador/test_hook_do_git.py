@@ -42,6 +42,31 @@ PERMITIDOS: tuple[str, ...] = (
     'timeout 600 python -c "print([1, 2])"',
     "watch -n 5 'git status --short'",
 )
+# T3a2: as leituras e as formas comuns que a T3a recusava e travavam fatias (sonda H2 da revisão).
+LIBERADOS_NA_T3A2: tuple[str, ...] = (
+    "git branch --show-current",
+    "git branch -a -v",
+    "git branch --list 'fase-*'",
+    "git grep -n somar",
+    "git ls-tree -r HEAD",
+    "git rev-list --count HEAD",
+    "git merge-base HEAD main",
+    "git cat-file -p HEAD",
+    "git stash list",
+    "git stash show -p",
+    "git remote -v",
+    "git -c core.quotepath=off status",
+    "git -c color.ui=never log -1",
+    'case "$x" in a) echo 1;; esac',
+    "case $1 in\n  a|b)\n    echo 1\n    ;;\n  *) git status;;\nesac",
+    "if [ -f x ]; then case $1 in a) echo;; esac; fi",
+    '"$PY" -m pytest -q',
+    "find . -name '*.py' | xargs grep -n git",
+    "timeout $T python -m pytest",
+    "git log --format='%h|%s' | awk -F'|' '{print $1}'",
+    "git diff | sed -n '1,5p'",
+    "source .venv/Scripts/activate",
+)
 RECUSADOS: tuple[str, ...] = (
     "git commit -m x",
     "git add .",
@@ -89,6 +114,44 @@ RECUSADOS: tuple[str, ...] = (
     'git status "',
     "git",
 )
+# T3a2: o git disfarçado que a T3a liberava (sondas H1, H1b e H1c da revisão; os sete primeiros commitaram de verdade).
+COMMIT: str = "git commit -q --allow-empty -m invasor"
+RECUSADOS_NA_T3A2: tuple[str, ...] = (
+    f"coproc {COMMIT}; wait",
+    f"coproc NOME {{ {COMMIT}; }}",
+    f"bash /dev/stdin <<< '{COMMIT}'",
+    f"source /dev/stdin <<< '{COMMIT}'",
+    f". <(echo {COMMIT})",
+    f"bash <(echo {COMMIT})",
+    f"sh /dev/fd/0 <<< '{COMMIT}'",
+    f"powershell -NoProfile -Command \"iex '{COMMIT}'\"",
+    "pwsh -ExecutionPolicy Bypass -enc ZwBpAHQAIABjAG8AbQBtAGkAdAA=",
+    f'hash -p "$(command -v git)" g; g {COMMIT[4:]}',
+    "hash -p /bin/bash b; b -c 'echo'",
+    f"coproc git -c core.hooksPath=/nada {COMMIT[4:]}; wait",
+    "wsl git commit -am x",
+    "npx -c 'git commit -am x'",
+    "npm exec -- git commit -am x",
+    "git-flow feature start x",
+    "git-receive-pack .",
+    "echo x | sed '1e git commit -am x'",
+    "sed -n 's/.*/git commit -am x/e' f",
+    "awk 'BEGIN{system(\"git commit -am x\")}'",
+    "awk '{print | \"git commit -am x\"}' f",
+    "git log -1 --format=%H HEAD~1 --output=.git/refs/heads/main",
+    "git diff --outp=.git/refs/heads/main",
+    "git grep -O vim somar",
+    "git branch novo",
+    "git stash",
+    "git remote add outro x",
+    "git -c core.pager=x log",
+    "git -c core.fsmonitor=x status",
+    "git -c core.hooksPath=x status",
+    "git -c alias.st=x st",
+    "git -c diff.x.command=y diff",
+    "case x in a) git commit -am x;; esac",
+    "echo 'git commit' | bash -s",
+)
 
 
 @pytest.mark.parametrize("comando", PERMITIDOS)
@@ -100,6 +163,21 @@ def test_leitura_do_git_e_comando_sem_git_passam_nominal(comando: str) -> None:
 @pytest.mark.parametrize("comando", RECUSADOS)
 def test_git_de_escrita_disfarcado_e_o_ilegivel_sao_recusados_edge_case(comando: str) -> None:
     """T3a.1: o git de escrita é recusado com prefixo, encadeado, embrulhado ou por caminho; o que não se lê também."""
+    decisao = decidir(comando)
+
+    assert not decisao.permitido
+    assert "quem commita e o orquestrador" in decisao.motivo
+
+
+@pytest.mark.parametrize("comando", LIBERADOS_NA_T3A2)
+def test_leituras_e_formas_comuns_que_travavam_fatias_passam_nominal(comando: str) -> None:
+    """T3a2.3: as leituras do dia a dia (`branch --show-current`, `grep`, `stash list`...), `case`, `"$PY"`, `xargs grep git`."""
+    assert decidir(comando).permitido, decidir(comando).motivo
+
+
+@pytest.mark.parametrize("comando", RECUSADOS_NA_T3A2)
+def test_git_disfarcado_por_executor_entrada_ou_opcao_que_grava_e_recusado_edge_case(comando: str) -> None:
+    """T3a2.3: coproc, source, `<(...)`, /dev/stdin, PowerShell, hash -p, wsl, npx -c, git-*, sed e, awk system, --output."""
     decisao = decidir(comando)
 
     assert not decisao.permitido

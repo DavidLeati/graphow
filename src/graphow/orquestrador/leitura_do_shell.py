@@ -3,7 +3,7 @@
 Não é um shell inteiro; é o que basta para achar, no texto que o agente manda
 ao Bash, cada comando simples e as palavras dele já sem aspas:
 - os separadores são `&&`, `||`, `;`, `|`, `&`, a quebra de linha e os
-  parênteses de subshell;
+  parênteses de subshell; no `case`, o padrão até o `)` não é comando;
 - o texto de cada substituição (`$(...)`, crase, `<(...)`, `>(...)`, e as
   que estão dentro de `${...}`, de `$((...))` e do heredoc sem aspas) volta
   como texto, para ser lido de novo como comando;
@@ -18,7 +18,11 @@ quem decide recusa o que não leu. Só usa a biblioteca padrão: roda no hook.
 from dataclasses import dataclass
 import re
 
-SEPARADORES: tuple[str, ...] = ("&&", "||", ";;", "|&", ";", "|", "&", "(", ")")
+SEPARADORES: tuple[str, ...] = ("&&", "||", ";;&", ";;", ";&", "|&", ";", "|", "&", "(", ")")
+# Os que fecham um item do `case`: depois deles vem o padrão seguinte, ou o `esac`.
+FIM_DO_ITEM_DO_CASE: frozenset[str] = frozenset({";;", ";;&", ";&"})
+PALAVRAS_RESERVADAS: frozenset[str] = frozenset({"!", "{", "}", "if", "then", "else", "elif", "fi", "do", "done",
+                                                 "while", "until", "function"})
 REDIRECIONAMENTOS: tuple[str, ...] = ("<<<", "<<-", "&>>", "<<", ">>", "<&", ">&", "<>", ">|", "&>", "<", ">")
 INICIO_DE_OPERADOR: str = ";&|()<>"
 ESCAPAVEIS_NAS_ASPAS: str = '$`"\\\n'
@@ -158,6 +162,7 @@ class _Leitor:
         self.substituicoes: list[str] = []
         self.alvo: str = ""
         self.profundidade: int = 0
+        self.casos, self.padrao = 0, False
         self._nova_palavra()
 
     def _nova_palavra(self) -> None:
@@ -173,8 +178,8 @@ class _Leitor:
         self._fim_do_comando()
         if self.heredocs:
             raise ComandoIlegivel(f"heredoc sem fim: {self.heredocs[0][1]}")
-        if self.profundidade:
-            raise ComandoIlegivel("parentese sem fecho")
+        if self.profundidade or self.casos:
+            raise ComandoIlegivel("parentese ou case sem fecho")
         comandos = (
             ComandoSimples(palavras, *self.entradas.get(indice, (None, False)))
             for indice, palavras in enumerate(self.comandos)
@@ -298,6 +303,9 @@ class _Leitor:
 
     def _operador(self) -> None:
         """Substituição de processo, redirecionamento ou separador de comandos."""
+        if self.padrao and self.texto[self.i] in "|()":
+            self._no_padrao()
+            return
         if self.texto.startswith(("<(", ">("), self.i):
             fim = fechamento(self.texto, self.i + 1)
             self.substituicoes.append(self.texto[self.i + 2:fim])
@@ -312,7 +320,23 @@ class _Leitor:
         self.profundidade += {"(": 1, ")": -1}.get(separador, 0)
         if self.profundidade < 0:
             raise ComandoIlegivel("')' sem '('")
+        self.padrao = self.padrao or (bool(self.casos) and separador in FIM_DO_ITEM_DO_CASE)
         self.i += len(separador)
+
+    def _no_padrao(self) -> None:
+        """No padrão do `case`, `|` separa as alternativas e `)` o fecha: as palavras dele não são comando."""
+        self._fim_da_palavra()
+        if self.texto[self.i] == ")":
+            self.palavras, self.padrao = [], False
+        self.i += 1
+
+    def _palavra_do_case(self) -> None:
+        """`case x in` passa a esperar o padrão (o x já deu as substituições dele); o `esac` no lugar do comando fecha."""
+        textos = [palavra.texto for palavra in self.palavras]
+        if len(textos) >= 3 and textos[-3] == "case" and textos[-1] == "in" and set(textos[:-3]) <= PALAVRAS_RESERVADAS:
+            self.palavras, self.casos, self.padrao = [], self.casos + 1, True
+        elif self.casos and textos == ["esac"]:
+            self.palavras, self.casos, self.padrao = [], self.casos - 1, False
 
     def _redirecionamento(self, operador: str) -> None:
         """O operador de redirecionamento; o descritor numérico antes dele não é palavra."""
@@ -334,6 +358,7 @@ class _Leitor:
         alvo, self.alvo = self.alvo, ""
         if not alvo:
             self.palavras.append(palavra)
+            self._palavra_do_case()
         if alvo in ("<<", "<<-"):
             self.heredocs.append((len(self.comandos), palavra.texto, citada, alvo == "<<-"))
         if alvo == "<<<":
