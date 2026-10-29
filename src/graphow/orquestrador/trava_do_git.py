@@ -4,11 +4,17 @@ O agente trabalha no clone do Goal (orquestrador/git_do_goal.py), que não
 divide ref, configuração nem hook com o repositório do humano: o que ele fizer
 no git fica no clone, e o repositório do humano só muda pelo orquestrador.
 Dentro do clone, o agente não escreve no git; quem commita é o orquestrador.
-São três camadas, em profundidade:
+São quatro camadas, em profundidade:
 
+0. O hook PreToolUse (orquestrador/hook_do_git.py), que a sessão recebe por
+   `--settings`, lê cada comando Bash inteiro e recusa o git de escrita
+   disfarçado, que as regras da camada 1 deixam passar: `FOO=1 git commit`,
+   `cd x && git add .`, `env git push`, `/usr/bin/git`, `(git commit)`,
+   `bash -c "git ..."`.
 1. As regras de ferramenta (`--disallowedTools`) negam o git de escrita, o
    `git -c` e o `git -C` (com eles, `git -C . commit` e
    `git -c core.hooksPath=<vazia> commit` passavam pelas outras regras).
+   Casam por prefixo do comando: o disfarce escapa delas.
 2. O ambiente da sessão aponta `core.hooksPath` para uma pasta com o hook
    `reference-transaction`, que aborta toda atualização de ref, e o
    `pre-push`, que recusa todo push. O `git -c` na linha de comando vence o
@@ -27,7 +33,10 @@ repositório dele durante a sessão fica como ele deixou.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import json
 from pathlib import Path
+import sys
+from typing import Any
 
 from graphow.orquestrador.git_do_goal import GitDoGoal, limpar_rastros_do_clone, restaurar_head
 
@@ -54,6 +63,11 @@ SUBCOMANDOS_DE_ESCRITA: tuple[str, ...] = (
     "remote", "gc", "prune", "filter-branch", "update-index", "sparse-checkout", "read-tree",
 )
 OPCOES_GLOBAIS_NEGADAS: tuple[str, ...] = ("-c", "-C", "--git-dir", "--work-tree", "--exec-path")
+MODULO_DO_HOOK: str = "graphow.orquestrador.hook_do_git"
+ARQUIVO_DO_HOOK: str = "settings-da-trava.json"
+TEMPO_LIMITE_DO_HOOK_S: int = 30
+# A pasta `src` (ou site-packages) de onde este graphow foi importado: o hook roda este mesmo código.
+RAIZ_DO_PACOTE: Path = Path(__file__).resolve().parents[2]
 
 
 def instalar_trava(pasta: Path) -> dict[str, str]:
@@ -64,6 +78,31 @@ def instalar_trava(pasta: Path) -> dict[str, str]:
         hook.write_text(conteudo, encoding="utf-8", newline="\n")
         hook.chmod(0o755)
     return {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": pasta.as_posix()}
+
+
+def configuracao_do_hook(python: str = sys.executable, raiz: Path = RAIZ_DO_PACOTE) -> dict[str, Any]:
+    """O settings do Claude Code que liga o hook PreToolUse da trava a cada comando Bash.
+
+    Forma exec (`command` e `args`, sem shell no meio para citar caminho).
+    `-I` tira do caminho de importação a pasta corrente (o clone, que o agente
+    escreve), o PYTHONPATH e o site do usuário; a raiz do pacote entra na
+    frente, e responde o módulo do graphow que monta a sessão, não o que o
+    venv instalou. `onFailure: block` recusa o comando quando o hook nem
+    sobe ou estoura o tempo, em vez de deixá-lo passar.
+    """
+    codigo = (f"import sys; sys.path.insert(0, {str(raiz)!r}); "
+              f"from {MODULO_DO_HOOK} import responder; raise SystemExit(responder())")
+    hook = {"type": "command", "command": python, "args": ["-I", "-c", codigo],
+            "timeout": TEMPO_LIMITE_DO_HOOK_S, "onFailure": "block"}
+    return {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}
+
+
+def gravar_hook_da_trava(pasta: Path) -> Path:
+    """Grava o settings do hook na pasta de estado do Goal e devolve o caminho, que vai no `--settings` da sessão."""
+    pasta.mkdir(parents=True, exist_ok=True)
+    caminho = pasta / ARQUIVO_DO_HOOK
+    caminho.write_text(json.dumps(configuracao_do_hook(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return caminho
 
 
 def regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]:

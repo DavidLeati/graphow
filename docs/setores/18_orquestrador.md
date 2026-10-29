@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-51 módulos · 9394 linhas · 70 classes
+54 módulos · 10183 linhas · 77 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -32,13 +32,16 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 380 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 318 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 94 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
+| [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 281 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 371 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 312 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 223 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
@@ -59,7 +62,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 246 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
-| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
+| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 191 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 169 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 260 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
@@ -583,6 +586,48 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até a branch do Goal, só por fast-forward; devolve o commit integrado.
 - `remover_area(area: Path) -> bool` — Apaga o clone do Goal depois da integração; a branch fica no repositório do humano. Diz se conseguiu.
 
+## `orquestrador/git_no_comando.py`
+
+A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LEITURAS_DO_GIT` | `tuple[str, ...]` | `('status', 'diff', 'log', 'show', 'blame', 'ls-files', 'rev-parse')` |
+| `OPCOES_GLOBAIS_COM_VALOR` | `frozenset[str]` | `frozenset({'-C', '--git-dir', '--work-tree', '--namespace', '--super-pr…` |
+| `OPCOES_GLOBAIS_SEM_VALOR` | `frozenset[str]` | `frozenset({'--no-pager', '-p', '--paginate', '-P', '--bare', '--no-repl…` |
+| `PROGRAMAS_DO_GIT` | `frozenset[str]` | `frozenset({'git'})` |
+| `SHELLS` | `frozenset[str]` | `frozenset({'bash', 'sh', 'zsh', 'dash', 'ksh', 'ash', 'mksh', 'fish'})` |
+| `SHELLS_DO_WINDOWS` | `frozenset[str]` | `frozenset({'cmd', 'powershell', 'pwsh'})` |
+| `EXECUTORES` | `frozenset[str]` | `frozenset({'env', 'exec', 'nohup', 'time', 'nice', 'timeout', 'sudo', '…` |
+| `EXECUTORES_PELO_SHELL` | `frozenset[str]` | `frozenset({'watch', 'flock', 'parallel'})` |
+| `PALAVRAS_RESERVADAS` | `frozenset[str]` | `frozenset({'!', '{', '}', 'if', 'then', 'else', 'elif', 'fi', 'do', 'do…` |
+| `SUFIXOS_DE_EXECUTAVEL` | `tuple[str, ...]` | `('.exe', '.cmd', '.bat', '.com')` |
+| `OPCOES_DO_SHELL_COM_VALOR` | `frozenset[str]` | `frozenset({'-o', '+o', '-O', '+O', '--rcfile', '--init-file'})` |
+| `FIM_DO_EXEC_DO_FIND` | `frozenset[str]` | `frozenset({';', '+'})` |
+| `LIMITE_DE_ANINHAMENTO` | `int` | `8` |
+| `LEITURAS_EM_TEXTO` | `str` | `', '.join(LEITURAS_DO_GIT)` |
+| `LIBERADO` | `Decisao` | `Decisao(True)` |
+| `TRATADORES` | `Mapping[str, Callable[[_Chamada], Decisao]]` | `{**{programa: _git for programa in PROGRAMAS_DO_GIT}, **{programa: _she…` |
+
+### `Decisao`
+
+*DTO imutável* — Se o comando passa e, quando não passa, o motivo que vai ao agente.
+
+**Campos:** `permitido: bool`, `motivo: str`
+
+### `_Chamada`
+
+*DTO imutável* — Um programa a decidir: as palavras a partir do nome dele e o que veio na frente e na entrada.
+
+**Campos:** `palavras: tuple[Palavra, ...]`, `atribuicoes: tuple[Palavra, ...]`, `entrada: str | None`, `entrada_dinamica: bool`, `profundidade: int`
+
+- `argumentos() -> tuple[Palavra, ...]` `[property]` — As palavras depois do nome do programa.
+
+### Funções do módulo
+
+- `decidir(comando: str) -> Decisao` — Se o comando Bash passa pela trava do git: só as leituras do git passam, e o que não se lê é recusado.
+- `nome_do_programa(texto: str) -> str` — O nome do programa sem a pasta, em minúsculas e sem `.exe` (o Windows não distingue caixa).
+
 ## `orquestrador/gravacao_da_verificacao.py`
 
 A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só.
@@ -651,6 +696,20 @@ O que a fatia de correção recebe além do achado: o comando que o reproduz e, 
 
 - `chamadas_que_reproduzem(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> list[str]` — As chamadas que reproduzem cada achado da correção, da verificação em que ele nasceu: ao menos uma por achado, até 8.
 - `tentativas_anteriores(area: GitDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> tuple[str, ...]` — O diff das correções de ciclos anteriores do marco na mesma área, e o que a verificação seguinte disse delas.
+
+## `orquestrador/hook_do_git.py`
+
+O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CODIGO_DE_RECUSA` | `int` | `2` |
+| `FERRAMENTA_DO_SHELL` | `str` | `'Bash'` |
+
+### Funções do módulo
+
+- `decisao_da_entrada(texto: str) -> Decisao` — A decisão sobre o evento do PreToolUse; a entrada que não se lê é recusada.
+- `responder(entrada: BinaryIO | None, erro: BinaryIO | None) -> int` — Lê o evento da entrada padrão e devolve o código de saída: 0 passa, 2 recusa com o motivo no stderr.
 
 ## `orquestrador/laco.py`
 
@@ -778,6 +837,56 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 
 - `ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None` — O estado do Goal no grafo; None quando o Goal não existe.
 - `setor_do_goal(view: GrafoView, id_goal: str) -> str` — O Setor que contém a Sessao que produziu o Goal; vazio quando não há.
+
+## `orquestrador/leitura_do_shell.py`
+
+A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `SEPARADORES` | `tuple[str, ...]` | `('&&', '||', ';;', '|&', ';', '|', '&', '(', ')')` |
+| `REDIRECIONAMENTOS` | `tuple[str, ...]` | `('<<<', '<<-', '&>>', '<<', '>>', '<&', '>&', '<>', '>|', '&>', '<', '>…` |
+| `INICIO_DE_OPERADOR` | `str` | `';&|()<>'` |
+| `ESCAPAVEIS_NAS_ASPAS` | `str` | `'$`"\\\n'` |
+| `NOME_DE_VARIAVEL` | `re.Pattern[str]` | `re.compile('[A-Za-z_][A-Za-z0-9_]*')` |
+| `PARES` | `dict[str, str]` | `{'(': ')', '{': '}'}` |
+
+### `ComandoIlegivel` (ValueError)
+
+*serviço* — O texto não fecha como shell: aspas, parêntese, substituição ou heredoc sem fim.
+
+### `ComandoSimples`
+
+*DTO imutável* — Um comando simples: as palavras e o texto que entra por heredoc ou here-string.
+
+**Campos:** `palavras: tuple[Palavra, ...]`, `entrada: str | None`, `entrada_dinamica: bool`
+
+### `LeituraDoShell`
+
+*DTO imutável* — Os comandos simples do texto e o texto de cada substituição que ele faz.
+
+**Campos:** `comandos: tuple[ComandoSimples, ...]`, `substituicoes: tuple[str, ...]`
+
+### `Palavra`
+
+*DTO imutável* — Uma palavra do comando, sem aspas; dinâmica quando o valor só se sabe ao rodar.
+
+**Campos:** `texto: str`, `dinamica: bool`, `atribuicao: bool`
+
+- `nome_atribuido() -> str` `[property]` — O nome da variável de `NOME=valor`; vazio quando a palavra não é atribuição.
+
+### `_Leitor`
+
+*serviço* — O cursor da leitura: a palavra em obra, os comandos fechados e o que espera um heredoc.
+
+- `ler() -> LeituraDoShell` — Lê o texto inteiro e confere que nada ficou aberto.
+
+### Funções do módulo
+
+- `ler_shell(texto: str) -> LeituraDoShell` — Os comandos simples e as substituições do texto; `ComandoIlegivel` quando ele não fecha.
+- `substituicoes_em(texto: str) -> list[str]` — O texto de cada `$(...)` e crase de um trecho que o shell expande sem separar em palavras.
+- `fechamento(texto: str, abre: int) -> int` — O índice do parêntese ou da chave que fecha o de `abre`, pulando aspas e escapes.
+- `fim_das_aspas(texto: str, abre: int) -> int` — O índice da aspa que fecha a de `abre`; nas duplas, pula escapes e substituições.
 
 ## `orquestrador/livro_razao.py`
 
@@ -1496,6 +1605,10 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 | `HOOKS_DA_TRAVA` | `Mapping[str, str]` | `{'reference-transaction': '#!/bin/sh\n# Trava do graphow orquestrar: a …` |
 | `SUBCOMANDOS_DE_ESCRITA` | `tuple[str, ...]` | `('commit', 'push', 'pull', 'fetch', 'reset', 'checkout', 'switch', 'res…` |
 | `OPCOES_GLOBAIS_NEGADAS` | `tuple[str, ...]` | `('-c', '-C', '--git-dir', '--work-tree', '--exec-path')` |
+| `MODULO_DO_HOOK` | `str` | `'graphow.orquestrador.hook_do_git'` |
+| `ARQUIVO_DO_HOOK` | `str` | `'settings-da-trava.json'` |
+| `TEMPO_LIMITE_DO_HOOK_S` | `int` | `30` |
+| `RAIZ_DO_PACOTE` | `Path` | `Path(__file__).resolve().parents[2]` |
 
 ### `FotoDoClone`
 
@@ -1508,6 +1621,8 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 ### Funções do módulo
 
 - `instalar_trava(pasta: Path) -> dict[str, str]` — Grava os hooks da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
+- `configuracao_do_hook(python: str, raiz: Path) -> dict[str, Any]` — O settings do Claude Code que liga o hook PreToolUse da trava a cada comando Bash.
+- `gravar_hook_da_trava(pasta: Path) -> Path` — Grava o settings do hook na pasta de estado do Goal e devolve o caminho, que vai no `--settings` da sessão.
 - `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório ou de configuração.
 - `fotografar_clone(area: Path) -> FotoDoClone` — A foto do clone, tirada logo antes da sessão.
 - `restaurar_o_clone(foto: FotoDoClone) -> str` — Deixa o clone como a foto: a branch do Goal, as outras refs, a configuração e os hooks; diz o que desfez.
