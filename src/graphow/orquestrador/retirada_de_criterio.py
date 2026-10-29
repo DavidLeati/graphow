@@ -23,6 +23,7 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch
+from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_retirados, gravar_se_mudou
 from graphow.orquestrador.git_do_goal import mensagem_do_orquestrador
@@ -69,7 +70,7 @@ def retirar_criterio(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Ped
     contexto.livro.gravar([propriedade(id_no, a.CAMPO_RETIRADO, retirada),
                            propriedade(estado.id_goal, a.CAMPO_PEDIDOS_ATENDIDOS, atendidos_com(estado, pedido.id)), *cancelamento],
                           f"Criterio {pedido.alvo} do Goal {estado.id_goal} retirado pelo humano ({pedido.id})")
-    _documentar(contexto, todas)
+    _documentar(contexto, todas, antes_de_fatia=not any(fatia.status == m.STATUS_CONCLUIDO for fatia in estado.fatias))
     if not ultimo:
         return None
     return Parada(contexto.id_goal, MotivoDaParada.CANCELADO, f"O Goal {estado.id_goal} foi cancelado, sem integrar: {motivo}.")
@@ -89,8 +90,12 @@ def retirados(estado: EstadoDoGoal) -> list[Mapping[str, Any]]:
             if p.acao == PEDIDO_RETIRAR_CRITERIO and p.id in feitos]
 
 
-def _documentar(contexto: ContextoDoGoal, retiradas: Sequence[Mapping[str, Any]]) -> None:
-    """A seção dos critérios retirados no documento do Goal, commitada se mudou: só o documento, pelo caminho."""
+def _documentar(contexto: ContextoDoGoal, retiradas: Sequence[Mapping[str, Any]], *, antes_de_fatia: bool) -> None:
+    """A seção dos critérios retirados no documento do Goal, commitada se mudou: só o documento, pelo caminho.
+
+    Antes de qualquer fatia o código é o da base, que pode não passar na
+    suíte: o commit leva `Graphow-Aceite: vermelho`, como o do plano.
+    """
     documento = caminho_do_documento(contexto.configuracao.slug)
     caminho = contexto.area / documento
     if not caminho.is_file():
@@ -98,4 +103,5 @@ def _documentar(contexto: ContextoDoGoal, retiradas: Sequence[Mapping[str, Any]]
     linhas = [f"- **{r['codigo']}**, retirado por {r['por']} ({r['decisao']}): {r['motivo']}" for r in retiradas]
     if gravar_se_mudou(caminho, com_retirados(caminho.read_text(encoding="utf-8"), linhas)) and contexto.git.mudancas(documento):
         assunto = f"Registra os criterios retirados pelo humano do Goal {contexto.configuracao.slug}"
-        contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal), caminhos=(documento,))
+        mensagem = mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal, aceite_vermelho=antes_de_fatia)
+        contexto.commitar(mensagem, caminhos=(documento,))

@@ -10,7 +10,9 @@ Goal e grava no livro-razão a ligação de cada critério aos seus testes. No
 modo supervisionado o portão do plano vem depois deste passo: o humano aprova
 junto o plano e os testes, "isto é o que vai provar que está pronto".
 
-O commit leva só `aceite/` e o documento, pelo caminho, como o do refazer. O
+O commit leva só `aceite/` e o documento, pelo caminho, como o do refazer, e
+o trailer `Graphow-Aceite: vermelho`: é a exceção legítima à suíte verde em
+cada commit, e a medida `historico` da bancada o conta como esperado. O
 que os testes escrevem ao rodar na conferência sai da área depois dela, como
 o que a suíte escreve (orquestrador/suite_sem_rastro.py). Antes, o commit era
 `git add -A` depois do vermelho: o código da base que, importado pelo teste,
@@ -171,7 +173,7 @@ def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_a
         gravar_se_mudou(caminho, com_aceite(caminho.read_text(encoding="utf-8"), linhas_do_aceite(saida)))
     provados = ", ".join(criterio.id for criterio in saida.criterios)
     assunto = f"Escreve os testes de aceite do Goal {contexto.configuracao.slug} ({provados})"
-    mensagem = mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=id_do_aceite)
+    mensagem = mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=id_do_aceite, aceite_vermelho=True)
     forcar_o_aceite_no_indice(contexto.area)
     return contexto.commitar(mensagem, vazio_permitido=True, caminhos=(PASTA_DO_ACEITE, documento))
 

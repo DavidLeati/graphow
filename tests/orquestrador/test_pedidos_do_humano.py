@@ -218,6 +218,9 @@ def test_retirar_o_criterio_reprovado_fecha_o_goal_e_aparece_no_status_e_no_docu
     assert any("C1 retirado pelo humano (a soma fica para o proximo Goal)" in linha for linha in formatar_status(estado, []))
     documento = git(bancada.repositorio, "show", "main:docs/goals/soma.md")
     assert "## Criterios retirados pelo humano" in documento and "**C1**, retirado por david" in documento
+    retirada = git(bancada.repositorio, "log", "-1", "--format=%s|%(trailers:key=Graphow-Aceite,valueonly)",
+                   "--grep=^Registra os criterios retirados", "main")
+    assert retirada.strip() == "Registra os criterios retirados pelo humano do Goal soma|", "depois de fatia, sem o trailer"
 
 
 def test_ciclos_de_correcao_dados_na_chamada_valem_para_o_goal_edge_case(tmp_path: Path) -> None:

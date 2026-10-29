@@ -897,7 +897,11 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    `git fetch <clone>` rodado no repositório do humano. A branch que andou fora
    do orquestrador não é sobrescrita, e a chamada para dizendo isso. O
    checkout do humano não é tocado até a integração. Todo commit do
-   orquestrador leva o trailer `Graphow-Goal` e, na fatia, `Graphow-Task`. A
+   orquestrador leva o trailer `Graphow-Goal` e, na fatia, `Graphow-Task`.
+   Só a fatia muda código, e só com a suíte verde. Os commits que podem
+   deixar a suíte vermelha levam `Graphow-Aceite: vermelho`: os testes de
+   aceite (os refeitos inclusive) e o que vem antes da primeira fatia, com o
+   código da base (o plano, a recusa, a retirada). A
    branch que já existe com commit que não é do Goal é recusada, a menos que a
    chamada diga `--adotar-ramo`. A `--area` não pode ser o checkout do humano
    nem ficar dentro dele, e a branch do Goal não pode ser a base.

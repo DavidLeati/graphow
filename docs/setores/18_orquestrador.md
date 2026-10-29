@@ -10,14 +10,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-55 módulos · 10509 linhas · 80 classes
+55 módulos · 10531 linhas · 80 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 278 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 187 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
@@ -31,7 +31,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 381 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 318 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
@@ -45,12 +45,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 335 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 223 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
-| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 145 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 261 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 192 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
-| [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 89 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
+| [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 91 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
-| [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 101 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
+| [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 107 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
@@ -518,6 +518,8 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 | `VARIAVEIS_DE_OUTRO_REPOSITORIO` | `frozenset[str]` | `frozenset({'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'})` |
 | `TRAILER_DO_GOAL` | `str` | `'Graphow-Goal'` |
 | `TRAILER_DA_TASK` | `str` | `'Graphow-Task'` |
+| `TRAILER_DO_ACEITE` | `str` | `'Graphow-Aceite'` |
+| `ACEITE_VERMELHO` | `str` | `'vermelho'` |
 | `SEPARADOR_DE_COMMITS` | `str` | `'\x1e'` |
 | `SEPARADOR_DO_HASH` | `str` | `'\x1f'` |
 | `CHAVES_COPIADAS_PARA_O_CLONE` | `tuple[str, ...]` | `('user.name', 'user.email', 'core.autocrlf', 'core.eol', 'core.safecrlf…` |
@@ -575,7 +577,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `preparar_area(area: AreaDoGoal) -> None` — O clone do Goal na branch dele, e a branch do Goal no repositório do humano no commit do clone.
 - `limpar_rastros_do_clone(pasta: Path) -> None` — Tira do clone o reflog (que diz de onde ele veio) e os hooks: nada ali roda nos commits do orquestrador.
 - `sincronizar_ramo(area: AreaDoGoal) -> None` — A branch do Goal no repositório do humano vai ao commit do clone, puxada dele, só por fast-forward.
-- `mensagem_do_orquestrador(assunto: str, corpo: str) -> str` — A mensagem do commit com os trailers do Goal e, na fatia, da Task.
+- `mensagem_do_orquestrador(assunto: str, corpo: str) -> str` — A mensagem do commit com os trailers do Goal, da Task (na fatia e no aceite) e do aceite vermelho, quando pedido.
 - `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
 - `commits_entre(area: Path, antes: str, depois: str) -> tuple[CommitDoGit, ...]` — Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira.
 - `commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None` — O commit mais novo da branch, desde a base, que o orquestrador fez para a fatia; None sem nenhum.

@@ -2,7 +2,8 @@
 
 O portão do modo supervisionado só tinha `aprovar`. Com `--recusar-plano
 --motivo`, antes de qualquer fatia rodar, o laço retira o plano recusado: os
-testes de aceite dele saem da área num commit, o plano, o aceite e as
+testes de aceite dele saem da área num commit (com `Graphow-Aceite:
+vermelho`, porque o código ainda é o da base), o plano, o aceite e as
 propostas saem do Goal, as Tasks dele ficam no grafo marcadas como
 substituídas (fora do plano), e o plano recusado vai, com o motivo, para
 `planos_recusados`. O passo seguinte é planejar de novo: o planejador lê no
@@ -35,8 +36,9 @@ def replanejar(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoH
     if estado.aceite is not None and (contexto.area / PASTA_DO_ACEITE).is_dir():
         contexto.git.rodar("rm", "-r", "-q", "--", PASTA_DO_ACEITE)
         assunto = f"Retira os testes de aceite do plano recusado do Goal {contexto.configuracao.slug}"
-        contexto.commitar(mensagem_do_orquestrador(assunto, f"O humano recusou o plano: {pedido.motivo}", id_goal=contexto.id_goal),
-                          caminhos=(PASTA_DO_ACEITE,))
+        mensagem = mensagem_do_orquestrador(assunto, f"O humano recusou o plano: {pedido.motivo}", id_goal=contexto.id_goal,
+                                            aceite_vermelho=True)
+        contexto.commitar(mensagem, caminhos=(PASTA_DO_ACEITE,))
     contexto.livro.gravar(_operacoes_da_recusa(estado, pedido), f"Plano do Goal {contexto.id_goal} recusado pelo humano ({pedido.id})")
     return None
 

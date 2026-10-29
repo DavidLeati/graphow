@@ -33,11 +33,13 @@ from graphow.core.exceptions import GraphowError
 
 EXECUTAVEL_DO_GIT: str = "git"
 VARIAVEIS_DE_OUTRO_REPOSITORIO: frozenset[str] = frozenset({"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"})
-# Os trailers que todo commit do orquestrador leva: o Goal e, no da fatia, a Task.
-# É por eles que a retomada reconhece o commit da fatia que caiu antes de ser
-# registrada, e que a branch que já existe é conferida antes de ser adotada.
+# Os trailers dos commits do orquestrador: o Goal em todos e, no da fatia, a Task (a retomada acha a
+# fatia por ele, e a branch que já existe é conferida por eles); o commit que pode deixar a suíte vermelha
+# leva `Graphow-Aceite: vermelho`, que a medida `historico` da bancada conta como vermelho esperado.
 TRAILER_DO_GOAL: str = "Graphow-Goal"
 TRAILER_DA_TASK: str = "Graphow-Task"
+TRAILER_DO_ACEITE: str = "Graphow-Aceite"
+ACEITE_VERMELHO: str = "vermelho"
 SEPARADOR_DE_COMMITS: str = "\x1e"
 SEPARADOR_DO_HASH: str = "\x1f"
 # A configuração do repositório do humano que o clone leva: quem assina os
@@ -45,9 +47,7 @@ SEPARADOR_DO_HASH: str = "\x1f"
 # checkout dele commitaria. O resto (remotos, hooks, includes) fica de fora.
 CHAVES_COPIADAS_PARA_O_CLONE: tuple[str, ...] = ("user.name", "user.email", "core.autocrlf", "core.eol", "core.safecrlf")
 REMOTO_DO_CLONE: str = "origin"
-IDENTIDADE_DE_RESERVA: tuple[str, ...] = (
-    "-c", "user.name=graphow orquestrar", "-c", "user.email=orquestrador@graphow.invalid",
-)
+IDENTIDADE_DE_RESERVA: tuple[str, ...] = ("-c", "user.name=graphow orquestrar", "-c", "user.email=orquestrador@graphow.invalid")
 LIMITE_DO_RESUMO_DO_DIFF: int = 4000
 
 
@@ -246,9 +246,10 @@ def sincronizar_ramo(area: AreaDoGoal) -> None:
     repositorio.rodar("fetch", "-q", "--no-tags", str(area.pasta), f"{destino}:{destino}")
 
 
-def mensagem_do_orquestrador(assunto: str, corpo: str, *, id_goal: str, id_task: str = "") -> str:
-    """A mensagem do commit com os trailers do Goal e, na fatia, da Task."""
-    trailers = [f"{TRAILER_DO_GOAL}: {id_goal}", *([f"{TRAILER_DA_TASK}: {id_task}"] if id_task else [])]
+def mensagem_do_orquestrador(assunto: str, corpo: str, *, id_goal: str, id_task: str = "", aceite_vermelho: bool = False) -> str:
+    """A mensagem do commit com os trailers do Goal, da Task (na fatia e no aceite) e do aceite vermelho, quando pedido."""
+    trailers = [f"{TRAILER_DO_GOAL}: {id_goal}", *([f"{TRAILER_DA_TASK}: {id_task}"] if id_task else []),
+                *([f"{TRAILER_DO_ACEITE}: {ACEITE_VERMELHO}"] if aceite_vermelho else [])]
     partes = [assunto.strip(), corpo.strip(), "\n".join(trailers)]
     return "\n\n".join(parte for parte in partes if parte)
 

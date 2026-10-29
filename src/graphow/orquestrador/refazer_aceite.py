@@ -13,7 +13,8 @@ verde, escrito depois da fatia, não prova nada. O que não falha antes volta ao
 autor uma vez, com o motivo; se persistir, fica o teste antigo (um commit
 vazio, como quando o autor o mantém), e o desacordo vai à verificação: pela
 fatia que apontou o teste ou, no pedido do humano, pelo Goal. Conferido,
-commita com o trailer da revisão do aceite, troca no Goal o aceite de C3 (o
+commita com o trailer da revisão do aceite (e `Graphow-Aceite: vermelho`,
+como o do autor), troca no Goal o aceite de C3 (o
 commit do aceite passa a ser este) e liga o Criterio aos testes novos. No modo
 supervisionado, a aprovação valia para o commit anterior do aceite: o portão
 volta, e o humano aprova os testes refeitos.
@@ -98,7 +99,7 @@ def _commitar(contexto: ContextoDoGoal, pedido: PedidoDoHumano, novo: SaidaDoAce
     assunto, corpo = ((f"Mantem os testes de aceite de {pedido.alvo} do Goal {slug}", sem_vermelho) if sem_vermelho else
                       (f"Refaz os testes de aceite de {pedido.alvo} do Goal {slug}", f"Pedido do humano: {pedido.motivo}"))
     forcar_o_aceite_no_indice(contexto.area)
-    mensagem = mensagem_do_orquestrador(assunto, corpo, id_goal=contexto.id_goal, id_task=id_revisao)
+    mensagem = mensagem_do_orquestrador(assunto, corpo, id_goal=contexto.id_goal, id_task=id_revisao, aceite_vermelho=True)
     return contexto.commitar(mensagem, vazio_permitido=True, caminhos=(PASTA_DO_ACEITE,))
 
 

@@ -12,6 +12,15 @@ O plano pago não se paga de novo. A saída conferida vai para o Goal
 se o processo caiu entre o fim da sessão e essa gravação, a saída é relida do
 stream da sessão, pela telemetria. O documento só é commitado quando muda: na
 retomada depois do commit, vale o commit que já o gravou.
+
+O commit leva só o documento, pelo caminho, como os pedidos do humano
+(orquestrador/commit_do_pedido.py). Na retomada com o plano pago não há
+descarte antes dele, e com `git add -A` o que a sessão interrompida do
+planejador deixou na área (um conftest.py que o código do projeto escreveu)
+ia junto; agora fica fora, e sai no descarte de antes do autor de aceite. O
+commit leva `Graphow-Aceite: vermelho`: o plano vem antes de qualquer fatia,
+com o código da base, que pode não ter suíte nenhuma (as três sementes da
+bancada não têm).
 """
 
 from collections.abc import Mapping
@@ -113,9 +122,10 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, plano: Plano, *, fix
     caminho = caminho_do_documento(configuracao.slug)
     documento = renderizar_documento(contexto.id_goal, configuracao, plano, spec=str(estado.propriedades.get(m.CAMPO_SPEC, "")))
     escrever_documento(contexto.area, configuracao.slug, documento)
-    if contexto.git.mudancas():
-        mensagem = mensagem_do_orquestrador(f"Planeja o Goal {configuracao.slug}: {plano.titulo}", "", id_goal=contexto.id_goal)
-        commit = contexto.commitar(mensagem)
+    if contexto.git.mudancas(caminho):
+        mensagem = mensagem_do_orquestrador(f"Planeja o Goal {configuracao.slug}: {plano.titulo}", "", id_goal=contexto.id_goal,
+                                            aceite_vermelho=True)
+        commit = contexto.commitar(mensagem, caminhos=(caminho,))
     else:
         commit = ultimo_commit_do_arquivo(contexto.area, caminho)
     gravar_plano(
