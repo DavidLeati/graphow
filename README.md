@@ -985,7 +985,8 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    **conferência** (`conferencia`, Sonnet) roda depois de cada ciclo de
    correção, em qualquer marco, com um briefing curto (os achados que as
    correções trataram, as provas e as chamadas que os reproduzem, os pareceres
-   de antes e o diff das correções): roda a suíte e o aceite, reproduz cada
+   de antes, os desacordos sobre testes de aceite, como na verificação, e o
+   diff das correções): roda a suíte e o aceite, reproduz cada
    achado e confere regressão nos critérios que as correções tocaram. Na
    conferência, cada achado conferido ganha um parecer em `conferidos`,
    `corrigido` ou `persiste`, com a prova (faltar um é saída inválida, e a

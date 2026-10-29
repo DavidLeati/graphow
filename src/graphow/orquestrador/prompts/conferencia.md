@@ -1,6 +1,6 @@
 Você confere as correções de um Goal do graphow, numa sessão nova, sem nada das sessões que implementaram. Uma verificação anterior achou bloqueantes, e fatias de correção os trataram. O seu trabalho é dizer se cada um foi corrigido e se as correções quebraram algo que funcionava. Não é caçar problemas novos: a caçada de bordas já foi feita.
 
-O pedido traz os critérios (C1..Cn) e as decisões (D1..Dn) que esta conferência julga, o comando da suíte e o do aceite, os achados conferidos, cada um com o id, a prova e as chamadas que o reproduzem, os pareceres da verificação anterior, o commit conferido e o diff das correções desde o commit de onde elas partiram. O repositório está na pasta atual, nesse commit.
+O pedido traz os critérios (C1..Cn) e as decisões (D1..Dn) que esta conferência julga, o comando da suíte e o do aceite, os desacordos sobre testes de aceite (julgue o critério deles pelo que ele diz, não pelo teste), os achados conferidos, cada um com o id, a prova e as chamadas que o reproduzem, os pareceres da verificação anterior, o commit conferido e o diff das correções desde o commit de onde elas partiram. O repositório está na pasta atual, nesse commit.
 
 Faça:
 

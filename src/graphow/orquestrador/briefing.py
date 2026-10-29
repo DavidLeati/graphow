@@ -9,9 +9,11 @@ e hashes dos commits, diff resumido da anterior), a resposta do humano à
 dúvida dele e, numa nova tentativa, o erro da anterior. O verificador recebe
 só a spec, o plano, os testes de aceite e o commit: nada das sessões que
 implementaram. A conferência, a verificação de depois de uma correção,
-recebe um briefing curto: os critérios, os achados que ela confere com a prova
-e as chamadas que os reproduzem, os pareceres da verificação anterior e o diff
-das correções (orquestrador/tipo_da_verificacao.py).
+recebe um briefing curto: os critérios, os desacordos sobre testes de aceite
+(como o verificador: o do executor da correção não tem outra verificação que
+o julgue), os achados que ela confere com a prova e as chamadas que os
+reproduzem, os pareceres da verificação anterior e o diff das correções
+(orquestrador/tipo_da_verificacao.py).
 """
 
 from collections.abc import Mapping, Sequence
@@ -299,7 +301,8 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
         _bloco("Testes de aceite", [f"`{(estado.aceite or {}).get('comando', '')}` roda todos; o orquestrador roda cada um."]),
         _bloco("O aceite com a configuracao entregue e com a do commit do aceite (um parecer por diferenca)", list(pedido.diferencas)),
         _bloco("Decisoes", _decisoes(plano)),
-        _bloco("Achados conferidos (reproduza cada um)", [linha for achado in pedido.conferidos for linha in _conferido(achado)]),
+        _bloco("Desacordos sobre testes de aceite (julgue o criterio)", _desacordos(estado)),
+        _bloco("Achados conferidos (reproduza cada um)",[linha for achado in pedido.conferidos for linha in _conferido(achado)]),
         _bloco("Excedentes do teto do ciclo (nao precisa reproduzi-los; se der com um, liste-o em `achados` com `persiste` = o id)",
                [f"- {achado.id}: {achado.texto('titulo')} ({achado.texto('local') or 'sem local'})" for achado in pedido.excedentes]),
         _bloco(f"Pareceres da verificacao anterior ({anterior.id if anterior else '-'})",
