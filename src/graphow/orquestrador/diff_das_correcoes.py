@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import re
 
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
-from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
 
 # Quanto do corpo do diff vai à conferência; o resumo vai inteiro.
@@ -41,7 +41,7 @@ def diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str:
     if not antes:
         return ""
     alcance = (f"{antes}..HEAD", "--", ".", f":(exclude){caminho_do_documento(slug)}")
-    resumo = git.tentar("diff", *RESUMO_SEM_ABREVIAR, *alcance).saida.rstrip()
+    resumo = git.tentar(*SEM_ASPAS, "diff", *RESUMO_SEM_ABREVIAR, *alcance).saida.rstrip()
     if not resumo:
         return ""
     nomes = [nome for nome in git.tentar("diff", "--name-only", "-z", *alcance).saida.split("\0") if nome]

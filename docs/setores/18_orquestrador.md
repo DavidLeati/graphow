@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-57 módulos · 10970 linhas · 83 classes
+57 módulos · 10968 linhas · 83 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -31,7 +31,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 382 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 397 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 379 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
@@ -528,6 +528,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 | `REMOTO_DO_CLONE` | `str` | `'origin'` |
 | `IDENTIDADE_DE_RESERVA` | `tuple[str, ...]` | `('-c', 'user.name=graphow orquestrar', '-c', 'user.email=orquestrador@g…` |
 | `LIMITE_DO_RESUMO_DO_DIFF` | `int` | `4000` |
+| `SEM_ASPAS` | `tuple[str, ...]` | `('-c', 'core.quotepath=false')` |
 
 ### `AreaDoGoal`
 
@@ -562,7 +563,6 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `mudancas() -> tuple[str, ...]` — As linhas do `status --porcelain` (só dos caminhos, quando dados): o que está fora de commit, ignorados de fora.
 - `caminhos_mudados() -> tuple[str, ...]` — Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um.
 - `e_ancestral(antes: str, depois: str) -> bool` — `antes` está na história de `depois` (ou é ele).
-- `arquivos_entre(antes: str, depois: str) -> tuple[str, ...]` — Os arquivos que mudaram de um commit ao outro.
 - `resumo_do_diff(antes: str, depois: str) -> str` — O `diff --stat` entre os dois commits, cortado para caber no briefing.
 - `commit_do_codigo(documento: str) -> str` — O último commit, a partir do HEAD, que mudou algo além do documento dado; o HEAD quando não há.
 - `commits_desde(base: str) -> tuple[str, ...]` — Hash curto e assunto de cada commit da branch desde a base, do mais antigo ao mais novo.
@@ -583,7 +583,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
 - `commits_entre(area: Path, antes: str, depois: str) -> tuple[CommitDoGit, ...]` — Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira.
 - `commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None` — O commit mais novo da branch, desde a base, que o orquestrador fez para a fatia; None sem nenhum.
-- `arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]` — Os arquivos que o commit mudou.
+- `arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]` — Os arquivos que o commit mudou, sem as aspas e os octais com que o git cita o nome com acento.
 - `ultimo_commit_do_arquivo(area: Path, caminho: str) -> str` — O commit mais novo que tocou o arquivo; o HEAD quando nenhum tocou.
 - `guardar_patch(area: Path, arquivo_patch: Path) -> None` — O que está fora de commit, os arquivos novos inclusive, num .patch binário, byte a byte; a área fica como está, no índice.
 - `descartar_mudancas(area: Path, arquivo_patch: Path) -> bool` — Guarda o que está fora de commit num .patch e volta a área ao HEAD; diz se havia o que guardar.

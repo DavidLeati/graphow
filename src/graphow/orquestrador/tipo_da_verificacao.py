@@ -52,7 +52,7 @@ from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.esquemas import PAPEL_CONFERENCIA, PAPEL_VERIFICADOR, PAPEL_VERIFICADOR_DO_MARCO
-from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
 from graphow.orquestrador.regra_da_conferencia import RegraDaConferencia, copia_que_persiste, repeticoes_de
@@ -180,7 +180,7 @@ def _fora_do_diff(estado: EstadoDoGoal) -> frozenset[str]:
 
 def _arquivos_do_diff(git: GitDoGoal | None, antes: str, *, fora: frozenset[str]) -> frozenset[str] | None:
     """Os arquivos que as correções mudaram desde o commit de antes, sem os de fora; None quando não há como saber."""
-    saida = git.tentar("diff", "--name-only", f"{antes}..HEAD") if git is not None and antes else None
+    saida = git.tentar(*SEM_ASPAS, "diff", "--name-only", f"{antes}..HEAD") if git is not None and antes else None
     return None if saida is None or saida.codigo != 0 else frozenset(_linhas(saida.saida)) - fora
 
 
@@ -193,7 +193,7 @@ def _arquivos_do_plano(estado: EstadoDoGoal, git: GitDoGoal) -> dict[str, frozen
 def _arquivos_do_criterio(estado: EstadoDoGoal, git: GitDoGoal, id_criterio: str) -> frozenset[str]:
     """Os arquivos que as fatias do plano que entregam o critério previram e os que os commits delas mudaram."""
     fatias = [fatia for fatia in estado.fatias if id_criterio in fatia.lista(m.CAMPO_CRITERIOS) and not fatia.texto(m.CAMPO_CORRIGE)]
-    commits = (git.tentar("show", "--name-only", "--format=", fatia.texto(m.CAMPO_COMMIT)) for fatia in fatias
+    commits = (git.tentar(*SEM_ASPAS, "show", "--name-only", "--format=", fatia.texto(m.CAMPO_COMMIT)) for fatia in fatias
                if fatia.texto(m.CAMPO_COMMIT))
     do_commit = (caminho for saida in commits if saida.codigo == 0 for caminho in _linhas(saida.saida))
     return frozenset((*(caminho for fatia in fatias for caminho in fatia.lista(m.CAMPO_ARQUIVOS_ALVO)), *do_commit))

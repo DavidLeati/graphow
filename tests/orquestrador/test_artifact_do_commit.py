@@ -82,3 +82,24 @@ def test_laco_fecha_no_repositorio_sha256_edge_case(tmp_path: Path, monkeypatch:
         commit = str(artefato.obter_propriedade("commit"))
         assert len(commit) == 64, artefato.id
         assert sorted(artefato.obter_propriedade("arquivos")) == sorted(_arquivos_do_commit(bancada.repositorio, commit)), artefato.id
+
+
+def test_arquivo_com_acento_sai_pelo_nome_e_sem_observacao_falsa_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (C5): o executor escreve e declara `relatório.md`; o Artifact o traz pelo nome, sem acusação.
+
+    Sem `core.quotepath=false` o git o listava citado, com aspas e octais, e
+    a observação dizia que o declarado estava fora do commit.
+    """
+    roteiro = roteiro_completo()
+    entrega = executor_pronto({"soma.py": SOMA_CERTA, "verificar.py": VERIFICAR, "relatório.md": "notas\n"})
+    entrega["saida"]["arquivos"] = ["soma.py", "verificar.py", "relatório.md"]
+    roteiro["executor"][0] = entrega
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FECHADO, parada.mensagem
+    artefato = bancada.kernel.obter_view().obter_no("art-task-soma-f1-t1")
+    assert artefato is not None
+    assert sorted(artefato.obter_propriedade("arquivos")) == ["relatório.md", "soma.py", "verificar.py"]
+    assert artefato.obter_propriedade("observacao") == ""

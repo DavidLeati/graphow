@@ -49,6 +49,8 @@ CHAVES_COPIADAS_PARA_O_CLONE: tuple[str, ...] = ("user.name", "user.email", "cor
 REMOTO_DO_CLONE: str = "origin"
 IDENTIDADE_DE_RESERVA: tuple[str, ...] = ("-c", "user.name=graphow orquestrar", "-c", "user.email=orquestrador@graphow.invalid")
 LIMITE_DO_RESUMO_DO_DIFF: int = 4000
+# Sem isto o git cita o nome com acento (`relatório.md` sai `"relat\303\263rio.md"`): todo comando que lista caminhos o leva.
+SEM_ASPAS: tuple[str, ...] = ("-c", "core.quotepath=false")
 
 
 class FalhaDoGitDoGoal(GraphowError):
@@ -125,7 +127,7 @@ class GitDoGoal:
 
     def caminhos_mudados(self) -> tuple[str, ...]:
         """Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um."""
-        linhas = self.rodar("-c", "core.quotepath=false", "status", "--porcelain", "--untracked-files=all").splitlines()
+        linhas = self.rodar(*SEM_ASPAS, "status", "--porcelain", "--untracked-files=all").splitlines()
         caminhos = (parte.strip().strip('"') for linha in linhas if len(linha) > 3 for parte in linha[3:].split(" -> "))
         return tuple(dict.fromkeys(caminho for caminho in caminhos if caminho))
 
@@ -133,13 +135,9 @@ class GitDoGoal:
         """`antes` está na história de `depois` (ou é ele)."""
         return self.tentar("merge-base", "--is-ancestor", antes, depois).codigo == 0
 
-    def arquivos_entre(self, antes: str, depois: str) -> tuple[str, ...]:
-        """Os arquivos que mudaram de um commit ao outro."""
-        return tuple(linha for linha in self.rodar("diff", "--name-only", antes, depois).splitlines() if linha.strip())
-
     def resumo_do_diff(self, antes: str, depois: str) -> str:
         """O `diff --stat` entre os dois commits, cortado para caber no briefing."""
-        return self.rodar("diff", "--stat", antes, depois).strip()[:LIMITE_DO_RESUMO_DO_DIFF]
+        return self.rodar(*SEM_ASPAS, "diff", "--stat", antes, depois).strip()[:LIMITE_DO_RESUMO_DO_DIFF]
 
     def commit_do_codigo(self, documento: str) -> str:
         """O último commit, a partir do HEAD, que mudou algo além do documento dado; o HEAD quando não há."""
@@ -296,8 +294,8 @@ def commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None:
 
 
 def arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]:
-    """Os arquivos que o commit mudou."""
-    saida = GitDoGoal(area).rodar("show", "--name-only", "--format=", hash_do_commit)
+    """Os arquivos que o commit mudou, sem as aspas e os octais com que o git cita o nome com acento."""
+    saida = GitDoGoal(area).rodar(*SEM_ASPAS, "show", "--name-only", "--format=", hash_do_commit)
     return tuple(linha for linha in saida.splitlines() if linha.strip())
 
 

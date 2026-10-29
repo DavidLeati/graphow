@@ -26,7 +26,7 @@ import re
 
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.correcoes import area_do_achado
-from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 
@@ -103,7 +103,7 @@ def _areas(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> set[str]:
 
 def _diff_da_tentativa(area: GitDoGoal, fatia: FatiaRegistrada) -> str:
     """O diff do commit da correção anterior, cortado."""
-    diff = area.tentar("show", "--format=", "--patch", fatia.texto(m.CAMPO_COMMIT)).saida[:LIMITE_DO_DIFF]
+    diff = area.tentar(*SEM_ASPAS, "show", "--format=", "--patch", fatia.texto(m.CAMPO_COMMIT)).saida[:LIMITE_DO_DIFF]
     return f"A correcao {fatia.codigo} ({fatia.titulo}) mudou isto, e a falha voltou:\n```diff\n{diff}\n```"
 
 
