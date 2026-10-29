@@ -10,6 +10,10 @@ ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefi
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o
 que era: o que o agente mexeu no git do clone é desfeito e vai na resposta
 como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
+Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook
+é regravado e o `.claude/` do clone volta ao HEAD; a invocação que mexeu num
+deles mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o
+motivo (`RespostaDePapel.trava_mexida`), que vai também ao livro-razão.
 
 A saída é conferida contra o schema e contra o sentido e, no papel que declara
 os comandos que rodou (o verificador), contra as chamadas Bash do stream da
@@ -46,7 +50,7 @@ from graphow.orquestrador.esquemas import (
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
-from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone
+from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone, selar_a_sessao, trava_mexida
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao
@@ -88,6 +92,8 @@ FONTES_DE_CONFIGURACAO: str = "project"
 ORCAMENTO_MINIMO_DA_SESSAO_USD: float = 0.05
 
 Conferencia = Callable[[Mapping[str, Any]], tuple[str, ...]]
+# Quem guarda no livro-razão a trava mexida: o papel, a fatia (vazia fora delas) e o motivo.
+RegistroDaTravaMexida = Callable[[str, str, str], None]
 
 
 @dataclass(frozen=True)
@@ -103,6 +109,7 @@ class ConfiguracaoDasSessoes:
     banco_dos_hooks: Path | None = None
     esperar: Callable[[float], None] = time.sleep
     recuos_s: tuple[float, ...] = RECUOS_DO_ERRO_DA_API_S
+    registrar_trava_mexida: RegistroDaTravaMexida | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +144,16 @@ class RespostaDePapel:
     problemas: tuple[str, ...] = ()
     resultados: tuple[ResultadoDeSessao, ...] = ()
     desfeito: str = ""
+    trava_mexida: str = ""
+
+
+class _TravaMexida(RuntimeError):
+    """A invocação mexeu no settings do hook ou no `.claude/` do clone: a sessão para ali."""
+
+    def __init__(self, motivo: str, resultado: ResultadoDeSessao) -> None:
+        super().__init__(motivo)
+        self.motivo: str = motivo
+        self.resultado: ResultadoDeSessao = resultado
 
 
 class SessoesDePapel:
@@ -161,8 +178,18 @@ class SessoesDePapel:
         return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
+        """A sessão conferida; a que mexeu na trava falha com o motivo, que vai ao livro-razão."""
+        resultados: list[ResultadoDeSessao] = []
+        try:
+            return self._retomar_ate_conferir(pedido, resultados)
+        except _TravaMexida as mexida:
+            if self._configuracao.registrar_trava_mexida is not None:
+                self._configuracao.registrar_trava_mexida(pedido.papel, pedido.fatia, mexida.motivo)
+            return RespostaDePapel(None, (mexida.motivo,), (*resultados, mexida.resultado), trava_mexida=mexida.motivo)
+
+    def _retomar_ate_conferir(self, pedido: PedidoDePapel, resultados: list[ResultadoDeSessao]) -> RespostaDePapel:
         """A sessão, e as retomadas (uma, ou as que o pedido dá) com os problemas enquanto a saída não confere."""
-        resultados = [self._invocar_com_recuo(pedido, pedido.briefing, "")]
+        resultados.append(self._invocar_com_recuo(pedido, pedido.briefing, ""))
         dados, problemas = _conferida(pedido, tuple(resultados))
         while problemas and len(resultados) <= pedido.retomadas and not resultados[-1].tempo_esgotado:
             sessao = resultados[-1].session_id or resultados[0].session_id
@@ -189,12 +216,24 @@ class SessoesDePapel:
         return resultado
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
-        """Uma invocação de `claude -p`: a linha de telemetria nasce em andamento e fecha com o resultado."""
+        """Uma invocação de `claude -p`, com a trava selada antes e conferida depois; a telemetria nasce em andamento."""
         sufixo = "-retomada" if retomar else ""
         nome = "-".join(parte for parte in (pedido.papel, pedido.fatia, f"t{pedido.tentativa}") if parte) + sufixo
         arquivo = self._configuracao.pasta_das_sessoes / f"{nome}-{_marca_da_invocacao()}.jsonl"
         modelo = pedido.modelo or self.modelo_do_papel(pedido.papel)
-        pedido_de_sessao = PedidoDeSessao(
+        selo = selar_a_sessao(self._configuracao.hook_da_trava, pedido.pasta)
+        aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
+        id_linha = self._telemetria.registrar(aberta)
+        resultado = self._executor.rodar(self._pedido_de_sessao(pedido, prompt, retomar, arquivo=arquivo, modelo=modelo))
+        self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
+        motivo = trava_mexida(selo)
+        if motivo:
+            raise _TravaMexida(motivo, resultado)
+        return resultado
+
+    def _pedido_de_sessao(self, pedido: PedidoDePapel, prompt: str, retomar: str, *, arquivo: Path, modelo: str) -> PedidoDeSessao:
+        """O pedido de `claude -p` do papel: a pasta, o stream, o modelo, a retomada e os argumentos da trava."""
+        return PedidoDeSessao(
             prompt=prompt,
             pasta=pedido.pasta,
             arquivo_stream=arquivo,
@@ -208,11 +247,6 @@ class SessoesDePapel:
             ),
             ambiente_extra=self._configuracao.ambiente_da_trava,
         )
-        aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
-        id_linha = self._telemetria.registrar(aberta)
-        resultado = self._executor.rodar(pedido_de_sessao)
-        self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
-        return resultado
 
 
 def _conferida(pedido: PedidoDePapel, resultados: Sequence[ResultadoDeSessao]) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]:

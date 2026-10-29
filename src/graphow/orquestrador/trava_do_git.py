@@ -29,10 +29,20 @@ São quatro camadas, em profundidade:
 
 Nada fora do clone é conferido nem desfeito: o que o humano fizer no
 repositório dele durante a sessão fica como ele deixou.
+
+O hook não se desliga. O clone é a pasta do projeto da sessão
+(`--setting-sources project`), e um `.claude/settings.json` com
+`disableAllHooks: true` desligava o hook; o settings do hook leva
+`disableAllHooks: false`, que vence o do projeto. Antes de cada invocação
+(`selar_a_sessao`), o settings do hook é regravado e o `.claude/` do clone
+volta ao HEAD: o `.claude/` da base, do humano, vale; o que não está
+commitado sai. Depois dela (`trava_mexida`), o sha256 do settings e o
+`.claude/` são conferidos: a sessão que mexeu num deles mexeu na trava.
 """
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -66,6 +76,8 @@ OPCOES_GLOBAIS_NEGADAS: tuple[str, ...] = ("-c", "-C", "--git-dir", "--work-tree
 MODULO_DO_HOOK: str = "graphow.orquestrador.hook_do_git"
 ARQUIVO_DO_HOOK: str = "settings-da-trava.json"
 TEMPO_LIMITE_DO_HOOK_S: int = 30
+# O `.claude/` do clone, em qualquer caixa (o Windows não distingue): as configurações de projeto da sessão.
+PASTA_DO_CLAUDE: str = ":(icase).claude"
 # A pasta `src` (ou site-packages) de onde este graphow foi importado: o hook roda este mesmo código.
 RAIZ_DO_PACOTE: Path = Path(__file__).resolve().parents[2]
 
@@ -94,15 +106,58 @@ def configuracao_do_hook(python: str = sys.executable, raiz: Path = RAIZ_DO_PACO
               f"from {MODULO_DO_HOOK} import responder; raise SystemExit(responder())")
     hook = {"type": "command", "command": python, "args": ["-I", "-c", codigo],
             "timeout": TEMPO_LIMITE_DO_HOOK_S, "onFailure": "block"}
-    return {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}
+    return {"disableAllHooks": False, "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}
 
 
 def gravar_hook_da_trava(pasta: Path) -> Path:
     """Grava o settings do hook na pasta de estado do Goal e devolve o caminho, que vai no `--settings` da sessão."""
     pasta.mkdir(parents=True, exist_ok=True)
     caminho = pasta / ARQUIVO_DO_HOOK
-    caminho.write_text(json.dumps(configuracao_do_hook(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _regravar(caminho)
     return caminho
+
+
+def _regravar(caminho: Path) -> str:
+    """Grava o settings do hook no caminho e devolve o sha256 do que gravou."""
+    conteudo = (json.dumps(configuracao_do_hook(), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    caminho.write_bytes(conteudo)
+    return hashlib.sha256(conteudo).hexdigest()
+
+
+@dataclass(frozen=True)
+class SeloDaSessao:
+    """O settings do hook como foi gravado antes da invocação e o clone onde ela roda."""
+
+    hook: Path
+    sha256: str
+    area: Path
+
+
+def selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao:
+    """Antes de cada invocação: o settings do hook regravado e o `.claude/` do clone de volta ao HEAD."""
+    git = GitDoGoal(area)
+    git.tentar("checkout", "HEAD", "--", PASTA_DO_CLAUDE)
+    git.tentar("clean", "-q", "-fdx", "--", PASTA_DO_CLAUDE)
+    return SeloDaSessao(hook, _regravar(hook), area)
+
+
+def trava_mexida(selo: SeloDaSessao) -> str:
+    """Depois da invocação: o que ela mexeu no settings do hook ou no `.claude/` do clone; vazio quando nada."""
+    atual = hashlib.sha256(_bytes(selo.hook)).hexdigest() if selo.hook.is_file() else ""
+    mexidos = claude_mexido(selo.area)
+    motivos = [f"a sessao reescreveu ou apagou o settings do hook da trava ({selo.hook})"] if atual != selo.sha256 else []
+    motivos += [f"a sessao criou ou mudou em .claude/ {', '.join(mexidos)}"] if mexidos else []
+    if not motivos:
+        return ""
+    return ("; ".join(motivos) + ": isso desliga ou troca o hook da trava do git nas sessoes seguintes. O que a sessao "
+            "fez nao vale e vai ao .patch; o .claude/ do clone e o da base, do humano, e o agente nao o muda.")
+
+
+def claude_mexido(area: Path) -> tuple[str, ...]:
+    """Os arquivos do `.claude/` do clone fora do HEAD: mudados, apagados, novos e ignorados."""
+    linhas = GitDoGoal(area).rodar("-c", "core.quotepath=false", "status", "--porcelain", "--ignored",
+                                   "--untracked-files=all", "--", PASTA_DO_CLAUDE).splitlines()
+    return tuple(linha[3:].strip().strip('"') for linha in linhas if len(linha) > 3)
 
 
 def regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]:

@@ -213,7 +213,7 @@ class Orquestrador:
                 hook_da_trava=gravar_hook_da_trava(pasta),
                 modelos=self._dependencias.modelos, modo_de_permissao=self._dependencias.modo_de_permissao,
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
-                esperar=self._dependencias.esperar,
+                esperar=self._dependencias.esperar, registrar_trava_mexida=livro.registrar_trava_mexida,
             ),
         )
         return ContextoDoGoal(livro, configuracao, sessoes, self._dependencias.telemetria, pasta, opcoes)

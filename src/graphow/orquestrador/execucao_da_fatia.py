@@ -5,7 +5,8 @@ confere que o git está onde estava (e desfaz o commit que tenha escapado à
 trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive),
 que escondeu mudança com as flags do índice, que criou um módulo com o nome
 do runner de testes ou que pôs num conftest.py um hook do pytest que decide o
-resultado (orquestrador/aceite_intocado.py), roda a
+resultado (orquestrador/aceite_intocado.py), e a que mexeu na trava (o settings
+do hook ou o `.claude/`, orquestrador/sessoes_de_papel.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
 vermelhos até a fatia que os atende) e devolve a área à árvore conferida, sem
 o que a suíte escreveu (orquestrador/suite_sem_rastro.py), passa a fatia de
@@ -108,7 +109,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
     )
     desfeito = resposta.desfeito
     if resposta.dados is None:
-        return _falhou(contexto, tentativa, "a saida do executor nao conferiu: " + "; ".join(resposta.problemas))
+        return _falhou(contexto, tentativa, resposta.trava_mexida or "a saida do executor nao conferiu: " + "; ".join(resposta.problemas))
     return _depois_da_sessao(contexto, tentativa, SaidaDoExecutor.de_json(resposta.dados), desfeito=desfeito)
 
 

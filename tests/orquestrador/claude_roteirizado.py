@@ -26,8 +26,9 @@ sessão. A saída com `conferidos` vai como está. Cada resposta pode:
 - `sobrecarga`: o `result` com o erro 529 da API, e sai com 1;
 - `levantar`: grava os arquivos e sai com 7 sem responder.
 
-O que cada chamada recebeu (argumentos, pasta, entrada e parte do ambiente) vai
-para `GRAPHOW_TESTE_REGISTRO`, um JSON numerado por chamada.
+O que cada chamada recebeu (argumentos, pasta, entrada, o settings do
+`--settings` lido antes de responder e parte do ambiente) vai para
+`GRAPHOW_TESTE_REGISTRO`, um JSON numerado por chamada.
 """
 
 import json
@@ -152,9 +153,11 @@ def main() -> int:
     sessao = _valor(argv, "--resume") or str(uuid.uuid4())
     if papel == "conferencia":
         resposta = _com_os_conferidos(resposta, _conferidos_da_sessao(sessao, entrada))
+    settings = Path(_valor(argv, "--settings"))
+    recebido = settings.read_text(encoding="utf-8") if settings.is_file() else ""
     feitos = _executar(resposta)
     ambiente = {nome: valor for nome, valor in os.environ.items() if nome.startswith(("GIT_CONFIG", "GRAPHOW_DB"))}
-    _registrar({"papel": papel, "argv": argv, "cwd": os.getcwd(), "stdin": entrada, "ambiente": ambiente,
+    _registrar({"papel": papel, "argv": argv, "cwd": os.getcwd(), "stdin": entrada, "ambiente": ambiente, "settings": recebido,
                 "tem_claude": any(nome.upper().startswith("CLAUDE") for nome in os.environ), "comandos": feitos})
     if resposta.get("levantar"):
         return 7
