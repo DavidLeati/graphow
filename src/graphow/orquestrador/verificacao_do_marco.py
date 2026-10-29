@@ -95,7 +95,7 @@ def _registro(
         numero=len(estado.verificacoes) + 1, verificacao=aceite.julgar(_com_o_aceite(verificacao, aceite.execucoes)), commit=head,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(estado.plano or {}),
         ciclo=estado.ciclos_do_marco(marco), final=marco.final, marco=marco.id,
-        aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco),
+        aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco, verificacao.confirmados),
         tirado_antes_do_aceite=tuple(dict.fromkeys(tirado)), configuracao_do_aceite=aceite.trocados,
         aceite_com_a_configuracao_do_aceite=[execucao.em_json() for execucao in aceite.com_a_do_aceite],
         diferencas_de_configuracao=aceite.diferencas_em_json(verificacao.diferencas), tipo=tipo.tipo,

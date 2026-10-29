@@ -987,7 +987,11 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    correções trataram, as provas e as chamadas que os reproduzem, os pareceres
    de antes e o diff das correções): roda a suíte e o aceite, reproduz cada
    achado e confere regressão nos critérios que as correções tocaram. Na
-   conferência, o achado que persiste (`persiste`, o id dele) é bloqueante, a
+   conferência, cada achado conferido ganha um parecer em `conferidos`,
+   `corrigido` ou `persiste`, com a prova (faltar um é saída inválida, e a
+   sessão volta uma vez); só o `corrigido` resolve o achado, e o que persiste é
+   bloqueante, como o achado listado com `persiste` (o id dele) ou, sem ele,
+   como o conferido era. A
    regressão de critério (`regressao`) segue a regra de sempre, e o achado novo
    que não é regressão vira acompanhamento marcado "achado novo da
    conferencia, sem regressao", sem segunda opinião (na bancada de 12/10, cada
@@ -1057,8 +1061,10 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    imutáveis e só o orquestrador os cria; a ponta da branch, a condução, o plano
    e as ligações do `Criterio` são dele, e o `Criterio` não se remove; o
    `Achado` só anda pelas transições do livro (aberto a corrigido pelo
-   orquestrador, com o commit da correção; a descartado só pelo humano, com o
-   motivo; nada volta a aberto); e o Goal conduzido vai a `concluido` só pelo
+   orquestrador, com o commit da correção; a resolvido pelo orquestrador,
+   quando uma conferência o deu por corrigido e a verificação do marco saiu
+   limpa, ou, o que persistiu, quando o achado que o repete se encerrou; a
+   descartado só pelo humano, com o motivo; nada volta a aberto); e o Goal conduzido vai a `concluido` só pelo
    orquestrador, num lote em que fechar é a única mudança (o humano cancela,
    com o motivo, mas não conclui). Antes de fechar, o orquestrador confere no
    git a ponta real da branch: o commit que o humano fez nela depois da

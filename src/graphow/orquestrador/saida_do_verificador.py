@@ -27,12 +27,13 @@ novas. Os de maior prioridade ficam; o resto vira acompanhamento marcado
 verificação seguinte o achar de novo.
 
 Na conferência, que roda depois de cada ciclo de correção, a gravidade tem
-mais uma regra (orquestrador/tipo_da_verificacao.py): o achado conferido que
-persiste (`persiste`, o id dele) é bloqueante; o achado novo só vale se for
-regressão de critério (`regressao`), e o que não é vira acompanhamento marcado
-"achado novo da conferencia, sem regressao". Na bancada de 12/10, cada
-verificação depois de uma correção era outra caçada, que achava bordas novas,
-e o laço não convergia.
+mais uma regra (orquestrador/tipo_da_verificacao.py): cada achado conferido
+ganha um parecer, `corrigido` ou `persiste`, com a prova, e faltar um é saída
+inválida; o que persiste é bloqueante; o achado novo só vale se for regressão
+de critério (`regressao`), e o que não é vira acompanhamento marcado "achado
+novo da conferencia, sem regressao". Na bancada de 12/10, cada verificação
+depois de uma correção era outra caçada, que achava bordas novas, e o laço não
+convergia.
 
 Quando a configuração de teste entregue faz passar um teste de aceite que a do
 commit do aceite reprova fora de uma asserção (import, coleta, ambiente), o
@@ -64,6 +65,10 @@ ALCANCES: tuple[str, ...] = (ALCANCE_USO_PREVISTO, ALCANCE_EXTREMO)
 TETO_DE_BLOQUEANTES: int = 5
 MARCA_DO_TETO: str = "excedeu o teto do ciclo"
 MARCA_DA_CONFERENCIA: str = "achado novo da conferencia, sem regressao"
+# O que a conferência diz de cada achado conferido: só o `corrigido` o resolve.
+PARECER_CORRIGIDO: str = "corrigido"
+PARECER_PERSISTE: str = "persiste"
+PARECERES_DO_CONFERIDO: tuple[str, ...] = (PARECER_CORRIGIDO, PARECER_PERSISTE)
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -108,6 +113,29 @@ class ParecerDaDiferenca:
         """O parecer como o verificador o devolveu."""
         return cls(str(dados.get("criterio", "")).strip(), str(dados["teste"]).strip(), str(dados["parecer"]),
                    str(dados["motivo"]).strip())
+
+
+@dataclass(frozen=True)
+class ParecerDoConferido:
+    """O que a conferência diz de um achado conferido: corrigido ou persiste, com a prova."""
+
+    achado: str
+    parecer: str
+    prova: str
+
+    @property
+    def persiste(self) -> bool:
+        """A conferência reproduziu o achado."""
+        return self.parecer == PARECER_PERSISTE
+
+    def em_json(self) -> dict[str, str]:
+        """O parecer para gravar na verificação."""
+        return {"achado": self.achado, "parecer": self.parecer, "prova": self.prova}
+
+    @classmethod
+    def de_json(cls, dados: Mapping[str, Any]) -> "ParecerDoConferido":
+        """O parecer como a conferência o devolveu."""
+        return cls(str(dados["achado"]).strip(), str(dados["parecer"]).strip(), str(dados.get("prova", "")).strip())
 
 
 @dataclass(frozen=True)
@@ -221,6 +249,7 @@ class Verificacao:
     achados: tuple[Achado, ...] = field(default_factory=tuple)
     comandos: tuple[ComandoRodado, ...] = ()
     diferencas: tuple[ParecerDaDiferenca, ...] = ()
+    conferidos: tuple[ParecerDoConferido, ...] = ()
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Verificacao":
@@ -232,7 +261,13 @@ class Verificacao:
             achados=tuple(Achado.de_json(item) for item in dados["achados"]),
             comandos=_comandos(dados.get("comandos")),
             diferencas=tuple(ParecerDaDiferenca.de_json(item) for item in dados.get("diferencas", [])),
+            conferidos=tuple(ParecerDoConferido.de_json(item) for item in dados.get("conferidos", [])),
         )
+
+    @property
+    def confirmados(self) -> tuple[str, ...]:
+        """Os achados conferidos que a conferência deu por corrigidos."""
+        return tuple(parecer.achado for parecer in self.conferidos if not parecer.persiste)
 
     def com_achado_do_orquestrador(self, titulo: str, descricao: str, criterios: tuple[str, ...] = ()) -> "Verificacao":
         """A verificação com o que o orquestrador viu falhar no commit verificado (a suíte, um teste de aceite)."""
@@ -299,8 +334,8 @@ def conferir_verificacao(
     """Um parecer por critério, por decisão e por diferença de configuração pedidos, e achado que toca só o que pode tocar.
 
     O que o achado pode tocar é o que a verificação julga, ou, quando dito, os
-    critérios já entregues e as decisões (`conhecidos`). O achado que persiste
-    é um dos conferidos. Os comandos vêm do stream.
+    critérios já entregues e as decisões (`conhecidos`). Na conferência, um
+    parecer por achado conferido. Os comandos vêm do stream.
     """
     dados = [parecer.id for parecer in verificacao.criterios]
     dadas = [parecer.id for parecer in verificacao.decisoes]
@@ -314,8 +349,22 @@ def conferir_verificacao(
             for achado in verificacao.achados for id_c in achado.toca if id_c not in tocaveis
         ),
         *_conferir_diferencas(verificacao.diferencas, diferencas),
+        *_conferir_os_conferidos(verificacao, conferidos),
+    )
+
+
+def _conferir_os_conferidos(verificacao: Verificacao, conferidos: Sequence[str]) -> tuple[str, ...]:
+    """Um parecer por achado conferido, sem repetir nem inventar, e o `persiste` do achado só com um conferido que persiste."""
+    dados = [parecer.achado for parecer in verificacao.conferidos]
+    corrigidos = set(verificacao.confirmados)
+    return (
+        *(f"falta o parecer do achado conferido {id_a} (corrigido ou persiste)" for id_a in conferidos if id_a not in dados),
+        *(f"parecer do achado conferido {id_a} repetido" for id_a in sorted({i for i in dados if dados.count(i) > 1})),
+        *(f"o parecer de {id_a} nao corresponde a nenhum achado conferido" for id_a in dados if id_a not in conferidos),
         *(f"o achado '{achado.titulo}' persiste {achado.persiste}, que nao e achado conferido"
           for achado in verificacao.achados if achado.persiste and achado.persiste not in conferidos),
+        *(f"o achado '{achado.titulo}' persiste {achado.persiste}, e o parecer dele diz corrigido"
+          for achado in verificacao.achados if achado.persiste in corrigidos),
     )
 
 

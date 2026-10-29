@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-47 módulos · 8432 linhas · 67 classes
+47 módulos · 8552 linhas · 68 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 195 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 355 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 357 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -26,19 +26,19 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
-| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 211 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
+| [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 339 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
-| [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 125 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
+| [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 94 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 92 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 266 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
-| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 152 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
-| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 367 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 311 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 221 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
+| [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 368 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 312 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 223 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 239 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
@@ -47,14 +47,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 293 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 332 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 381 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 357 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
-| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 115 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
+| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 135 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -403,8 +403,9 @@ Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o exe
 | `ACHADO` | `dict[str, Any]` | `_objeto({'titulo': TEXTO, 'descricao': TEXTO, 'prova': PROVA, 'local': …` |
 | `PARECER_DA_DIFERENCA` | `dict[str, Any]` | `_objeto({'criterio': TEXTO_LIVRE, 'teste': TEXTO, 'parecer': {'type': '…` |
 | `ACHADO_DA_CONFERENCIA` | `dict[str, Any]` | `_objeto({**ACHADO['properties'], 'persiste': TEXTO_LIVRE, 'regressao': …` |
+| `PARECER_DO_CONFERIDO` | `dict[str, Any]` | `_objeto({'achado': TEXTO, 'parecer': {'type': 'string', 'enum': list(PA…` |
 | `ESQUEMA_DA_VERIFICACAO` | `dict[str, Any]` | `_esquema_da_verificacao(ACHADO)` |
-| `ESQUEMA_DA_CONFERENCIA` | `dict[str, Any]` | `_esquema_da_verificacao(ACHADO_DA_CONFERENCIA)` |
+| `ESQUEMA_DA_CONFERENCIA` | `dict[str, Any]` | `_esquema_da_verificacao(ACHADO_DA_CONFERENCIA, {'conferidos': _lista_de…` |
 | `ESQUEMA_DA_SEGUNDA_OPINIAO` | `dict[str, Any]` | `_objeto({'criterios': LISTA_DE_TEXTOS, 'decisoes': LISTA_DE_TEXTOS, 'al…` |
 | `ESQUEMA_POR_PAPEL` | `Mapping[str, Mapping[str, Any]]` | `{PAPEL_PLANEJADOR: ESQUEMA_DO_PLANO, PAPEL_AUTOR_DE_ACEITE: ESQUEMA_DO_…` |
 
@@ -639,6 +640,7 @@ As verificações do Goal e os nós Achado delas e das revisões de risco, como 
 - `texto(chave: str) -> str` — Uma propriedade de texto do achado.
 - `lista(chave: str) -> tuple[str, ...]` — Uma propriedade de lista de textos do achado.
 - `bloqueante() -> bool` `[property]` — O código o decidiu bloqueante.
+- `encerrado() -> bool` `[property]` — Resolvido, ou descartado pelo humano.
 
 ### `VerificacaoRegistrada`
 
@@ -647,6 +649,7 @@ As verificações do Goal e os nós Achado delas e das revisões de risco, como 
 **Campos:** `id: str`, `commit: str`, `veredito: str`, `ciclo: int`, `propriedades: Mapping[str, Any]`, `commit_do_codigo: str`, `achados: tuple[AchadoRegistrado, ...]`, `marco: str`, `reprovados: tuple[str, ...]`
 
 - `tipo() -> str` `[property]` — A caçada, a do marco ou a conferência; vazio na verificação de antes dos tipos.
+- `confirmados() -> tuple[str, ...]` `[property]` — Os achados conferidos que esta conferência deu por corrigidos.
 - `bloqueantes() -> tuple[AchadoRegistrado, ...]` — Os nós Achado bloqueantes desta verificação.
 - `bloqueantes_abertos() -> tuple[AchadoRegistrado, ...]` — Os bloqueantes ainda não encerrados: o resolvido e o que o humano descartou não contam.
 - `limpa() -> bool` `[property]` — Sem bloqueante, ou com todo bloqueante dela encerrado (resolvido, ou descartado pelo humano), e sem critério reprovado.
@@ -654,6 +657,7 @@ As verificações do Goal e os nós Achado delas e das revisões de risco, como 
 ### Funções do módulo
 
 - `do_orquestrador(no: NoGrafo | None) -> bool` — O nó nasceu de um lote do orquestrador: o laço só lê a verificação, o Achado e a revisão que ele mesmo gravou.
+- `a_resolver(verificacoes: Sequence[VerificacaoRegistrada], escopo: Sequence[VerificacaoRegistrada], agora: Sequence[str]) -> tuple[str, ...]` — Os bloqueantes ainda não encerrados que uma conferência do escopo (ou a de agora) deu por corrigidos, e os que eles repetiam.
 - `verificacoes_do_goal(view: GrafoView, id_goal: str) -> tuple[VerificacaoRegistrada, ...]` — As Evidence de verificação ligadas ao Goal, da mais antiga à mais nova.
 - `criterios_ativos(view: GrafoView, id_goal: str) -> frozenset[str]` — Os nós Criterio que escopam o Goal e que o humano não retirou (por uma Decision dele).
 - `retirado_pelo_humano(view: GrafoView, criterio: NoGrafo, id_goal: str) -> bool` — O Criterio traz a retirada pelo pedido do humano que o retira, deste Goal, como o kernel a conta.
@@ -701,7 +705,7 @@ O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as veri
 - `pedidos_pendentes(acao: str) -> tuple[PedidoDoHumano, ...]` — Os pedidos com a ação dada que o laço ainda não atendeu: os do humano e os de refazer um teste de aceite.
 - `marco_esgotado(marco: MarcoRegistrado) -> bool` — O marco intermediário gastou os ciclos, e a verificação depois do último ainda tem bloqueante: ele não tem o que fazer.
 - `bloqueantes_de_outros_marcos(marco: MarcoRegistrado) -> tuple[AchadoRegistrado, ...]` — Os bloqueantes ainda abertos que as verificações dos outros marcos deixaram: a final os cobra de novo.
-- `corrigidos(marco: MarcoRegistrado) -> tuple[str, ...]` — Os Achados que uma correção entregou e que a verificação limpa do marco resolve; na final, os do Goal inteiro.
+- `corrigidos(marco: MarcoRegistrado, agora: Sequence[str]) -> tuple[str, ...]` — Os Achados que a verificação limpa do marco resolve: os que uma conferência dele (na final, do Goal) ou a de agora deu por corrigidos.
 - `ciclos_do_marco(marco: MarcoRegistrado) -> int` — Quantos ciclos de correção o marco já abriu: as verificações dele de onde nasceram fatias de correção.
 - `prontas(marco: MarcoRegistrado | None) -> tuple[FatiaRegistrada, ...]` — As fatias que podem rodar agora, na ordem do plano; com o marco dado, só as dele.
 - `pausadas() -> tuple[FatiaRegistrada, ...]` — As fatias paradas numa dúvida aberta.
@@ -771,7 +775,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `gravar_ponta(ponta: Mapping[str, str]) -> None` — A ponta da branch do Goal como o git a tem agora: o commit e o commit do código.
 - `criar_correcoes(id_evidencia: str, achados: Sequence[AchadoRegistrado]) -> None` — Os Achados bloqueantes do ciclo viram uma fatia de correção do marco, que deriva de todos eles.
 - `dividir_correcao(fatia: FatiaRegistrada, achados: Sequence[AchadoRegistrado]) -> None` — A correção agrupada que esgotou as tentativas sai do plano e vira uma fatia por achado, no mesmo ciclo.
-- `resolver(achados: Sequence[str], justificativa: str) -> None` — Os Achados corrigidos passam a resolvidos: a verificação final limpa os confirmou.
+- `resolver(achados: Sequence[str], justificativa: str) -> None` — Os Achados corrigidos passam a resolvidos: a conferência os confirmou, e a verificação limpa do marco fecha o ciclo.
 - `fechar(commit_integrado: str) -> None` — O Goal fecha com o commit integrado, e a Sessao do orquestrador se encerra.
 
 ### `LoteRecusado` (GraphowError)
@@ -837,6 +841,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `CAMPO_CICLO` | `str` | `'ciclo'` |
 | `CAMPO_NUMERO` | `str` | `a.CAMPO_NUMERO` |
 | `CAMPO_TIPO_DA_VERIFICACAO` | `str` | `'tipo_da_verificacao'` |
+| `CAMPO_CONFERIDOS` | `str` | `'conferidos'` |
 | `CAMPO_FINAL` | `str` | `a.CAMPO_FINAL` |
 | `CAMPO_PARECERES` | `str` | `a.CAMPO_PARECERES` |
 | `ACAO_DA_VERIFICACAO` | `str` | `a.ACAO_DA_VERIFICACAO` |
@@ -1115,6 +1120,9 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 | `TETO_DE_BLOQUEANTES` | `int` | `5` |
 | `MARCA_DO_TETO` | `str` | `'excedeu o teto do ciclo'` |
 | `MARCA_DA_CONFERENCIA` | `str` | `'achado novo da conferencia, sem regressao'` |
+| `PARECER_CORRIGIDO` | `str` | `'corrigido'` |
+| `PARECER_PERSISTE` | `str` | `'persiste'` |
+| `PARECERES_DO_CONFERIDO` | `tuple[str, ...]` | `(PARECER_CORRIGIDO, PARECER_PERSISTE)` |
 
 ### `Achado`
 
@@ -1153,13 +1161,24 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 - `em_json() -> dict[str, str]` — O parecer para gravar com a diferença.
 - `de_json(dados: Mapping[str, Any]) -> 'ParecerDaDiferenca'` — O parecer como o verificador o devolveu.
 
+### `ParecerDoConferido`
+
+*DTO imutável* — O que a conferência diz de um achado conferido: corrigido ou persiste, com a prova.
+
+**Campos:** `achado: str`, `parecer: str`, `prova: str`
+
+- `persiste() -> bool` `[property]` — A conferência reproduziu o achado.
+- `em_json() -> dict[str, str]` — O parecer para gravar na verificação.
+- `de_json(dados: Mapping[str, Any]) -> 'ParecerDoConferido'` — O parecer como a conferência o devolveu.
+
 ### `Verificacao`
 
 *DTO imutável* — O que o verificador devolveu de um marco, ou do Goal inteiro na verificação final.
 
-**Campos:** `resumo: str`, `criterios: tuple[Parecer, ...]`, `decisoes: tuple[Parecer, ...]`, `achados: tuple[Achado, ...]`, `comandos: tuple[ComandoRodado, ...]`, `diferencas: tuple[ParecerDaDiferenca, ...]`
+**Campos:** `resumo: str`, `criterios: tuple[Parecer, ...]`, `decisoes: tuple[Parecer, ...]`, `achados: tuple[Achado, ...]`, `comandos: tuple[ComandoRodado, ...]`, `diferencas: tuple[ParecerDaDiferenca, ...]`, `conferidos: tuple[ParecerDoConferido, ...]`
 
 - `de_json(dados: Mapping[str, Any]) -> 'Verificacao'` — A verificação como o verificador a devolveu.
+- `confirmados() -> tuple[str, ...]` `[property]` — Os achados conferidos que a conferência deu por corrigidos.
 - `com_achado_do_orquestrador(titulo: str, descricao: str, criterios: tuple[str, ...]) -> 'Verificacao'` — A verificação com o que o orquestrador viu falhar no commit verificado (a suíte, um teste de aceite).
 - `com_parecer(id_criterio: str, veredito: str, prova: str) -> 'Verificacao'` — A verificação com o parecer do critério trocado pelo que o orquestrador viu.
 - `bloqueantes() -> tuple[Achado, ...]` — Os bloqueantes dentro do teto, na ordem de sempre.
@@ -1385,7 +1404,7 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 ### Funções do módulo
 
 - `escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado) -> TipoDaVerificacao` — A conferência quando o marco já tem verificação gravada; senão a do marco intermediário, ou a caçada na final.
-- `na_conferencia(verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado]) -> Verificacao` — A conferência com o destino de cada achado do verificador.
+- `na_conferencia(verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado]) -> Verificacao` — A conferência com o destino de cada achado do verificador e um bloqueante por conferido que persiste.
 - `diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str` — O diff do commit da verificação anterior até o atual, sem o documento do Goal, cortado; vazio sem o commit de antes.
 
 ## `orquestrador/trava_do_git.py`

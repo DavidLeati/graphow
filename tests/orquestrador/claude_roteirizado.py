@@ -5,7 +5,11 @@ roteiro (`GRAPHOW_TESTE_ROTEIRO`) é um JSON com uma lista de respostas por
 papel; cada chamada consome a próxima do seu papel. As verificações dos três
 tipos (o `verificador` da caçada, o `marco` e a `conferencia`) consomem uma
 lista só, a do `verificador`: a ordem delas é uma só, e o registro guarda o
-papel do prompt. Cada resposta pode:
+papel do prompt. Na conferência, a saída sem `conferidos` ganha um parecer por
+achado conferido do briefing: `persiste` para o que um achado da saída cita em
+`persiste`, `corrigido` para o resto (como a conferência que cumpre o schema e
+não lista o que foi corrigido); os ids ficam guardados para a retomada da
+sessão. A saída com `conferidos` vai como está. Cada resposta pode:
 
 - `saida`: o objeto que vai em `structured_output` (e, em texto, em `result`);
 - `texto`: o `result` em texto, quando a saída estruturada não vem;
@@ -29,6 +33,7 @@ para `GRAPHOW_TESTE_REGISTRO`, um JSON numerado por chamada.
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import uuid
@@ -44,6 +49,9 @@ def _valor(argv: list[str], opcao: str) -> str:
 
 # Os papéis das verificações que respondem pela lista do verificador.
 VERIFICACOES = ("marco", "conferencia")
+# O bloco do briefing da conferência com os achados conferidos, e o id de cada um.
+BLOCO_DOS_CONFERIDOS = re.compile(r"^## Achados conferidos[^\n]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+ID_DO_CONFERIDO = re.compile(r"^- (achado-[\w.-]+): ", re.MULTILINE)
 
 
 def _proxima(papel: str) -> dict:
@@ -68,6 +76,30 @@ def _acumular(sessao: str, custo: float) -> float:
     estado["custos"][sessao] = total
     estado_path.write_text(json.dumps(estado), encoding="utf-8")
     return total
+
+
+def _conferidos_da_sessao(sessao: str, entrada: str) -> list[str]:
+    """Os ids dos achados conferidos do briefing; na retomada, os que a sessão recebeu no começo."""
+    roteiro = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"])
+    estado_path = roteiro.with_suffix(".estado.json")
+    estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})
+    guardados = estado.setdefault("conferidos", {})
+    if sessao not in guardados:
+        bloco = BLOCO_DOS_CONFERIDOS.search(entrada)
+        guardados[sessao] = ID_DO_CONFERIDO.findall(bloco.group(1)) if bloco else []
+        estado_path.write_text(json.dumps(estado), encoding="utf-8")
+    return guardados[sessao]
+
+
+def _com_os_conferidos(resposta: dict, ids: list[str]) -> dict:
+    """A saída da conferência com um parecer por conferido, quando o roteiro não os dá."""
+    saida = resposta.get("saida")
+    if not isinstance(saida, dict) or "conferidos" in saida:
+        return resposta
+    persistem = {str(a.get("persiste")): str(a.get("prova", "")) for a in saida.get("achados", []) if a.get("persiste")}
+    pareceres = [{"achado": i, "parecer": "persiste" if i in persistem else "corrigido",
+                  "prova": persistem.get(i) or "reproduzido com as chamadas da prova: nao aparece mais"} for i in ids]
+    return {**resposta, "saida": {**saida, "conferidos": pareceres}}
 
 
 def _registrar(dados: dict) -> None:
@@ -118,6 +150,8 @@ def main() -> int:
     papel = Path(_valor(argv, "--append-system-prompt-file")).stem or "desconhecido"
     resposta = _proxima(papel)
     sessao = _valor(argv, "--resume") or str(uuid.uuid4())
+    if papel == "conferencia":
+        resposta = _com_os_conferidos(resposta, _conferidos_da_sessao(sessao, entrada))
     feitos = _executar(resposta)
     ambiente = {nome: valor for nome, valor in os.environ.items() if nome.startswith(("GIT_CONFIG", "GRAPHOW_DB"))}
     _registrar({"papel": papel, "argv": argv, "cwd": os.getcwd(), "stdin": entrada, "ambiente": ambiente,

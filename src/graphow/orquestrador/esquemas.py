@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from graphow.core import aceite as a
-from graphow.orquestrador.saida_do_verificador import ALCANCES, PARECERES_DA_DIFERENCA
+from graphow.orquestrador.saida_do_verificador import ALCANCES, PARECERES_DA_DIFERENCA, PARECERES_DO_CONFERIDO
 
 PAPEL_PLANEJADOR: str = "planejador"
 # O autor de aceite: uma sessão separada do executor, depois do plano, que escreve os testes de aceite.
@@ -166,10 +166,14 @@ ACHADO_DA_CONFERENCIA: dict[str, Any] = _objeto(
     {**ACHADO["properties"], "persiste": TEXTO_LIVRE, "regressao": {"type": "boolean"}},
     opcionais=("reproducao", "decisao_do_limite", "persiste", "regressao"),
 )
+# Na conferência, um parecer por achado conferido; só o `corrigido` o resolve.
+PARECER_DO_CONFERIDO: dict[str, Any] = _objeto(
+    {"achado": TEXTO, "parecer": {"type": "string", "enum": list(PARECERES_DO_CONFERIDO)}, "prova": PROVA}
+)
 
 
-def _esquema_da_verificacao(achado: Mapping[str, Any]) -> dict[str, Any]:
-    """O schema de uma verificação com o achado dado.
+def _esquema_da_verificacao(achado: Mapping[str, Any], extras: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """O schema de uma verificação com o achado dado e os campos a mais (os pareceres dos conferidos, na conferência).
 
     O verificador não declara mais os comandos: o orquestrador os tira do
     stream (orquestrador/comandos_do_stream.py). `diferencas` é opcional no
@@ -182,13 +186,14 @@ def _esquema_da_verificacao(achado: Mapping[str, Any]) -> dict[str, Any]:
             "decisoes": _lista_de(PARECER),
             "achados": _lista_de(achado),
             "diferencas": _lista_de(PARECER_DA_DIFERENCA),
+            **(extras or {}),
         },
         opcionais=("diferencas",),
     )
 
 
 ESQUEMA_DA_VERIFICACAO: dict[str, Any] = _esquema_da_verificacao(ACHADO)
-ESQUEMA_DA_CONFERENCIA: dict[str, Any] = _esquema_da_verificacao(ACHADO_DA_CONFERENCIA)
+ESQUEMA_DA_CONFERENCIA: dict[str, Any] = _esquema_da_verificacao(ACHADO_DA_CONFERENCIA, {"conferidos": _lista_de(PARECER_DO_CONFERIDO)})
 
 ESQUEMA_DA_SEGUNDA_OPINIAO: dict[str, Any] = _objeto(
     {"criterios": LISTA_DE_TEXTOS, "decisoes": LISTA_DE_TEXTOS, "alcance": ALCANCE, "motivo": TEXTO}

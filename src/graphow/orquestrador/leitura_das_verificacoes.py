@@ -8,7 +8,7 @@ conta o que nasceu de um lote do orquestrador: a verificação ou o Achado que
 outro papel gravasse não é do laço, e ele não o lê.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,6 +17,7 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.retirada_do_criterio import retirada_valida
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.saida_do_verificador import PARECER_CORRIGIDO
 from graphow.projection.graph_view import GrafoView
 
 
@@ -49,6 +50,11 @@ class AchadoRegistrado:
         """O código o decidiu bloqueante."""
         return self.gravidade == a.GRAVIDADE_BLOQUEANTE
 
+    @property
+    def encerrado(self) -> bool:
+        """Resolvido, ou descartado pelo humano."""
+        return self.estado in a.ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE
+
 
 @dataclass(frozen=True)
 class VerificacaoRegistrada:
@@ -69,13 +75,20 @@ class VerificacaoRegistrada:
         """A caçada, a do marco ou a conferência; vazio na verificação de antes dos tipos."""
         return str(self.propriedades.get(m.CAMPO_TIPO_DA_VERIFICACAO) or "")
 
+    @property
+    def confirmados(self) -> tuple[str, ...]:
+        """Os achados conferidos que esta conferência deu por corrigidos."""
+        itens = self.propriedades.get(m.CAMPO_CONFERIDOS)
+        lidos = [item for item in itens if isinstance(item, Mapping)] if isinstance(itens, list) else []
+        return tuple(str(item.get("achado")) for item in lidos if item.get("parecer") == PARECER_CORRIGIDO)
+
     def bloqueantes(self) -> tuple[AchadoRegistrado, ...]:
         """Os nós Achado bloqueantes desta verificação."""
         return tuple(achado for achado in self.achados if achado.bloqueante)
 
     def bloqueantes_abertos(self) -> tuple[AchadoRegistrado, ...]:
         """Os bloqueantes ainda não encerrados: o resolvido e o que o humano descartou não contam."""
-        return tuple(achado for achado in self.bloqueantes() if achado.estado not in a.ESTADOS_QUE_ENCERRAM_O_BLOQUEANTE)
+        return tuple(achado for achado in self.bloqueantes() if not achado.encerrado)
 
     @property
     def limpa(self) -> bool:
@@ -88,6 +101,31 @@ class VerificacaoRegistrada:
         """
         encerrada = self.veredito == m.VEREDITO_LIMPO or (bool(self.bloqueantes()) and not self.bloqueantes_abertos())
         return encerrada and not self.reprovados
+
+
+def a_resolver(
+    verificacoes: Sequence[VerificacaoRegistrada], escopo: Sequence[VerificacaoRegistrada], agora: Sequence[str] = ()
+) -> tuple[str, ...]:
+    """Os bloqueantes ainda não encerrados que uma conferência do escopo (ou a de agora) deu por corrigidos, e os que eles repetiam.
+
+    Só o parecer `corrigido` resolve: na revisão da T2c+T2d, o achado que a
+    conferência não listava, ou que ela reproduzia além do teto, se resolvia
+    no fecho por estar `corrigido`, e o Goal fechava com ele. O achado que
+    persistiu fica `corrigido` (o estado não volta a aberto) e é repetido por
+    um achado da conferência com `persiste` = o id dele; ele se resolve quando
+    a repetição é confirmada ou encerrada (resolvida, ou descartada pelo
+    humano), pela cadeia toda.
+    """
+    por_id = {achado.id: achado for v in verificacoes for achado in v.achados}
+    confirmados = (*(id_a for v in escopo for id_a in v.confirmados), *agora)
+    resolver = dict.fromkeys(i for i in confirmados if (x := por_id.get(i)) is not None and x.bloqueante and not x.encerrado)
+    pendentes = [*resolver, *(achado.id for achado in por_id.values() if achado.encerrado)]
+    while pendentes:
+        original = por_id.get(por_id[pendentes.pop()].texto("persiste"))
+        if original is not None and original.bloqueante and not original.encerrado and original.id not in resolver:
+            resolver[original.id] = None
+            pendentes.append(original.id)
+    return tuple(resolver)
 
 
 

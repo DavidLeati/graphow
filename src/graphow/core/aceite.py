@@ -63,8 +63,9 @@ PROPRIEDADES_DERIVADAS_DO_CRITERIO: frozenset[str] = frozenset(
 )
 
 # O Achado: a gravidade que o código decide, e o estado. O bloqueante nasce
-# aberto, fica corrigido quando a fatia de correção entrega e resolvido quando a
-# verificação seguinte do marco sai limpa; o humano pode descartá-lo. O
+# aberto, fica corrigido quando a fatia de correção entrega e resolvido quando
+# uma conferência o dá por corrigido e a verificação do marco sai limpa (o que
+# persistiu, quando o achado que o repete se encerra); o humano pode descartá-lo. O
 # acompanhamento nasce pendente e fica como pendência visível do Goal.
 CAMPO_GRAVIDADE: str = "gravidade"
 GRAVIDADE_BLOQUEANTE: str = "bloqueante"

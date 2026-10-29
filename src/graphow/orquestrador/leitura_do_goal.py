@@ -6,7 +6,7 @@ calculada aqui: fatia pendente ou interrompida em andamento, com as
 dependências concluídas e sem dúvida aberta, na ordem do plano.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,6 +17,7 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.leitura_das_verificacoes import (
     AchadoRegistrado,
     VerificacaoRegistrada,
+    a_resolver,
     achados_das_revisoes,
     verificacoes_do_goal,
 )
@@ -249,10 +250,10 @@ class EstadoDoGoal:
         return tuple(achado for v in self.verificacoes if v.marco != marco.id for achado in v.bloqueantes()
                      if achado.estado == a.ESTADO_ABERTO)
 
-    def corrigidos(self, marco: MarcoRegistrado) -> tuple[str, ...]:
-        """Os Achados que uma correção entregou e que a verificação limpa do marco resolve; na final, os do Goal inteiro."""
-        verificacoes = self.verificacoes if marco.final else self.verificacoes_do_marco(marco)
-        return tuple(achado.id for v in verificacoes for achado in v.achados if achado.estado == a.ESTADO_CORRIGIDO)
+    def corrigidos(self, marco: MarcoRegistrado, agora: Sequence[str] = ()) -> tuple[str, ...]:
+        """Os Achados que a verificação limpa do marco resolve: os que uma conferência dele (na final, do Goal) ou a de agora deu por corrigidos."""
+        escopo = self.verificacoes if marco.final else self.verificacoes_do_marco(marco)
+        return a_resolver(self.verificacoes, escopo, agora)
 
     def ciclos_do_marco(self, marco: MarcoRegistrado) -> int:
         """Quantos ciclos de correção o marco já abriu: as verificações dele de onde nasceram fatias de correção."""

@@ -3,14 +3,15 @@
 A Evidence de verificação deriva do Goal e guarda o número, o tipo (`caca`,
 `marco` ou `conferencia`), o marco, se é a final, o commit e o commit do
 código verificados, os comandos do verificador, a suíte e os testes de aceite
-que o orquestrador rodou, e um parecer por
-critério e decisão com o nó de cada um. Cada achado vira um nó Achado que
+que o orquestrador rodou, um parecer por critério e decisão com o nó de cada
+um e, na conferência, o parecer de cada achado conferido. Cada achado vira um nó Achado que
 deriva da Evidence e fere (`fere`) os critérios e as decisões que toca, com a
 gravidade que o código decidiu: o bloqueante nasce aberto e vai virar fatia de
 correção, o acompanhamento nasce pendente e fica como pendência do Goal. Nunca
 uma Note. No mesmo lote, cada Criterio julgado ganha o estado do parecer, e,
 quando a verificação sai limpa, os achados que as correções do marco
-entregaram passam a resolvidos.
+entregaram e uma conferência deu por corrigidos passam a resolvidos
+(orquestrador/leitura_das_verificacoes.py:a_resolver).
 """
 
 from collections.abc import Mapping, Sequence
@@ -72,6 +73,7 @@ class RegistroDaVerificacao:
             "diferencas_de_configuracao": [dict(item) for item in self.diferencas_de_configuracao],
             m.CAMPO_PARECERES: [{"id": p.id, "no": self.nos.get(p.id, ""), "veredito": p.veredito, "prova": p.prova}
                                 for p in (*verificacao.criterios, *verificacao.decisoes)],
+            m.CAMPO_CONFERIDOS: [parecer.em_json() for parecer in verificacao.conferidos],
             "achados": [id_achado for id_achado, _ in self.achados(id_goal)],
         }
 

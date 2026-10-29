@@ -304,8 +304,10 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
         f"## Diff das correcoes\n```diff\n{pedido.diff}\n```" if pedido.diff else "",
         "Devolva a conferencia no JSON do schema, com um parecer para cada criterio acima"
         + (" e para cada decisao" if marco.final else "") + (", e um em `diferencas` para cada diferenca acima" if pedido.diferencas else "")
-        + ". Em `achados`, liste o conferido que persiste (`persiste` = o id dele) e a regressao de criterio (`regressao`: true). "
-        "O achado novo que nao e regressao nao vira correcao.",
+        + (", e um em `conferidos` para cada achado conferido: `corrigido` ou `persiste`, com a prova (o comando que o "
+           "reproduz e o que ele mostrou agora). Conferido sem parecer nao vale, e so o `corrigido` o resolve" if pedido.conferidos else "")
+        + ". Em `achados`, liste a regressao de criterio (`regressao`: true); o conferido que persiste pode ir tambem, com "
+        "`persiste` = o id dele. O achado novo que nao e regressao nao vira correcao.",
     ])
 
 

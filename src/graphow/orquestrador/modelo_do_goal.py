@@ -109,6 +109,8 @@ CAMPO_CICLO: str = "ciclo"
 CAMPO_NUMERO: str = a.CAMPO_NUMERO
 # O tipo da verificação: a caçada, a do marco ou a conferência (orquestrador/tipo_da_verificacao.py).
 CAMPO_TIPO_DA_VERIFICACAO: str = "tipo_da_verificacao"
+# Na conferência, o parecer de cada achado conferido (`corrigido` ou `persiste`, com a prova).
+CAMPO_CONFERIDOS: str = "conferidos"
 CAMPO_FINAL: str = a.CAMPO_FINAL
 CAMPO_PARECERES: str = a.CAMPO_PARECERES
 ACAO_DA_VERIFICACAO: str = a.ACAO_DA_VERIFICACAO

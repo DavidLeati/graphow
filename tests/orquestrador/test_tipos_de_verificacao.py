@@ -120,6 +120,7 @@ def test_achado_conferido_que_persiste_segue_bloqueante_edge_case(tmp_path: Path
 def test_conferencia_que_diz_persistir_achado_que_nao_confere_e_recusada_edge_case() -> None:
     """Caso de borda: `persiste` só vale com o id de um achado conferido; o resto volta à sessão."""
     saida = verificacao("atende", [{**BLOQUEANTE_DO_README, "persiste": "achado-inventado"}])["saida"]
+    saida["conferidos"] = [{"achado": "achado-goal-soma-v1-1", "parecer": "persiste", "prova": "README.md lido de novo: sem exemplo"}]
 
     problemas = conferir_verificacao(Verificacao.de_json(saida), ("C1", "C2"), ("D1",), conferidos=("achado-goal-soma-v1-1",))
 

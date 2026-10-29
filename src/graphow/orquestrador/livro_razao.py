@@ -162,7 +162,8 @@ class LivroRazaoDoGoal:
         """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
 
         Na fatia de correção, os Achados que ela corrige passam a corrigidos no
-        mesmo lote: resolvidos, só quando a verificação seguinte do marco sair limpa.
+        mesmo lote: resolvidos, só quando uma conferência os der por corrigidos e
+        a verificação do marco sair limpa.
         """
         id_artefato = f"art-{id_task}-t{tentativa}"
         propriedades = {
@@ -295,7 +296,7 @@ class LivroRazaoDoGoal:
         self.gravar(operacoes, f"Correcao {fatia.codigo} dividida em {len(achados)} fatias, uma por achado")
 
     def resolver(self, achados: Sequence[str], justificativa: str) -> None:
-        """Os Achados corrigidos passam a resolvidos: a verificação final limpa os confirmou."""
+        """Os Achados corrigidos passam a resolvidos: a conferência os confirmou, e a verificação limpa do marco fecha o ciclo."""
         if achados:
             self.gravar([propriedade(achado, a.CAMPO_ESTADO, a.ESTADO_RESOLVIDO) for achado in achados], justificativa)
 
