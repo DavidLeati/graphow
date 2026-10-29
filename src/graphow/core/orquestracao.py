@@ -40,14 +40,6 @@ ENTREGAS: frozenset[str] = frozenset({ENTREGA_ARTEFATO, ENTREGA_ACAO_EXTERNA})
 # para a medição comparar o mesmo conjunto de tarefas sob arranjos diferentes.
 CAMPO_CONFIGURACAO: str = "configuracao"
 
-# No Goal, no Setor ou no Projeto, gravadas pelo humano: o ramo do git em que
-# o trabalho do Goal vai ser integrado (`origin/stage` ou `stage`) e os globs
-# dos caminhos em que dois ramos colidem sem tocar o mesmo arquivo, como as
-# migrations numeradas de um mesmo diretório. O Goal herda cada uma do Setor e
-# depois do Projeto quando não a traz.
-CAMPO_RAMO_BASE: str = "ramo_base"
-CAMPO_CAMINHOS_DE_COLISAO: str = "caminhos_de_colisao"
-
 # No Artifact: os arquivos que o executor alterou para entregar a tarefa.
 CAMPO_ARQUIVOS: str = "arquivos"
 

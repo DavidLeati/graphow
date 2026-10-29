@@ -39,7 +39,7 @@ FERRAMENTAS_DE_LEITURA_DA_SESSAO: tuple[str, ...] = (
     "minhas_questoes",
     "aguardar_resposta",
 )
-COMANDOS_DE_MEDICAO: tuple[str, ...] = ("base-colisoes", "orquestracao-medir", "transcricao-medir")
+COMANDOS_DE_MEDICAO: tuple[str, ...] = ("orquestracao-medir", "transcricao-medir")
 # As permissões dos servidores MCP por papel dos subagentes que saíram: a mescla as remove.
 PERMISSOES_OBSOLETAS: tuple[str, ...] = (
     "mcp__graphow-condutor",

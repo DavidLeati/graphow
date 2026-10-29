@@ -52,7 +52,7 @@ Configuração do Claude Code para o graphow: hooks, permissões e servidor da s
 | `FASES_DOS_HOOKS` | `tuple[tuple[str, str], ...]` | `(('SessionStart', 'inicio'), ('SessionEnd', 'fim'))` |
 | `EVENTOS_DE_HOOK_OBSOLETOS` | `tuple[str, ...]` | `('SubagentStop',)` |
 | `FERRAMENTAS_DE_LEITURA_DA_SESSAO` | `tuple[str, ...]` | `('ler_vista', 'expandir_no', 'buscar', 'proximas_tarefas', 'minhas_ques…` |
-| `COMANDOS_DE_MEDICAO` | `tuple[str, ...]` | `('base-colisoes', 'orquestracao-medir', 'transcricao-medir')` |
+| `COMANDOS_DE_MEDICAO` | `tuple[str, ...]` | `('orquestracao-medir', 'transcricao-medir')` |
 | `PERMISSOES_OBSOLETAS` | `tuple[str, ...]` | `('mcp__graphow-condutor', 'mcp__graphow-executor', 'mcp__graphow-reviso…` |
 
 ### `ConfiguracaoDoAmbiente`

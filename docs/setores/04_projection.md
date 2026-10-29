@@ -10,7 +10,7 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 
 ## Inventário
 
-23 módulos · 3742 linhas · 40 classes
+22 módulos · 3630 linhas · 39 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,6 @@ Dobra os eventos do log no estado em memória e mantém a projeção reconciliad
 | [`projection/fila_trabalho.py`](#projectionfilatrabalho) | 274 | Fila de trabalho: quais tarefas de uma sessão estão de fato executáveis agora. |
 | [`projection/graph_view.py`](#projectiongraphview) | 198 | Camada de consulta e visualização imutável do grafo projetado (CQRS). |
 | [`projection/instantaneo.py`](#projectioninstantaneo) | 156 | Reconstrução de um ramo a partir do último instantâneo guardado, conferido contra o log. |
-| [`projection/integracao_base.py`](#projectionintegracaobase) | 112 | O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança. |
 | [`projection/placar_escopo.py`](#projectionplacarescopo) | 318 | O placar de escopo de um Goal: o plano, o desvio desde a referência e os gatilhos K e M. |
 | [`projection/projecao_sincronizada.py`](#projectionprojecaosincronizada) | 108 | Projeção que reconsulta o log antes de responder, em vez de confiar num cache eterno. |
 | [`projection/propostas.py`](#projectionpropostas) | 127 | As propostas fora do Goal que o agente deixou para o humano decidir. |
@@ -380,22 +379,6 @@ Reconstrução de um ramo a partir do último instantâneo guardado, conferido c
 - `impressao_da_projecao() -> str` — Hash do código que transforma eventos em estado, lido uma vez por processo.
 - `serializar_estado(estado: GrafoEstado) -> str` — Estado completo em JSON, na ordem de inserção: a desserialização devolve um estado igual.
 - `desserializar_estado(texto: str) -> GrafoEstado` — Refaz o estado gravado por `serializar_estado`.
-
-## `projection/integracao_base.py`
-
-O ramo base de um Goal e os caminhos em que ele colide, lidos do grafo por herança.
-
-### `IntegracaoDoGoal`
-
-*DTO imutável* — O ramo base e os globs de colisão que valem para o Goal, com o nó de onde cada um veio.
-
-**Campos:** `ramo_base: str`, `origem_do_ramo: str`, `caminhos_de_colisao: tuple[str, ...]`, `origem_dos_caminhos: str`
-
-### Funções do módulo
-
-- `resolver_integracao(view: GrafoView, id_goal: str) -> IntegracaoDoGoal` — Cada propriedade vem do primeiro nó que a tem: o Goal, depois o Setor, depois o Projeto.
-- `caminhos_do_goal(view: GrafoView, id_goal: str) -> tuple[str, ...]` — Os caminhos que o trabalho do Goal toca, sem repetição e em ordem.
-- `cadeia_de_heranca(view: GrafoView, id_goal: str) -> tuple[NoGrafo, ...]` — O Goal, os Setores que contêm as sessões que o produziram e os Projetos desses Setores.
 
 ## `projection/placar_escopo.py`
 

@@ -1,8 +1,8 @@
 """As tarefas de um Goal: todas as Tasks abaixo dele pela decomposição, em qualquer profundidade.
 
-A medição da orquestração percorria a decomposição por conta própria, e a
-conferência de colisões com o ramo base precisa das mesmas tarefas. As duas
-leem daqui, para uma não achar tarefa onde a outra não acha.
+A medição da orquestração percorria a decomposição por conta própria, e o
+custo e a história do escopo precisam das mesmas tarefas. Todos leem daqui,
+para um não achar tarefa onde o outro não acha.
 """
 
 from graphow.core.models import NoGrafo

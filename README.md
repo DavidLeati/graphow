@@ -165,9 +165,9 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
 
 Quem faz cada gesto que antes era sempre do humano deixou de ser fixo: é uma
 **política**, em dois níveis (global e por projeto), guardada no próprio grafo
-para o replay dar o mesmo veredito. São dezesseis gestos e leituras: `responder_questao`,
+para o replay dar o mesmo veredito. São quinze gestos e leituras: `responder_questao`,
 `promover_aprendizado`, `constraint`, `estrutura`, `excluir`, `fechar_goal`,
-`encerrar_sessao`, `liberar_posse_alheia`, `integracao`, `max_correcoes`,
+`encerrar_sessao`, `liberar_posse_alheia`, `max_correcoes`,
 `acao_externa` e, do escopo governado, `aprovar_plano`, `responder_desvio`,
 `limiar_desvio_por_raiz`, `limiar_desvio_por_goal` e `teto_expansao` (o
 `responder_desvio` é do humano até na `arbitragem_maxima`). Cada um vale `humano` (só o humano faz) ou `arbitro` (o humano e o papel
@@ -313,7 +313,7 @@ Um pacote novo sem ala declarada — ou uma ala sem pacote — faz a geração f
 que o código produziria agora: alterar o código sem regenerar quebra a suíte.
 
 **Documento canônico escrito à mão** (conceitual, não catalográfico):
-- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 18 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os dezesseis gestos, os presets, a herança e a regra do veredito.
+- **[🧩 Especificação Formal da Ontologia (`docs/ONTOLOGY.md`)](docs/ONTOLOGY.md)**: Vocabulário semântico, temporalidade do log, separação Navegação vs Trabalho, matriz das 18 arestas permitidas, matriz de papéis (com a coluna "conforme a política") e a Governança Configurável: os quinze gestos, os presets, a herança e a regra do veredito.
 
 ---
 
@@ -473,10 +473,6 @@ graphow orquestracao-medir --goal goal-padrao --goal goal-tudo-opus
 # O mesmo, com uma linha por rodada do condutor da orquestração antiga: minutos, o que fechou, tokens e cota
 graphow orquestracao-medir --goal goal-padrao --por-rodada
 
-# Quando o trabalho mora num repositório git: conferir o Goal contra o ramo_base dele, o que o ramo base ganhou desde o merge-base,
-# nos caminhos_de_colisao, e que colide com o que o Goal toca (sai com 1 se colidir, 2 se não der para conferir)
-graphow base-colisoes --goal goal-migrations --repo . --sem-fetch
-
 # Medir o tamanho da vista contra o despejo da sessão sobre o corpus gravado
 graphow avaliar
 
@@ -557,7 +553,7 @@ identidade.
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
-| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos dezesseis gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (quando o gerente grava e, quando o trabalho mora num repositório git, ramo base e caminhos de colisão) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
+| Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos quinze gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (quando o gerente grava) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
 **Auto-layout.** O arranjo automático não põe o grafo inteiro num Sugiyama só:
 ele monta o desenho em blocos. Cada componente de trabalho vira um bloco em

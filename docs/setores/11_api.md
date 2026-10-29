@@ -10,21 +10,18 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2162 linhas · 20 classes
+10 módulos · 1821 linhas · 12 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 155 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_bancada.py`](#apiclibancada) | 278 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
-| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 255 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
+| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 244 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_orquestrar.py`](#apicliorquestrar) | 233 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
-| [`api/cli_parser.py`](#apicliparser) | 380 | Construção do analisador de argumentos da linha de comando do Graphow. |
+| [`api/cli_parser.py`](#apicliparser) | 354 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
-| [`api/colisoes_base.py`](#apicolisoesbase) | 96 | O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca. |
-| [`api/conferencia_base.py`](#apiconferenciabase) | 101 | `graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo. |
 | [`api/console.py`](#apiconsole) | 71 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
-| [`api/git_ramo_base.py`](#apigitramobase) | 107 | O que o ramo base ganhou desde que o ramo do Goal saiu dele, perguntado ao git. |
 | [`api/sse_transport.py`](#apissetransport) | 36 | Transporte de eventos para visualizadores de Canvas via SSE / AG-UI Protocol. |
 
 ## `api/cli.py`
@@ -181,58 +178,6 @@ O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só.
 - `registrar_comando_de_setup(subparsers: argparse._SubParsersAction, parser_base: argparse.ArgumentParser) -> None` — Registra o setup do ambiente, que não toca o banco.
 - `executar_setup(argumentos: argparse.Namespace, console: EscritorConsole, raiz_padrao: Path) -> int` — Instala ou confere o ambiente e imprime o que segue manual.
 
-## `api/colisoes_base.py`
-
-O cruzamento puro entre o que o ramo base ganhou e o que o Goal toca.
-
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `TOKENS_DE_GLOB` | `re.Pattern[str]` | `re.compile('\\*\\*/|\\*\\*|\\*|\\?|[^*?]+')` |
-| `TRADUCAO_DE_CURINGAS` | `dict[str, str]` | `{'**/': '(?:.*/)?', '**': '.*', '*': '[^/]*', '?': '[^/]'}` |
-| `SEPARADOR_DE_REMOTO` | `str` | `'/'` |
-
-### `Colisao`
-
-*DTO imutável* — Um arquivo que o ramo base ganhou e o caminho do Goal com que ele colide.
-
-**Campos:** `arquivo_da_base: str`, `caminho_do_goal: str`
-
-- `formatar() -> str` — A linha que o comando imprime: `<arquivo do ramo base> x <caminho do goal>`.
-
-### Funções do módulo
-
-- `normalizar_caminho(caminho: str) -> str` — O caminho relativo à raiz do repositório como o git o escreve: barra normal e sem `./` na frente.
-- `casa_glob(caminho: str, glob: str) -> bool` — O caminho inteiro casa com o glob.
-- `nos_caminhos_de_colisao(arquivos: Iterable[str], globs: Iterable[str]) -> tuple[str, ...]` — Os arquivos que casam com algum dos globs, normalizados e em ordem.
-- `cruzar_colisoes(arquivos_da_base: Iterable[str], caminhos_do_goal: Iterable[str], globs: Iterable[str]) -> tuple[Colisao, ...]` — Cada par que colide, uma vez só e em ordem.
-- `separar_remoto(ramo_base: str, remotos: Iterable[str]) -> tuple[str, str]` — O remoto e o ramo dentro dele, quando `ramo_base` começa por um remoto; senão, vazio e o próprio ramo.
-
-## `api/conferencia_base.py`
-
-`graphow base-colisoes`: o que o ramo base ganhou e colide com o Goal, dito cedo.
-
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `CODIGO_SEM_COLISAO` | `int` | `0` |
-| `CODIGO_COM_COLISAO` | `int` | `1` |
-| `CODIGO_CONFERENCIA_IMPOSSIVEL` | `int` | `2` |
-
-### `PedidoDeConferencia`
-
-*DTO imutável* — O Goal conferido, o repositório em que o git roda e se o ramo remoto é atualizado antes.
-
-**Campos:** `id_goal: str`, `repositorio: Path`, `buscar: bool`
-
-### `RelatorioDeColisoes`
-
-*DTO imutável* — As linhas que o comando imprime e o código com que ele sai.
-
-**Campos:** `linhas: tuple[str, ...]`, `codigo: int`
-
-### Funções do módulo
-
-- `conferir_colisoes(view: GrafoView, pedido: PedidoDeConferencia) -> RelatorioDeColisoes` — Resolve o ramo base do Goal, pergunta ao git o que ele ganhou e cruza com o que o Goal toca.
-
 ## `api/console.py`
 
 Adaptadores de escrita em console imunes a limitações de codificação do terminal.
@@ -259,47 +204,6 @@ Adaptadores de escrita em console imunes a limitações de codificação do term
 ### Funções do módulo
 
 - `saida_em_utf8(fluxos: Sequence[TextIO] | None) -> None` — Põe em UTF-8 a saída padrão e a de erro que não são console; o fluxo que não sabe se reconfigurar fica.
-
-## `api/git_ramo_base.py`
-
-O que o ramo base ganhou desde que o ramo do Goal saiu dele, perguntado ao git.
-
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `EXECUTAVEL_DO_GIT` | `str` | `'git'` |
-| `SEPARADOR_NULO` | `str` | `'\x00'` |
-| `FILTRO_DO_QUE_O_RAMO_GANHOU` | `str` | `'--diff-filter=ACMR'` |
-| `TAMANHO_DO_SHA_CURTO` | `int` | `12` |
-
-### `ComparacaoComBase`
-
-*DTO imutável* — O merge-base com o ramo base e o que o ramo base ganhou desde ele.
-
-**Campos:** `merge_base: str`, `arquivos: tuple[str, ...]`, `aviso: str`
-
-### `ExecutorGit`
-
-*DTO imutável* — Roda o git dentro de um repositório e devolve a saída, ou recusa com o erro dele.
-
-**Campos:** `repositorio: Path`
-
-- `rodar() -> str` — A saída padrão do comando; `FalhaDoGit` com a saída de erro quando ele falha.
-
-### `FalhaDoGit` (GraphowError)
-
-*serviço* — O git não respondeu o que a conferência precisa: sem ele, ela não diz nada.
-
-### `GitIndisponivel` (FalhaDoGit)
-
-*serviço* — O executável do git não rodou.
-
-### `GitRecusou` (FalhaDoGit)
-
-*serviço* — O git rodou e saiu com erro; o contexto traz a saída de erro dele.
-
-### Funções do módulo
-
-- `comparar_com_ramo_base(git: ExecutorGit, ramo_base: str) -> ComparacaoComBase` — Atualiza o ramo base se pedido, acha o merge-base com o HEAD e lista o que o ramo base ganhou.
 
 ## `api/sse_transport.py`
 

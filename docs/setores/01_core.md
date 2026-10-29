@@ -10,7 +10,7 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 
 ## Inventário
 
-13 módulos · 1467 linhas · 38 classes
+13 módulos · 1459 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -24,7 +24,7 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 | [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 87 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |
-| [`core/orquestracao.py`](#coreorquestracao) | 88 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
+| [`core/orquestracao.py`](#coreorquestracao) | 80 | Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisão e na Decision de aceite. |
 | [`core/types.py`](#coretypes) | 142 | Definições de enumerações e tipos de valor base para a ontologia do Graphow. |
 
 ## `core/aceite.py`
@@ -417,8 +417,6 @@ Propriedades que a orquestração grava na Task, no Goal, na Evidence de revisã
 | `ENTREGA_ACAO_EXTERNA` | `str` | `'acao_externa'` |
 | `ENTREGAS` | `frozenset[str]` | `frozenset({ENTREGA_ARTEFATO, ENTREGA_ACAO_EXTERNA})` |
 | `CAMPO_CONFIGURACAO` | `str` | `'configuracao'` |
-| `CAMPO_RAMO_BASE` | `str` | `'ramo_base'` |
-| `CAMPO_CAMINHOS_DE_COLISAO` | `str` | `'caminhos_de_colisao'` |
 | `CAMPO_ARQUIVOS` | `str` | `'arquivos'` |
 | `CAMPO_VEREDITO` | `str` | `'veredito'` |
 | `VEREDITO_APROVADO` | `str` | `'aprovado'` |
