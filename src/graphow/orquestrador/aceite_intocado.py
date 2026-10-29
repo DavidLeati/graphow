@@ -12,7 +12,8 @@ do índice, que escondem a mudança do `git status`. As defesas, em camadas:
   solta (não versionada ou ignorada) em qualquer lugar sai também;
 - a fatia que mexe em `aceite/`, ignorado inclusive, é recusada;
 - a fatia que cria um arquivo ou uma pasta com o nome do módulo do runner
-  (`pytest.py`, `pytest/`, `_pytest/`, `unittest.py`, `unittest/`), em
+  ou de um que o pytest importa ao subir (`pytest`, `_pytest`, `pluggy`,
+  `iniconfig`, `packaging`, `unittest`, como `.py` ou como pasta), em
   qualquer pasta fora do ambiente, é recusada sempre: qualquer pasta pode
   entrar no `sys.path` (a raiz, `src/`, o `pythonpath` do pytest, a pasta de
   cada teste sem `__init__.py`). E o aceite em Python roda com `-P`, sem a
@@ -46,8 +47,11 @@ NOMES_DE_CONFIGURACAO: frozenset[str] = frozenset({
 })
 PREFIXOS_DE_CONFIGURACAO: tuple[str, ...] = ("jest.config.", "vitest.config.", "vitest.workspace.", "babel.config.", "jest.setup.")
 SUFIXOS_DE_CONFIGURACAO: tuple[str, ...] = (".pth",)
-# Na raiz, o módulo com o nome do runner toma o lugar dele (`python -m pytest` põe a raiz no sys.path).
-SOMBRAS_DO_RUNNER: frozenset[str] = frozenset({"pytest.py", "pytest", "_pytest", "unittest.py", "unittest", "py.py", "pluggy"})
+# O módulo com o nome do runner, ou de um que ele importa ao subir, toma o lugar dele numa pasta do sys.path.
+SOMBRAS_DO_RUNNER: frozenset[str] = frozenset({
+    "pytest.py", "pytest", "_pytest.py", "_pytest", "pluggy.py", "pluggy", "iniconfig.py", "iniconfig", "packaging.py", "packaging",
+    "unittest.py", "unittest", "py.py",
+})
 # Os arquivos que só em parte são configuração de teste: muda só se a parte de teste mudou.
 SECOES_DE_TESTE: Mapping[str, tuple[str, ...]] = {"pyproject.toml": ("tool", "pytest"), "setup.cfg": ("tool:pytest",),
                                                   "package.json": ("scripts", "jest", "mocha", "vitest", "ava")}

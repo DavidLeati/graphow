@@ -239,8 +239,9 @@ def _sinal_da_configuracao(fatia: FatiaRegistrada, configuracao: tuple[str, ...]
 def _sombreou_o_runner(sombras: tuple[str, ...]) -> str:
     """O erro da fatia que criou arquivo ou pasta com o nome do módulo de um runner de testes."""
     return (
-        f"a fatia criou {', '.join(sombras)}, com o nome do modulo de um runner de testes (pytest, _pytest, unittest): numa "
-        "pasta do sys.path ele toma o lugar do runner, e um pytest.py que imprime '1 passed' daria verde. O orquestrador os "
+        f"a fatia criou {', '.join(sombras)}, com o nome do modulo de um runner de testes ou de um que ele importa (pytest, "
+        "_pytest, pluggy, iniconfig, packaging, unittest): numa pasta do sys.path ele toma o lugar do runner, e um pytest.py "
+        "que imprime '1 passed' daria verde. O orquestrador os "
         "apagou, e a tentativa nao vale: de outro nome ao modulo."
     )
 

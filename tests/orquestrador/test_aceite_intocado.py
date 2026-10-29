@@ -138,10 +138,13 @@ def test_sombra_do_runner_e_recusada_na_fatia_edge_case(tmp_path: Path, arquivos
     ("caminho", "sombra"),
     [("pytest.py", "pytest.py"), ("src/pytest/__init__.py", "src/pytest"), ("tests/unittest/test_a.py", "tests/unittest"),
      ("lib/_pytest/x.py", "lib/_pytest"), ("src/unittest.py", "src/unittest.py"), (".venv/Lib/site-packages/pytest/__init__.py", ""),
-     ("node_modules/pytest.py", ""), ("tests/test_pytest.py", ""), ("pytest_plugin.py", "")],
+     ("node_modules/pytest.py", ""), ("tests/test_pytest.py", ""), ("pytest_plugin.py", ""),
+     ("src/pluggy.py", "src/pluggy.py"), ("lib/pluggy/__init__.py", "lib/pluggy"), ("iniconfig.py", "iniconfig.py"),
+     ("src/iniconfig/__init__.py", "src/iniconfig"), ("src/packaging.py", "src/packaging.py"),
+     ("packaging/version.py", "packaging"), ("_pytest.py", "_pytest.py"), (".venv/Lib/site-packages/pluggy/__init__.py", "")],
 )
 def test_sombra_do_runner_pelo_caminho_edge_case(caminho: str, sombra: str) -> None:
-    """Caso de borda: o nome do módulo do runner em qualquer pasta sombreia; o que está no ambiente instalado, não."""
+    """Caso de borda: o nome do módulo do runner, ou de um que ele importa (T2g.2), em qualquer pasta sombreia; no ambiente, não."""
     assert sombra_do_runner(caminho) == sombra
 
 
@@ -161,6 +164,55 @@ def test_sombra_do_pytest_na_raiz_nao_da_verde_no_aceite_edge_case(tmp_path: Pat
     assert " -P -m pytest " in execucao.comando and not execucao.passou and execucao.vermelho_invalido() == ""
 
 
+def test_aceite_roda_sem_o_pythonpath_herdado_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T2g.2: com `PYTHONPATH=src` no ambiente e um `src/pluggy.py` que imprime "1 passed", o aceite roda o pytest de verdade.
+
+    O `-P` tira a pasta atual do caminho, mas não o `PYTHONPATH`: herdado, ele
+    punha a `src/` da área à frente do pytest, e o pluggy falso era importado.
+    """
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "pluggy.py").write_text(SOMBRA_DO_PYTEST + "raise SystemExit(0)\n", encoding="utf-8")
+    (tmp_path / "aceite").mkdir()
+    (tmp_path / "aceite" / "aceite_c1.py").write_text("def test_c1_soma():\n    assert 2 + 3 == 0\n", encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", "src")
+    teste = sa.TesteDeAceite("aceite/aceite_c1.py", "test_c1_soma", f"{COMANDO_PYTEST}::test_c1_soma")
+
+    def rodar(comando: str) -> ResultadoDaSuite:
+        return rodar_suite(tmp_path, comando, tmp_path / "descartavel.db", do_aceite=True)
+
+    [execucao] = sa.rodar_testes(sa.SaidaDoAceite("", COMANDO_PYTEST, (sa.AceiteDoCriterio("C1", (teste,)),)), rodar)
+
+    herdado = rodar_suite(tmp_path, execucao.comando, tmp_path / "descartavel.db")
+    assert herdado.passou and "1 passed in 0.01s" in herdado.saida, "com o PYTHONPATH herdado, o pluggy falso seria importado"
+    assert not execucao.passou and execucao.vermelho_invalido() == "" and "1 failed" in execucao.saida
+
+
+def test_pluggy_que_ja_estava_em_src_nao_da_verde_no_laco_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T2g.2, no laço: o `src/pluggy.py` já versionado (a recusa da sombra só pega a nova) e o `PYTHONPATH=src` herdado.
+
+    O autor de aceite vê o vermelho de verdade, e a verificação reprova C1 com
+    a soma errada; o Goal só fecha depois da correção.
+    """
+    roteiro = _roteiro(executor_pronto({"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n"}))
+    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2], executor_pronto(FATIA_CERTA)]
+    roteiro["verificador"] = [verificacao("atende"), verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+    (bancada.repositorio / "src").mkdir()
+    (bancada.repositorio / "src" / "pluggy.py").write_text(SOMBRA_DO_PYTEST + "raise SystemExit(0)\n", encoding="utf-8")
+    git(bancada.repositorio, "add", "-A")
+    git(bancada.repositorio, "commit", "-qm", "Um pluggy.py em src/")
+    monkeypatch.setenv("PYTHONPATH", "src")
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    primeira = estado.verificacoes[0].propriedades
+    assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == "nao_atende"
+    assert "assert 0 == 5" in primeira["aceite_do_orquestrador"][0]["saida"]
+
+
 @pytest.mark.parametrize(
     ("comando", "esperado"),
     [("python -m pytest -q aceite/a.py::t", "python -P -m pytest -q aceite/a.py::t"),
@@ -169,10 +221,13 @@ def test_sombra_do_pytest_na_raiz_nao_da_verde_no_aceite_edge_case(tmp_path: Pat
      ("cd x && PYTHONPATH=src python3.12 -m unittest a", "cd x && PYTHONPATH=src python3.12 -P -m unittest a"),
      ("uv run python -m pytest a; py -m pytest b", "uv run python -P -m pytest a; py -P -m pytest b"),
      ("python -P -m pytest a", "python -P -m pytest a"), ("pytest -k python aceite", "pytest -k python aceite"),
-     ("node --test aceite/a.test.js", "node --test aceite/a.test.js"), ("python aceite/test_python.py", "python -P aceite/test_python.py")],
+     ("node --test aceite/a.test.js", "node --test aceite/a.test.js"), ("python aceite/test_python.py", "python -P aceite/test_python.py"),
+     ("py -3 -m pytest a", "py -3 -P -m pytest a"), ("py -3.12-64 -m pytest a", "py -3.12-64 -P -m pytest a"),
+     ("py -V:3.12 -m pytest a", "py -V:3.12 -P -m pytest a"), ("py -3 -P -m pytest a", "py -3 -P -m pytest a"),
+     ('"C:/Py/py.exe" -3 -m pytest a', '"C:/Py/py.exe" -3 -P -m pytest a')],
 )
 def test_aceite_em_python_roda_sem_a_pasta_atual_no_caminho_edge_case(comando: str, esperado: str) -> None:
-    """Caso de borda: o -P vai em cada interpretador Python na posição de comando, e só nele."""
+    """Caso de borda: o -P vai em cada interpretador Python na posição de comando, e só nele; no `py`, depois da versão (T2g.2)."""
     assert sa.sem_a_pasta_atual(comando) == esperado
 
 

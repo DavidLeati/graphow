@@ -115,7 +115,8 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
     criterios = {str(c["id"]): str(c["verificacao"]) for c in (estado.plano or {}).get("criterios", [])}
 
     def rodar(comando: str) -> ResultadoDaSuite:
-        return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
+        return rodar_suite(contexto.area, comando, contexto.banco_descartavel,
+                           tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s, do_aceite=True)
 
     def conferir(dados: Mapping[str, Any]) -> tuple[str, ...]:
         saida = SaidaDoAceite.de_json(dados)

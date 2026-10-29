@@ -205,10 +205,12 @@ class ExecucaoDeAceite:
 
 
 # O interpretador Python na posição de comando (no começo, depois de &&, ||, ;, | ou "(", das variáveis de
-# ambiente e de `uv run` e afins), com aspas ou sem, que ainda não leva -P.
+# ambiente e de `uv run` e afins), com aspas ou sem, e a versão que o lançador `py` escolhe (`-3`, `-3.12-64`,
+# `-V:3.12`), que ainda não leva -P. O -P vai depois da versão: `py -P -3` passa o -3 ao Python, que o recusa.
 _PYTHON_NO_COMANDO: re.Pattern[str] = re.compile(
     r"(?P<antes>(?:^|&&|\|\||[;|(])\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:uv|poetry|pipenv|pdm)\s+run\s+)?)"
     r"(?P<python>\"(?:[^\"]*[\\/])?(?:python[\d.]*|py)(?:\.exe)?\"|(?:[^\s\"';&|()]*[\\/])?(?:python[\d.]*|py)(?:\.exe)?)"
+    r"(?P<versao>\s+-(?:\d[\d.]*(?:-(?:32|64|arm64))?|V:\S+))?+"
     r"(?=\s|$)(?!\s+-P(?:\s|$))",
     re.IGNORECASE,
 )
@@ -221,9 +223,11 @@ def sem_a_pasta_atual(comando: str) -> str:
     `pytest.py` nela toma o lugar do runner: na T2a, o que imprimia "1
     passed" dava verde. O `-P` (Python 3.11+) a tira de lá, e nem um arquivo
     novo desses é importado. Vale para toda rodada do aceite, a do autor
-    inclusive: o teste que precisa da raiz no caminho a põe ele mesmo.
+    inclusive: o teste que precisa da raiz no caminho a põe ele mesmo. No
+    lançador `py`, o -P vai depois da versão (`py -3 -P -m pytest`).
     """
-    return _PYTHON_NO_COMANDO.sub(lambda achado: f"{achado.group('antes')}{achado.group('python')} -P", comando)
+    return _PYTHON_NO_COMANDO.sub(lambda achado: f"{achado.group('antes')}{achado.group('python')}{achado.group('versao') or ''} -P",
+                                  comando)
 
 
 def rodar_testes(saida: SaidaDoAceite, rodar: Rodar, criterios: Iterable[str] | None = None) -> tuple[ExecucaoDeAceite, ...]:

@@ -75,7 +75,8 @@ def conferir_o_vermelho_de_antes(contexto: ContextoDoGoal, estado: EstadoDoGoal,
     destino = contexto.pasta / PASTA_DO_CHECKOUT
 
     def rodar(comando: str) -> ResultadoDaSuite:
-        return rodar_suite(destino, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
+        return rodar_suite(destino, comando, contexto.banco_descartavel,
+                           tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s, do_aceite=True)
 
     with checkout_de_antes(contexto.area, destino, commit):
         execucoes = rodar_testes(refeito, rodar, (criterio,))

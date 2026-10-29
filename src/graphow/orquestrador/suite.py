@@ -12,6 +12,12 @@ use o graphow nos testes não escreva no banco do usuário. A saída é lida em
 UTF-8 (o Python da suíte é posto em UTF-8 por `PYTHONIOENCODING`, quando o
 ambiente não diz outro); a que não for UTF-8 é lida na página de código da
 máquina, para o acento não virar caractere de substituição.
+
+O aceite roda pelo mesmo caminho, mas sem o `PYTHONPATH` do ambiente do
+orquestrador: o caminho de que o projeto precisa vem da configuração dele
+(o `pythonpath` do pytest, o `sys.path` que o teste monta). Herdado, um
+`PYTHONPATH=src` relativo punha a `src/` da área à frente do pytest em todo
+teste de aceite, e um `src/pluggy.py` que imprime "1 passed" dava verde.
 """
 
 from collections.abc import Iterator, Sequence
@@ -40,6 +46,8 @@ LIMITE_DO_TRECHO: int = 2000
 # arquivo do commit do orquestrador, e o dos testes de aceite, arquivo que o
 # executor "mexeu" ao rodar a suíte. Vale para a suíte e para as sessões.
 AMBIENTE_SEM_CACHE: dict[str, str] = {"PYTHONDONTWRITEBYTECODE": "1", "PYTEST_ADDOPTS": "-p no:cacheprovider"}
+# O que o aceite não herda do ambiente do orquestrador (no Windows, o nome em qualquer caixa).
+FORA_DO_AMBIENTE_DO_ACEITE: frozenset[str] = frozenset({"PYTHONPATH"})
 
 
 @dataclass(frozen=True)
@@ -93,9 +101,11 @@ def _bash_do_path() -> Path | None:
     return Path(bash) if bash else None
 
 
-def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limite_s: float = TEMPO_LIMITE_DA_SUITE_S) -> ResultadoDaSuite:
-    """Roda o comando na área, no shell dos agentes, e devolve o resultado."""
-    ambiente = {"PYTHONIOENCODING": "utf-8", **AMBIENTE_SEM_CACHE, **os.environ, VARIAVEL_DO_BANCO: str(banco_descartavel)}
+def rodar_suite(
+    area: Path, comando: str, banco_descartavel: Path, *, tempo_limite_s: float = TEMPO_LIMITE_DA_SUITE_S, do_aceite: bool = False,
+) -> ResultadoDaSuite:
+    """Roda o comando na área, no shell dos agentes, e devolve o resultado; o do aceite, sem o `PYTHONPATH` herdado."""
+    ambiente = _ambiente(banco_descartavel, do_aceite=do_aceite)
     shell = shell_dos_agentes()
     argumentos: str | list[str] = [str(shell), "-c", comando] if shell is not None else comando
     descricao = descrever_shell(shell)
@@ -113,6 +123,13 @@ def rodar_suite(area: Path, comando: str, banco_descartavel: Path, *, tempo_limi
         saida, _ = processo.communicate()
         return ResultadoDaSuite(comando, processo.returncode, _texto(saida), tempo_esgotado=True, shell=descricao)
     return ResultadoDaSuite(comando, processo.returncode, _texto(saida), shell=descricao)
+
+
+def _ambiente(banco_descartavel: Path, *, do_aceite: bool) -> dict[str, str]:
+    """O ambiente do comando: o do orquestrador, sem cache e com o banco descartável; o do aceite, sem o que ele não herda."""
+    herdado = {nome: valor for nome, valor in os.environ.items()
+               if not do_aceite or nome.upper() not in FORA_DO_AMBIENTE_DO_ACEITE}
+    return {"PYTHONIOENCODING": "utf-8", **AMBIENTE_SEM_CACHE, **herdado, VARIAVEL_DO_BANCO: str(banco_descartavel)}
 
 
 @contextmanager

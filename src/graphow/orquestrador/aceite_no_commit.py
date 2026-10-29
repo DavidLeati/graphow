@@ -150,7 +150,8 @@ def rodar_o_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, criterios: Se
     aceite = SaidaDoAceite.do_livro(estado.aceite)
 
     def rodar(comando: str) -> ResultadoDaSuite:
-        return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
+        return rodar_suite(contexto.area, comando, contexto.banco_descartavel,
+                           tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s, do_aceite=True)
 
     execucoes = rodar_testes(aceite, rodar, criterios)
     todos = (rodar_o_comando_de_aceite(aceite, rodar),) if final and execucoes else ()
