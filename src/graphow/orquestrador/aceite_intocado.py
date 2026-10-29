@@ -18,6 +18,13 @@ do índice, que escondem a mudança do `git status`. As defesas, em camadas:
   entrar no `sys.path` (a raiz, `src/`, o `pythonpath` do pytest, a pasta de
   cada teste sem `__init__.py`). E o aceite em Python roda com `-P`, sem a
   pasta atual no `sys.path` (orquestrador/saida_do_aceite.py);
+- a fatia que cria ou muda um `conftest.py` que define ou cita um hook do
+  pytest que decide o resultado do teste (`pytest_pyfunc_call`,
+  `pytest_runtest_call`, `pytest_runtest_protocol`,
+  `pytest_runtest_makereport`, `pytest_report_teststatus`) é recusada
+  sempre, pelo código: com o layout `src/`, o `pytest_pyfunc_call` que
+  devolve True chegava ao verificador como layout legítimo e fechava o Goal
+  com a soma errada (sonda 1 da revisão da T2b+T2a2);
 - a configuração de teste versionada que o executor mudou não é recusada: o
   aceite roda com ela, sem contar como verde o teste pulado ou o que não
   rodou, e de novo com a do commit do aceite; o teste que muda de resultado
@@ -30,6 +37,7 @@ As pastas de dependências instaladas (`node_modules`, ambientes virtuais) não
 são varridas: são do ambiente, e não do executor.
 """
 
+import ast
 from collections.abc import Iterable, Mapping, Sequence
 import json
 import os
@@ -55,6 +63,10 @@ SOMBRAS_DO_RUNNER: frozenset[str] = frozenset({
 # Os arquivos que só em parte são configuração de teste: muda só se a parte de teste mudou.
 SECOES_DE_TESTE: Mapping[str, tuple[str, ...]] = {"pyproject.toml": ("tool", "pytest"), "setup.cfg": ("tool:pytest",),
                                                   "package.json": ("scripts", "jest", "mocha", "vitest", "ava")}
+# Os hooks do pytest que decidem o resultado de um teste: o conftest.py novo ou mudado que cita um deles é recusado.
+HOOKS_QUE_DECIDEM_O_RESULTADO: frozenset[str] = frozenset({
+    "pytest_pyfunc_call", "pytest_runtest_call", "pytest_runtest_protocol", "pytest_runtest_makereport", "pytest_report_teststatus",
+})
 PASTAS_DO_AMBIENTE: frozenset[str] = frozenset({"node_modules", ".venv", "venv", ".tox", ".nox", ".git", "site-packages"})
 
 
@@ -133,6 +145,56 @@ def tirar_sombras_do_runner(area: Path, caminhos: Iterable[str], *, antes: str) 
     for sombra in novas:
         _apagar(area / sombra)
     return novas
+
+
+def hooks_que_decidem_o_resultado(codigo: str) -> tuple[str, ...]:
+    """Os hooks que decidem o resultado que o código define ou cita (def, atribuição, import, argumento, texto); nenhum se não compila."""
+    try:
+        arvore = ast.parse(codigo)
+    except (SyntaxError, ValueError):
+        return ()
+    return tuple(sorted({nome for no in ast.walk(arvore) for nome in _nomes(no)} & HOOKS_QUE_DECIDEM_O_RESULTADO))
+
+
+def _nomes(no: ast.AST) -> tuple[str, ...]:
+    """Os nomes que o nó define ou cita: a função ou classe, o import, o texto, a variável, o atributo, o argumento nomeado."""
+    if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return (no.name,)
+    if isinstance(no, ast.alias):
+        return (no.name.rsplit(".", 1)[-1], no.asname or "")
+    if isinstance(no, ast.Constant):
+        return (no.value,) if isinstance(no.value, str) else ()
+    if isinstance(no, ast.Name):
+        return (no.id,)
+    if isinstance(no, ast.Attribute):
+        return (no.attr,)
+    return (no.arg,) if isinstance(no, ast.keyword) and no.arg else ()
+
+
+def conftests_que_decidem_o_resultado(area: Path, caminhos: Iterable[str], *, antes: str) -> dict[str, tuple[str, ...]]:
+    """Os conftest.py novos ou mudados desde `antes` (o ignorado inclusive) que citam hook que decide o resultado, com os hooks.
+
+    Como a sombra do runner, a recusa é sempre e pelo código, sem o
+    verificador. O conftest novo sai do disco já (o ignorado ficaria para a
+    tentativa seguinte); o versionado volta no descarte da tentativa.
+    """
+    git = GitDoGoal(area)
+    candidatos = {c for c in (*caminhos, *_fora_do_git(area)) if Path(c).name == "conftest.py" and not _do_ambiente(c)}
+    achados = {caminho: hooks for caminho in sorted(candidatos) if (hooks := _hooks_novos(git, caminho, antes=antes))}
+    for caminho in achados:
+        if git.tentar("cat-file", "-e", f"{antes}:{caminho}").codigo != 0:
+            _apagar(area / caminho)
+    return achados
+
+
+def _hooks_novos(git: GitDoGoal, caminho: str, *, antes: str) -> tuple[str, ...]:
+    """Os hooks que decidem o resultado no conftest que mudou desde `antes`; nenhum no que não mudou ou não existe mais."""
+    arquivo = git.pasta / caminho
+    if not arquivo.is_file():
+        return ()
+    agora = arquivo.read_text(encoding="utf-8", errors="replace")
+    anterior = git.tentar("show", f"{antes}:{caminho}")
+    return () if anterior.codigo == 0 and anterior.saida == agora else hooks_que_decidem_o_resultado(agora)
 
 
 def soltos_que_mudam_os_testes(area: Path) -> tuple[str, ...]:

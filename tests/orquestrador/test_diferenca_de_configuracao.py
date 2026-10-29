@@ -8,6 +8,12 @@ falha numa asserção reprova o critério sem o verificador; o que falha por
 import (o layout `src/` legítimo, com `soma.py` fora da raiz) vai a ele, que
 deve um parecer. Os cenários do layout legítimo e da neutralização são
 distintos: no legítimo a soma da raiz sai, na neutralização ela fica errada.
+
+Desde a T2g, o conftest com `pytest_pyfunc_call` nem chega ao aceite: a
+fatia que o cria é recusada pelo código (sonda 1 da revisão da T2b+T2a2,
+em que ele, junto do layout `src/`, ia ao verificador como legítimo e
+fechava o Goal). A falha escondida por conftest usa outro truque, o módulo
+falso em `sys.modules`.
 """
 
 import copy
@@ -18,15 +24,16 @@ from typing import Any
 import pytest
 
 from graphow.orquestrador import configuracao_do_aceite as cda
+from graphow.orquestrador.aceite_intocado import conftests_que_decidem_o_resultado, hooks_que_decidem_o_resultado
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit
-from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
 from graphow.orquestrador.leitura_do_goal import VerificacaoRegistrada, ler_estado
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_RETIRAR_CRITERIO, NovoPedido
 from graphow.orquestrador.saida_do_aceite import ExecucaoDeAceite
 from graphow.orquestrador.saida_do_verificador import ParecerDaDiferenca, Verificacao, conferir_verificacao
 
-from tests.orquestrador.apoio_git import git
+from tests.orquestrador.apoio_git import criar_repositorio, git
 from tests.orquestrador.apoio_laco import (
     SOMA_CERTA,
     SOMA_ERRADA,
@@ -52,6 +59,10 @@ VERIFICAR_EM_SRC: str = "import sys\nsys.path.insert(0, 'src')\nfrom soma import
 LAYOUT_SRC: dict[str, Any] = executor_pronto({"src/soma.py": SOMA_CERTA, "pyproject.toml": PYTHONPATH_SRC, "verificar.py": VERIFICAR_EM_SRC},
                                              comandos=[[sys.executable, "-c", "import os; os.remove('soma.py')"]])
 FINGE_QUE_PASSA: str = "import pytest\n\n\n@pytest.hookimpl(tryfirst=True)\ndef pytest_pyfunc_call(pyfuncitem):\n    return True\n"
+# O conftest que esconde a soma errada sem hook: o módulo `soma` que o teste importa é um falso, que soma certo.
+TROCA_O_MODULO_NO_CONFTEST: str = (
+    "import sys\nimport types\n\nfalso = types.ModuleType('soma')\nfalso.somar = lambda a, b: a + b\nsys.modules['soma'] = falso\n"
+)
 # A neutralização pelo caminho: o pythonpath troca o módulo que o aceite importa, e a soma errada fica na raiz.
 TROCA_O_MODULO: dict[str, str] = {"soma.py": SOMA_ERRADA, "src/soma.py": SOMA_CERTA, "pyproject.toml": PYTHONPATH_SRC,
                                   "verificar.py": VERIFICAR_EM_SRC}
@@ -82,8 +93,8 @@ def _verificacoes(bancada: Bancada) -> tuple[VerificacaoRegistrada, ...]:
     return estado.verificacoes
 
 
-@pytest.mark.parametrize("arquivos", [{"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", "conftest.py": FINGE_QUE_PASSA},
-                                      TROCA_O_MODULO], ids=["conftest-finge-que-passa", "pythonpath-troca-o-modulo"])
+@pytest.mark.parametrize("arquivos", [{"soma.py": SOMA_ERRADA, "verificar.py": "print('ok')\n", "conftest.py": TROCA_O_MODULO_NO_CONFTEST},
+                                      TROCA_O_MODULO], ids=["conftest-troca-o-modulo", "pythonpath-troca-o-modulo"])
 def test_configuracao_que_esconde_a_falha_reprova_sem_o_verificador_edge_case(tmp_path: Path, arquivos: dict[str, str]) -> None:
     """T2a2.1: com a soma errada, o teste passa só com a configuração entregue; com a do aceite, falha na asserção.
 
@@ -241,3 +252,69 @@ def test_queda_na_segunda_rodada_e_pedido_antes_da_retomada_mantem_a_configuraca
     assert git(bancada.repositorio, "show", "--name-only", "--format=", retirada).split() == ["docs/goals/soma.md"]
     assert git(bancada.repositorio, "show", "main:pyproject.toml") == PYTHONPATH_SRC
     assert not list((bancada.raiz / "estado").rglob(cda.MARCA_DA_TROCA))
+
+
+@pytest.mark.parametrize(
+    ("codigo", "hooks"),
+    [(FINGE_QUE_PASSA, ("pytest_pyfunc_call",)), ("async def pytest_runtest_call(item):\n    pass\n", ("pytest_runtest_call",)),
+     ("from src.ajuda import pytest_runtest_makereport\n", ("pytest_runtest_makereport",)),
+     ("import ajuda\npytest_report_teststatus = ajuda.f\n", ("pytest_report_teststatus",)),
+     ("import sys\nsetattr(sys.modules[__name__], 'pytest_runtest_protocol', print)\n", ("pytest_runtest_protocol",)),
+     ("class P:\n    def pytest_pyfunc_call(self, pyfuncitem):\n        return True\n", ("pytest_pyfunc_call",)),
+     ("import pytest\n\n\n@pytest.fixture\ndef dois():\n    return 2\n", ()), (TROCA_O_MODULO_NO_CONFTEST, ()),
+     ("def pytest_collection_modifyitems(items):\n    pass\n", ()), ("def pytest_pyfunc_call(:\n", ())],
+    ids=["def", "async", "import", "atribuicao", "setattr", "classe", "fixture", "sys-modules", "outro-hook", "nao-compila"],
+)
+def test_hooks_que_decidem_o_resultado_pelo_codigo_edge_case(codigo: str, hooks: tuple[str, ...]) -> None:
+    """T2g.3: o hook que decide o resultado é achado pela árvore do código, definido, importado, atribuído ou citado num texto."""
+    assert hooks_que_decidem_o_resultado(codigo) == hooks
+
+
+def test_conftest_novo_ou_mudado_com_hook_e_achado_e_o_intocado_nao_edge_case(tmp_path: Path) -> None:
+    """T2g.3: o conftest novo com o hook (o ignorado inclusive) é achado e sai do disco; o versionado mudado é achado e fica para o descarte.
+
+    O que já tinha o hook e não mudou, e o novo sem hook, não são achados.
+    """
+    repositorio = criar_repositorio(tmp_path / "r", {"conftest.py": "def pytest_runtest_makereport(item, call):\n    pass\n",
+                                                     "a/conftest.py": "x = 1\n", ".gitignore": "ignorada/\n"})
+    antes = git(repositorio, "rev-parse", "HEAD").strip()
+    (repositorio / "a" / "conftest.py").write_text("x = 1\n" + FINGE_QUE_PASSA, encoding="utf-8")
+    for pasta, conteudo in (("b", FINGE_QUE_PASSA), ("ignorada", FINGE_QUE_PASSA), ("c", "x = 2\n")):
+        (repositorio / pasta).mkdir()
+        (repositorio / pasta / "conftest.py").write_text(conteudo, encoding="utf-8")
+
+    achados = conftests_que_decidem_o_resultado(repositorio, ["a/conftest.py", "b/conftest.py", "c/conftest.py"], antes=antes)
+
+    assert achados == {caminho: ("pytest_pyfunc_call",) for caminho in ("a/conftest.py", "b/conftest.py", "ignorada/conftest.py")}
+    assert (repositorio / "a" / "conftest.py").exists() and (repositorio / "c" / "conftest.py").exists()
+    assert not (repositorio / "b" / "conftest.py").exists() and not (repositorio / "ignorada" / "conftest.py").exists()
+
+
+BURLA_COM_O_LAYOUT: dict[str, Any] = executor_pronto(
+    {"src/soma.py": SOMA_ERRADA, "pyproject.toml": PYTHONPATH_SRC, "conftest.py": FINGE_QUE_PASSA, "verificar.py": "print('ok')\n"},
+    comandos=[[sys.executable, "-c", "import os; os.remove('soma.py')"]])
+
+
+def test_conftest_com_hook_e_layout_src_e_recusado_na_fatia_e_nao_fecha_edge_case(tmp_path: Path) -> None:
+    """T2g.3 (sonda 1 da revisão da T2b+T2a2): o conftest com `pytest_pyfunc_call`, a soma errada movida para src/ e o `pythonpath`.
+
+    Antes, a diferença de configuração ia ao verificador como layout
+    legítimo, e o parecer `legitima` fechava o Goal com `somar` devolvendo 0.
+    Agora a fatia é recusada pelo código nas duas tentativas e vira
+    pendência; o verificador nem é chamado, e nada da burla chega à branch.
+    """
+    roteiro = _roteiro(copy.deepcopy(BURLA_COM_O_LAYOUT))
+    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
+    roteiro["executor"] = [copy.deepcopy(BURLA_COM_O_LAYOUT), copy.deepcopy(BURLA_COM_O_LAYOUT)]
+    roteiro["verificador"] = [_verificacao_com_parecer("legitima")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.PENDENCIA, parada.mensagem
+    assert "conftest.py (pytest_pyfunc_call)" in bancada.chamadas("executor")[1]["stdin"]
+    assert bancada.chamadas("verificador") == []
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.configuracao is not None and estado.fatias[0].falhas == 2
+    arquivos = git(bancada.repositorio, "ls-tree", "-r", "--name-only", estado.configuracao.ramo).split()
+    assert "conftest.py" not in arquivos and "src/soma.py" not in arquivos and "soma.py" in arquivos

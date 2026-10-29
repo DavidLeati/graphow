@@ -10,11 +10,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-48 módulos · 8918 linhas · 69 classes
+48 módulos · 8995 linhas · 69 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 216 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
+| [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 278 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 196 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 163 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
@@ -28,7 +28,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 340 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 355 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
@@ -73,6 +73,7 @@ Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do execut
 | `SUFIXOS_DE_CONFIGURACAO` | `tuple[str, ...]` | `('.pth',)` |
 | `SOMBRAS_DO_RUNNER` | `frozenset[str]` | `frozenset({'pytest.py', 'pytest', '_pytest.py', '_pytest', 'pluggy.py',…` |
 | `SECOES_DE_TESTE` | `Mapping[str, tuple[str, ...]]` | `{'pyproject.toml': ('tool', 'pytest'), 'setup.cfg': ('tool:pytest',), '…` |
+| `HOOKS_QUE_DECIDEM_O_RESULTADO` | `frozenset[str]` | `frozenset({'pytest_pyfunc_call', 'pytest_runtest_call', 'pytest_runtest…` |
 | `PASTAS_DO_AMBIENTE` | `frozenset[str]` | `frozenset({'node_modules', '.venv', 'venv', '.tox', '.nox', '.git', 'si…` |
 
 ### Funções do módulo
@@ -81,6 +82,8 @@ Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do execut
 - `configuracoes_mudadas(area: Path, caminhos: Iterable[str]) -> tuple[str, ...]` — Dos caminhos mudados desde o commit `antes`, os de configuração de teste (no pyproject e afins, só a parte de teste).
 - `sombra_do_runner(caminho: str) -> str` — O trecho do caminho até o primeiro nome que sombreia o runner (`src/pytest.py`, `tests/unittest`); vazio sem ele.
 - `tirar_sombras_do_runner(area: Path, caminhos: Iterable[str]) -> tuple[str, ...]` — As sombras do runner que não existiam no commit `antes`, entre os caminhos e os arquivos fora do git: saem do disco.
+- `hooks_que_decidem_o_resultado(codigo: str) -> tuple[str, ...]` — Os hooks que decidem o resultado que o código define ou cita (def, atribuição, import, argumento, texto); nenhum se não compila.
+- `conftests_que_decidem_o_resultado(area: Path, caminhos: Iterable[str]) -> dict[str, tuple[str, ...]]` — Os conftest.py novos ou mudados desde `antes` (o ignorado inclusive) que citam hook que decide o resultado, com os hooks.
 - `soltos_que_mudam_os_testes(area: Path) -> tuple[str, ...]` — Os arquivos fora do git (não versionados ou ignorados) que estão em aceite/, que configuram os testes ou sombreiam o runner.
 - `preparar_o_aceite(area: Path, commit_do_aceite: str) -> tuple[str, ...]` — Antes de rodar os testes de aceite: aceite/ como no commit do aceite e a configuração solta fora; diz o que tirou.
 - `forcar_o_aceite_no_indice(area: Path) -> tuple[str, ...]` — Os arquivos de aceite/ que o .gitignore do projeto ignora entram no índice à força (`git add -f`); devolve quais.

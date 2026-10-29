@@ -3,8 +3,9 @@
 O executor implementa e devolve `pronto`, `duvida` ou `falhou`. O orquestrador
 confere que o git está onde estava (e desfaz o commit que tenha escapado à
 trava), recusa a fatia que mexeu em `aceite/` (o ignorado pelo git inclusive),
-que escondeu mudança com as flags do índice ou que criou um módulo com o nome
-do runner de testes (orquestrador/aceite_intocado.py), roda a
+que escondeu mudança com as flags do índice, que criou um módulo com o nome
+do runner de testes ou que pôs num conftest.py um hook do pytest que decide o
+resultado (orquestrador/aceite_intocado.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
 vermelhos até a fatia que os atende), passa a fatia de risco, e a que mudou a
 configuração de teste (o que é sinal, e não recusa), pela revisão
@@ -24,6 +25,7 @@ from typing import Any
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.aceite_intocado import (
     configuracoes_mudadas,
+    conftests_que_decidem_o_resultado,
     flags_do_indice,
     limpar_flags,
     soltos_que_mudam_os_testes,
@@ -203,7 +205,7 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
 
 
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
-    """O problema do que a fatia mudou (flags do índice, sombra do runner, aceite/) e a configuração de teste que ela mudou, que só é sinal.
+    """O problema do que a fatia mudou (flags, sombra do runner, hook que decide, aceite/) e a configuração de teste mudada, que é só sinal.
 
     A mudança de configuração de teste não é recusada: o aceite roda com ela
     e com a do commit do aceite, e a diferença vai ao verificador
@@ -218,6 +220,9 @@ def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentat
     sombras = tirar_sombras_do_runner(contexto.area, mudados, antes=tentativa.head)
     if sombras:
         return _sombreou_o_runner(sombras), ()
+    decidem = conftests_que_decidem_o_resultado(contexto.area, mudados, antes=tentativa.head)
+    if decidem:
+        return _decide_o_resultado(decidem), ()
     soltos = soltos_que_mudam_os_testes(contexto.area)
     no_aceite = sorted({c for c in (*mudados, *soltos) if dentro_do_aceite(c) and not e_cache(c)}
                        | (set(mudados) & set(estado.arquivos_protegidos())))
@@ -243,6 +248,16 @@ def _sombreou_o_runner(sombras: tuple[str, ...]) -> str:
         "_pytest, pluggy, iniconfig, packaging, unittest): numa pasta do sys.path ele toma o lugar do runner, e um pytest.py "
         "que imprime '1 passed' daria verde. O orquestrador os "
         "apagou, e a tentativa nao vale: de outro nome ao modulo."
+    )
+
+
+def _decide_o_resultado(conftests: Mapping[str, tuple[str, ...]]) -> str:
+    """O erro da fatia que criou ou mudou um conftest.py com hook do pytest que decide o resultado do teste."""
+    lista = "; ".join(f"{caminho} ({', '.join(hooks)})" for caminho, hooks in conftests.items())
+    return (
+        f"a fatia criou ou mudou conftest.py com hook do pytest que decide o resultado do teste: {lista}. Um "
+        "pytest_pyfunc_call que devolve True da verde a qualquer teste, a soma errada inclusive. O orquestrador recusa esse "
+        "conftest sempre (o novo saiu do disco), e a tentativa nao vale: prepare os testes por fixture, sem esses hooks."
     )
 
 
