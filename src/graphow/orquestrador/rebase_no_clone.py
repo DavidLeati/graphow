@@ -149,6 +149,31 @@ def mover_as_refs(area: AreaDoGoal, antes: str, depois: str) -> None:
     humano.rodar("update-ref", ref, depois, antes)
 
 
+def arvore_mesclada(area: Path, ponta: str, base: str) -> tuple[str, tuple[str, ...]]:
+    """A árvore da ponta do Goal com a base mesclada (`merge-tree`, os marcadores no conflito) e os arquivos em conflito."""
+    feito = GitDoGoal(area).tentar(*SEM_ASPAS, "merge-tree", "--write-tree", "--name-only", "-z", ponta, base)
+    partes = feito.saida.split("\x00")
+    if feito.codigo not in (0, 1) or not partes[0].strip():
+        raise FalhaDoGitDoGoal("o git nao mesclou a ponta do Goal com a base", {"ponta": ponta[:12], "base": base[:12],
+                                                                              "erro": feito.erro.strip()})
+    arquivos = tuple(dict.fromkeys(_ate_o_vazio(partes[1:]))) if feito.codigo == 1 else ()
+    return partes[0].strip(), arquivos
+
+
+def _ate_o_vazio(partes: list[str]) -> list[str]:
+    """Os itens até o primeiro vazio: na saída `-z` do `merge-tree`, os arquivos em conflito antes das mensagens."""
+    return partes[:partes.index("")] if "" in partes else partes
+
+
+def commit_sobre(area: Path, mensagem: str, *, pai: str) -> str:
+    """O commit da área inteira (o que está fora de commit inclusive) com o pai dado, sem mover ref nenhuma; devolve o hash."""
+    git = GitDoGoal(area)
+    git.rodar("add", "-A")
+    arvore = git.rodar("write-tree").strip()
+    identidade = () if git.tentar("config", "user.email").saida.strip() else IDENTIDADE_DE_RESERVA
+    return git.rodar(*identidade, "commit-tree", arvore, "-p", pai, "-m", mensagem).strip()
+
+
 def _ref(git: GitDoGoal, ref: str) -> str:
     """O commit da ref; vazio quando ela não existe."""
     return git.tentar("rev-parse", "--verify", "--quiet", ref).saida.strip()

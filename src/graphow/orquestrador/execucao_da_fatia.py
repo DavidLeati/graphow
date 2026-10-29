@@ -16,7 +16,9 @@ a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
 ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
 pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
-e sai da área, para não vazar para a fatia seguinte. A fatia que caiu no
+e sai da área, para não vazar para a fatia seguinte. A fatia de conflito com
+a base que andou começa com a base nova mesclada na área e commita sobre ela
+(orquestrador/fatia_de_conflito.py). A fatia que caiu no
 meio da sessão passa por isso na retomada, e antes do pedido do humano que
 chega primeiro (`guardar_a_fatia_interrompida`).
 """
@@ -48,6 +50,7 @@ from graphow.orquestrador.decisoes_do_agente import (
 )
 from graphow.orquestrador.esquemas import ESQUEMA_DA_EXECUCAO_AUTONOMA, PAPEL_EXECUTOR
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
+from graphow.orquestrador.fatia_de_conflito import commitar_a_fatia, preparar_a_fatia
 from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
     commit_da_fatia,
@@ -98,6 +101,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
         return sem_orcamento
     tentativa = Tentativa(fatia, numero, contexto.git.head())
     contexto.livro.iniciar_tentativa(fatia.id, numero)
+    preparar_a_fatia(contexto, fatia)
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_EXECUTOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=fatia.id, tentativa=numero,
@@ -107,10 +111,9 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
             esquema=ESQUEMA_DA_EXECUCAO_AUTONOMA if contexto.configuracao.modo == m.MODO_AUTONOMO else None,
         )
     )
-    desfeito = resposta.desfeito
     if resposta.dados is None:
         return _falhou(contexto, tentativa, resposta.trava_mexida or "a saida do executor nao conferiu: " + "; ".join(resposta.problemas))
-    return _depois_da_sessao(contexto, tentativa, SaidaDoExecutor.de_json(resposta.dados), desfeito=desfeito)
+    return _depois_da_sessao(contexto, tentativa, SaidaDoExecutor.de_json(resposta.dados), desfeito=resposta.desfeito)
 
 
 def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: SaidaDoExecutor, *, desfeito: str) -> Parada | None:
@@ -136,7 +139,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     if problema:
         return _falhou(contexto, tentativa, problema)
     documentar_decisoes(contexto, fatia, saida.decisoes)
-    commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
+    commit = commitar_a_fatia(contexto, fatia, _mensagem(contexto, fatia, saida))
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, arquivos=arquivos_do_commit(contexto.area, commit),
                                   saida=saida, observacao=desfeito, achados=m.achados_da_correcao(fatia.propriedades),
                                   extra=operacoes_das_decisoes(contexto.livro, fatia.id, tentativa.numero, decisoes=saida.decisoes))

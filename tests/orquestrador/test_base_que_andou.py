@@ -16,12 +16,21 @@ from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao
 
 from tests.orquestrador.apoio_git import git
-from tests.orquestrador.apoio_laco import Bancada, ate_o_portao_aprovado, montar_bancada, roteiro_completo, verificacao
+from tests.orquestrador.apoio_laco import (
+    Bancada,
+    ate_o_portao_aprovado,
+    executor_pronto,
+    montar_bancada,
+    roteiro_completo,
+    verificacao,
+)
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 RAMO: str = "graphow/soma"
 SOMA_COM_CABECALHO: str = "# soma de inteiros\ndef somar(a, b):\n    return 0\n"
 SOMA_QUE_SUBTRAI: str = "def somar(a, b):\n    return a - b\n"
+SOMA_DA_BASE_QUE_CONFLITA: str = "def somar(a, b):\n    # so inteiros\n    return 0\n"
+SOMA_RESOLVIDA: str = "def somar(a, b):\n    # so inteiros\n    return a + b\n"
 OPCAO_DO_PROMPT: str = "--append-system-prompt-file"
 
 
@@ -178,3 +187,46 @@ def test_conflito_com_a_base_no_supervisionado_para_com_os_arquivos_e_a_branch_i
     assert git(area, "status", "--porcelain") == "" and not (area / ".git" / "rebase-merge").exists()
     assert _rebases(bancada) == [], "o rebase desfeito nao vai ao livro-razao"
     assert orquestrador.rodar("goal-soma", OpcoesDoLaco()).motivo == MotivoDaParada.CONFLITO_COM_A_BASE
+
+
+def test_rebase_limpo_com_a_suite_vermelha_no_supervisionado_desfaz_e_para_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: a base nova quebra a suíte sem conflito; o rebase sai, a branch fica, e a parada traz o fim da suíte."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    orquestrador = ate_o_portao_aprovado(bancada)
+    assert orquestrador.rodar("goal-soma", OpcoesDoLaco()).motivo == MotivoDaParada.PRONTO_PARA_INTEGRAR
+    ponta = git(bancada.repositorio, "rev-parse", RAMO).strip()
+    _commit_do_humano(bancada.repositorio, "soma.py", "import modulo_que_nao_existe\ndef somar(a, b):\n    return 0\n")()
+
+    parada = orquestrador.rodar("goal-soma", OpcoesDoLaco())
+
+    assert parada.motivo == MotivoDaParada.CONFLITO_COM_A_BASE, parada.mensagem
+    assert "deixou a suite vermelha" in parada.mensagem and "modulo_que_nao_existe" in parada.mensagem
+    assert git(bancada.repositorio, "rev-parse", RAMO).strip() == ponta and _rebases(bancada) == []
+
+
+def test_conflito_com_a_base_no_autonomo_abre_a_fatia_de_conflito_e_o_goal_fecha_depois_dela_nominal(tmp_path: Path) -> None:
+    """T3g.4: no autônomo, o conflito vira a fatia M1.R1 sobre a base nova; ela resolve, a verificação roda de novo e o Goal fecha."""
+    roteiro = _roteiro_limpo()
+    roteiro["executor"].append(executor_pronto({"soma.py": SOMA_RESOLVIDA}))
+    roteiro["verificador"].append(verificacao("atende"))
+    bancada = montar_bancada(tmp_path, roteiro)
+    executor, hashes = _andando_depois_do(bancada, "verificador", "soma.py", SOMA_DA_BASE_QUE_CONFLITA)
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None
+    (conflito,) = [fatia for fatia in estado.fatias if fatia.codigo == "M1.R1"]
+    assert conflito.status == "concluido" and conflito.propriedades["conflito_com_a_base"]["arquivos"] == ["soma.py"]
+    briefing = bancada.chamadas("executor")[2]["stdin"]
+    assert "deu conflito em soma.py" in briefing and "<<<<<<<" in briefing and "# so inteiros" in briefing
+    assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_RESOLVIDA
+    assert _na_historia(bancada.repositorio, hashes[0]) and git(bancada.repositorio, "rev-list", "--merges", "main") == ""
+    trailers = git(bancada.repositorio, "log", "--format=%(trailers:key=Graphow-Task,valueonly)", f"{hashes[0]}..main").split()
+    assert trailers == [conflito.id], "a historia da branch e a base nova mais o commit da fatia de conflito"
+    assert _verificacoes(bancada) == ["verificador", "conferencia"]
+    (rebase,) = _rebases(bancada)
+    assert rebase.obter_propriedade("fatia_de_conflito") == conflito.id and rebase.obter_propriedade("verificacao_vale") is False
+    plano = [fatia for fatia in estado.fatias if fatia.codigo in ("F1", "F2")]
+    assert {fatia.texto("commit") for fatia in plano} == {conflito.texto("commit")}
