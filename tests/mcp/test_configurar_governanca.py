@@ -78,16 +78,16 @@ def test_trocar_de_preset_preserva_a_personalizada_nominal() -> None:
     """A personalizada é mesclada na salva e sobrevive à troca para um preset fixo e à volta."""
     kernel = montar_kernel()
     _configurar(kernel, "humano", {"escopo": "global", "preset": "personalizada", "personalizada": {"excluir": "arbitro"}})
-    _configurar(kernel, "humano", {"escopo": "global", "preset": "personalizada", "personalizada": {"integracao": "arbitro"}})
+    _configurar(kernel, "humano", {"escopo": "global", "preset": "personalizada", "personalizada": {"liberar_posse_alheia": "arbitro"}})
 
     fixo = _configurar(kernel, "humano", {"escopo": "global", "preset": "governanca_maxima"})
     de_volta = _configurar(kernel, "humano", {"escopo": "global", "preset": "personalizada"})
 
     no = kernel.obter_view().obter_no(ID_GLOBAL)
-    assert no.obter_propriedade("personalizada") == {"excluir": "arbitro", "integracao": "arbitro"}
+    assert no.obter_propriedade("personalizada") == {"excluir": "arbitro", "liberar_posse_alheia": "arbitro"}
     assert fixo["politica_efetiva"]["excluir"] == "humano"
     assert de_volta["politica_efetiva"]["excluir"] == "arbitro"
-    assert de_volta["politica_efetiva"]["integracao"] == "arbitro"
+    assert de_volta["politica_efetiva"]["liberar_posse_alheia"] == "arbitro"
     assert de_volta["politica_efetiva"]["responder_questao"] == "humano"
     assert de_volta["origens"]["excluir"] == "global"
 

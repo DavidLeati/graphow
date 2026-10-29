@@ -36,6 +36,7 @@ from graphow.kernel.politica_governanca import resolver_politica_do_projeto, res
 
 ESCOPO_GLOBAL: str = "global"
 VALOR_HERDAR: str = "herdar"
+_NOMES_DOS_GESTOS: frozenset[str] = frozenset(gesto.value for gesto in Gesto)
 ROTULO_DA_GOVERNANCA_GLOBAL: str = "Governanca global"
 
 # Quando a skill graphow-gerente grava a definição da demanda: só depois da
@@ -81,11 +82,22 @@ def configuracao_salva(escopo: str, estado: GrafoEstado) -> dict[str, Any]:
         declarada = no.propriedades.get(PROPRIEDADE_GOVERNANCA_DO_PROJETO) if no is not None else {}
         padrao = PresetDoProjeto.HERDAR.value
     declarada = declarada if isinstance(declarada, Mapping) else {}
-    personalizada = declarada.get(CHAVE_PERSONALIZADA)
     return {
         CHAVE_PRESET: declarada.get(CHAVE_PRESET) or padrao,
-        CHAVE_PERSONALIZADA: dict(personalizada) if isinstance(personalizada, Mapping) else {},
+        CHAVE_PERSONALIZADA: _personalizada_guardada(declarada.get(CHAVE_PERSONALIZADA)),
     }
+
+
+def _personalizada_guardada(valor: Any) -> dict[str, Any]:
+    """A `personalizada` guardada, só com os gestos que a política ainda tem.
+
+    O gesto que saiu da política continua no log de um banco antigo. Ele não é
+    lido nem volta na gravação seguinte: mesclado, faria a validação recusar
+    toda escrita da política daquele escopo.
+    """
+    if not isinstance(valor, Mapping):
+        return {}
+    return {chave: item for chave, item in valor.items() if chave in _NOMES_DOS_GESTOS}
 
 
 def com_preset_salvo(
@@ -205,7 +217,7 @@ def _planejar_global(argumentos: Mapping[str, Any], estado: GrafoEstado) -> tupl
     """As operações que gravam a política global."""
     recebida = _personalizada_recebida(argumentos)
     existente = estado.nos.get(ID_GOVERNANCA_GLOBAL)
-    guardada = dict(existente.propriedades.get(CHAVE_PERSONALIZADA) or {}) if existente else {}
+    guardada = _personalizada_guardada(existente.propriedades.get(CHAVE_PERSONALIZADA)) if existente else {}
     configuracao = {CHAVE_PRESET: argumentos.get(CHAVE_PRESET), CHAVE_PERSONALIZADA: {**guardada, **recebida}}
     problemas = validar_configuracao_global(configuracao)
     if problemas:
@@ -230,7 +242,7 @@ def _planejar_projeto(
     projeto = _exigir_projeto(id_projeto, estado)
     recebida = _personalizada_recebida(argumentos)
     declarada = projeto.propriedades.get(PROPRIEDADE_GOVERNANCA_DO_PROJETO)
-    guardada = dict((declarada or {}).get(CHAVE_PERSONALIZADA) or {}) if isinstance(declarada, Mapping) else {}
+    guardada = _personalizada_guardada(declarada.get(CHAVE_PERSONALIZADA)) if isinstance(declarada, Mapping) else {}
     apagadas = {gesto for gesto, valor in recebida.items() if valor == VALOR_HERDAR}
     sobrescritas = {gesto: valor for gesto, valor in {**guardada, **recebida}.items() if gesto not in apagadas}
     problemas = _gestos_desconhecidos_a_herdar(apagadas)
@@ -248,8 +260,7 @@ def _definir_propriedade(id_no: str, chave: str, valor: object) -> ItemPatch:
 
 def _gestos_desconhecidos_a_herdar(gestos: set[str]) -> list[str]:
     """Problemas de 'herdar' pedido para um gesto que não existe: apagar o que não existe seria silêncio."""
-    conhecidos = {gesto.value for gesto in Gesto}
-    return [f"gesto desconhecido {gesto!r}" for gesto in sorted(gestos) if gesto not in conhecidos]
+    return [f"gesto desconhecido {gesto!r}" for gesto in sorted(gestos) if gesto not in _NOMES_DOS_GESTOS]
 
 
 def _personalizada_recebida(argumentos: Mapping[str, Any]) -> Mapping[str, Any]:

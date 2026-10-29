@@ -80,7 +80,7 @@ def test_arbitragem_maxima_cita_os_gestos_do_arbitro_e_o_que_segue_humano_nomina
 
     assert GESTOS_HUMANOS_DE_SEMPRE not in "\n".join(linhas)
     assert passo.startswith("6. ")
-    for gesto in ("responder_questao", "promover_aprendizado", "encerrar_sessao", "excluir", "integracao"):
+    for gesto in ("responder_questao", "promover_aprendizado", "encerrar_sessao", "excluir", "liberar_posse_alheia"):
         assert gesto in passo.split("Seguem humanos:")[0], gesto
     assert "Governanca arbitragem_maxima" in passo
     assert "Seguem humanos: promocao global de aprendizado e a configuracao da governanca, responder_desvio;" in passo

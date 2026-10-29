@@ -66,7 +66,6 @@ class Gesto(str, Enum):
     FECHAR_GOAL = "fechar_goal"
     ENCERRAR_SESSAO = "encerrar_sessao"
     LIBERAR_POSSE_ALHEIA = "liberar_posse_alheia"
-    INTEGRACAO = "integracao"
     MAX_CORRECOES = "max_correcoes"
     ACAO_EXTERNA = "acao_externa"
     # Escopo governado: aprovar o plano que vira a referência do Goal, e

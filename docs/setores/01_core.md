@@ -10,7 +10,7 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 
 ## Inventário
 
-13 módulos · 1468 linhas · 38 classes
+13 módulos · 1467 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
 | [`core/exceptions.py`](#coreexceptions) | 65 | Hierarquia de exceções de domínio cirúrgicas do Graphow. |
 | [`core/falhas.py`](#corefalhas) | 94 | Vocabulário de modos de falha, na taxonomia MAST (Cemri et al., 2025). |
-| [`core/governanca.py`](#coregovernanca) | 380 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
+| [`core/governanca.py`](#coregovernanca) | 379 | Política de governança: quem pode fazer cada gesto que antes era só do humano. |
 | [`core/leituras_inteiras.py`](#coreleiturasinteiras) | 63 | As leituras inteiras da política de governança: domínio, padrão e qual valor é o mais restritivo. |
 | [`core/models.py`](#coremodels) | 196 | Modelos imutáveis do Grafo, Nós, Arestas e Metadados Temporais. |
 | [`core/ontologia.py`](#coreontologia) | 87 | Versão declarada do vocabulário da ontologia e a impressão digital que a checa. |

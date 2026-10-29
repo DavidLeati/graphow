@@ -184,7 +184,7 @@ exerce:
 
 1. **Promover a global**: escrever `alcance: global` num `Aprendizado` (o `global` de `promover_aprendizado`).
 2. **Alterar a governança** (o meta-portão): criar, editar ou remover o nó `Governanca`, e escrever a propriedade `governanca` ou `nivel_autonomia` de um `Projeto`. Quem escrevesse a política se daria todos os gestos que ela governa. Um agente que cria um `Projeto` só o declara `estrito` e sem `governanca`.
-3. O **push** do git, quando o trabalho mora num repositório: fora do grafo, é sempre do humano; o gesto `integracao` cobre só o commit e o merge local na base.
+3. O **push** do git, quando o trabalho mora num repositório: fora do grafo, é sempre do humano.
 
 Fora da política, e não do humano por exceção, vale também a regra do veredito: um
 agente só conclui uma `Task` com revisão aprovada (seção 5.4). Fechar a `Task` não é
@@ -237,7 +237,6 @@ que o humano e o árbitro o fazem. O catálogo vive em `core/governanca.py`.
 | `fechar_goal` | `humano`, `arbitro` | Escrever `concluido` num `Goal` | humano / arbitro |
 | `encerrar_sessao` | `humano`, `arbitro` | Escrever o status de uma `Sessao` e a ferramenta `encerrar_sessao`; o papel `sistema` do harness segue sempre autorizado | humano / arbitro |
 | `liberar_posse_alheia` | `humano`, `arbitro` | `liberar_tarefa` sobre o lock de outro autor | humano / arbitro |
-| `integracao` | `humano`, `arbitro` | Lido só pela skill: commit e merge local na base. O push é sempre humano | humano / arbitro |
 | `max_correcoes` | inteiro de 0 a 5 | Lido pela skill: reprovações em cadeia antes do teto (a de ordem N já escala; 2 = a original e a primeira correção) | 2 / 2 |
 | `aprovar_plano` | `humano`, `arbitro` | Aprovar uma versão do plano de um `Goal` (a propriedade `planos`). Só a aprovação de `humano` define a referência do escopo e zera o contador de desvio | humano / arbitro |
 | `responder_desvio` | `humano`, `arbitro` | Responder ao placar quando o trabalho emergente passa dos limiares (a propriedade `respostas_de_desvio`). Só a resposta de `humano` zera o contador | humano / humano |
@@ -258,7 +257,7 @@ booleano são recusados na configuração.
 
 ### 5.2 Presets, Herança e Legado
 
-- **Presets.** `governanca_maxima` e `arbitragem_maxima` são fixos e imutáveis. `personalizada` é a única editável, e fica **guardada à parte**: trocar para um preset fixo não a apaga, e voltar a ela a recupera intacta.
+- **Presets.** `governanca_maxima` e `arbitragem_maxima` são fixos e imutáveis. `personalizada` é a única editável, e fica **guardada à parte**: trocar para um preset fixo não a apaga, e voltar a ela a recupera intacta. O gesto que a política deixou de ter e que um banco antigo guarde na `personalizada` não é lido, e a gravação seguinte o tira dela.
 - **Global.** O singleton `governanca-global` (tipo `Governanca`) guarda `preset` e a `personalizada` completa. Sem o nó, vale a `governanca_maxima`. Na `personalizada` global, o gesto ausente completa com a `governanca_maxima`.
 - **Projeto.** A propriedade `governanca` do `Projeto` é `{preset, personalizada}`, com `preset` em `herdar` (o padrão e o que vale se a propriedade falta), `governanca_maxima`, `arbitragem_maxima` ou `personalizada`. A `personalizada` do projeto é **parcial**: cada gesto ausente herda da política efetiva global. Na interface e em `configurar_governanca`, o valor `herdar` de um gesto apaga a sobrescrita dele.
 - **Origem.** Cada gesto da política efetiva traz de onde veio o valor: `global`, `projeto`, `preset:<nome>`, `legado:nivel_autonomia` ou, na composição de vários projetos, `projeto:<id>`. A interface mostra esse selo.

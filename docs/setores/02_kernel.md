@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-35 módulos · 5860 linhas · 35 classes
+35 módulos · 5871 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -37,7 +37,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/pares_do_aceite.py`](#kernelparesdoaceite) | 32 | Pares de tipos das arestas do aceite no centro (ontologia 1.7.0), apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 183 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 270 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 281 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/retirada_do_criterio.py`](#kernelretiradadocriterio) | 37 | O Criterio sai da conta do fechamento só pelo pedido do humano que o retira: `retirar_criterio` dele, ou `recusar_plano` do Goal. |
@@ -609,6 +609,7 @@ Planeja a escrita da política de governança, comum à ferramenta MCP e à inte
 | :--- | :--- | :--- |
 | `ESCOPO_GLOBAL` | `str` | `'global'` |
 | `VALOR_HERDAR` | `str` | `'herdar'` |
+| `_NOMES_DOS_GESTOS` | `frozenset[str]` | `frozenset((gesto.value for gesto in Gesto))` |
 | `ROTULO_DA_GOVERNANCA_GLOBAL` | `str` | `'Governanca global'` |
 | `CAMPO_GRAVACAO_DO_GERENTE` | `str` | `'gravacao_do_gerente'` |
 | `GRAVACAO_APOS_APROVACAO` | `str` | `'apos_aprovacao'` |

@@ -116,7 +116,7 @@ def test_arbitragem_maxima_lista_os_gestos_com_o_arbitro_nominal() -> None:
     for id_alvo in ("sess-a", "task-a", "goal-a"):
         secao = "\n".join(_secao(_vista(kernel, id_alvo)))
         assert "preset efetivo: arbitragem_maxima" in secao, id_alvo
-        for gesto in ("responder_questao", "promover_aprendizado", "encerrar_sessao", "integracao"):
+        for gesto in ("responder_questao", "promover_aprendizado", "encerrar_sessao", "liberar_posse_alheia"):
             assert gesto in secao, (id_alvo, gesto)
         assert "estrutura ilimitada" in secao
         assert "promocao global" in secao

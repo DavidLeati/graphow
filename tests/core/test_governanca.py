@@ -257,7 +257,7 @@ def test_validar_configuracao_do_projeto_aceita_herdar_nominal() -> None:
 @pytest.mark.parametrize("configuracao", [
     {"preset": "fantasma"},
     {"preset": "arbitragem"},
-    {"preset": "personalizada", "personalizada": {"integracao": "ninguem"}},
+    {"preset": "personalizada", "personalizada": {"liberar_posse_alheia": "ninguem"}},
     {"preset": "personalizada", "personalizada": {"max_correcoes": 99}},
     {"extra": 1},
     [],

@@ -27,7 +27,6 @@ const NOMES_DOS_GESTOS = {
   fechar_goal: "Fechar um Goal",
   encerrar_sessao: "Encerrar sessões",
   liberar_posse_alheia: "Liberar posse alheia",
-  integracao: "Integração",
   max_correcoes: "Reprovações em cadeia antes do teto",
   acao_externa: "Ações externas (sem arquivo)",
   aprovar_plano: "Aprovar o plano do Goal",
