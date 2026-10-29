@@ -177,19 +177,11 @@ function textoOuNulo(valor) {
   return texto === TEXTO_VAZIO ? null : texto;
 }
 
-/** As linhas de um textarea viram a lista de globs; sem nenhuma linha, nulo apaga a propriedade. */
-export function listaDeCaminhos(texto) {
-  const linhas = String(texto ?? TEXTO_VAZIO).split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean);
-  return linhas.length ? linhas : null;
-}
-
 /** O corpo `{operacao}` a partir do formulário; vazio apaga a propriedade (valor nulo), como o backend aceita. */
 export function operacaoDoFormulario(campos) {
   return {
     corpo: {
       operacao: {
-        ramo_base: textoOuNulo(campos.ramo_base),
-        caminhos_de_colisao: listaDeCaminhos(campos.caminhos_de_colisao),
         gravacao_do_gerente: textoOuNulo(campos.gravacao_do_gerente),
       },
     },
@@ -199,8 +191,6 @@ export function operacaoDoFormulario(campos) {
 /** Os valores do projeto como o formulário os mostra: o que não foi gravado volta vazio. */
 export function camposDaOperacao(operacao) {
   return {
-    ramo_base: operacao?.ramo_base ?? TEXTO_VAZIO,
-    caminhos_de_colisao: (operacao?.caminhos_de_colisao || []).join("\n"),
     gravacao_do_gerente: operacao?.gravacao_do_gerente ?? TEXTO_VAZIO,
   };
 }

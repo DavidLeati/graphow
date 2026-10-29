@@ -10,7 +10,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-35 módulos · 5871 linhas · 35 classes
+35 módulos · 5847 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -37,7 +37,7 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/pares_do_aceite.py`](#kernelparesdoaceite) | 32 | Pares de tipos das arestas do aceite no centro (ontologia 1.7.0), apartados para o SchemaGate caber no limite do arquivo. |
 | [`kernel/patch_models.py`](#kernelpatchmodels) | 183 | Modelos imutáveis e sanitizadores para operações JSON Patch (RFC 6902). |
 | [`kernel/permissao_de_aresta.py`](#kernelpermissaodearesta) | 292 | Permissão por papel na camada de arestas: quem cria e remove cada aresta, conforme o que ela liga. |
-| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 281 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
+| [`kernel/planejamento_governanca.py`](#kernelplanejamentogovernanca) | 257 | Planeja a escrita da política de governança, comum à ferramenta MCP e à interface web. |
 | [`kernel/politica_governanca.py`](#kernelpoliticagovernanca) | 66 | Resolve a política de governança efetiva lendo o estado do grafo. |
 | [`kernel/rastreio_projeto.py`](#kernelrastreioprojeto) | 179 | Rastreio do Projeto ancestral de um nó, resistente a ciclos na hierarquia. |
 | [`kernel/retirada_do_criterio.py`](#kernelretiradadocriterio) | 37 | O Criterio sai da conta do fechamento só pelo pedido do humano que o retira: `retirar_criterio` dele, ou `recusar_plano` do Goal. |
@@ -614,7 +614,7 @@ Planeja a escrita da política de governança, comum à ferramenta MCP e à inte
 | `CAMPO_GRAVACAO_DO_GERENTE` | `str` | `'gravacao_do_gerente'` |
 | `GRAVACAO_APOS_APROVACAO` | `str` | `'apos_aprovacao'` |
 | `GRAVACOES_DO_GERENTE_ACEITAS` | `tuple[str, ...]` | `(GRAVACAO_APOS_APROVACAO, 'durante_alinhamento')` |
-| `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_RAMO_BASE, CAMPO_CAMINHOS_DE_COLISAO, CAMPO_GRAVACAO_DO_GERENTE)` |
+| `PROPRIEDADES_OPERACIONAIS` | `tuple[str, ...]` | `(CAMPO_GRAVACAO_DO_GERENTE,)` |
 
 ### `ErroDeConfiguracaoDeGovernanca` (ValueError)
 

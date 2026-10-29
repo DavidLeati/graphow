@@ -1,9 +1,11 @@
 """Nota de migração da fase 3: um banco gravado antes do T3h abre na tela de configurações.
 
-O gesto `integracao` saiu da política de governança. O banco antigo guarda o
-gesto na `personalizada` global e na do Projeto. Os eventos daqui são os que
-o kernel de antes escrevia, copiados de um banco montado com aquele código. Eles
-entram crus num SQLite, sem passar pelos portões de hoje, que os recusariam.
+O gesto `integracao` saiu da política de governança, e as propriedades
+`ramo_base` e `caminhos_de_colisao` saíram do Goal, do Setor e do Projeto. O
+banco antigo guarda o gesto na `personalizada` global e na do Projeto, e as
+duas propriedades nos três nós. Os eventos daqui são os que o kernel de antes
+escrevia, copiados de um banco montado com aquele código. Eles entram crus num
+SQLite, sem passar pelos portões de hoje, que os recusariam.
 """
 
 from http import HTTPStatus
@@ -125,3 +127,37 @@ def test_gravar_por_cima_da_politica_antiga_tira_o_gesto_que_saiu_edge_case(tmp_
     assert global_.status == HTTPStatus.OK, global_.corpo
     assert projeto.status == HTTPStatus.OK, projeto.corpo
     assert no_log == ({"excluir": "arbitro", "responder_questao": "arbitro"}, {"fechar_goal": "arbitro", "excluir": "arbitro"})
+
+
+def test_projeto_com_ramo_base_faz_replay_e_abre_na_tela_nominal(tmp_path: Path) -> None:
+    """O Projeto, o Setor e o Goal com as propriedades que saíram abrem: o dado fica no nó, a tela não o lê."""
+    store, kernel, governanca = _abrir(tmp_path)
+    try:
+        projeto = governanca.obter_projeto("proj-antigo")
+        catalogo = governanca.obter_global().corpo["catalogo"]
+        nos = kernel.obter_estado().nos
+    finally:
+        store.fechar()
+
+    assert (nos["proj-antigo"].propriedades["ramo_base"], nos["goal-antigo"].propriedades["ramo_base"]) == ("origin/stage", "main")
+    assert nos["setor-antigo"].propriedades["caminhos_de_colisao"] == ["db/*.sql"]
+    assert projeto.status == HTTPStatus.OK, projeto.corpo
+    assert projeto.corpo["operacao"] == {"gravacao_do_gerente": "durante_alinhamento"}
+    assert list(catalogo["operacao"]) == ["gravacao_do_gerente"]
+
+
+def test_ramo_base_nao_se_grava_mais_e_o_antigo_fica_no_no_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: gravar a propriedade que saiu é recusado, e gravar a que ficou não apaga o dado velho."""
+    store, kernel, governanca = _abrir(tmp_path)
+    try:
+        recusada = governanca.gravar_projeto("proj-antigo", RequisicaoGovernanca(operacao={"ramo_base": "stage"}))
+        gravada = governanca.gravar_projeto("proj-antigo", RequisicaoGovernanca(operacao={"gravacao_do_gerente": None}))
+        propriedades = dict(kernel.obter_estado().nos["proj-antigo"].propriedades)
+    finally:
+        store.fechar()
+
+    assert recusada.status == HTTPStatus.BAD_REQUEST
+    assert "propriedade operacional desconhecida 'ramo_base'" in recusada.corpo["problemas"][0]
+    assert gravada.status == HTTPStatus.OK, gravada.corpo
+    assert (propriedades["ramo_base"], propriedades["caminhos_de_colisao"]) == ("origin/stage", ["**/migrations/*.py"])
+    assert "gravacao_do_gerente" not in propriedades

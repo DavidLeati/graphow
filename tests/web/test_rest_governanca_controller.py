@@ -191,18 +191,14 @@ def test_operacao_grava_as_propriedades_do_projeto_no_mesmo_lote_nominal() -> No
         RequisicaoGovernanca(
             preset="personalizada",
             personalizada={"excluir": "arbitro"},
-            operacao={"ramo_base": "origin/stage", "caminhos_de_colisao": ["db/*"]},
+            operacao={"gravacao_do_gerente": "durante_alinhamento"},
         ),
     )
 
     assert resposta.status == HTTPStatus.OK, resposta.corpo
-    assert resposta.corpo["operacao"] == {
-        "ramo_base": "origin/stage",
-        "caminhos_de_colisao": ["db/*"],
-        "gravacao_do_gerente": None,
-    }
+    assert resposta.corpo["operacao"] == {"gravacao_do_gerente": "durante_alinhamento"}
     leitura = governanca.obter_projeto("proj-01").corpo
-    assert leitura["operacao"]["ramo_base"] == "origin/stage"
+    assert leitura["operacao"]["gravacao_do_gerente"] == "durante_alinhamento"
     assert leitura["politica_efetiva"]["excluir"] == "arbitro"
     assert kernel.obter_estado().versao_log > antes
 
@@ -213,12 +209,12 @@ def test_so_operacao_nao_regrava_a_configuracao_nominal() -> None:
     governanca.gravar_projeto("proj-01", RequisicaoGovernanca(preset="arbitragem_maxima"))
     props_antes = dict(kernel.obter_estado().nos["proj-01"].propriedades)
 
-    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": "stage"}))
+    resposta = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": "durante_alinhamento"}))
 
     assert resposta.status == HTTPStatus.OK, resposta.corpo
     propriedades = kernel.obter_estado().nos["proj-01"].propriedades
     assert propriedades["governanca"] == props_antes["governanca"]
-    assert propriedades["ramo_base"] == "stage"
+    assert propriedades["gravacao_do_gerente"] == "durante_alinhamento"
     assert resposta.corpo["configuracao"]["preset"] == "arbitragem_maxima"
 
 
@@ -241,25 +237,28 @@ def test_operacao_invalida_recusa_o_lote_inteiro_edge_case() -> None:
         "proj-01",
         RequisicaoGovernanca(
             preset="arbitragem_maxima",
-            operacao={"gravacao_do_gerente": "quando_quiser", "ramo_base": " ", "inventada": 1},
+            operacao={"gravacao_do_gerente": "quando_quiser", "inventada": 1},
         ),
     )
 
     assert resposta.status == HTTPStatus.BAD_REQUEST
-    assert len(resposta.corpo["problemas"]) == 3
+    assert len(resposta.corpo["problemas"]) == 2
     assert "governanca" not in kernel.obter_estado().nos["proj-01"].propriedades
 
 
 def test_operacao_nula_apaga_a_propriedade_nominal() -> None:
     """Valor nulo remove a propriedade operacional; apagar a que não existe não escreve nada."""
     kernel, governanca = _montar()
-    governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": "stage"}))
+    governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": "durante_alinhamento"}))
 
-    apagada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"ramo_base": None, "gravacao_do_gerente": None}))
+    apagada = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": None}))
+    versao = kernel.obter_estado().versao_log
+    de_novo = governanca.gravar_projeto("proj-01", RequisicaoGovernanca(operacao={"gravacao_do_gerente": None}))
 
     assert apagada.status == HTTPStatus.OK, apagada.corpo
-    assert "ramo_base" not in kernel.obter_estado().nos["proj-01"].propriedades
-    assert apagada.corpo["operacao"]["ramo_base"] is None
+    assert "gravacao_do_gerente" not in kernel.obter_estado().nos["proj-01"].propriedades
+    assert apagada.corpo["operacao"]["gravacao_do_gerente"] is None
+    assert de_novo.status == HTTPStatus.OK and kernel.obter_estado().versao_log == versao
 
 
 def test_gravacao_do_gerente_grava_e_recusa_valor_fora_do_dominio_nominal() -> None:

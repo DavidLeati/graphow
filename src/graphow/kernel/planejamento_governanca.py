@@ -6,11 +6,11 @@ sobrescrita do gesto. Quem chama decide só a identidade e o canal; o plano de
 operações, o texto das recusas e a política efetiva que a gravação produz saem
 daqui, para o MCP e a web não divergirem.
 
-Também mora aqui a escrita das propriedades operacionais do Projeto (ramo
-base, globs de colisão e quando o gerente grava), que a tela grava no mesmo
-lote. A cadência e o teto de rodadas, que diziam quando a raiz da orquestração
-por LLM parava, saíram com ela na fase 1; o valor que um Projeto antigo
-guarde fica na propriedade, sem ninguém que o leia.
+Também mora aqui a escrita da propriedade operacional do Projeto (quando o
+gerente grava), que a tela grava no mesmo lote. As outras saíram com quem as
+lia: a cadência e o teto de rodadas com a orquestração por LLM, na fase 1, e
+as duas do ramo do git do Goal com a conferência de colisões, na fase 3. O
+valor que um nó antigo guarde fica na propriedade, sem ninguém que o leia.
 """
 
 from collections.abc import Mapping
@@ -29,7 +29,6 @@ from graphow.core.governanca import (
     validar_configuracao_global,
 )
 from graphow.core.models import GrafoEstado, NoGrafo
-from graphow.core.orquestracao import CAMPO_CAMINHOS_DE_COLISAO, CAMPO_RAMO_BASE
 from graphow.core.types import TipoNo
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch
 from graphow.kernel.politica_governanca import resolver_politica_do_projeto, resolver_politica_global
@@ -45,11 +44,7 @@ ROTULO_DA_GOVERNANCA_GLOBAL: str = "Governanca global"
 CAMPO_GRAVACAO_DO_GERENTE: str = "gravacao_do_gerente"
 GRAVACAO_APOS_APROVACAO: str = "apos_aprovacao"
 GRAVACOES_DO_GERENTE_ACEITAS: tuple[str, ...] = (GRAVACAO_APOS_APROVACAO, "durante_alinhamento")
-PROPRIEDADES_OPERACIONAIS: tuple[str, ...] = (
-    CAMPO_RAMO_BASE,
-    CAMPO_CAMINHOS_DE_COLISAO,
-    CAMPO_GRAVACAO_DO_GERENTE,
-)
+PROPRIEDADES_OPERACIONAIS: tuple[str, ...] = (CAMPO_GRAVACAO_DO_GERENTE,)
 
 
 class ErroDeConfiguracaoDeGovernanca(ValueError):
@@ -171,28 +166,9 @@ def _problemas_da_operacao(chave: Any, valor: Any) -> list[str]:
     """Problemas de um par propriedade-valor das propriedades operacionais."""
     if chave not in PROPRIEDADES_OPERACIONAIS:
         return [f"propriedade operacional desconhecida {chave!r}: use {', '.join(PROPRIEDADES_OPERACIONAIS)}"]
-    if valor is None or _valor_operacional_valido(chave, valor):
+    if valor is None or valor in GRAVACOES_DO_GERENTE_ACEITAS:
         return []
-    return [f"valor {valor!r} invalido para '{chave}': {_dominio_operacional(chave)}"]
-
-
-def _valor_operacional_valido(chave: str, valor: Any) -> bool:
-    """Confere o valor contra o domínio da propriedade operacional."""
-    if chave == CAMPO_GRAVACAO_DO_GERENTE:
-        return valor in GRAVACOES_DO_GERENTE_ACEITAS
-    if chave == CAMPO_RAMO_BASE:
-        return isinstance(valor, str) and bool(valor.strip())
-    return isinstance(valor, list) and all(isinstance(item, str) and item.strip() for item in valor)
-
-
-def _dominio_operacional(chave: str) -> str:
-    """O domínio da propriedade operacional em texto, para a mensagem de recusa."""
-    dominios = {
-        CAMPO_RAMO_BASE: "um texto nao vazio",
-        CAMPO_CAMINHOS_DE_COLISAO: "uma lista de globs (textos nao vazios)",
-        CAMPO_GRAVACAO_DO_GERENTE: f"um de {', '.join(GRAVACOES_DO_GERENTE_ACEITAS)}",
-    }
-    return dominios[chave]
+    return [f"valor {valor!r} invalido para '{chave}': um de {', '.join(GRAVACOES_DO_GERENTE_ACEITAS)}"]
 
 
 def _recusar_operacao(problemas: list[str]) -> ErroDeConfiguracaoDeGovernanca:

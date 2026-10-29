@@ -19,8 +19,6 @@ const ICONES_DOS_PRESETS = {
 };
 
 const CAMPOS_DA_OPERACAO = [
-  ["ramo_base", "Ramo base"],
-  ["caminhos_de_colisao", "Caminhos de colisão"],
   ["gravacao_do_gerente", "Gravação do gerente"],
 ];
 
@@ -115,15 +113,10 @@ function htmlDoCampoDaOperacao(chave, rotulo, catalogo, valores) {
   const nota = `<span class="campo-nota">${escapeHtml(meta.descricao || "")}</span>`;
   const valor = valores[chave];
   const atributos = `data-campo-operacao="${chave}" id="cfg-operacao-${chave}"`;
-  let controle = `<input class="entrada" type="text" ${atributos} value="${escapeHtml(valor)}">`;
-  if (chave === "gravacao_do_gerente") {
-    const nome = (opcao) => NOMES_DA_GRAVACAO_DO_GERENTE[opcao] || opcao;
-    const opcoes = (meta.valores || []).map((opcao) => `<option value="${escapeHtml(opcao)}" ${opcao === valor ? "selected" : ""}>${escapeHtml(nome(opcao))}</option>`);
-    const padrao = meta.padrao ? ` (${nome(meta.padrao)})` : "";
-    controle = `<select class="seletor" ${atributos}><option value="" ${valor ? "" : "selected"}>Padrão${escapeHtml(padrao)}</option>${opcoes.join("")}</select>`;
-  } else if (chave === "caminhos_de_colisao") {
-    controle = `<textarea class="entrada mod-area" rows="3" ${atributos} placeholder="Um glob por linha">${escapeHtml(valor)}</textarea>`;
-  }
+  const nome = (opcao) => NOMES_DA_GRAVACAO_DO_GERENTE[opcao] || opcao;
+  const opcoes = (meta.valores || []).map((opcao) => `<option value="${escapeHtml(opcao)}" ${opcao === valor ? "selected" : ""}>${escapeHtml(nome(opcao))}</option>`);
+  const padrao = meta.padrao ? ` (${nome(meta.padrao)})` : "";
+  const controle = `<select class="seletor" ${atributos}><option value="" ${valor ? "" : "selected"}>Padrão${escapeHtml(padrao)}</option>${opcoes.join("")}</select>`;
   return `<div class="campo"><label class="campo-rotulo" for="cfg-operacao-${chave}">${escapeHtml(rotulo)}</label>${controle}${nota}</div>`;
 }
 

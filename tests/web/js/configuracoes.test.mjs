@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  cartoesDoEscopo, corpoDoGesto, corpoDoPreset, listaDeCaminhos, linhasDaTabela, mensagemDeRecusa, nomeDoValor, operacaoDoFormulario,
+  cartoesDoEscopo, corpoDoGesto, corpoDoPreset, linhasDaTabela, mensagemDeRecusa, nomeDoValor, operacaoDoFormulario,
   ehGestoInteiro, pedeNumero, rotuloDaOrigem, valorDoCampoNumerico, valorDoCatalogo,
 } from "../../../src/graphow/web/static/js/configuracoes_modelo.js";
 import {
@@ -31,8 +31,6 @@ const CATALOGO = {
     { preset: "personalizada", descricao: "Você escolhe" },
   ],
   operacao: {
-    ramo_base: { descricao: "Ramo" },
-    caminhos_de_colisao: { descricao: "Globs" },
     gravacao_do_gerente: { descricao: "Quando o gerente grava", valores: ["apos_aprovacao", "durante_alinhamento"], padrao: "apos_aprovacao" },
   },
 };
@@ -49,7 +47,7 @@ const PROJETO_PERSONALIZADO = {
   politica_global: { responder_questao: "arbitro", max_correcoes: 2 },
   politica_efetiva: { responder_questao: "humano", max_correcoes: 2 },
   origens: { responder_questao: "projeto", max_correcoes: "global" },
-  operacao: { ramo_base: null, caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" },
+  operacao: { gravacao_do_gerente: "durante_alinhamento" },
 };
 
 test("a origem do valor vira texto curto e o legado continua legível", () => {
@@ -90,11 +88,10 @@ test("o valor escolhido volta como o catálogo o declara: o inteiro de max_corre
 });
 
 test("a operação em branco apaga as propriedades, e a cheia vai como o backend aceita", () => {
-  const vazia = operacaoDoFormulario({ ramo_base: "  ", caminhos_de_colisao: "" });
-  assert.deepEqual(vazia.corpo.operacao, { ramo_base: null, caminhos_de_colisao: null, gravacao_do_gerente: null });
-  const cheia = operacaoDoFormulario({ ramo_base: "main", caminhos_de_colisao: "src/**\n\n tests/** ", gravacao_do_gerente: "durante_alinhamento" });
-  assert.deepEqual(cheia.corpo.operacao, { ramo_base: "main", caminhos_de_colisao: ["src/**", "tests/**"], gravacao_do_gerente: "durante_alinhamento" });
-  assert.equal(listaDeCaminhos("   \n"), null);
+  const vazia = operacaoDoFormulario({ gravacao_do_gerente: "  " });
+  assert.deepEqual(vazia.corpo.operacao, { gravacao_do_gerente: null });
+  const cheia = operacaoDoFormulario({ gravacao_do_gerente: "durante_alinhamento" });
+  assert.deepEqual(cheia.corpo.operacao, { gravacao_do_gerente: "durante_alinhamento" });
 });
 
 test("a recusa do servidor leva os problemas, sem repeti-los quando a mensagem já os traz", () => {
@@ -129,12 +126,11 @@ test("na Personalizada do projeto cada gesto é um seletor com a opção Herdar"
   assert.match(tabela, /value="humano" selected/);
 });
 
-test("a operação mostra o que está gravado e a lista de caminhos uma por linha", () => {
-  const valores = { ramo_base: "", caminhos_de_colisao: "src/**\ntests/**", gravacao_do_gerente: "durante_alinhamento" };
-  const html = htmlDaOperacao(CATALOGO, valores, false);
+test("a operação mostra o que está gravado e só a gravação do gerente", () => {
+  const html = htmlDaOperacao(CATALOGO, { gravacao_do_gerente: "durante_alinhamento" }, false);
   assert.match(html, /<option value="durante_alinhamento" selected>/);
-  assert.doesNotMatch(html, /cadencia|teto_rodadas/);
-  assert.match(html, /src\/\*\*\ntests\/\*\*<\/textarea>/);
+  assert.deepEqual(html.match(/data-campo-operacao="[^"]*"/g), ['data-campo-operacao="gravacao_do_gerente"']);
+  assert.doesNotMatch(html, /<input|<textarea/);
 });
 
 test("a gravação do gerente é um seletor que mostra o padrão quando o projeto não a definiu", () => {
