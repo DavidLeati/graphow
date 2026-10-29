@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-47 módulos · 8766 linhas · 68 classes
+48 módulos · 8841 linhas · 69 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,12 +18,13 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 195 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 373 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
+| [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 82 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
@@ -54,11 +55,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
-| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 290 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
+| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 281 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 250 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 251 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 93 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
 ## `orquestrador/aceite_intocado.py`
@@ -298,6 +299,28 @@ O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite
 - `operacoes_das_decisoes(livro: LivroRazaoDoGoal, id_task: str, tentativa: int) -> list[ItemPatch]` — Cada decisão do executor como Decision marcada como do agente, que orienta a fatia.
 - `linhas_das_decisoes(decisoes: Sequence[DecisaoDoAgente], novas: Sequence[Mapping[str, Any]]) -> list[str]` — As decisões do agente para o documento: a fatia pelo código dela (F1), a questão, a decisão e o motivo.
 - `documentar_decisoes(contexto: ContextoDoGoal, fatia: FatiaRegistrada, novas: Sequence[Mapping[str, Any]]) -> None` — A seção das decisões do agente no documento do Goal, com as novas, para entrar no commit da fatia.
+
+## `orquestrador/diff_das_correcoes.py`
+
+O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMITE_DO_CORPO` | `int` | `8000` |
+| `RESUMO_SEM_ABREVIAR` | `tuple[str, ...]` | `('--stat=1000,900', '--stat-graph-width=20')` |
+| `PASTAS_DE_TESTE` | `frozenset[str]` | `frozenset({'tests', 'test', '__tests__', 'spec'})` |
+| `NOME_DE_TESTE` | `re.Pattern[str]` | `re.compile('^test_|[._-](test|spec)\\.[^.]+$')` |
+
+### `CorpoDoDiff`
+
+*DTO imutável* — O corpo que coube no limite, o arquivo cortado no meio e os que ficaram de fora.
+
+**Campos:** `texto: str`, `cortado: str`, `fora: tuple[str, ...]`
+
+### Funções do módulo
+
+- `diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str` — O resumo e o corpo do diff do commit da verificação anterior até o atual, sem o documento do Goal; vazio sem o commit de antes.
+- `prioridade_no_diff(caminho: str) -> int` — A ordem do arquivo no corpo: `src/`, os testes, o resto e, por último, `docs/` e o README.
 
 ## `orquestrador/documento_do_goal.py`
 
@@ -1392,7 +1415,6 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 | `TIPO_CONFERENCIA` | `str` | `'conferencia'` |
 | `TIPOS_DE_VERIFICACAO` | `tuple[str, ...]` | `(TIPO_CACA, TIPO_MARCO, TIPO_CONFERENCIA)` |
 | `PAPEL_DO_TIPO` | `Mapping[str, str]` | `{TIPO_CACA: PAPEL_VERIFICADOR, TIPO_MARCO: PAPEL_VERIFICADOR_DO_MARCO, …` |
-| `LIMITE_DO_DIFF_DAS_CORRECOES` | `int` | `8000` |
 
 ### `TipoDaVerificacao`
 
@@ -1414,7 +1436,6 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 - `que_podem_regredir(atendiam: Sequence[str], arquivos: Mapping[str, frozenset[str]], diff: frozenset[str] | None) -> tuple[str, ...]` — Os critérios que atendiam e cujos arquivos o diff das correções toca; sem o diff ou sem os arquivos de um, ele entra.
 - `na_conferencia(verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado], excedentes: Sequence[AchadoRegistrado]) -> Verificacao` — A conferência com o destino de cada achado do verificador e um bloqueante por conferido que persiste.
 - `com_os_pareceres_sustentados(verificacao: Verificacao, anteriores: Sequence[Parecer], conferidos: Sequence[AchadoRegistrado]) -> Verificacao` — O critério ou a decisão que a conferência reprova sem bloqueante que o toque fica `atende`, qualquer que fosse o parecer de antes.
-- `diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str` — O diff do commit da verificação anterior até o atual, sem o documento do Goal, cortado; vazio sem o commit de antes.
 
 ## `orquestrador/trava_do_git.py`
 

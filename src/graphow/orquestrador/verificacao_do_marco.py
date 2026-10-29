@@ -43,6 +43,7 @@ from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit, rodar_o_aceite
 from graphow.orquestrador.briefing import PedidoDaConferencia, briefing_da_conferencia, briefing_do_verificador
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
 from graphow.orquestrador.git_do_goal import descartar_mudancas, mensagem_do_orquestrador
 from graphow.orquestrador.gravacao_da_verificacao import RegistroDaVerificacao, gravar_verificacao
@@ -53,7 +54,7 @@ from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, 
 from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
-from graphow.orquestrador.tipo_da_verificacao import TipoDaVerificacao, diff_das_correcoes, escolher_o_tipo
+from graphow.orquestrador.tipo_da_verificacao import TipoDaVerificacao, escolher_o_tipo
 
 
 def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:

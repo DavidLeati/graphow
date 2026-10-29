@@ -13,10 +13,13 @@ from typing import Any
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes
+from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.historico_da_correcao import MAXIMO_DE_CHAMADAS, chamadas_que_reproduzem
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado, VerificacaoRegistrada
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 
+from tests.orquestrador.apoio_git import criar_repositorio, git
 from tests.orquestrador.apoio_laco import autor_de_aceite, montar_bancada, roteiro_completo
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
@@ -108,3 +111,52 @@ def test_briefing_da_correcao_agrupada_fala_no_plural_e_diz_que_ela_se_divide_no
     assert "Esta fatia corrige 5 achados bloqueantes que a verificacao ver-2 do Goal cobrou." in briefing
     assert "## Achados que esta fatia corrige" in briefing
     assert "## Chamadas que reproduzem os achados, da verificacao de cada um (rode-as antes e depois da correcao)" in briefing
+
+
+def _diff_grande(tmp_path: Path) -> tuple[Path, str]:
+    """Um repositório cuja correção muda 26 arquivos: 20 em `docs/`, o README, três em `src/`, um teste e o documento do Goal."""
+    linhas = "".join(f"linha {n} do texto gerado\n" for n in range(60))
+    repositorio = criar_repositorio(tmp_path / "repo", {"README.md": "# x\n", "src/pacote/__init__.py": ""})
+    antes = git(repositorio, "rev-parse", "HEAD").strip()
+    arquivos = {**{f"docs/catalogo_{n:02d}.md": linhas for n in range(20)}, "README.md": "# x\n" + linhas,
+                "src/pacote/__init__.py": "VERSAO = 2\n", "src/pacote/agenda.py": "def agendar():\n    return 'ok'\n",
+                "src/pacote/lembrete.py": "def lembrar():\n    return 'ja'\n", "tests/test_agenda.py": "def test_agendar():\n    pass\n",
+                "docs/goals/agenda.md": "# Goal\n" + linhas}
+    for nome, conteudo in arquivos.items():
+        (repositorio / nome).parent.mkdir(parents=True, exist_ok=True)
+        (repositorio / nome).write_text(conteudo, encoding="utf-8", newline="\n")
+    git(repositorio, "add", "-A")
+    git(repositorio, "commit", "-q", "-m", "Correcoes")
+    return repositorio, antes
+
+
+def test_diff_grande_traz_o_resumo_inteiro_o_corpo_de_src_e_o_aviso_do_corte_edge_case(tmp_path: Path) -> None:
+    """T2i.2: de 25 arquivos (sem o documento do Goal), o resumo traz todos, o corpo começa por `src/` e o aviso diz o que ficou de fora."""
+    repositorio, antes = _diff_grande(tmp_path)
+
+    diff = diff_das_correcoes(GitDoGoal(repositorio), antes, "agenda")
+
+    resumo, corpo = diff.split("Corpo, com `src/`")
+    assert "25 files changed" in resumo and "docs/goals/agenda.md" not in diff
+    assert all(f"docs/catalogo_{n:02d}.md" in resumo for n in range(20)) and "README.md" in resumo
+    ordem = ["src/pacote/__init__.py", "src/pacote/agenda.py", "src/pacote/lembrete.py", "tests/test_agenda.py", "README.md",
+             "docs/catalogo_00.md"]
+    assert [corpo.index(f"+++ b/{nome}") for nome in ordem] == sorted(corpo.index(f"+++ b/{nome}") for nome in ordem)
+    assert "+def lembrar():" in corpo and "+def test_agendar():" in corpo
+    aviso = corpo.split("Aviso: o corpo vai ate 8000 caracteres. ")[1]
+    assert aviso.startswith("O diff de docs/catalogo_03.md foi cortado no meio; ficaram de fora: docs/catalogo_04.md, ")
+    assert "docs/catalogo_19.md" in aviso and "src/" not in aviso and "tests/" not in aviso
+    assert f"`git diff {antes[:12]}..HEAD -- <arquivo>`" in aviso
+
+
+def test_diff_que_cabe_vai_inteiro_sem_aviso_nominal(tmp_path: Path) -> None:
+    """O diff pequeno vai com o resumo e o corpo inteiro, sem aviso de corte."""
+    repositorio = criar_repositorio(tmp_path / "repo", {"README.md": "# x\n", "soma.py": "def somar(a, b):\n    return 0\n"})
+    antes = git(repositorio, "rev-parse", "HEAD").strip()
+    (repositorio / "soma.py").write_text("def somar(a, b):\n    return a + b\n", encoding="utf-8", newline="\n")
+    git(repositorio, "commit", "-q", "-am", "Correcao")
+
+    diff = diff_das_correcoes(GitDoGoal(repositorio), antes, "soma")
+
+    assert "soma.py | 2 +-" in diff and "+    return a + b" in diff and "Aviso" not in diff
+    assert diff_das_correcoes(GitDoGoal(repositorio), "", "soma") == ""

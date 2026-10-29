@@ -15,7 +15,8 @@ convergia. Agora o laço escolhe o tipo pelo que o marco já teve:
   correção, em qualquer marco (papel `conferencia`, Sonnet,
   `--modelo-conferencia`). Roda a suíte e o aceite, reproduz cada achado que
   as correções trataram e confere regressão nos critérios que elas tocaram,
-  com um briefing curto: os achados, as provas e o diff das correções. Não caça
+  com um briefing curto: os achados, as provas e o diff das correções
+  (orquestrador/diff_das_correcoes.py). Não caça
   bordas: dá um parecer por achado conferido, `corrigido` ou `persiste`, com a
   prova (faltar um é saída inválida); o que persiste é bloqueante, o achado
   novo só vale se for regressão de critério, e o resto vira acompanhamento
@@ -59,7 +60,6 @@ from dataclasses import dataclass, replace
 
 from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.esquemas import PAPEL_CONFERENCIA, PAPEL_VERIFICADOR, PAPEL_VERIFICADOR_DO_MARCO
 from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
@@ -84,8 +84,6 @@ TIPOS_DE_VERIFICACAO: tuple[str, ...] = (TIPO_CACA, TIPO_MARCO, TIPO_CONFERENCIA
 PAPEL_DO_TIPO: Mapping[str, str] = {
     TIPO_CACA: PAPEL_VERIFICADOR, TIPO_MARCO: PAPEL_VERIFICADOR_DO_MARCO, TIPO_CONFERENCIA: PAPEL_CONFERENCIA,
 }
-# Quanto do diff das correções vai à conferência.
-LIMITE_DO_DIFF_DAS_CORRECOES: int = 8000
 
 
 @dataclass(frozen=True)
@@ -281,10 +279,3 @@ def _reprovado_sem_achado(parecer: Parecer, marca: str) -> Achado:
                   criterios=() if decisao else (parecer.id,), decisoes=(parecer.id,) if decisao else (),
                   rebaixado_na_conferencia=marca)
 
-
-def diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str:
-    """O diff do commit da verificação anterior até o atual, sem o documento do Goal, cortado; vazio sem o commit de antes."""
-    if not antes:
-        return ""
-    saida = git.tentar("diff", f"{antes}..HEAD", "--", ".", f":(exclude){caminho_do_documento(slug)}").saida
-    return saida[:LIMITE_DO_DIFF_DAS_CORRECOES]

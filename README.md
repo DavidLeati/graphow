@@ -986,7 +986,10 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    correção, em qualquer marco, com um briefing curto (os achados que as
    correções trataram, as provas e as chamadas que os reproduzem, os pareceres
    de antes, os desacordos sobre testes de aceite, como na verificação, e o
-   diff das correções): roda a suíte e o aceite, reproduz cada
+   diff das correções: o `--stat` de todos os arquivos e o corpo, com `src/` e
+   os testes antes de `docs/` e do README, até 8000 caracteres e com o aviso
+   do que ficou de fora, `orquestrador/diff_das_correcoes.py`): roda a suíte
+   e o aceite, reproduz cada
    achado e confere regressão nos critérios que as correções tocaram. Na
    conferência, cada achado conferido ganha um parecer em `conferidos`,
    `corrigido` ou `persiste`, com a prova (faltar um é saída inválida, e a

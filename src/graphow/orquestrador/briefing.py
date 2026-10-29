@@ -12,8 +12,9 @@ implementaram. A conferência, a verificação de depois de uma correção,
 recebe um briefing curto: os critérios, os desacordos sobre testes de aceite
 (como o verificador: o do executor da correção não tem outra verificação que
 o julgue), os achados que ela confere com a prova e as chamadas que os
-reproduzem, os pareceres da verificação anterior e o diff das correções
-(orquestrador/tipo_da_verificacao.py).
+reproduzem, os pareceres da verificação anterior e o diff das correções, com o
+resumo de todos os arquivos e o corpo do código primeiro
+(orquestrador/tipo_da_verificacao.py, orquestrador/diff_das_correcoes.py).
 """
 
 from collections.abc import Mapping, Sequence
@@ -317,7 +318,7 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
                [f"- {achado.id}: {achado.texto('titulo')} ({achado.texto('local') or 'sem local'})" for achado in pedido.excedentes]),
         _bloco(f"Pareceres da verificacao anterior ({anterior.id if anterior else '-'})",
                [f"- {p.get('id')} {p.get('veredito')}: {p.get('prova', '')}" for p in (pareceres or []) if isinstance(p, Mapping)]),
-        f"## Diff das correcoes\n```diff\n{pedido.diff}\n```" if pedido.diff else "",
+        "## Diff das correcoes\n" + pedido.diff if pedido.diff else "",
         "Devolva a conferencia no JSON do schema, com um parecer para cada criterio acima"
         + (" e para cada decisao" if marco.final else "") + (", e um em `diferencas` para cada diferenca acima" if pedido.diferencas else "")
         + (", e um em `conferidos` para cada achado conferido: `corrigido` ou `persiste`, com a prova (o comando que o "
