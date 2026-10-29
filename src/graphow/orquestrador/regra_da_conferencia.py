@@ -29,16 +29,21 @@ Uma regressão que cita X está confirmada se as duas condições valem:
   - um arquivo das fatias do plano de X (sem as fatias de correção);
   - um arquivo que não pertence a nenhum critério ("sem como saber").
 
-O código só muda o parecer que a conferência reprova: com as três condições,
-sem bloqueante que o toque e com um motivo para atender (atendia antes, ou um
-conferido bloqueante o citava), ele sai `atende`, e o parecer dela vira
-acompanhamento marcado. O critério em desacordo sobre o teste de aceite (o
-executor disse que o teste está errado e o autor o manteve, ou o refazer
-ficou com o antigo) ela julga, e o parecer dela vale como está. O `atende`
-que ela dá fica: o conferido que persiste, a regressão confirmada e o teste
-de aceite que falha já são bloqueantes. Sem o diff, ele vale como "sem como
-saber". O excedente sai de pendente quando um achado que o repete (a cadeia
-de `persiste`) é resolvido, ou recebe `corrigido` agora.
+O parecer que a conferência reprova, com as três condições, sem bloqueante
+que o toque e com um motivo para atender (atendia antes, ou um conferido
+bloqueante o citava), sai `atende`, e o parecer dela vira acompanhamento
+marcado. O critério em desacordo sobre o teste de aceite (o executor disse
+que o teste está errado e o autor o manteve, ou o refazer ficou com o antigo)
+ela julga, e o parecer dela vale como está. O `atende` que ela dá fica, menos
+com um excedente do teto pendente que o cita: na revisão da T2k+T2l, a
+conferência dava C2 `atende` sem citar o 6º bloqueante, e o Goal fechava com
+ele só em pendência. Agora o critério sai `parcial`, e o excedente volta como
+bloqueante, com o `persiste` dele, dentro do teto: é um achado conhecido, como
+o conferido que persiste, e não uma borda nova, e a conferência seguinte o
+confere. O conferido que persiste, a regressão confirmada e o teste de aceite
+que falha já são bloqueantes. Sem o diff, ele vale como "sem como saber". O
+excedente sai de pendente quando um achado que o repete (a cadeia de
+`persiste`) é resolvido, ou recebe `corrigido` agora.
 """
 
 from collections.abc import Mapping, Sequence
@@ -80,15 +85,32 @@ class RegraDaConferencia:
                    for id_x in regressao.toca)
 
     def com_os_pareceres(self, verificacao: Verificacao) -> Verificacao:
-        """O que a conferência reprova sem bloqueante que o toque, e que a regra dá por `atende`, sai `atende`, com o parecer dela em acompanhamento."""
+        """O que ela reprova sem bloqueante que o toque, e que a regra dá por `atende`, sai `atende`; o `atende` com excedente pendente, não."""
         tocados = {id_t for achado in verificacao.achados if achado.gravidade == a.GRAVIDADE_BLOQUEANTE for id_t in achado.toca}
         soltos = {p.id: p for p in (*verificacao.criterios, *verificacao.decisoes) if p.veredito != a.VEREDITO_QUE_ATENDE
                   and p.id not in tocados and self._viraria_atende(p.id, verificacao)}
         no_lugar = {id_x: self._no_lugar(id_x, verificacao) for id_x in soltos}
-        return replace(
+        return self._com_os_excedentes(replace(
             verificacao, criterios=tuple(no_lugar[p.id][0] if p.id in soltos else p for p in verificacao.criterios),
             decisoes=tuple(no_lugar[p.id][0] if p.id in soltos else p for p in verificacao.decisoes),
             achados=(*verificacao.achados, *(_reprovado_sem_achado(p, no_lugar[p.id][1]) for p in soltos.values())),
+        ))
+
+    def _com_os_excedentes(self, verificacao: Verificacao) -> Verificacao:
+        """O `atende` que ela deu com excedente do teto pendente que o cita sai `parcial`, e o excedente volta bloqueante, com o `persiste`."""
+        pendentes = self._pendentes(verificacao)
+        presos = {p.id: [e.id for e in pendentes if p.id in _o_que_cita(e)] for p in (*verificacao.criterios, *verificacao.decisoes)
+                  if p.veredito == a.VEREDITO_QUE_ATENDE}
+        presos = {id_x: ids for id_x, ids in presos.items() if ids}
+        listados = {achado.persiste for achado in verificacao.achados}
+        de_volta = [e for e in pendentes if e.id not in listados and any(e.id in ids for ids in presos.values())]
+        trocado = {p.id: Parecer(p.id, a.VEREDITO_PARCIAL, f"o excedente do teto que o cita segue pendente ({', '.join(presos[p.id])}); "
+                                 f"a conferencia deu atende: {p.prova}")
+                   for p in (*verificacao.criterios, *verificacao.decisoes) if p.id in presos}
+        return replace(
+            verificacao, criterios=tuple(trocado.get(p.id, p) for p in verificacao.criterios),
+            decisoes=tuple(trocado.get(p.id, p) for p in verificacao.decisoes),
+            achados=(*verificacao.achados, *(copia_que_persiste(e, e.texto("prova")) for e in de_volta)),
         )
 
     def _atendia(self, id_x: str) -> bool:
@@ -107,8 +129,13 @@ class RegraDaConferencia:
     def _resolvido(self, id_x: str, verificacao: Verificacao) -> bool:
         """Condição 1: os conferidos que citam X receberam `corrigido`, e nenhum excedente que o cita segue pendente."""
         corrigidos = frozenset(verificacao.confirmados)
-        pendentes = (e for e in self.excedentes if not self.repeticoes.get(e.id, frozenset()) & corrigidos)
-        return all(c.id in corrigidos for c in self._citam(id_x)) and not any(id_x in _o_que_cita(e) for e in pendentes)
+        return (all(c.id in corrigidos for c in self._citam(id_x))
+                and not any(id_x in _o_que_cita(e) for e in self._pendentes(verificacao)))
+
+    def _pendentes(self, verificacao: Verificacao) -> tuple[AchadoRegistrado, ...]:
+        """Os excedentes do teto que seguem pendentes: nenhum achado que os repete recebeu `corrigido` agora."""
+        corrigidos = frozenset(verificacao.confirmados)
+        return tuple(e for e in self.excedentes if not self.repeticoes.get(e.id, frozenset()) & corrigidos)
 
     def _no_diff(self, regressao: Achado, id_x: str) -> bool:
         """O diff toca o local da regressão, um arquivo do plano de X ou um que não é de critério nenhum; sem o diff, toca."""
@@ -132,6 +159,13 @@ class RegraDaConferencia:
 def _sem_aceite_vermelho(id_x: str, verificacao: Verificacao) -> bool:
     """Condição 3: nenhum achado do orquestrador (o teste de aceite que falhou, a configuração que o esconde) cita X."""
     return not any(achado.origem == ORIGEM_DO_ORQUESTRADOR and id_x in achado.toca for achado in verificacao.achados)
+
+
+def copia_que_persiste(original: AchadoRegistrado, prova: str) -> Achado:
+    """O achado conhecido que persiste (o conferido, ou o excedente do teto), como ele era, com a prova dada: bloqueante."""
+    return Achado(original.texto("titulo"), original.texto("descricao"), prova=prova, local=original.texto("local"),
+                  criterios=original.lista("criterios"), decisoes=original.lista("decisoes"),
+                  severidade=original.texto("severidade"), reproducao=original.lista("reproducao"), persiste=original.id)
 
 
 def _o_que_cita(achado: AchadoRegistrado) -> tuple[str, ...]:

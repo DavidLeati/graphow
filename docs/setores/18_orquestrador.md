@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-50 módulos · 9234 linhas · 70 classes
+50 módulos · 9260 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -44,7 +44,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 248 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
-| [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 158 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
+| [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 192 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 89 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 101 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
@@ -57,7 +57,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
-| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 248 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
+| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 240 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -1007,10 +1007,11 @@ A regra da conferência num ponto só: o que ela reprova e o código dá por `at
 **Campos:** `conferidos: tuple[AchadoRegistrado, ...]`, `excedentes: tuple[AchadoRegistrado, ...]`, `repeticoes: Mapping[str, frozenset[str]]`, `anteriores: tuple[Parecer, ...]`, `diff: frozenset[str] | None`, `arquivos: Mapping[str, frozenset[str]]`, `em_desacordo: frozenset[str]`
 
 - `confirmada(regressao: Achado, verificacao: Verificacao) -> bool` — A regressão cita um X que atendia ou viraria `atende`, e o diff das correções toca o local, o plano de X ou arquivo sem critério.
-- `com_os_pareceres(verificacao: Verificacao) -> Verificacao` — O que a conferência reprova sem bloqueante que o toque, e que a regra dá por `atende`, sai `atende`, com o parecer dela em acompanhamento.
+- `com_os_pareceres(verificacao: Verificacao) -> Verificacao` — O que ela reprova sem bloqueante que o toque, e que a regra dá por `atende`, sai `atende`; o `atende` com excedente pendente, não.
 
 ### Funções do módulo
 
+- `copia_que_persiste(original: AchadoRegistrado, prova: str) -> Achado` — O achado conhecido que persiste (o conferido, ou o excedente do teto), como ele era, com a prova dada: bloqueante.
 - `repeticoes_de(achados: Sequence[AchadoRegistrado], id_achado: str) -> frozenset[str]` — Os achados que repetem o dado pela cadeia de `persiste` (a cópia da cópia inclusive), sem ele.
 
 ## `orquestrador/replanejamento.py`

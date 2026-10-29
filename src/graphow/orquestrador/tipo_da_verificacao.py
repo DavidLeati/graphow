@@ -55,7 +55,7 @@ from graphow.orquestrador.esquemas import PAPEL_CONFERENCIA, PAPEL_VERIFICADOR, 
 from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
-from graphow.orquestrador.regra_da_conferencia import RegraDaConferencia, repeticoes_de
+from graphow.orquestrador.regra_da_conferencia import RegraDaConferencia, copia_que_persiste, repeticoes_de
 from graphow.orquestrador.saida_do_verificador import (
     MARCA_DA_CONFERENCIA,
     MARCA_DA_REGRESSAO,
@@ -63,7 +63,6 @@ from graphow.orquestrador.saida_do_verificador import (
     ORIGEM_DO_VERIFICADOR,
     Achado,
     Parecer,
-    ParecerDoConferido,
     Verificacao,
 )
 
@@ -220,17 +219,10 @@ def na_conferencia(verificacao: Verificacao, regra: RegraDaConferencia) -> Verif
     por_id = {achado.id: achado for achado in (*regra.excedentes, *regra.conferidos)}
     achados = tuple(_com_o_destino(achado, por_id, regra=regra, verificacao=verificacao) for achado in verificacao.achados)
     listados = {achado.persiste for achado in achados}
-    repetidos = tuple(_o_que_persiste(parecer, por_id[parecer.achado]) for parecer in verificacao.conferidos
+    repetidos = tuple(copia_que_persiste(por_id[parecer.achado], parecer.prova) for parecer in verificacao.conferidos
                       if parecer.persiste and parecer.achado in por_id and parecer.achado not in listados)
     proprios = tuple(achado for achado in achados if achado.origem == ORIGEM_DO_VERIFICADOR)
     return replace(verificacao, achados=(*proprios, *repetidos, *(x for x in achados if x.origem != ORIGEM_DO_VERIFICADOR)))
-
-
-def _o_que_persiste(parecer: ParecerDoConferido, original: AchadoRegistrado) -> Achado:
-    """O achado conferido que persiste, como ele era, com a prova nova."""
-    return Achado(original.texto("titulo"), original.texto("descricao"), prova=parecer.prova, local=original.texto("local"),
-                  criterios=original.lista("criterios"), decisoes=original.lista("decisoes"),
-                  severidade=original.texto("severidade"), reproducao=original.lista("reproducao"), persiste=original.id)
 
 
 def _com_o_destino(

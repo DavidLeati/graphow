@@ -20,7 +20,14 @@ from graphow.orquestrador.regra_da_conferencia import RegraDaConferencia
 from graphow.orquestrador.tipo_da_verificacao import TIPO_CONFERENCIA, TipoDaVerificacao
 
 from tests.orquestrador.apoio_git import git
-from tests.orquestrador.apoio_laco import montar_bancada, roteiro_completo, segunda_opiniao, verificacao
+from tests.orquestrador.apoio_laco import (
+    executor_pronto,
+    montar_bancada,
+    revisao,
+    roteiro_completo,
+    segunda_opiniao,
+    verificacao,
+)
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 # A borda que a fase 2 caçava: toca C2, mas nenhum usuário do README a produz.
@@ -167,9 +174,15 @@ def test_o_que_o_orquestrador_viu_falhar_fica_dentro_do_teto_edge_case() -> None
 
 
 def test_excedentes_do_teto_ficam_visiveis_como_pendencia_no_laco_nominal(tmp_path: Path) -> None:
-    """T2c.3 no laço: os 5 bloqueantes viram correção; os 3 do teto ficam nós Achado pendentes e pendências marcadas."""
+    """T2c.3 no laço: os 5 bloqueantes viram correção; os 3 do teto ficam nós Achado pendentes e pendências marcadas.
+
+    A conferência que dá C2 `atende` sem citá-los não fecha o Goal com eles
+    pendentes (T2m.1): os 3 voltam como bloqueantes, e a seguinte os confere.
+    """
     roteiro = roteiro_completo()
-    roteiro["verificador"] = [verificacao("parcial", _oito_bloqueantes()), verificacao("atende")]
+    roteiro["executor"].append(executor_pronto({"README.md": "# brinquedo\nUse somar(a, b): somar(2, 3) == 5. Sem falhas.\n"}))
+    roteiro["verificador"] = [verificacao("parcial", _oito_bloqueantes()), verificacao("atende"), verificacao("atende")]
+    roteiro["revisor"] = [revisao() for _ in range(8)]
     bancada = montar_bancada(tmp_path, roteiro)
 
     assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
@@ -178,6 +191,7 @@ def test_excedentes_do_teto_ficam_visiveis_como_pendencia_no_laco_nominal(tmp_pa
     assert estado is not None
     primeira = estado.verificacoes[0]
     assert [a.texto("titulo") for a in primeira.bloqueantes()] == [f"README falha {n}" for n in range(1, 6)]
+    assert [a.texto("titulo") for a in estado.verificacoes[1].bloqueantes()] == [f"README falha {n}" for n in (6, 7, 8)]
     assert [(p["titulo"], p["marca"]) for p in estado.pendencias] == [
         (f"README falha {n}", "excedeu o teto do ciclo") for n in (6, 7, 8)]
     assert {a.estado for a in primeira.achados if not a.bloqueante} == {"pendente"}

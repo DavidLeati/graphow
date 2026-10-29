@@ -1060,7 +1060,9 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    teto e segue bloqueante (na revisão, o 5º persistente passava do teto e o
    fecho o dava por resolvido). O excedente volta a bloquear quando a
    conferência o acha de novo e cita o id dele em `persiste` (o briefing dela
-   lista os excedentes do marco). A verificação vira `Evidence` ligada ao Goal e cada achado um
+   lista os excedentes do marco), ou quando ela dá `atende` ao critério que ele
+   cita sem citá-lo: o critério sai `parcial`, e o excedente volta com o
+   `persiste` dele, para a conferência seguinte o conferir. A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes do ciclo viram uma fatia de correção só, que
    deriva de todos eles, mesmo em arquivos diferentes, e leva no briefing cada
