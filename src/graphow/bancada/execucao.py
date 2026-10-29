@@ -6,8 +6,9 @@ recriado da semente, a spec ao lado dele (o prompt a referencia por
 graphow próprio para os hooks e a pasta das sessões.
 
 `todos` roda os três projetos em paralelo, e cada um fica isolado dos outros.
-Montar o repositório, rodar a arquitetura, medir e ler o estado git acontecem
-na linha de execução do projeto, numa `ExecucaoEmAndamento` preenchida etapa a
+Montar o repositório, rodar a arquitetura, medir, ler o estado git e, depois
+de tudo, medir o histórico (a suíte commit a commit, bancada/historico.py)
+acontecem na linha de execução do projeto, numa `ExecucaoEmAndamento` preenchida etapa a
 etapa. A falha de domínio da arquitetura ou do git vira erro na hora, e a
 execução segue até o fim; a falha de qualquer outro tipo para a linha de
 execução, que a devolve. Nos dois casos o `execucao.json` do projeto é gravado
@@ -26,6 +27,7 @@ from typing import Any
 
 from graphow.bancada.arquiteturas import Arquitetura, PedidoDeExecucao
 from graphow.bancada.entrega import EstadoDaEntrega, ler_estado_da_entrega
+from graphow.bancada.historico import TEMPO_LIMITE_DA_SUITE_S, Historico, PedidoDoHistorico, historico_da_execucao
 from graphow.bancada.medicao import Invocacao, Medicao, medir
 from graphow.bancada.projetos import Bancada, ErroDaBancada, ProjetoDaBancada
 from graphow.bancada.semente import criar_repositorio
@@ -48,6 +50,7 @@ class ConfiguracaoDaRodada:
     saida: Path
     raiz_das_transcricoes: Path | None
     tempo_limite_s: float = TEMPO_LIMITE_PADRAO_S
+    tempo_limite_da_suite_s: float = TEMPO_LIMITE_DA_SUITE_S
     carimbo: str = field(default_factory=lambda: _agora().strftime(FORMATO_DO_CARIMBO))
 
 
@@ -73,10 +76,14 @@ class ExecucaoEmAndamento:
         self.resultados: tuple[ResultadoDeSessao, ...] = ()
         self.medicao: Medicao | None = None
         self.entrega: EstadoDaEntrega | None = None
+        self.historico: Historico | None = None
         self.erros: list[str] = []
 
     def rodar(self, arquitetura: Arquitetura, sessoes: ExecutorDeSessao) -> None:
-        """Monta, roda a arquitetura, mede e lê a entrega; a falha de domínio vira erro e a execução segue."""
+        """Monta, roda a arquitetura, mede, lê a entrega e mede o histórico; a falha de domínio vira erro e a execução segue.
+
+        A falha do histórico fica nele (`historico.erro`) e não marca a execução.
+        """
         self.inicio = _agora()
         self.diretorio.mkdir(parents=True)
         self.criada = True
@@ -88,6 +95,9 @@ class ExecucaoEmAndamento:
         self.entrega, erro = _ler_entrega(pedido)
         self._anotar(erro)
         self.fim = _agora()
+        self.historico = historico_da_execucao(PedidoDoHistorico(
+            self.diretorio, pedido.repositorio, pedido.banco, self.projeto.semente.commit, self.projeto.ramo,
+            tempo_limite_s=self.configuracao.tempo_limite_da_suite_s))
 
     def gravar(self, falha: BaseException | None) -> ExecucaoGravada:
         """`execucao.json` com o que se sabe, e a falha que parou a linha de execução no erro.
@@ -122,6 +132,7 @@ class ExecucaoEmAndamento:
             "erro": SEPARADOR_DE_ERROS.join(self.erros),
             "metricas": {**medicao, "commits": self.entrega.commits if self.entrega else None},
             "entrega": self.entrega.em_dicionario() if self.entrega else None,
+            "historico": self.historico.em_dicionario() if self.historico else None,
             "sessoes": [resultado.em_dicionario() for resultado in self.resultados],
         }
 

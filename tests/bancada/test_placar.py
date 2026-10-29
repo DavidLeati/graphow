@@ -47,11 +47,26 @@ def test_execucao_auditada_sai_com_os_numeros_e_a_variacao_contra_cada_base_nomi
 
     linhas = _placar(tmp_path)
 
-    assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,11 | 6,3 M | 21,0 min | 11 | 13/1/0 | 7/8 | 1 |" in linhas
-    assert "| base graphow-0.4.4 | estoque-loja | 7,30 | 11,4 M | 24,9 min | 7 | 9/3/0 | 0/8 | 3 |" in linhas
+    assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,11 | 6,3 M | 21,0 min | 11 | - | 13/1/0 | 7/8 | 1 |" in linhas
+    assert "| base graphow-0.4.4 | estoque-loja | 7,30 | 11,4 M | 24,9 min | 7 | - | 9/3/0 | 0/8 | 3 |" in linhas
     assert "| enxuta-estoque-loja-20261011-153000 | graphow-0.4.4 | -30% | -45% | -16% | +57% | +24% | +7 (base 0) | -67% |" in linhas
     assert "| enxuta-estoque-loja-20261011-153000 | enxuta | +2% | +2% | +5% | +0% | -7% | +17% | +1 (base 0) |" in linhas
     assert not [linha for linha in linhas if "agenda-salas" in linha]
+
+
+def test_historico_medido_vira_a_coluna_verdes_esperados_inesperados_nominal(tmp_path: Path) -> None:
+    """T3e.3: o histórico de execucao.json entra como verdes/esperados/inesperados; o que não se mediu fica '-'."""
+    metricas = {"custo_usd": 5.11, "tokens": 6_300_000, "minutos": 21.0, "commits": 3}
+    medido = {"comando": "pytest -q tests", "verdes": 1, "vermelhos_esperados": 1, "vermelhos_inesperados": 1, "erro": "", "commits": []}
+    sem_plano = {**medido, "verdes": 0, "vermelhos_esperados": 0, "vermelhos_inesperados": 0, "erro": "sem comando da suite"}
+    _execucao(tmp_path, "orquestrar-estoque-loja-20261029-075546", metricas, historico=medido)
+    _execucao(tmp_path, "enxuta-estoque-loja-20261029-075546", metricas, historico=sem_plano)
+
+    linhas = _placar(tmp_path)
+
+    assert linhas[2] == "| Execucao | Projeto | US$ | Tokens | Min | Commits | Historico | Criterios | Sondas ok | Bloqueantes |"
+    assert "| orquestrar-estoque-loja-20261029-075546 | estoque-loja | 5,11 | 6,3 M | 21,0 min | 3 | 1/1/1 | - | - | - |" in linhas
+    assert "| enxuta-estoque-loja-20261029-075546 | estoque-loja | 5,11 | 6,3 M | 21,0 min | 3 | - | - | - | - |" in linhas
 
 
 def test_criterios_comparam_a_fracao_atendida_e_nao_a_contagem_edge_case(tmp_path: Path) -> None:
@@ -70,8 +85,8 @@ def test_agenda_do_graphow_compara_sem_o_acabamento_e_sem_auditoria_fica_em_aber
 
     linhas = _placar(tmp_path)
 
-    assert "| base graphow-0.4.4 | agenda-salas | 7,57 | 10,5 M | 20,1 min | 0 | 17/2/0 | 2/8 | 2 |" in linhas
-    assert any(linha.startswith("| enxuta-agenda-salas-20261011-153000 | agenda-salas | 4,50 | 6,0 M | 22,0 min | 9 | - | - | - |") for linha in linhas)
+    assert "| base graphow-0.4.4 | agenda-salas | 7,57 | 10,5 M | 20,1 min | 0 | - | 17/2/0 | 2/8 | 2 |" in linhas
+    assert any(linha.startswith("| enxuta-agenda-salas-20261011-153000 | agenda-salas | 4,50 | 6,0 M | 22,0 min | 9 | - | - | - | - |") for linha in linhas)
     assert any("sem auditoria" in linha for linha in linhas)
     assert any("sem o Goal de acabamento" in linha for linha in linhas)
 
@@ -86,7 +101,7 @@ def test_execucao_que_falhou_fica_marcada_e_fora_das_variacoes_edge_case(tmp_pat
     linhas = _placar(tmp_path)
 
     assert "2 execucoes, 0 auditadas, 1 com falha" in linhas[0]
-    assert "| enxuta-estoque-loja-20261011-170000 (FALHA) | estoque-loja | - | - | 120,0 min | 3 | - | - | - |" in linhas
+    assert "| enxuta-estoque-loja-20261011-170000 (FALHA) | estoque-loja | - | - | 120,0 min | 3 | - | - | - | - |" in linhas
     variacoes = linhas[linhas.index("| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |"):]
     assert not [linha for linha in variacoes if linha.startswith("| enxuta-estoque-loja-20261011-170000 ")]
     assert "| enxuta-estoque-loja-20261011-180000 | enxuta | +0% | +0% | +0% | +0% | - | - | - |" in variacoes
@@ -114,7 +129,7 @@ def test_auditoria_com_erro_nao_entra_com_o_placar_edge_case(tmp_path: Path) -> 
 
     linhas = _placar(tmp_path)
 
-    assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,03 | 6,2 M | 20,0 min | 11 | - | - | - |" in linhas
+    assert "| enxuta-estoque-loja-20261011-153000 | estoque-loja | 5,03 | 6,2 M | 20,0 min | 11 | - | - | - | - |" in linhas
     assert any("auditoria com erro, placar fora: a sessao do auditor terminou com erro" in linha for linha in linhas)
 
 
@@ -141,8 +156,8 @@ def test_linha_de_base_tem_as_seis_referencias_nominal() -> None:
     assert base[("graphow-0.4.4", "agenda-salas")].numeros.custo_usd == 7.57
     assert base[("enxuta", "agenda-salas")].numeros.custo_usd == 4.78
     assert formatar_placar((), base)[:2] == (
-        "| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sondas ok | Bloqueantes |",
-        "| :--- | :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: |",
+        "| Execucao | Projeto | US$ | Tokens | Min | Commits | Historico | Criterios | Sondas ok | Bloqueantes |",
+        "| :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- | ---: | ---: |",
     )
 
 
@@ -165,5 +180,5 @@ def test_rodar_auditar_e_placar_de_ponta_a_ponta_nominal(tmp_path: Path) -> None
 
     linhas = _placar(tmp_path / "saida")
 
-    assert any(linha.startswith(f"| {execucao.name} | estoque-loja | 5,03 | 6,2 M |") and "| 1 | 14/0/0 | 6/8 | 0 |" in linha for linha in linhas)
+    assert any(linha.startswith(f"| {execucao.name} | estoque-loja | 5,03 | 6,2 M |") and "| 1 | - | 14/0/0 | 6/8 | 0 |" in linha for linha in linhas)
     assert f"| {execucao.name} | enxuta | +0% | +1% |" in "\n".join(linhas)

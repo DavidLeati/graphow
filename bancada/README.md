@@ -15,6 +15,7 @@ Por execução (uma arquitetura num projeto):
 | Tokens | entrada + saída + cache, das transcrições da sessão e dos subagentes em `~/.claude/projects`, cada mensagem pela primeira entrada (a definição de `graphow-lab/_runs/base.py`) |
 | Minutos | do início da primeira sessão ao fim da última, em tempo de parede |
 | Commits | commits no ramo de trabalho depois do commit da semente |
+| Histórico | a suíte do plano em cada um desses commits, num clone: verdes / vermelhos esperados (com o trailer `Graphow-Aceite: vermelho`) / vermelhos inesperados; só na arquitetura com plano |
 | Critérios | `atende / parcial / nao_atende` da linha PLACAR do auditor |
 | Sondas ok | das 8 sondas do projeto, quantas o auditor confirmou sem defeito |
 | Bloqueantes | defeitos que ferem critério ou decisão do humano, segundo o auditor |
@@ -100,6 +101,9 @@ graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000
 # Auditar de novo: a anterior fica guardada como auditoria-anterior-1/ e auditoria-anterior-1.json
 graphow bancada auditar --execucao ~/bancada/enxuta-estoque-loja-20261011-153000 --refazer
 
+# A suíte commit a commit de uma execução que já existe (o rodar já a mede no fim)
+graphow bancada historico --execucao ~/bancada/orquestrar-estoque-loja-20261011-153000
+
 # A tabela das execuções contra a linha de base
 graphow bancada placar --saida ~/bancada
 
@@ -120,6 +124,20 @@ do auditor. Uma auditoria não sobrescreve outra: a execução que já tem
 conta) recusa sem `--refazer`. E o `auditoria.json` existe desde antes da
 sessão, dizendo que ela não terminou, para que um auditor morto deixe o erro
 registrado, e não um buraco.
+
+Depois da arquitetura, o `rodar` mede o histórico: num clone do repositório
+da execução, faz checkout de cada commit do ramo de trabalho depois da
+semente e roda o comando da suíte do plano do Goal (lido do `graphow.db` da
+execução) pelo mesmo caminho do orquestrador, com os testes de aceite à
+vista, como um `git bisect run` os veria. O vermelho com `Graphow-Aceite:
+vermelho` (os testes de aceite e o que vem antes da primeira fatia, com o
+código da semente) é esperado; o resto é inesperado. Cada suíte tem o seu
+tempo-limite (`--tempo-limite-suite`, 10 minutos), e a que estoura conta como
+vermelha sem parar as outras. Vai para a chave `historico` do
+`execucao.json`, com o fim da saída de cada vermelho. A `enxuta` não tem
+plano e fica sem a medida, com o motivo; `historico --comando` a mede com o
+comando dado. `graphow bancada historico` mede de novo uma execução que já
+existe e regrava a chave.
 
 As arquiteturas ficam no registro de `graphow.bancada.arquiteturas`. Hoje são
 duas:
@@ -161,18 +179,20 @@ de US$ 20; a do graphow 0.4.4 ficaria perto de US$ 30. As sessões são
 ## Como ler o placar
 
 ```
-| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sondas ok | Bloqueantes |
-| enxuta-estoque-loja-... | estoque-loja | 5,11 | 6,3 M | 21,0 min | 11 | 13/1/0 | 7/8 | 1 |
-| base enxuta | estoque-loja | 5,03 | 6,2 M | 20,0 min | 11 | 14/0/0 | 6/8 | 0 |
-| base graphow-0.4.4 | estoque-loja | 7,30 | 11,4 M | 24,9 min | 7 | 9/3/0 | 0/8 | 3 |
+| Execucao | Projeto | US$ | Tokens | Min | Commits | Historico | Criterios | Sondas ok | Bloqueantes |
+| orquestrar-estoque-loja-... | estoque-loja | 5,11 | 6,3 M | 21,0 min | 7 | 5/2/0 | 13/1/0 | 7/8 | 1 |
+| base enxuta | estoque-loja | 5,03 | 6,2 M | 20,0 min | 11 | - | 14/0/0 | 6/8 | 0 |
+| base graphow-0.4.4 | estoque-loja | 7,30 | 11,4 M | 24,9 min | 7 | - | 9/3/0 | 0/8 | 3 |
 
 | Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |
-| enxuta-estoque-loja-... | enxuta | +2% | +2% | +5% | +0% | -7% | +17% | +1 (base 0) |
-| enxuta-estoque-loja-... | graphow-0.4.4 | -30% | -45% | -16% | +57% | +24% | +7 (base 0) | -67% |
+| orquestrar-estoque-loja-... | enxuta | +2% | +2% | +5% | -36% | -7% | +17% | +1 (base 0) |
+| orquestrar-estoque-loja-... | graphow-0.4.4 | -30% | -45% | -16% | +0% | +24% | +7 (base 0) | -67% |
 ```
 
 A primeira tabela traz os números de cada execução e, abaixo, as referências
-da linha de base no mesmo projeto. A segunda traz a variação contra cada
+da linha de base no mesmo projeto. O histórico é verdes / vermelhos esperados
+/ vermelhos inesperados; `-` quando não foi medido (a linha de base e a
+`enxuta` não têm). A segunda traz a variação contra cada
 arquitetura de base: percentual, ou a diferença absoluta quando a base é zero.
 Dos critérios compara-se a fração atendida (atende sobre julgados), porque
 cada auditor conta os itens da spec do seu jeito.

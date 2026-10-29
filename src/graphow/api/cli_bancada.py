@@ -1,5 +1,9 @@
 """O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar.
 
+`historico` mede de novo, sobre uma execução que já existe, a suíte commit a
+commit que o `rodar` mede no fim (bancada/historico.py), e regrava a chave
+`historico` do `execucao.json` dela.
+
 Não toca o banco do usuário: cada execução ganha um banco próprio, que vira o
 `GRAPHOW_DB` das sessões, porque os hooks do graphow instalados no Claude Code
 rodam em toda sessão `claude -p` e, sem isso, escreveriam nele.
@@ -14,11 +18,20 @@ import shlex
 from graphow.api.console import EscritorConsole
 from graphow.bancada.arquiteturas import RegistroDeArquiteturas, registro_padrao
 from graphow.bancada.auditoria import auditar, pedido_do_auditor
-from graphow.bancada.execucao import ConfiguracaoDaRodada, ExecucaoGravada, rodar_projetos
+from graphow.bancada.execucao import (
+    ARQUIVO_DA_EXECUCAO,
+    NOME_DO_BANCO,
+    ConfiguracaoDaRodada,
+    ExecucaoGravada,
+    gravar_json,
+    ler_json,
+    rodar_projetos,
+)
 from graphow.bancada.formatacao import formatar_dinheiro, formatar_inteiro, formatar_minutos
+from graphow.bancada.historico import TEMPO_LIMITE_DA_SUITE_S, PedidoDoHistorico, historico_da_execucao
 from graphow.bancada.laboratorio import Laboratorio, formatar_conferencias
 from graphow.bancada.placar import formatar_placar, ler_execucoes, ler_linha_de_base
-from graphow.bancada.projetos import RAIZ_DA_BANCADA_PADRAO, Bancada
+from graphow.bancada.projetos import RAIZ_DA_BANCADA_PADRAO, Bancada, ErroDaBancada
 from graphow.bancada.transcricoes import PASTA_DE_PROJETOS_PADRAO
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
 
@@ -43,6 +56,7 @@ def registrar_comando_de_bancada(
     acoes = parser_bancada.add_subparsers(dest="acao", required=True)
     _registrar_rodar(acoes)
     _registrar_auditar(acoes)
+    _registrar_historico(acoes)
     parser_placar = acoes.add_parser("placar", help="Compara as execucoes de uma saida com a linha de base")
     parser_placar.add_argument("--saida", required=True, help="Pasta com as execucoes (ou uma execucao)")
     parser_placar.add_argument("--bancada", default=str(RAIZ_DA_BANCADA_PADRAO), help="Pasta bancada/ (padrao: a do repositorio)")
@@ -64,7 +78,26 @@ def _registrar_rodar(acoes: argparse._SubParsersAction) -> None:
     parser_rodar.add_argument(
         "--tempo-limite", type=float, default=TEMPO_LIMITE_DA_RODADA_MIN, help="Minutos por sessao (padrao: 120)"
     )
+    _registrar_tempo_da_suite(parser_rodar)
     _registrar_opcoes_comuns(parser_rodar)
+
+
+def _registrar_historico(acoes: argparse._SubParsersAction) -> None:
+    """`graphow bancada historico`."""
+    parser_historico = acoes.add_parser(
+        "historico", help="Roda a suite em cada commit da branch entregue e regrava o historico em execucao.json"
+    )
+    parser_historico.add_argument("--execucao", required=True, help="Pasta de uma execucao, com execucao.json")
+    parser_historico.add_argument("--comando", dest="comando_da_suite", default="",
+                                  help="Comando da suite (padrao: o do plano do Goal da execucao)")
+    _registrar_tempo_da_suite(parser_historico)
+
+
+def _registrar_tempo_da_suite(parser: argparse.ArgumentParser) -> None:
+    """O tempo-limite de cada suíte da medida `historico`, em minutos."""
+    padrao = TEMPO_LIMITE_DA_SUITE_S / SEGUNDOS_POR_MINUTO
+    parser.add_argument("--tempo-limite-suite", type=float, default=padrao,
+                        help=f"Minutos por suite na medida historico (padrao: {padrao:g})")
 
 
 def _registrar_auditar(acoes: argparse._SubParsersAction) -> None:
@@ -116,6 +149,7 @@ def executar_bancada(
         "rodar": _rodar,
         "auditar": _auditar,
         "placar": _placar,
+        "historico": _historico,
         "medir-laboratorio": _medir_laboratorio,
     }
     return acoes[argumentos.acao](argumentos, console, _Dependencias(registro or registro_padrao(), sessoes))
@@ -133,6 +167,7 @@ def _rodar(argumentos: argparse.Namespace, console: EscritorConsole, dependencia
         saida=Path(argumentos.saida).expanduser().resolve(),
         raiz_das_transcricoes=Path(argumentos.transcricoes).expanduser(),
         tempo_limite_s=argumentos.tempo_limite * SEGUNDOS_POR_MINUTO,
+        tempo_limite_da_suite_s=argumentos.tempo_limite_suite * SEGUNDOS_POR_MINUTO,
     )
     execucoes = rodar_projetos(lambda: registro.criar(nome), projetos, configuracao, sessoes=dependencias.executor())
     for execucao in execucoes:
@@ -179,6 +214,24 @@ def _placar(argumentos: argparse.Namespace, console: EscritorConsole, dependenci
     return CODIGO_SUCESSO
 
 
+def _historico(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
+    """A suíte commit a commit de uma execução que já existe, regravada no `execucao.json` dela; não roda sessão."""
+    execucao = Path(argumentos.execucao).expanduser().resolve()
+    registro = ler_json(execucao / ARQUIVO_DA_EXECUCAO)
+    ramo = (registro.get("entrega") or {}).get("ramo")
+    if not ramo or not registro.get("semente"):
+        raise ErroDaBancada("execucao.json sem a semente ou o ramo de entrega", {"execucao": str(execucao)})
+    historico = historico_da_execucao(PedidoDoHistorico(
+        execucao, execucao / str(registro.get("repositorio")), execucao / NOME_DO_BANCO, str(registro["semente"]), str(ramo),
+        tempo_limite_s=argumentos.tempo_limite_suite * SEGUNDOS_POR_MINUTO, comando=argumentos.comando_da_suite))
+    gravar_json(execucao / ARQUIVO_DA_EXECUCAO, {**registro, "historico": historico.em_dicionario()})
+    console.escrever_linha(f"Historico de {execucao}: `{historico.comando}`")
+    for commit in historico.commits:
+        console.escrever_linha(f"  {commit.commit[:12]} {commit.situacao}: {commit.assunto}")
+    console.escrever_linha(f"  {historico.resumo()}")
+    return CODIGO_COM_ERRO if historico.erro else CODIGO_SUCESSO
+
+
 def _medir_laboratorio(argumentos: argparse.Namespace, console: EscritorConsole, dependencias: _Dependencias) -> int:
     """A conferência da linha de base contra os logs; sai com 1 se algum número divergir. Não roda sessão."""
     laboratorio = Path(argumentos.laboratorio).expanduser().resolve()
@@ -210,6 +263,11 @@ def _imprimir_execucao(execucao: ExecucaoGravada, console: EscritorConsole) -> N
         f" ({metricas['fonte_dos_tokens'] or '-'}) | {formatar_minutos(metricas['minutos'])}"
         f" | {formatar_inteiro(metricas['commits'])} commits no ramo {ramo}"
     )
+    historico = registro.get("historico") or {}
+    if historico:
+        console.escrever_linha(f"  historico: {historico['erro']}" if historico["erro"] else
+                               f"  historico: {historico['verdes']} verdes, {historico['vermelhos_esperados']} vermelhos esperados,"
+                               f" {historico['vermelhos_inesperados']} inesperados")
     if registro["erro"]:
         console.escrever_linha(f"  {registro['erro']}")
 

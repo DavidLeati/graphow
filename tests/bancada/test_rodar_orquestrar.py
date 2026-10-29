@@ -61,6 +61,8 @@ def test_orquestrar_roda_na_semente_integra_na_branch_de_entrega_e_mede_as_sesso
     assert gravado["metricas"]["custo_usd"] == 1.3
     assert gravado["metricas"]["commits"] == 3
     assert gravado["entrega"]["ramo_existe"] is True
+    historico = gravado["historico"]
+    assert (historico["comando"], historico["verdes"], historico["vermelhos_inesperados"], historico["erro"]) == (SUITE_QUE_PASSA, 3, 0, "")
     assert any("Entrega das operações" in linha for linha in parada["status"])
     assert "\ufffd" not in (execucao / "orquestrar.json").read_bytes().decode("utf-8")
     assert len(gravado["sessoes"]) == 4

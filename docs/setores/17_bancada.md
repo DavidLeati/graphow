@@ -10,7 +10,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-13 módulos · 1751 linhas · 25 classes
+14 módulos · 1931 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,11 +18,12 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/arquiteturas.py`](#bancadaarquiteturas) | 116 | As arquiteturas que a bancada sabe rodar, registradas por nome. |
 | [`bancada/auditoria.py`](#bancadaauditoria) | 228 | `graphow bancada auditar`: o auditor do laboratório numa sessão `claude -p`, e o placar extraído do relatório. |
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
-| [`bancada/execucao.py`](#bancadaexecucao) | 225 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
+| [`bancada/execucao.py`](#bancadaexecucao) | 236 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
+| [`bancada/historico.py`](#bancadahistorico) | 152 | A medida `historico`: a suíte do projeto em cada commit da branch entregue, depois da semente. |
 | [`bancada/laboratorio.py`](#bancadalaboratorio) | 202 | `graphow bancada medir-laboratorio`: a linha de base medida de novo dos logs do laboratório, número a número. |
 | [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
-| [`bancada/placar.py`](#bancadaplacar) | 194 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
+| [`bancada/placar.py`](#bancadaplacar) | 211 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
 | [`bancada/projetos.py`](#bancadaprojetos) | 165 | Os dados versionados da bancada: projetos, prompts e linha de base, lidos de `bancada/`. |
 | [`bancada/semente.py`](#bancadasemente) | 93 | O repositório de uma execução, recriado da semente com o mesmo hash do laboratório. |
 | [`bancada/transcricoes.py`](#bancadatranscricoes) | 103 | Os tokens de uma execução, somados das transcrições que o Claude Code grava em disco. |
@@ -161,13 +162,13 @@ O estado git da entrega: o ramo de trabalho, os commits depois da semente e a á
 
 *DTO imutável* — O que vale para todas as execuções de uma rodada: onde gravar, de onde ler e quanto esperar.
 
-**Campos:** `bancada: Bancada`, `saida: Path`, `raiz_das_transcricoes: Path | None`, `tempo_limite_s: float`, `carimbo: str`
+**Campos:** `bancada: Bancada`, `saida: Path`, `raiz_das_transcricoes: Path | None`, `tempo_limite_s: float`, `tempo_limite_da_suite_s: float`, `carimbo: str`
 
 ### `ExecucaoEmAndamento`
 
 *serviço* — Uma execução de um projeto, preenchida etapa a etapa: a falha de qualquer etapa grava o que já se sabia.
 
-- `rodar(arquitetura: Arquitetura, sessoes: ExecutorDeSessao) -> None` — Monta, roda a arquitetura, mede e lê a entrega; a falha de domínio vira erro e a execução segue.
+- `rodar(arquitetura: Arquitetura, sessoes: ExecutorDeSessao) -> None` — Monta, roda a arquitetura, mede, lê a entrega e mede o histórico; a falha de domínio vira erro e a execução segue.
 - `gravar(falha: BaseException | None) -> ExecucaoGravada` — `execucao.json` com o que se sabe, e a falha que parou a linha de execução no erro.
 - `em_dicionario() -> dict[str, Any]` — O registro no formato de `execucao.json`; o que não chegou a ser medido fica null.
 
@@ -202,6 +203,48 @@ Números da bancada como o relatório do laboratório os escreve: vírgula decim
 - `formatar_inteiro(valor: int | None) -> str` — `6.160.643`.
 - `formatar_minutos(valor: float | None) -> str` — `20,0 min`.
 - `formatar_variacao(valor: float | None, base: float | None) -> str` — A variação em relação à base: percentual, ou a diferença absoluta quando a base é zero.
+
+## `bancada/historico.py`
+
+A medida `historico`: a suíte do projeto em cada commit da branch entregue, depois da semente.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `VERDE` | `str` | `'verde'` |
+| `VERMELHO_ESPERADO` | `str` | `'vermelho_esperado'` |
+| `VERMELHO_INESPERADO` | `str` | `'vermelho_inesperado'` |
+| `TEMPO_LIMITE_DA_SUITE_S` | `float` | `600.0` |
+| `PASTA_DO_CLONE` | `str` | `'clone'` |
+| `BANCO_DESCARTAVEL` | `str` | `'graphow-descartavel.db'` |
+| `LIMITE_DO_FIM_DA_SAIDA` | `int` | `1500` |
+
+### `CommitMedido`
+
+*DTO imutável* — Um commit da branch: o hash, o assunto, a situação da suíte nele, o código de saída e o fim da saída do vermelho.
+
+**Campos:** `commit: str`, `assunto: str`, `situacao: str`, `codigo: int | None`, `tempo_esgotado: bool`, `fim_da_saida: str`
+
+### `Historico`
+
+*DTO imutável* — A suíte commit a commit, ou por que ela não foi medida (`erro`).
+
+**Campos:** `comando: str`, `commits: tuple[CommitMedido, ...]`, `erro: str`
+
+- `contar(situacao: str) -> int` — Quantos commits saíram na situação dada.
+- `resumo() -> str` — Verdes, vermelhos esperados e inesperados, numa linha.
+- `em_dicionario() -> dict[str, Any]` — A medida como `execucao.json` a grava.
+
+### `PedidoDoHistorico`
+
+*DTO imutável* — A execução a medir: a pasta (com `orquestrar.json`), o repositório, o banco, a semente, o ramo e o tempo de cada suíte.
+
+**Campos:** `execucao: Path`, `repositorio: Path`, `banco: Path`, `semente: str`, `ramo: str`, `tempo_limite_s: float`, `comando: str`
+
+### Funções do módulo
+
+- `medir_historico(repositorio: Path, comando: str) -> Historico` — A suíte em cada commit de `semente..ramo`, num clone descartável; a falha do git que impede tudo vira o erro.
+- `comando_do_plano(execucao: Path, banco: Path) -> str` — O comando da suíte do plano do Goal da execução, lido do livro-razão dela; vazio sem Goal ou sem plano.
+- `historico_da_execucao(pedido: PedidoDoHistorico) -> Historico` — A medida sobre uma execução, com o comando dado ou o do plano; a falha ao ler a execução vira o erro, e nunca sobe.
 
 ## `bancada/laboratorio.py`
 
@@ -302,8 +345,8 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 | :--- | :--- | :--- |
 | `CHAVE_DO_COMPARAVEL` | `str` | `'comparavel'` |
 | `CAMPOS_DO_COMPARAVEL` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos')` |
-| `CABECALHO_DOS_NUMEROS` | `str` | `'| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sond…` |
-| `ALINHAMENTO_DOS_NUMEROS` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: |'` |
+| `CABECALHO_DOS_NUMEROS` | `str` | `'| Execucao | Projeto | US$ | Tokens | Min | Commits | Historico | Crit…` |
+| `ALINHAMENTO_DOS_NUMEROS` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- | ---: | ---: …` |
 | `CABECALHO_DAS_VARIACOES` | `str` | `'| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) |…` |
 | `ALINHAMENTO_DAS_VARIACOES` | `str` | `'| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'` |
 | `CAMPOS_DA_VARIACAO` | `tuple[str, ...]` | `('custo_usd', 'tokens', 'minutos', 'commits', 'fracao_atende', 'sondas_…` |
@@ -319,7 +362,7 @@ Custo, tokens e minutos de uma execução, com as definições do laboratório.
 
 *DTO imutável* — O que o placar compara de uma execução; o que não foi medido fica None.
 
-**Campos:** `custo_usd: float | None`, `tokens: int | None`, `minutos: float | None`, `commits: int | None`, `atende: int | None`, `parcial: int | None`, `nao_atende: int | None`, `sondas_ok: int | None`, `sondas: int | None`, `bloqueantes: int | None`
+**Campos:** `custo_usd: float | None`, `tokens: int | None`, `minutos: float | None`, `commits: int | None`, `verdes: int | None`, `vermelhos_esperados: int | None`, `vermelhos_inesperados: int | None`, `atende: int | None`, `parcial: int | None`, `nao_atende: int | None`, `sondas_ok: int | None`, `sondas: int | None`, `bloqueantes: int | None`
 
 - `fracao_atende() -> float | None` `[property]` — Os critérios atendidos sobre os julgados: o que se compara entre auditorias.
 

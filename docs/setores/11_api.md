@@ -10,12 +10,12 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-13 módulos · 2104 linhas · 20 classes
+13 módulos · 2162 linhas · 20 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 155 | Interface de Linha de Comando (CLI) para operação do Graphow. |
-| [`api/cli_bancada.py`](#apiclibancada) | 220 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
+| [`api/cli_bancada.py`](#apiclibancada) | 278 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
 | [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 255 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
 | [`api/cli_orquestrar.py`](#apicliorquestrar) | 233 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |

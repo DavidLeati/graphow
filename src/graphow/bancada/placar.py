@@ -1,7 +1,8 @@
 """`graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número.
 
 Cada execução entra com o que `execucao.json` mediu (custo, tokens, minutos,
-commits) e, se foi auditada, com o que `auditoria.json` extraiu do PLACAR
+commits e o histórico: verdes, vermelhos esperados e inesperados da suíte
+commit a commit, bancada/historico.py) e, se foi auditada, com o que `auditoria.json` extraiu do PLACAR
 (critérios, sondas, bloqueantes). A linha de base entra por arquitetura, no
 mesmo projeto. Na agenda do graphow 0.4.4 valem o custo, os tokens e os
 minutos sem o Goal de acabamento, que é o comparável; a nota diz isso no fim
@@ -29,8 +30,8 @@ from graphow.bancada.projetos import ErroDaBancada
 
 CHAVE_DO_COMPARAVEL: str = "comparavel"
 CAMPOS_DO_COMPARAVEL: tuple[str, ...] = ("custo_usd", "tokens", "minutos")
-CABECALHO_DOS_NUMEROS: str = "| Execucao | Projeto | US$ | Tokens | Min | Commits | Criterios | Sondas ok | Bloqueantes |"
-ALINHAMENTO_DOS_NUMEROS: str = "| :--- | :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: |"
+CABECALHO_DOS_NUMEROS: str = "| Execucao | Projeto | US$ | Tokens | Min | Commits | Historico | Criterios | Sondas ok | Bloqueantes |"
+ALINHAMENTO_DOS_NUMEROS: str = "| :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- | ---: | ---: |"
 CABECALHO_DAS_VARIACOES: str = "| Execucao | Contra | US$ | Tokens | Min | Commits | Atende (fracao) | Sondas ok | Bloqueantes |"
 ALINHAMENTO_DAS_VARIACOES: str = "| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
 CAMPOS_DA_VARIACAO: tuple[str, ...] = ("custo_usd", "tokens", "minutos", "commits", "fracao_atende", "sondas_ok", "bloqueantes")
@@ -45,6 +46,9 @@ class Numeros:
     tokens: int | None = None
     minutos: float | None = None
     commits: int | None = None
+    verdes: int | None = None
+    vermelhos_esperados: int | None = None
+    vermelhos_inesperados: int | None = None
     atende: int | None = None
     parcial: int | None = None
     nao_atende: int | None = None
@@ -116,11 +120,15 @@ def _ler_execucao(pasta: Path) -> LinhaDoPlacar:
     auditoria = ler_json(pasta / ARQUIVO_DA_AUDITORIA) if (pasta / ARQUIVO_DA_AUDITORIA).is_file() else {}
     placar = {} if auditoria.get("erro") else auditoria.get("placar") or {}
     criterios = placar.get("criterios") or {}
+    historico = _historico_medido(registro)
     numeros = Numeros(
         custo_usd=metricas.get("custo_usd"),
         tokens=metricas.get("tokens"),
         minutos=metricas.get("minutos"),
         commits=metricas.get("commits"),
+        verdes=historico.get("verdes"),
+        vermelhos_esperados=historico.get("vermelhos_esperados"),
+        vermelhos_inesperados=historico.get("vermelhos_inesperados"),
         atende=criterios.get("atende"),
         parcial=criterios.get("parcial"),
         nao_atende=criterios.get("nao_atende"),
@@ -132,6 +140,12 @@ def _ler_execucao(pasta: Path) -> LinhaDoPlacar:
     return LinhaDoPlacar(
         pasta.name, str(registro.get("arquitetura")), str(registro.get("projeto")), numeros, _observacao(falha, auditoria), bool(falha)
     )
+
+
+def _historico_medido(registro: Mapping[str, Any]) -> Mapping[str, Any]:
+    """O histórico da execução, quando foi medido; vazio sem ele ou com o erro que o impediu."""
+    historico = registro.get("historico")
+    return historico if isinstance(historico, Mapping) and not historico.get("erro") else {}
 
 
 def motivo_da_falha(registro: Mapping[str, Any]) -> str:
@@ -158,6 +172,8 @@ def _linha_dos_numeros(linha: LinhaDoPlacar) -> str:
     numeros = linha.numeros
     criterios = SEM_VALOR if numeros.atende is None else f"{numeros.atende}/{numeros.parcial}/{numeros.nao_atende}"
     sondas = SEM_VALOR if numeros.sondas_ok is None else f"{numeros.sondas_ok}/{numeros.sondas}"
+    historico = (SEM_VALOR if numeros.verdes is None else
+                 f"{numeros.verdes}/{numeros.vermelhos_esperados}/{numeros.vermelhos_inesperados}")
     celulas = (
         f"{linha.rotulo} ({MARCA_DE_FALHA})" if linha.falhou else linha.rotulo,
         linha.projeto,
@@ -165,6 +181,7 @@ def _linha_dos_numeros(linha: LinhaDoPlacar) -> str:
         formatar_tokens(numeros.tokens),
         formatar_minutos(numeros.minutos),
         formatar_inteiro(numeros.commits),
+        historico,
         criterios,
         sondas,
         formatar_inteiro(numeros.bloqueantes),
