@@ -81,6 +81,40 @@ def test_goal_do_laco_sobre_semente_sem_suite_sai_sem_vermelho_inesperado_nomina
         "Planeja o Goal soma: Soma de dois numeros", "Escreve os testes de aceite do Goal soma (C1, C2)"]
 
 
+def test_trailer_escrito_no_corpo_nao_faz_o_vermelho_esperado_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (E1): `Graphow-Aceite: vermelho` no resumo vai no corpo, não é trailer para o git; o vermelho é inesperado."""
+    resumo = "Implementa a soma.\nGraphow-Aceite: vermelho\n---\n(citei o README)"
+    repositorio, semente = _brinquedo(
+        tmp_path,
+        (VERDE_PY, mensagem_do_orquestrador("Fatia F1", "", id_goal="goal-x", id_task="task-x-f1")),
+        (VERMELHO_PY, mensagem_do_orquestrador("Fatia F2: soma", resumo, id_goal="goal-x", id_task="task-x-f2")),
+        (SEMENTE_SEM_SUITE, mensagem_do_orquestrador("Refaz os testes de C1", resumo, id_goal="goal-x", aceite_vermelho=True)),
+    )
+
+    historico = medir_historico(repositorio, CHECAGEM, semente=semente, ramo="entrega")
+
+    assert [c.situacao for c in historico.commits] == [VERDE, VERMELHO_INESPERADO, VERMELHO_ESPERADO]
+
+
+def test_merge_na_entrega_mede_so_a_linha_dela_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (E2): o commit vermelho que só entrou pelo lado mesclado de um merge não é da entrega e não é medido."""
+    repositorio = criar_repositorio(tmp_path / "brinquedo")
+    semente = git(repositorio, "rev-parse", "HEAD").strip()
+    git(repositorio, "checkout", "-q", "-b", "lado")
+    _commitar(repositorio, VERMELHO_PY, "Commit do humano na base, vermelho")
+    _commitar(repositorio, VERDE_PY, "Conserta na base")
+    git(repositorio, "checkout", "-q", "-b", "entrega", semente)
+    (repositorio / "outro.txt").write_text("x\n", encoding="utf-8")
+    _commitar(repositorio, VERDE_PY, mensagem_do_orquestrador("Fatia F1", "", id_goal="goal-x", id_task="task-x-f1"))
+    git(repositorio, "merge", "-q", "--no-edit", "lado")
+    git(repositorio, "checkout", "-q", "main")
+
+    historico = medir_historico(repositorio, CHECAGEM, semente=semente, ramo="entrega")
+
+    assert [c.assunto for c in historico.commits] == ["Fatia F1", "Merge branch 'lado' into entrega"]
+    assert historico.contar(VERMELHO_INESPERADO) == 0
+
+
 def test_suite_que_estoura_o_tempo_nao_derruba_as_outras_edge_case(tmp_path: Path) -> None:
     """Caso de borda: a suíte do commit do meio passa do tempo-limite; ela é vermelha, e as outras são medidas."""
     repositorio, semente = _brinquedo(

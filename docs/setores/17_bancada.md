@@ -10,7 +10,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 
 ## Inventário
 
-14 módulos · 1931 linhas · 28 classes
+14 módulos · 1933 linhas · 28 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ O portão de cada fase da reestruturação: as três demandas do laboratório ro
 | [`bancada/entrega.py`](#bancadaentrega) | 71 | O estado git da entrega: o ramo de trabalho, os commits depois da semente e a árvore suja. |
 | [`bancada/execucao.py`](#bancadaexecucao) | 236 | `graphow bancada rodar`: monta a execução, roda a arquitetura e grava `execucao.json`. |
 | [`bancada/formatacao.py`](#bancadaformatacao) | 45 | Números da bancada como o relatório do laboratório os escreve: vírgula decimal e ponto de milhar. |
-| [`bancada/historico.py`](#bancadahistorico) | 152 | A medida `historico`: a suíte do projeto em cada commit da branch entregue, depois da semente. |
+| [`bancada/historico.py`](#bancadahistorico) | 154 | A medida `historico`: a suíte do projeto em cada commit da branch entregue, depois da semente. |
 | [`bancada/laboratorio.py`](#bancadalaboratorio) | 202 | `graphow bancada medir-laboratorio`: a linha de base medida de novo dos logs do laboratório, número a número. |
 | [`bancada/medicao.py`](#bancadamedicao) | 242 | Custo, tokens e minutos de uma execução, com as definições do laboratório. |
 | [`bancada/placar.py`](#bancadaplacar) | 211 | `graphow bancada placar`: as execuções de uma saída contra a linha de base, com a variação de cada número. |
@@ -242,7 +242,7 @@ A medida `historico`: a suíte do projeto em cada commit da branch entregue, dep
 
 ### Funções do módulo
 
-- `medir_historico(repositorio: Path, comando: str) -> Historico` — A suíte em cada commit de `semente..ramo`, num clone descartável; a falha do git que impede tudo vira o erro.
+- `medir_historico(repositorio: Path, comando: str) -> Historico` — A suíte em cada commit da linha `semente..ramo`, num clone descartável; a falha do git que impede tudo vira o erro.
 - `comando_do_plano(execucao: Path, banco: Path) -> str` — O comando da suíte do plano do Goal da execução, lido do livro-razão dela; vazio sem Goal ou sem plano.
 - `historico_da_execucao(pedido: PedidoDoHistorico) -> Historico` — A medida sobre uma execução, com o comando dado ou o do plano; a falha ao ler a execução vira o erro, e nunca sobe.
 

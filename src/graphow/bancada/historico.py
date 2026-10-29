@@ -4,12 +4,14 @@ O orquestrador só commita a fatia com a suíte verde; a exceção legítima é 
 commit com `Graphow-Aceite: vermelho` (os testes de aceite, e o que vem antes
 da primeira fatia, com o código da base). A medida confere isso de fora: num
 clone do repositório da execução, faz checkout de cada commit de
-`semente..ramo`, do mais antigo ao mais novo, roda o comando da suíte do
-plano pelo mesmo caminho que o orquestrador (`rodar_suite`: o shell dos
+`semente..ramo` na linha da entrega (`--first-parent`: o lado mesclado de um
+merge não é da entrega), do mais antigo ao mais novo, roda o comando da suíte
+do plano pelo mesmo caminho que o orquestrador (`rodar_suite`: o shell dos
 agentes, banco descartável, sem cache) e conta os verdes, os vermelhos
-esperados (com o trailer) e os inesperados. Os testes de aceite não ficam
-ocultos, como na suíte da fatia: vale o comando como o plano o declarou, o
-que um `git bisect run` veria.
+esperados (com o trailer, que o git lê no fim da mensagem: a mesma linha no
+corpo não conta) e os inesperados. Os testes de aceite não ficam ocultos,
+como na suíte da fatia: vale o comando como o plano o declarou, o que um
+`git bisect run` veria.
 
 Cada suíte tem o seu tempo-limite. A que estoura, ou o commit em que o git
 falha, conta como vermelho daquele commit, e os outros seguem. O comando vem
@@ -82,12 +84,12 @@ class Historico:
 
 def medir_historico(repositorio: Path, comando: str, *, semente: str, ramo: str,
                     tempo_limite_s: float = TEMPO_LIMITE_DA_SUITE_S) -> Historico:
-    """A suíte em cada commit de `semente..ramo`, num clone descartável; a falha do git que impede tudo vira o erro."""
+    """A suíte em cada commit da linha `semente..ramo`, num clone descartável; a falha do git que impede tudo vira o erro."""
     if not comando.strip():
         return Historico("", erro="sem comando da suite (a arquitetura nao tem plano)")
     pasta = Path(tempfile.mkdtemp(prefix="graphow-historico-"))
     try:
-        commits = tuple(reversed(commits_entre(repositorio, semente, ramo)))
+        commits = tuple(reversed(commits_entre(repositorio, semente, ramo, primeiro_pai=True)))
         GitDoGoal(pasta).rodar("clone", "-q", "--local", "--no-checkout", str(repositorio), str(pasta / PASTA_DO_CLONE))
         medidos = tuple(_medir_commit(pasta, comando, commit, tempo_limite_s=tempo_limite_s) for commit in commits)
     except (GraphowError, OSError) as erro:

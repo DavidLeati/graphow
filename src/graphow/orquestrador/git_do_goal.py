@@ -40,8 +40,6 @@ TRAILER_DO_GOAL: str = "Graphow-Goal"
 TRAILER_DA_TASK: str = "Graphow-Task"
 TRAILER_DO_ACEITE: str = "Graphow-Aceite"
 ACEITE_VERMELHO: str = "vermelho"
-SEPARADOR_DE_COMMITS: str = "\x1e"
-SEPARADOR_DO_HASH: str = "\x1f"
 # A configuração do repositório do humano que o clone leva: quem assina os
 # commits e como o fim de linha vira arquivo, para o clone commitar o que o
 # checkout dele commitaria. O resto (remotos, hooks, includes) fica de fora.
@@ -267,25 +265,29 @@ def commitar(area: Path, mensagem: str, *, vazio_permitido: bool = False) -> str
 
 @dataclass(frozen=True)
 class CommitDoGit:
-    """Um commit da branch: o hash e a mensagem inteira."""
+    """Um commit da branch: o hash, a mensagem inteira e as linhas que o git leu como trailers dela."""
 
     hash: str
     mensagem: str
+    trailers: tuple[str, ...] = ()
 
     def tem_trailer(self, chave: str, valor: str) -> bool:
-        """A mensagem traz a linha `chave: valor`."""
-        return f"{chave}: {valor}" in (linha.strip() for linha in self.mensagem.splitlines())
+        """O git leu o trailer `chave: valor` no fim da mensagem (a chave sem caixa, como no git); a linha do corpo não conta."""
+        return any(c.strip().lower() == chave.lower() and v.strip() == valor for c, _, v in (t.partition(":") for t in self.trailers))
 
 
-def commits_entre(area: Path, antes: str, depois: str = "HEAD") -> tuple[CommitDoGit, ...]:
-    """Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira."""
-    saida = GitDoGoal(area).rodar("log", f"--format=%H{SEPARADOR_DO_HASH}%B{SEPARADOR_DE_COMMITS}", f"{antes}..{depois}")
-    commits = []
-    for bloco in saida.split(SEPARADOR_DE_COMMITS):
-        if SEPARADOR_DO_HASH in bloco:
-            hash_do_commit, mensagem = bloco.strip().split(SEPARADOR_DO_HASH, 1)
-            commits.append(CommitDoGit(hash_do_commit.strip(), mensagem))
-    return tuple(commits)
+def commits_entre(area: Path, antes: str, depois: str = "HEAD", *, primeiro_pai: bool = False) -> tuple[CommitDoGit, ...]:
+    """Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem e os trailers que o git leu nela.
+
+    Os trailers vêm do git (`%(trailers:only,unfold)`), não de uma busca na
+    mensagem: a linha `Graphow-Task: <outra>` no resumo do executor, que vai
+    no corpo, não é trailer. Com `primeiro_pai`, só a linha da branch, sem o
+    lado mesclado de um merge. O NUL separa os campos: o git não o aceita na mensagem.
+    """
+    linha = ("--first-parent",) if primeiro_pai else ()
+    partes = GitDoGoal(area).rodar("log", "-z", *linha, "--format=%H%x00%(trailers:only,unfold)%x00%B", f"{antes}..{depois}").split("\0")
+    return tuple(CommitDoGit(partes[i].strip(), partes[i + 2].strip(), tuple(t for t in partes[i + 1].splitlines() if t.strip()))
+                 for i in range(0, len(partes) - 2, 3))
 
 
 def commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None:

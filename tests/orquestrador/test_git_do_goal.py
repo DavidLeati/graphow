@@ -12,8 +12,10 @@ from graphow.orquestrador.git_do_goal import (
     AreaDoGoal,
     FalhaDoGitDoGoal,
     GitDoGoal,
+    commit_da_fatia,
     commitar,
     descartar_mudancas,
+    mensagem_do_orquestrador,
     integrar_por_fast_forward,
     preparar_area,
     remover_area,
@@ -233,3 +235,20 @@ def test_commit_do_pedido_leva_so_os_caminhos_dele_e_a_sobra_fica_na_area_edge_c
     assert git(repositorio, "show", "--name-only", "--format=", "HEAD").split() == []
     assert git(repositorio, "log", "-1", "--format=%s").strip() == "Mantem"
     assert git(repositorio, "status", "--porcelain").splitlines() == ["A  conftest.py"]
+
+
+def test_retomada_acha_a_fatia_pelo_trailer_e_nao_pelo_corpo_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (E1): o resumo da F2 cita `Graphow-Task: task-f1` no corpo; a retomada da F1 acha o commit da F1."""
+    _repositorio, area = _area(tmp_path)
+    (area / "a.txt").write_text("a\n", encoding="utf-8")
+    f1 = commitar(area, mensagem_do_orquestrador("Fatia F1", "", id_goal="goal-x", id_task="task-f1"))
+    (area / "b.txt").write_text("b\n", encoding="utf-8")
+    resumo = "Continua o que a F1 deixou.\nGraphow-Task: task-f1\n---\nGraphow-Task: task-f3"
+    f2 = commitar(area, mensagem_do_orquestrador("Fatia F2", resumo, id_goal="goal-x", id_task="task-f2"))
+
+    da_f1, da_f2 = commit_da_fatia(area, "task-f1", "main"), commit_da_fatia(area, "task-f2", "main")
+
+    assert da_f1 is not None and da_f1.hash == f1
+    assert da_f2 is not None and da_f2.hash == f2 and da_f2.tem_trailer("graphow-goal", "goal-x")
+    assert "Graphow-Task: task-f1" in da_f2.mensagem
+    assert commit_da_fatia(area, "task-f3", "main") is None

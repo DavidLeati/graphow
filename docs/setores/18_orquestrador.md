@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-57 módulos · 10968 linhas · 83 classes
+57 módulos · 10970 linhas · 83 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -31,7 +31,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 382 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 397 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 379 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
@@ -522,8 +522,6 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 | `TRAILER_DA_TASK` | `str` | `'Graphow-Task'` |
 | `TRAILER_DO_ACEITE` | `str` | `'Graphow-Aceite'` |
 | `ACEITE_VERMELHO` | `str` | `'vermelho'` |
-| `SEPARADOR_DE_COMMITS` | `str` | `'\x1e'` |
-| `SEPARADOR_DO_HASH` | `str` | `'\x1f'` |
 | `CHAVES_COPIADAS_PARA_O_CLONE` | `tuple[str, ...]` | `('user.name', 'user.email', 'core.autocrlf', 'core.eol', 'core.safecrlf…` |
 | `REMOTO_DO_CLONE` | `str` | `'origin'` |
 | `IDENTIDADE_DE_RESERVA` | `tuple[str, ...]` | `('-c', 'user.name=graphow orquestrar', '-c', 'user.email=orquestrador@g…` |
@@ -538,11 +536,11 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 
 ### `CommitDoGit`
 
-*DTO imutável* — Um commit da branch: o hash e a mensagem inteira.
+*DTO imutável* — Um commit da branch: o hash, a mensagem inteira e as linhas que o git leu como trailers dela.
 
-**Campos:** `hash: str`, `mensagem: str`
+**Campos:** `hash: str`, `mensagem: str`, `trailers: tuple[str, ...]`
 
-- `tem_trailer(chave: str, valor: str) -> bool` — A mensagem traz a linha `chave: valor`.
+- `tem_trailer(chave: str, valor: str) -> bool` — O git leu o trailer `chave: valor` no fim da mensagem (a chave sem caixa, como no git); a linha do corpo não conta.
 
 ### `FalhaDoGitDoGoal` (GraphowError)
 
@@ -581,7 +579,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `sincronizar_ramo(area: AreaDoGoal) -> None` — A branch do Goal no repositório do humano vai ao commit do clone, puxada dele, só por fast-forward.
 - `mensagem_do_orquestrador(assunto: str, corpo: str) -> str` — A mensagem do commit com os trailers do Goal, da Task (na fatia e no aceite) e do aceite vermelho, quando pedido.
 - `commitar(area: Path, mensagem: str) -> str` — Tudo o que mudou na área num commit do orquestrador; devolve o hash.
-- `commits_entre(area: Path, antes: str, depois: str) -> tuple[CommitDoGit, ...]` — Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem inteira.
+- `commits_entre(area: Path, antes: str, depois: str) -> tuple[CommitDoGit, ...]` — Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem e os trailers que o git leu nela.
 - `commit_da_fatia(area: Path, id_task: str, base: str) -> CommitDoGit | None` — O commit mais novo da branch, desde a base, que o orquestrador fez para a fatia; None sem nenhum.
 - `arquivos_do_commit(area: Path, hash_do_commit: str) -> tuple[str, ...]` — Os arquivos que o commit mudou, sem as aspas e os octais com que o git cita o nome com acento.
 - `ultimo_commit_do_arquivo(area: Path, caminho: str) -> str` — O commit mais novo que tocou o arquivo; o HEAD quando nenhum tocou.
