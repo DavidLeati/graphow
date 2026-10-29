@@ -245,9 +245,15 @@ class EstadoDoGoal:
         corrigida = any(fatia.texto(m.CAMPO_CORRIGE) == verificacoes[-1].id for fatia in self.fatias)
         return self.ciclos_do_marco(marco) >= self.limite_de_ciclos(marco) and not corrigida
 
-    def bloqueantes_de_outros_marcos(self, marco: MarcoRegistrado) -> tuple[AchadoRegistrado, ...]:
-        """Os bloqueantes ainda abertos que as verificações dos outros marcos deixaram: a final os cobra de novo."""
-        return tuple(achado for v in self.verificacoes if v.marco != marco.id for achado in v.bloqueantes()
+    def bloqueantes_de_antes(self, ultima: VerificacaoRegistrada) -> tuple[AchadoRegistrado, ...]:
+        """Os bloqueantes ainda abertos das outras verificações (dos outros marcos e as anteriores do marco): a final os cobra de novo.
+
+        A verificação que deixou de valer não some com os bloqueantes dela: na
+        sonda K4 da revisão da T2k+T2l, a conferência que a refez não os
+        conferia e saía limpa, e o laço tentava fechar; o kernel recusava, e o
+        laço parava em falha em vez de em bloqueantes restantes.
+        """
+        return tuple(achado for v in self.verificacoes if v.id != ultima.id for achado in v.bloqueantes()
                      if achado.estado == a.ESTADO_ABERTO)
 
     def corrigidos(self, marco: MarcoRegistrado, agora: Sequence[str] = ()) -> tuple[str, ...]:

@@ -7,7 +7,8 @@ dois ciclos por marco. O marco segue quando a verificação dele sai limpa;
 o marco intermediário que esgota os ciclos também segue, com os bloqueantes
 abertos, para que os marcos seguintes rodem. O último marco é a verificação
 final, sobre o Goal inteiro: ela cobra de novo os bloqueantes que os outros
-marcos deixaram, com os ciclos dela, e só esgotados esses o laço para. O Goal
+marcos deixaram, e os das verificações dela que deixaram de valer, com os
+ciclos dela, e só esgotados esses o laço para, em bloqueantes restantes. O Goal
 só fecha quando não há bloqueante aberto e a verificação final limpa vale
 para o commit atual: a verificação foi feita no commit do código da
 ponta da branch (o commit que só mudou o documento do Goal não conta). O
@@ -39,7 +40,7 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: M
     if ultima is None or not _vale_para_o_commit_atual(contexto, ultima) or _ja_corrigida(estado, ultima):
         return verificar_marco(contexto, estado, marco)
     sincronizar_documento(contexto, estado.pendencias, numero=len(estado.verificacoes))
-    carregados = estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()
+    carregados = estado.bloqueantes_de_antes(ultima) if marco.final else ()
     if ultima.limpa and not carregados:
         return _fechar(contexto, estado, marco) if marco.final else None
     return _corrigir(contexto, estado, ultima, marco=marco)
@@ -64,12 +65,12 @@ def _ja_corrigida(estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> b
 def _corrigir(
     contexto: ContextoDoGoal, estado: EstadoDoGoal, ultima: VerificacaoRegistrada, *, marco: MarcoRegistrado
 ) -> Parada | None:
-    """Os bloqueantes (na final, também os dos outros marcos) viram fatias de correção enquanto o marco tiver ciclo.
+    """Os bloqueantes (na final, também os das outras verificações) viram fatias de correção enquanto o marco tiver ciclo.
 
     Sem ciclo, o marco intermediário segue (o laço vai ao marco seguinte), e a
     final para: não há mais o que executar.
     """
-    bloqueantes = (*ultima.bloqueantes_abertos(), *(estado.bloqueantes_de_outros_marcos(marco) if marco.final else ()))
+    bloqueantes = (*ultima.bloqueantes_abertos(), *(estado.bloqueantes_de_antes(ultima) if marco.final else ()))
     if not bloqueantes:
         return _so_criterio_reprovado(contexto, ultima)
     ciclos = estado.ciclos_do_marco(marco)
