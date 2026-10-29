@@ -1,4 +1,4 @@
-"""O que a suíte escreve não entra em commit do laço (T2m.2, T2m.3).
+"""O que a suíte e os testes de aceite escrevem não entra em commit do laço (T2m.2, T2m.3, T2n.1).
 
 Na revisão da T2k+T2l, as recusas por código olhavam a área antes da suíte, e
 o commit depois dela fazia `git add -A`. Um `verificar.py` que gerava um
@@ -6,7 +6,9 @@ conftest.py com `pytest_pyfunc_call` o levava à base no commit da fatia e no
 "Registra as pendencias" (L2). A suíte que reescrevia um arquivo a cada
 rodada o punha em cada commit: o arquivo passava a contar como de critério, a
 borda antiga do README voltava a ser regressão confirmada, e o commit das
-pendências contava como código (K4).
+pendências contava como código (K4). O commit do aceite fazia o mesmo depois
+do vermelho: o código da base que, importado pelo teste de aceite, gerava o
+conftest.py o levava à branch do Goal.
 """
 
 from pathlib import Path
@@ -26,6 +28,7 @@ from tests.orquestrador.apoio_laco import (
     README_COM_EXEMPLO,
     SOMA_CERTA,
     SOMA_COM_DOCSTRING,
+    SOMA_ERRADA,
     Bancada,
     executor_pronto,
     montar_bancada,
@@ -142,3 +145,33 @@ def test_suite_que_reescreve_arquivo_nao_confirma_a_borda_antiga_nem_para_em_fal
     assert [(x.texto("titulo"), x.gravidade, x.texto("marca")) for x in terceira.achados] == [
         ("README sem exemplo com zero", "acompanhamento", MARCA_DA_REGRESSAO)]
     assert len(estado.verificacoes) == 3
+
+
+def _soma_que_gera_o_conftest(bancada: Bancada) -> None:
+    """A base com um soma.py que, importado, escreve um conftest.py que dá verde a tudo: o código de uma fatia anterior."""
+    gera = f"from pathlib import Path\nPath('conftest.py').write_text({FINGE_QUE_PASSA!r})\n\n\n"
+    (bancada.repositorio / "soma.py").write_text(gera + SOMA_ERRADA, encoding="utf-8", newline="\n")
+    git(bancada.repositorio, "commit", "-qam", "Fatia anterior: soma que gera o conftest")
+
+
+def test_conftest_que_o_codigo_escreve_no_aceite_nao_chega_a_branch_nominal(tmp_path: Path) -> None:
+    """T2n.1: o código que já está na branch, importado pelo teste de aceite, escreve um conftest.py com hook.
+
+    Ele vai ao .patch da conferência e sai da área; o commit do aceite leva só
+    `aceite/` e o documento do Goal, e o conftest não chega à branch nem à base.
+    """
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+    _soma_que_gera_o_conftest(bancada)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert git(bancada.repositorio, "log", "--all", "--format=%s", "--", "conftest.py") == ""
+    assert "conftest.py" not in git(bancada.repositorio, "ls-tree", "-r", "--name-only", "main").split()
+    log = git(bancada.repositorio, "log", "--format=%H %s", "main").splitlines()
+    aceite = next(linha[:40] for linha in log if "Escreve os testes de aceite" in linha)
+    assert _arquivos(bancada, aceite) == ["aceite/aceite_c1.py", "docs/goals/soma.md"]
+    guardado = next((bancada.raiz / "estado").rglob("aceite-vermelho-1.patch"))
+    assert "pytest_pyfunc_call" in guardado.read_text(encoding="utf-8")

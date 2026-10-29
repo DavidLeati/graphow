@@ -10,14 +10,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-51 módulos · 9365 linhas · 70 classes
+51 módulos · 9388 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 278 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 163 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 186 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |

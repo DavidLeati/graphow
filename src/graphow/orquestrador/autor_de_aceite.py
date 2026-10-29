@@ -10,6 +10,13 @@ Goal e grava no livro-razão a ligação de cada critério aos seus testes. No
 modo supervisionado o portão do plano vem depois deste passo: o humano aprova
 junto o plano e os testes, "isto é o que vai provar que está pronto".
 
+O commit leva só `aceite/` e o documento, pelo caminho, como o do refazer. O
+que os testes escrevem ao rodar na conferência sai da área depois dela, como
+o que a suíte escreve (orquestrador/suite_sem_rastro.py). Antes, o commit era
+`git add -A` depois do vermelho: o código da base que, importado pelo teste,
+gerava um conftest.py com hook o levava à branch, e a fatia seguinte, que
+compara com o HEAD, não o recusava.
+
 O aceite pago não se paga de novo: a saída conferida vai ao Goal
 (`aceite_proposto`) antes do commit. A retomada reconhece o commit dos testes
 pelo trailer `Graphow-Task: aceite-<goal>`, ou commita os arquivos que a
@@ -30,9 +37,17 @@ from graphow.orquestrador.git_do_goal import arquivos_do_commit, commit_da_fatia
 from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, gravar_aceite, gravar_aceite_proposto
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE
-from graphow.orquestrador.saida_do_aceite import SaidaDoAceite, conferir_forma, conferir_vermelho, dentro_do_aceite, e_cache
+from graphow.orquestrador.saida_do_aceite import (
+    PASTA_DO_ACEITE,
+    SaidaDoAceite,
+    conferir_forma,
+    conferir_vermelho,
+    dentro_do_aceite,
+    e_cache,
+)
 from graphow.orquestrador.sessoes_de_papel import Conferencia, PedidoDePapel
 from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
+from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
 
@@ -111,7 +126,11 @@ def _orientacao_do_humano(estado: EstadoDoGoal) -> str:
 
 
 def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[str, Any]) -> Conferencia:
-    """A conferência da saída do autor: a forma, o lugar dos arquivos e o vermelho, guardando as execuções."""
+    """A conferência da saída do autor: a forma, o lugar dos arquivos e o vermelho, guardando as execuções.
+
+    O que os testes escrevem ao rodar vai a um .patch e sai da área: nem o
+    commit do aceite o leva, nem a conferência seguinte o cobra do autor.
+    """
     criterios = {str(c["id"]): str(c["verificacao"]) for c in (estado.plano or {}).get("criterios", [])}
 
     def rodar(comando: str) -> ResultadoDaSuite:
@@ -124,7 +143,9 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
         problemas = conferir_forma(saida, criterios, contexto.area, mudados=mudados)
         if problemas:
             return problemas
-        problemas, execucoes = conferir_vermelho(saida, rodar)
+        guarda["rodadas"] = int(guarda.get("rodadas", 0)) + 1
+        with sem_o_que_a_suite_escreve(contexto.area, contexto.patch(f"aceite-vermelho-{guarda['rodadas']}")):
+            problemas, execucoes = conferir_vermelho(saida, rodar)
         guarda["execucoes"] = [execucao.em_json() for execucao in execucoes]
         return problemas
 
@@ -134,6 +155,7 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
 def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_aceite: str) -> str | None:
     """O commit dos testes: o que já está na branch (pelo trailer), ou o dos arquivos que a sessão deixou; None sem eles.
 
+    Só `aceite/` e o documento do Goal entram nele; o resto da área fica fora.
     O teste que já estava na base, igual, não muda nada no git, e o commit sai
     mesmo assim, com a seção do documento (ou vazio): é ele que marca o aceite.
     """
@@ -142,14 +164,15 @@ def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_a
         return feito.hash
     if not all((contexto.area / teste.arquivo).is_file() for _, teste in saida.testes()):
         return None
-    caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
+    documento = caminho_do_documento(contexto.configuracao.slug)
+    caminho = contexto.area / documento
     if caminho.is_file():
         gravar_se_mudou(caminho, com_aceite(caminho.read_text(encoding="utf-8"), linhas_do_aceite(saida)))
     provados = ", ".join(criterio.id for criterio in saida.criterios)
     assunto = f"Escreve os testes de aceite do Goal {contexto.configuracao.slug} ({provados})"
     mensagem = mensagem_do_orquestrador(assunto, saida.resumo, id_goal=contexto.id_goal, id_task=id_do_aceite)
     forcar_o_aceite_no_indice(contexto.area)
-    return contexto.commitar(mensagem, vazio_permitido=True)
+    return contexto.commitar(mensagem, vazio_permitido=True, caminhos=(PASTA_DO_ACEITE, documento))
 
 
 def linhas_do_aceite(saida: SaidaDoAceite) -> list[str]:
