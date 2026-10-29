@@ -10,11 +10,11 @@ Vocabulário da ontologia (versão 1.7.0: o aceite no centro, com os tipos Crite
 
 ## Inventário
 
-13 módulos · 1459 linhas · 38 classes
+13 módulos · 1462 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`core/aceite.py`](#coreaceite) | 110 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
+| [`core/aceite.py`](#coreaceite) | 113 | O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escrevem do Critério, do Achado e da verificação. |
 | [`core/composicao_governanca.py`](#corecomposicaogovernanca) | 61 | Composição da política de um nó contido por mais de um Projeto: em cada gesto, a mais restritiva. |
 | [`core/escopo.py`](#coreescopo) | 33 | Convenções do escopo governado: as propriedades e os valores que as regras de escopo leem. |
 | [`core/events.py`](#coreevents) | 93 | Definições de eventos de log transacionais append-only do Graphow. |
@@ -46,6 +46,7 @@ O vocabulário do aceite no centro: o que o kernel e o orquestrador leem e escre
 | `VEREDITO_LIMPO` | `str` | `'aprovado'` |
 | `VEREDITO_COM_BLOQUEANTE` | `str` | `'rejeitado'` |
 | `CAMPO_PONTA_DO_RAMO` | `str` | `'ponta_do_ramo'` |
+| `CAMPO_EQUIVALENTE_A` | `str` | `'equivalente_a'` |
 | `CAMPO_PLANO` | `str` | `'plano'` |
 | `CAMPO_CRITERIOS_DO_PLANO` | `str` | `'criterios'` |
 | `CAMPO_CONDUCAO` | `str` | `'orquestracao'` |

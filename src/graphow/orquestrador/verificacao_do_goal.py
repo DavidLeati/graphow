@@ -15,7 +15,11 @@ ponta da branch (o commit que só mudou o documento do Goal não conta). O
 kernel recusa o fechamento que não tiver essa prova. No modo autônomo o
 orquestrador integra por fast-forward na base e fecha; no supervisionado,
 para com "pronto para integrar", e a chamada seguinte vê a branch integrada e
-fecha.
+fecha. A base que andou desde que a branch do Goal saiu dela ganha antes o
+rebase da branch, a suíte e, se o rebase mudou arquivo de critério, a
+verificação final de novo (orquestrador/base_que_andou.py). Logo antes de
+integrar, o laço relê o Goal: o cancelamento que chegou no meio do passo
+impede a integração.
 
 O documento é sincronizado com as pendências a cada passo depois da
 verificação, e por isso a queda entre o lote e o commit do documento não perde
@@ -27,10 +31,12 @@ from pathlib import Path
 
 from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.base_que_andou import base_andou, rebasear_o_goal
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, integrar_por_fast_forward, remover_area
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
+from graphow.orquestrador.registro_do_rebase import equivalentes_da_ponta
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
 
 
@@ -38,7 +44,7 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: M
     """Com as fatias do marco concluídas: verifica o commit atual, abre correções, segue ao próximo marco ou fecha."""
     verificacoes = estado.verificacoes_do_marco(marco)
     ultima = verificacoes[-1] if verificacoes else None
-    if ultima is None or not _vale_para_o_commit_atual(contexto, ultima) or _ja_corrigida(estado, ultima):
+    if ultima is None or not _vale_para_o_commit_atual(contexto, estado, ultima) or _ja_corrigida(estado, ultima):
         return verificar_marco(contexto, estado, marco)
     sincronizar_documento(contexto, estado.pendencias, numero=len(estado.verificacoes))
     carregados = estado.bloqueantes_de_antes(ultima) if marco.final else ()
@@ -47,14 +53,18 @@ def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: M
     return _corrigir(contexto, estado, ultima, marco=marco)
 
 
-def _vale_para_o_commit_atual(contexto: ContextoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
-    """A verificação foi feita no commit do código atual: o que veio depois dela só mexeu no documento do Goal.
+def _vale_para_o_commit_atual(contexto: ContextoDoGoal, estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
+    """A verificação foi feita no commit do código atual, ou num que o rebase deu por equivalente a ele.
 
-    É a mesma conta que o kernel faz contra a ponta da branch gravada no Goal
-    (kernel/fechamento_do_goal.py); a verificação de antes da fase 2, sem o
-    commit do código, não vale mais e é refeita.
+    O que veio depois dela só mexeu no documento do Goal, ou foi o rebase que
+    não mudou arquivo de critério (`equivalente_a` na ponta,
+    orquestrador/base_que_andou.py). É a mesma conta que o kernel faz contra a
+    ponta da branch gravada no Goal (kernel/fechamento_do_goal.py); a
+    verificação de antes da fase 2, sem o commit do código, não vale mais e é
+    refeita.
     """
-    return bool(verificacao.commit_do_codigo) and verificacao.commit_do_codigo == contexto.commit_do_codigo()
+    atual = contexto.commit_do_codigo()
+    return bool(verificacao.commit_do_codigo) and verificacao.commit_do_codigo in (atual, *equivalentes_da_ponta(estado.propriedades, atual))
 
 
 def _ja_corrigida(estado: EstadoDoGoal, verificacao: VerificacaoRegistrada) -> bool:
@@ -115,12 +125,15 @@ def _so_criterio_reprovado(contexto: ContextoDoGoal, ultima: VerificacaoRegistra
     )
 
 
-def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada:
+def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:
     """Integra no modo autônomo, ou espera o humano integrar no supervisionado; fecha quando integrado.
 
     A verificação final que ficou limpa porque o humano descartou o
     bloqueante dela não resolveu, ao ser gravada, os achados que as correções
-    tinham entregue: eles se resolvem agora, confirmados por ela.
+    tinham entregue: eles se resolvem agora, confirmados por ela. A base que
+    andou ganha o rebase da branch do Goal (orquestrador/base_que_andou.py), e
+    o passo seguinte volta aqui: a conferência da base é sempre a de logo
+    antes de integrar.
     """
     contexto.livro.resolver(estado.corrigidos(marco), f"Achados corrigidos confirmados pela verificacao final do Goal {contexto.id_goal}")
     configuracao = contexto.configuracao
@@ -129,23 +142,39 @@ def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistra
     andou = _branch_andou(repositorio, configuracao.ramo, head)
     if andou:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, andou)
-    cancelado = _cancelado_depois_da_leitura(contexto)
-    if cancelado is not None:
-        return cancelado
-    if configuracao.modo == m.MODO_AUTONOMO:
-        try:
-            integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base)
-        except FalhaDoGitDoGoal as erro:
-            return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"A integracao nao foi possivel: {erro.formatar_para_llm()}")
-        return _fechar_integrado(contexto, integrado)
     if GitDoGoal(repositorio).e_ancestral(head, configuracao.base):
-        return _fechar_integrado(contexto, GitDoGoal(repositorio).rodar("rev-parse", configuracao.base).strip())
+        return _cancelado_depois_da_leitura(contexto) or _fechar_integrado(
+            contexto, GitDoGoal(repositorio).rodar("rev-parse", configuracao.base).strip())
+    if base_andou(contexto):
+        return rebasear_o_goal(contexto, estado)
+    cancelado = _cancelado_depois_da_leitura(contexto)
+    if cancelado is not None or configuracao.modo != m.MODO_AUTONOMO:
+        return cancelado or _pronto_para_integrar(contexto, head)
+    return _integrar(contexto, repositorio)
+
+
+def _pronto_para_integrar(contexto: ContextoDoGoal, head: str) -> Parada:
+    """A parada do supervisionado: a verificação limpa vale para a ponta, e o humano integra."""
+    configuracao = contexto.configuracao
     return Parada(
         contexto.id_goal,
         MotivoDaParada.PRONTO_PARA_INTEGRAR,
         f"Pronto para integrar: a verificacao limpa vale para {head[:12]}. Integre com "
-        f"`git -C \"{repositorio}\" merge --ff-only {configuracao.ramo}` (na base {configuracao.base}) e rode de novo para fechar.",
+        f"`git -C \"{configuracao.repositorio}\" merge --ff-only {configuracao.ramo}` (na base {configuracao.base}) e rode de "
+        f"novo para fechar.",
     )
+
+
+def _integrar(contexto: ContextoDoGoal, repositorio: Path) -> Parada | None:
+    """O fast-forward da base até a branch do Goal, e o fechamento; a base que andou no meio volta ao rebase."""
+    configuracao = contexto.configuracao
+    try:
+        integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base)
+    except FalhaDoGitDoGoal as erro:
+        if base_andou(contexto):
+            return None
+        return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"A integracao nao foi possivel: {erro.formatar_para_llm()}")
+    return _fechar_integrado(contexto, integrado)
 
 
 def _branch_andou(repositorio: Path, ramo: str, head: str) -> str:

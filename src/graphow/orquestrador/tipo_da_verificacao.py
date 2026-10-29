@@ -190,6 +190,12 @@ def _arquivos_do_plano(estado: EstadoDoGoal, git: GitDoGoal) -> dict[str, frozen
     return {id_c: _arquivos_do_criterio(estado, git, id_c) for id_c in ids}
 
 
+def arquivos_dos_criterios(estado: EstadoDoGoal, git: GitDoGoal) -> frozenset[str]:
+    """Os arquivos que algum critério cobre: os das fatias do plano dele (previstos e commitados) e os testes de aceite."""
+    return frozenset((*(caminho for arquivos in _arquivos_do_plano(estado, git).values() for caminho in arquivos),
+                      *estado.arquivos_protegidos()))
+
+
 def _arquivos_do_criterio(estado: EstadoDoGoal, git: GitDoGoal, id_criterio: str) -> frozenset[str]:
     """Os arquivos que as fatias do plano que entregam o critério previram e os que os commits delas mudaram."""
     fatias = [fatia for fatia in estado.fatias if id_criterio in fatia.lista(m.CAMPO_CRITERIOS) and not fatia.texto(m.CAMPO_CORRIGE)]

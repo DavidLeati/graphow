@@ -54,6 +54,7 @@ from graphow.orquestrador.pedidos_do_humano import (
 )
 from graphow.orquestrador.planejamento import planejar
 from graphow.orquestrador.refazer_aceite import refazer_aceite
+from graphow.orquestrador.registro_do_rebase import retomar_o_rebase
 from graphow.orquestrador.replanejamento import replanejar
 from graphow.orquestrador.retirada_de_criterio import retirar_criterio
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
@@ -171,8 +172,10 @@ class Orquestrador:
     def _rodar(self, id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada:
         """O laço, passo a passo, até uma parada.
 
-        Antes do primeiro passo, a configuração de teste que a rodada do
-        aceite deixou trocada (o processo caiu no meio dela) volta à
+        Antes do primeiro passo, o rebase que o processo deixou pela metade
+        sai, e o registrado leva as refs que ficaram para trás
+        (orquestrador/registro_do_rebase.py); e a configuração de teste que a
+        rodada do aceite deixou trocada (o processo caiu no meio dela) volta à
         entregue: todo passo pode commitar a área, o pedido do humano
         inclusive, e o commit levaria a do aceite.
         """
@@ -184,6 +187,7 @@ class Orquestrador:
         if estado.cancelado:
             return _parada_do_cancelamento(estado)
         contexto = self._contexto(estado, opcoes, repositorio)
+        retomar_o_rebase(contexto)
         preparar_area(contexto.area_do_goal)
         restaurar_a_configuracao_entregue(contexto.area)
         for _ in range(LIMITE_DE_PASSOS):

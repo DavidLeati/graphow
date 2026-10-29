@@ -11,6 +11,7 @@ from enum import Enum
 from pathlib import Path
 import time
 
+from graphow.core import aceite as a
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
@@ -45,6 +46,7 @@ class MotivoDaParada(str, Enum):
     PENDENCIA = "pendencia"
     ORCAMENTO = "orcamento"
     PRONTO_PARA_INTEGRAR = "pronto_para_integrar"
+    CONFLITO_COM_A_BASE = "conflito_com_a_base"
     BLOQUEANTES_RESTANTES = "bloqueantes_restantes"
     LIMITE_DE_USO = "limite_de_uso"
     OCUPADO = "ocupado"
@@ -141,10 +143,16 @@ class ContextoDoGoal:
         """A ponta da branch do Goal no livro-razão, quando o git andou desde a última gravada.
 
         É dela que o kernel lê se a verificação final vale para o commit atual.
+        Os commits equivalentes que o rebase gravou (`equivalente_a`) ficam
+        enquanto o commit do código for o mesmo.
         """
-        ponta = {m.CAMPO_COMMIT: self.git.head(), m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo()}
+        ponta: dict[str, object] = {m.CAMPO_COMMIT: self.git.head(), m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo()}
         goal = self.livro.view().obter_no(self.id_goal)
-        if goal is not None and goal.obter_propriedade(m.CAMPO_PONTA_DO_RAMO) != ponta:
+        gravada = goal.obter_propriedade(m.CAMPO_PONTA_DO_RAMO) if goal is not None else None
+        mesmo_codigo = isinstance(gravada, Mapping) and gravada.get(m.CAMPO_COMMIT_DO_CODIGO) == ponta[m.CAMPO_COMMIT_DO_CODIGO]
+        if mesmo_codigo and isinstance(gravada, Mapping) and gravada.get(a.CAMPO_EQUIVALENTE_A):
+            ponta[a.CAMPO_EQUIVALENTE_A] = gravada[a.CAMPO_EQUIVALENTE_A]
+        if goal is not None and gravada != ponta:
             self.livro.gravar_ponta(ponta)
 
     @property

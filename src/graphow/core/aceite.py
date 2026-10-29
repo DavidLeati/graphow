@@ -31,6 +31,9 @@ VEREDITO_COM_BLOQUEANTE: str = "rejeitado"
 # No Goal: a ponta da branch do Goal, como o orquestrador a viu no git, com o
 # commit do código dela; e o plano, com o nó de cada critério.
 CAMPO_PONTA_DO_RAMO: str = "ponta_do_ramo"
+# Na ponta: os commits do código de antes de um rebase que não mudou arquivo
+# que um critério cobre. A verificação feita num deles vale para a ponta.
+CAMPO_EQUIVALENTE_A: str = "equivalente_a"
 CAMPO_PLANO: str = "plano"
 CAMPO_CRITERIOS_DO_PLANO: str = "criterios"
 CAMPO_CONDUCAO: str = "orquestracao"

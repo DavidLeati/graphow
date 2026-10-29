@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-57 módulos · 10989 linhas · 83 classes
+60 módulos · 11396 linhas · 85 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,11 +18,12 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 73 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 189 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 197 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 85 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
@@ -38,7 +39,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 320 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 324 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 396 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
@@ -47,7 +48,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/rebase_no_clone.py`](#orquestradorrebasenoclone) | 154 | O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/registro_do_rebase.py`](#orquestradorregistrodorebase) | 133 | O rebase no livro-razão: a Evidence dele, a ponta nova, os commits novos das fatias e dos Artifact, e a retomada depois da queda. |
 | [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 192 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 91 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
@@ -63,11 +66,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
-| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 246 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
+| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 252 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 246 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 188 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 217 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 260 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
@@ -148,6 +151,20 @@ O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelho
 
 - `escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — Os testes de aceite já pagos, ou uma sessão do autor; commita e grava, ou diz por que não deu.
 - `linhas_do_aceite(saida: SaidaDoAceite) -> list[str]` — A seção dos testes de aceite no documento do Goal: o comando e o que prova cada critério.
+
+## `orquestrador/base_que_andou.py`
+
+A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ARQUIVOS_NA_MENSAGEM` | `int` | `20` |
+
+### Funções do módulo
+
+- `base_andou(contexto: ContextoDoGoal) -> bool` — A base do repositório do humano não está na história da branch do Goal: não há fast-forward.
+- `rebasear_o_goal(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O rebase da branch do Goal sobre a base nova, com a suíte; None quando ele foi registrado e o laço segue.
+- `parada_do_conflito(contexto: ContextoDoGoal, conflito: ConflitoNoRebase, suite: ResultadoDaSuite | None) -> Parada` — O rebase que não deu: a branch do Goal ficou como estava, e a parada diz por quê e os arquivos.
 
 ## `orquestrador/briefing.py`
 
@@ -954,7 +971,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `registrar_revisao(id_task: str, tentativa: int) -> None` — O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
-- `gravar_ponta(ponta: Mapping[str, str]) -> None` — A ponta da branch do Goal como o git a tem agora: o commit e o commit do código.
+- `gravar_ponta(ponta: Mapping[str, object]) -> None` — A ponta da branch do Goal como o git a tem agora: o commit, o commit do código e os equivalentes dele.
 - `criar_correcoes(id_evidencia: str, achados: Sequence[AchadoRegistrado]) -> None` — Os Achados bloqueantes do ciclo viram uma fatia de correção do marco, que deriva de todos eles.
 - `dividir_correcao(fatia: FatiaRegistrada, achados: Sequence[AchadoRegistrado]) -> None` — A correção agrupada que esgotou as tentativas sai do plano e vira uma fatia por achado, no mesmo ciclo.
 - `resolver(achados: Sequence[str], justificativa: str) -> None` — Os Achados corrigidos passam a resolvidos: a conferência os confirmou, e a verificação limpa do marco fecha o ciclo.
@@ -1120,6 +1137,38 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 
 - `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
 
+## `orquestrador/rebase_no_clone.py`
+
+O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `OPCOES_DO_REBASE` | `tuple[str, ...]` | `('--no-autosquash', '--keep-empty', '--empty=keep', '--reapply-cherry-p…` |
+| `SEM_ASPAS` | `tuple[str, ...]` | `('-c', 'core.quotepath=false')` |
+| `PASTAS_DO_REBASE` | `tuple[str, ...]` | `('rebase-merge', 'rebase-apply')` |
+| `LIMITE_DO_ERRO` | `int` | `2000` |
+
+### `ConflitoNoRebase`
+
+*DTO imutável* — O rebase que parou em conflito, já abortado: as bases, a ponta que ficou, os arquivos em conflito e o que o git disse.
+
+**Campos:** `base_antes: str`, `base_depois: str`, `antes: str`, `arquivos: tuple[str, ...]`, `erro: str`
+
+### `RebaseNoClone`
+
+*DTO imutável* — O rebase que deu certo: as duas bases, as duas pontas, o par de cada commit e os arquivos que ele mudou na ponta.
+
+**Campos:** `base_antes: str`, `base_depois: str`, `antes: str`, `depois: str`, `pares: tuple[tuple[str, str], ...]`, `arquivos: tuple[str, ...]`
+
+### Funções do módulo
+
+- `trazer_a_base(area: AreaDoGoal) -> str` — A base do repositório do humano, como ela está agora, no clone; devolve o commit dela.
+- `rebasear(area: Path, ramo: str, base: str) -> RebaseNoClone | ConflitoNoRebase` — A branch do Goal refeita sobre a base, com o HEAD destacado; no conflito, o rebase sai e o clone volta à branch.
+- `arquivos_entre(git: GitDoGoal, antes: str, depois: str) -> tuple[str, ...]` — Os arquivos que mudaram de um commit ao outro, sem aspas nem escape no nome.
+- `desfazer_o_rebase(area: Path, ramo: str) -> None` — O clone de volta à branch do Goal, que o rebase não moveu, sem o que a suíte deixou.
+- `recuperar_o_clone(area: Path, ramo: str) -> str` — O rebase que o processo deixou pela metade sai, e o clone com o HEAD destacado volta à branch; diz o que fez.
+- `mover_as_refs(area: AreaDoGoal, antes: str, depois: str) -> None` — A branch do Goal vai de `antes` a `depois` no clone e no repositório do humano, cada uma só se ainda está em `antes`.
+
 ## `orquestrador/refazer_aceite.py`
 
 Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing.
@@ -1139,6 +1188,25 @@ Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, co
 
 - `refazer_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano) -> Parada | None` — Uma sessão do autor de aceite refaz os testes do critério do pedido; commita e grava, ou diz por que não deu.
 - `briefing_do_refazer(estado: EstadoDoGoal, pedido: PedidoDoHumano, atual: SaidaDoAceite) -> str` — O pedido ao autor: o de sempre, mais o critério a refazer, os testes atuais dele e o motivo do humano.
+
+## `orquestrador/registro_do_rebase.py`
+
+O rebase no livro-razão: a Evidence dele, a ponta nova, os commits novos das fatias e dos Artifact, e a retomada depois da queda.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DO_REBASE` | `str` | `'rebase_do_goal'` |
+| `CAMPO_COMMIT_ANTES_DO_REBASE` | `str` | `'commit_antes_do_rebase'` |
+| `CAMPO_REBASE` | `str` | `'rebase'` |
+| `CAMPO_COMMIT_ANTES` | `str` | `'commit_antes'` |
+
+### Funções do módulo
+
+- `registrar_o_rebase(contexto: ContextoDoGoal, estado: EstadoDoGoal, feito: RebaseNoClone) -> str` — A Evidence do rebase, a ponta nova e os commits novos das fatias e dos Artifact, num lote; devolve o id da Evidence.
+- `cobertos_pelo_rebase(estado: EstadoDoGoal, git: GitDoGoal, arquivos: Sequence[str]) -> tuple[str, ...]` — Dos arquivos que o rebase mudou na ponta, os que algum critério cobre.
+- `equivalentes_da_ponta(propriedades: Mapping[str, Any], codigo: str) -> tuple[str, ...]` — Os commits do código que a ponta gravada dá por equivalentes ao dado; vazio quando ela é de outro commit.
+- `rebases_do_goal(view: GrafoView, id_goal: str) -> tuple[NoGrafo, ...]` — As Evidence de rebase que o orquestrador gravou derivando do Goal, pela ordem do log.
+- `retomar_o_rebase(contexto: ContextoDoGoal) -> None` — Antes de preparar a área: o rebase pela metade sai, e o último registrado leva as refs que ficaram para trás.
 
 ## `orquestrador/regra_da_conferencia.py`
 
@@ -1648,6 +1716,7 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 - `escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal | None) -> TipoDaVerificacao` — A conferência quando o marco já tem verificação gravada; senão a do marco intermediário, ou a caçada na final.
 - `pareceres_gravados(itens: object) -> tuple[Parecer, ...]` — Os pareceres de critério e de decisão como a verificação os gravou.
 - `criterios_em_desacordo(estado: EstadoDoGoal) -> frozenset[str]` — Os critérios cujo teste de aceite está em desacordo: o autor manteve o que o executor disse errado, ou o refazer ficou com o antigo.
+- `arquivos_dos_criterios(estado: EstadoDoGoal, git: GitDoGoal) -> frozenset[str]` — Os arquivos que algum critério cobre: os das fatias do plano dele (previstos e commitados) e os testes de aceite.
 - `na_conferencia(verificacao: Verificacao, regra: RegraDaConferencia) -> Verificacao` — A conferência com o destino de cada achado do verificador e um bloqueante por conferido que persiste.
 
 ## `orquestrador/trava_do_git.py`

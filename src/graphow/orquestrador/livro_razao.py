@@ -284,8 +284,8 @@ class LivroRazaoDoGoal:
         )
         return id_questao
 
-    def gravar_ponta(self, ponta: Mapping[str, str]) -> None:
-        """A ponta da branch do Goal como o git a tem agora: o commit e o commit do código."""
+    def gravar_ponta(self, ponta: Mapping[str, object]) -> None:
+        """A ponta da branch do Goal como o git a tem agora: o commit, o commit do código e os equivalentes dele."""
         commit = str(ponta.get(m.CAMPO_COMMIT, ""))
         self.gravar([propriedade(self.id_goal, m.CAMPO_PONTA_DO_RAMO, dict(ponta))], f"Ponta da branch do Goal {self.id_goal} em {commit[:12]}")
 

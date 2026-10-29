@@ -12,7 +12,9 @@ conduzido pelo orquestrador (`orquestracao`) ou tem `Criterio` ligado, precisa:
   encerrado (resolvido, ou descartado pelo humano);
 - de que ela tenha sido feita no commit do código que é a ponta da branch do
   Goal (`ponta_do_ramo`, que o orquestrador grava do git a cada commit; o
-  commit que só muda o documento do Goal não muda o commit do código);
+  commit que só muda o documento do Goal não muda o commit do código), ou
+  num dos que a ponta dá por equivalentes (`equivalente_a`: o rebase sobre a
+  base que andou que não mudou arquivo que um critério cobre);
 - de parecer `atende` nela para cada critério do Goal (todo `Criterio` que o
   escopa e todo nó que o plano gravado lista como critério); descartar o Achado
   não aprova o critério: o único jeito de fechar sem ele é o humano retirá-lo,
@@ -192,9 +194,10 @@ def _motivos_da_verificacao(view: GrafoView, goal: NoGrafo, ultima: NoGrafo) -> 
     verificado = str(ultima.obter_propriedade(a.CAMPO_COMMIT_DO_CODIGO) or "")
     ponta = goal.obter_propriedade(a.CAMPO_PONTA_DO_RAMO)
     atual = str(ponta.get(a.CAMPO_COMMIT_DO_CODIGO) or "") if isinstance(ponta, Mapping) else ""
+    equivalentes = ponta.get(a.CAMPO_EQUIVALENTE_A) if isinstance(ponta, Mapping) else None
     if not atual:
         motivos.append("o Goal nao diz a ponta da branch dele (ponta_do_ramo)")
-    elif verificado != atual:
+    elif verificado != atual and verificado not in (equivalentes if isinstance(equivalentes, list) else []):
         motivos.append(f"a ultima verificacao foi feita no commit {verificado[:12] or '?'}, e a ponta da branch do Goal esta em {atual[:12]}")
     return motivos
 

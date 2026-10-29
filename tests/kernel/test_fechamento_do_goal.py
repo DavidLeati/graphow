@@ -315,3 +315,34 @@ def test_orquestrador_nao_cancela_o_goal_com_criterio_na_conta_edge_case() -> No
 
     assert not do_orquestrador.sucesso and "so quando todos os criterios dele foram retirados" in do_orquestrador.mensagem
     assert do_humano.sucesso, do_humano.mensagem
+
+
+@pytest.mark.parametrize(
+    ("ponta", "fecha"),
+    [
+        ({"commit": "reb456", "commit_do_codigo": "reb456", "equivalente_a": ["cod123"]}, True),
+        ({"commit": "reb456", "commit_do_codigo": "reb456", "equivalente_a": ["outro"]}, False),
+        ({"commit": "reb456", "commit_do_codigo": "reb456", "equivalente_a": "cod123"}, False),
+        ({"commit": "reb456", "commit_do_codigo": "reb456"}, False),
+    ],
+    ids=["equivalente", "equivalente-de-outro", "equivalente-sem-lista", "sem-equivalente"],
+)
+def test_verificacao_vale_na_ponta_rebaseada_que_a_da_por_equivalente_edge_case(ponta: dict[str, object], fecha: bool) -> None:
+    """Caso de borda (T3g): o rebase que não mudou arquivo de critério deixa na ponta o commit verificado; só ele vale."""
+    kernel = _kernel_com_goal()
+    assert _submeter(kernel, _verificacao(1)).sucesso
+    assert _submeter(kernel, [_propriedade("goal", "ponta_do_ramo", ponta)]).sucesso
+
+    recibo = _fechar(kernel)
+
+    assert recibo.sucesso is fecha, recibo.mensagem
+
+
+def test_humano_nao_escreve_a_ponta_com_o_equivalente_edge_case() -> None:
+    """Caso de borda (T3g): o equivalente mora na ponta, que só o orquestrador escreve; o humano não o forja."""
+    kernel = _kernel_com_goal()
+    ponta = {"commit": "reb456", "commit_do_codigo": "reb456", "equivalente_a": ["cod123"]}
+
+    recibo = _submeter(kernel, [_propriedade("goal", "ponta_do_ramo", ponta)], PapelAutor.HUMANO)
+
+    assert not recibo.sucesso
