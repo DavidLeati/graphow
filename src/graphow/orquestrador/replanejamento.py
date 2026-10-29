@@ -35,7 +35,8 @@ def replanejar(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoH
     if estado.aceite is not None and (contexto.area / PASTA_DO_ACEITE).is_dir():
         contexto.git.rodar("rm", "-r", "-q", "--", PASTA_DO_ACEITE)
         assunto = f"Retira os testes de aceite do plano recusado do Goal {contexto.configuracao.slug}"
-        contexto.commitar(mensagem_do_orquestrador(assunto, f"O humano recusou o plano: {pedido.motivo}", id_goal=contexto.id_goal))
+        contexto.commitar(mensagem_do_orquestrador(assunto, f"O humano recusou o plano: {pedido.motivo}", id_goal=contexto.id_goal),
+                          caminhos=(PASTA_DO_ACEITE,))
     contexto.livro.gravar(_operacoes_da_recusa(estado, pedido), f"Plano do Goal {contexto.id_goal} recusado pelo humano ({pedido.id})")
     return None
 

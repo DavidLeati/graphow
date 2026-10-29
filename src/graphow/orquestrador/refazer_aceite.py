@@ -40,7 +40,15 @@ from graphow.orquestrador.gravacao_do_aceite import AceiteParaGravar, commit_da_
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PedidoDoHumano
 from graphow.orquestrador.replanejamento import atendidos_com
-from graphow.orquestrador.saida_do_aceite import AceiteDoCriterio, SaidaDoAceite, conferir_forma, dentro_do_aceite, e_cache, rodar_testes
+from graphow.orquestrador.saida_do_aceite import (
+    PASTA_DO_ACEITE,
+    AceiteDoCriterio,
+    SaidaDoAceite,
+    conferir_forma,
+    dentro_do_aceite,
+    e_cache,
+    rodar_testes,
+)
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
@@ -89,7 +97,7 @@ def _commitar(contexto: ContextoDoGoal, pedido: PedidoDoHumano, novo: SaidaDoAce
                       (f"Refaz os testes de aceite de {pedido.alvo} do Goal {slug}", f"Pedido do humano: {pedido.motivo}"))
     forcar_o_aceite_no_indice(contexto.area)
     mensagem = mensagem_do_orquestrador(assunto, corpo, id_goal=contexto.id_goal, id_task=id_revisao)
-    return contexto.commitar(mensagem, vazio_permitido=True)
+    return contexto.commitar(mensagem, vazio_permitido=True, caminhos=(PASTA_DO_ACEITE,))
 
 
 def _do_proposto(estado: EstadoDoGoal) -> tuple[SaidaDoAceite, str]:

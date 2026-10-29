@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-49 módulos · 9122 linhas · 70 classes
+50 módulos · 9175 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,8 +20,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 163 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
+| [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 180 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 188 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 82 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
@@ -42,11 +43,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 223 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 143 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 240 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 248 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 158 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
-| [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 88 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
+| [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 89 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
-| [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
+| [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 101 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
@@ -195,6 +196,14 @@ Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código
 - `comandos_nao_rodados(declarados: Iterable[str], resultados: Sequence[ResultadoDeSessao]) -> tuple[str, ...]` — Os comandos declarados que não aparecem em chamada Bash nenhuma das invocações dadas.
 - `problema_dos_comandos(faltando: Sequence[str]) -> tuple[str, ...]` — O que volta à sessão quando ela declarou comando que não rodou.
 
+## `orquestrador/commit_do_pedido.py`
+
+O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira.
+
+### Funções do módulo
+
+- `commitar_so(area: Path, mensagem: str, caminhos: Sequence[str]) -> str` — Só o que mudou nos caminhos dados, num commit do orquestrador; o resto da área fica fora dele. Devolve o hash.
+
 ## `orquestrador/configuracao_do_aceite.py`
 
 A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou.
@@ -230,7 +239,7 @@ O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orça
 - `id_goal() -> str` `[property]` — O Goal.
 - `area() -> Path` `[property]` — O clone do Goal, onde as sessões trabalham.
 - `area_do_goal() -> AreaDoGoal` `[property]` — O clone, o repositório do humano, a branch e a base, juntos.
-- `commitar(mensagem: str) -> str` — O commit do orquestrador no clone, já levado à branch do Goal no repositório do humano.
+- `commitar(mensagem: str) -> str` — O commit do orquestrador no clone (com `caminhos`, só deles), já levado à branch do Goal no repositório do humano.
 - `commit_do_codigo() -> str` — O commit do código da área: o último que mudou algo além do documento do Goal.
 - `registrar_ponta() -> None` — A ponta da branch do Goal no livro-razão, quando o git andou desde a última gravada.
 - `git() -> GitDoGoal` `[property]` — O git da área.
@@ -538,7 +547,7 @@ O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia 
 - `head() -> str` — O commit em que a pasta está.
 - `ramo_atual() -> str` — A branch do HEAD; vazio com o HEAD destacado.
 - `ramo_existe(ramo: str) -> bool` — A branch local existe.
-- `mudancas() -> tuple[str, ...]` — As linhas do `status --porcelain`: o que está fora de commit, ignorados de fora.
+- `mudancas() -> tuple[str, ...]` — As linhas do `status --porcelain` (só dos caminhos, quando dados): o que está fora de commit, ignorados de fora.
 - `caminhos_mudados() -> tuple[str, ...]` — Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um.
 - `e_ancestral(antes: str, depois: str) -> bool` — `antes` está na história de `depois` (ou é ele).
 - `arquivos_entre(antes: str, depois: str) -> tuple[str, ...]` — Os arquivos que mudaram de um commit ao outro.

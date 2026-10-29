@@ -5,7 +5,7 @@ sessão, telemetria e a pasta de estado) vêm de quem monta o laço, a CLI ou a
 bancada. A parada diz por que o laço parou e o que falta para seguir.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -14,6 +14,7 @@ import time
 from graphow.core.exceptions import GraphowError
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.commit_do_pedido import commitar_so
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, commitar, sincronizar_ramo
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
@@ -123,9 +124,10 @@ class ContextoDoGoal:
         configuracao = self.configuracao
         return AreaDoGoal(Path(configuracao.repositorio), self.area, configuracao.ramo, configuracao.base)
 
-    def commitar(self, mensagem: str, *, vazio_permitido: bool = False) -> str:
-        """O commit do orquestrador no clone, já levado à branch do Goal no repositório do humano."""
-        commit = commitar(self.area, mensagem, vazio_permitido=vazio_permitido)
+    def commitar(self, mensagem: str, *, vazio_permitido: bool = False, caminhos: Sequence[str] = ()) -> str:
+        """O commit do orquestrador no clone (com `caminhos`, só deles), já levado à branch do Goal no repositório do humano."""
+        commit = (commitar_so(self.area, mensagem, caminhos, vazio_permitido=vazio_permitido) if caminhos
+                  else commitar(self.area, mensagem, vazio_permitido=vazio_permitido))
         sincronizar_ramo(self.area_do_goal)
         self.registrar_ponta()
         return commit

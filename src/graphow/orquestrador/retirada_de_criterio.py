@@ -90,11 +90,12 @@ def retirados(estado: EstadoDoGoal) -> list[Mapping[str, Any]]:
 
 
 def _documentar(contexto: ContextoDoGoal, retiradas: Sequence[Mapping[str, Any]]) -> None:
-    """A seção dos critérios retirados no documento do Goal, commitada se mudou."""
-    caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
+    """A seção dos critérios retirados no documento do Goal, commitada se mudou: só o documento, pelo caminho."""
+    documento = caminho_do_documento(contexto.configuracao.slug)
+    caminho = contexto.area / documento
     if not caminho.is_file():
         return
     linhas = [f"- **{r['codigo']}**, retirado por {r['por']} ({r['decisao']}): {r['motivo']}" for r in retiradas]
-    if gravar_se_mudou(caminho, com_retirados(caminho.read_text(encoding="utf-8"), linhas)) and contexto.git.mudancas():
+    if gravar_se_mudou(caminho, com_retirados(caminho.read_text(encoding="utf-8"), linhas)) and contexto.git.mudancas(documento):
         assunto = f"Registra os criterios retirados pelo humano do Goal {contexto.configuracao.slug}"
-        contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))
+        contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal), caminhos=(documento,))

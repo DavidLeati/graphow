@@ -119,9 +119,9 @@ class GitDoGoal:
         """A branch local existe."""
         return self.tentar("rev-parse", "--verify", "--quiet", f"refs/heads/{ramo}").codigo == 0
 
-    def mudancas(self) -> tuple[str, ...]:
-        """As linhas do `status --porcelain`: o que está fora de commit, ignorados de fora."""
-        return tuple(linha for linha in self.rodar("status", "--porcelain").splitlines() if linha.strip())
+    def mudancas(self, *caminhos: str) -> tuple[str, ...]:
+        """As linhas do `status --porcelain` (só dos caminhos, quando dados): o que está fora de commit, ignorados de fora."""
+        return tuple(linha for linha in self.rodar("status", "--porcelain", "--", *caminhos).splitlines() if linha.strip())
 
     def caminhos_mudados(self) -> tuple[str, ...]:
         """Cada arquivo criado, mudado, apagado ou renomeado fora de commit (as duas pontas do renomeado), um por um."""

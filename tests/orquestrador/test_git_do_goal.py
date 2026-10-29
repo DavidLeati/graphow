@@ -6,6 +6,7 @@ import subprocess
 
 import pytest
 
+from graphow.orquestrador.commit_do_pedido import commitar_so
 from graphow.orquestrador.git_do_goal import (
     descartar_mudancas,
     AreaDoGoal,
@@ -213,3 +214,22 @@ def test_patch_guarda_e_devolve_o_arquivo_byte_a_byte_edge_case(tmp_path: Path) 
     assert "\ufffd".encode("utf-8") not in patch.read_bytes()
     assert (area / "dados.csv").read_bytes() == CSV_EM_ANSI
     assert (area / "notas.txt").read_bytes() == TEXTO_COM_CRLF
+
+
+def test_commit_do_pedido_leva_so_os_caminhos_dele_e_a_sobra_fica_na_area_edge_case(tmp_path: Path) -> None:
+    """T2l: o commit do pedido leva só o caminho dado (o removido com git rm inclusive); o resto fica fora de commit."""
+    repositorio = criar_repositorio(tmp_path / "repo", {"docs/goal.md": "# Goal\n", "aceite/aceite_c1.py": "x = 1\n"})
+    (repositorio / "docs" / "goal.md").write_text("# Goal\n\n## Retirados\n", encoding="utf-8", newline="\n")
+    (repositorio / "conftest.py").write_text("def pytest_pyfunc_call(pyfuncitem):\n    return True\n", encoding="utf-8")
+    git(repositorio, "add", "conftest.py")
+
+    commitar_so(repositorio, "Registra", ("docs/goal.md",))
+    assert git(repositorio, "show", "--name-only", "--format=", "HEAD").split() == ["docs/goal.md"]
+    git(repositorio, "rm", "-r", "-q", "--", "aceite")
+    commitar_so(repositorio, "Retira", ("aceite",))
+    assert git(repositorio, "show", "--name-only", "--format=", "HEAD").split() == ["aceite/aceite_c1.py"]
+    commitar_so(repositorio, "Mantem", ("aceite",), vazio_permitido=True)
+
+    assert git(repositorio, "show", "--name-only", "--format=", "HEAD").split() == []
+    assert git(repositorio, "log", "-1", "--format=%s").strip() == "Mantem"
+    assert git(repositorio, "status", "--porcelain").splitlines() == ["A  conftest.py"]
