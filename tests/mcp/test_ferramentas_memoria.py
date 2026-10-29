@@ -9,8 +9,9 @@ from graphow.mcp.server import GraphowMCPServer
 
 
 def _no(id_no: str, tipo: TipoNo, rotulo: str) -> ItemPatch:
-    """Operação de criação de nó."""
-    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo})
+    """Operação de criação de nó; o Artifact leva o commit, que é a âncora dele."""
+    propriedades = {"commit": "c0ffee0000000000000000000000000000000000"} if tipo == TipoNo.ARTIFACT else {}
+    return ItemPatch(op=OperacaoPatch.ADD, path=f"/nos/{id_no}", value={"id": id_no, "tipo": tipo.value, "rotulo": rotulo, "propriedades": propriedades})
 
 
 def _aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:

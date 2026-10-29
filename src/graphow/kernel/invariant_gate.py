@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from graphow.core.falhas import ModoFalhaMAST
 from graphow.core.models import GrafoEstado
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
+from graphow.kernel.ancora_do_artifact import validar_ancora_do_artifact
 from graphow.kernel.estrutura_apos_lote import EstruturaAposLote
 from graphow.kernel.fechamento_do_goal import validar_fechamento_do_goal
 from graphow.kernel.livro_do_aceite import validar_livro_do_aceite
@@ -61,12 +62,7 @@ VINCULO_ESPERADO: Mapping[TipoNo, str] = {
 class InvariantGate:
     """Portão de validação de invariantes relacionais do grafo."""
 
-    def validar(
-        self,
-        proposta: PropostaPatch,
-        estado: GrafoEstado,
-        locks_ativos: Mapping[str, str] | None = None,
-    ) -> ResultadoValidacao:
+    def validar(self, proposta: PropostaPatch, estado: GrafoEstado, locks_ativos: Mapping[str, str] | None = None) -> ResultadoValidacao:
         """Executa validação de invariantes de ciclo, questões bloqueantes e locks."""
         locks: Mapping[str, str] = locks_ativos or {}
         resultado_lock = self._validar_locks_concorrencia(proposta, estado, locks)
@@ -77,6 +73,7 @@ class InvariantGate:
             lambda: self._validar_nos_na_hierarquia(estrutura),
             lambda: self._validar_origem_de_aprendizado(estrutura),
             lambda: self._validar_localizacao_de_evidencia(proposta, estado),
+            lambda: validar_ancora_do_artifact(proposta, estado),
             lambda: self._validar_bloqueio_questoes(proposta, estrutura.antes),
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),

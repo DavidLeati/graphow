@@ -59,7 +59,7 @@ def _apoio() -> tuple[ItemPatch, ...]:
         criar_aresta("just-ev-rej", "ev-rej", "dec-aceite", TipoAresta.JUSTIFICA),
         criar_no("dec-velha", TipoNo.DECISION, status="revogada"),
         criar_aresta("prod-dec-velha", "sess", "dec-velha", TipoAresta.PRODUZ),
-        criar_no("art", TipoNo.ARTIFACT),
+        criar_no("art", TipoNo.ARTIFACT, commit="c0ffee0000000000000000000000000000000000"),
         criar_aresta("prod-art", "sess", "art", TipoAresta.PRODUZ),
         criar_aresta("deriva-art-t1", "art", "t1", TipoAresta.DERIVA_DE),
     )

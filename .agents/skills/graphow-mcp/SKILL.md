@@ -210,8 +210,9 @@ Um executor receberia recusa do RoleGate já na criação da Task, e nenhum pape
         "tipo": "Artifact",
         "rotulo": "src/security/jwt_auth.py",
         "propriedades": {
-          "caminho_arquivo": "src/security/jwt_auth.py",
-          "versao": "1.0.0"
+          "commit": "8d1f0c3a5e7b9d2f4a6c8e0b2d4f6a8c0e2b4d6f",
+          "arquivos": ["src/security/jwt_auth.py"],
+          "resumo": "autenticacao JWT com expiracao e testes"
         }
       }
     },
@@ -244,9 +245,9 @@ Um executor receberia recusa do RoleGate já na criação da Task, e nenhum pape
 }
 ```
 
-Este lote só passa com a posse de `task-auth-jwt`. Sem `assumir_tarefa` antes, o InvariantGate recusa a última operação e devolve o nome de quem detém a tarefa. Sem o `produz`, o `Artifact` nasceria fora da hierarquia e o lote cairia com `no_fora_da_hierarquia`: o `deriva_de` liga o artefato à tarefa, mas não o põe dentro de sessão nenhuma.
+O `commit` é a âncora da entrega: o hash de 40 caracteres do commit que a traz (`git rev-parse HEAD`), com os `arquivos` que ele mudou. Sem âncora, o InvariantGate recusa com `artifact_sem_ancora`. Este lote só passa com a posse de `task-auth-jwt`. Sem `assumir_tarefa` antes, o InvariantGate recusa a última operação e devolve o nome de quem detém a tarefa. Sem o `produz`, o `Artifact` nasceria fora da hierarquia e o lote cairia com `no_fora_da_hierarquia`: o `deriva_de` liga o artefato à tarefa, mas não o põe dentro de sessão nenhuma.
 
-Fora do código o lote é o mesmo, e só o `Artifact` muda. Um relatório:
+Fora do código o lote é o mesmo, e só o `Artifact` muda: sem repositório git, a âncora é o `sha256` do conteúdo do documento (`sha256sum`, ou `Get-FileHash` no Windows) com o `caminho` dele. Um relatório:
 
 ```json
 {
@@ -257,6 +258,8 @@ Fora do código o lote é o mesmo, e só o `Artifact` muda. Um relatório:
     "tipo": "Artifact",
     "rotulo": "Relatório de fechamento de setembro",
     "propriedades": {
+      "sha256": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+      "caminho": "relatorios/2026-09-fechamento.md",
       "arquivos": ["relatorios/2026-09-fechamento.md"],
       "resumo": "apuração do mês com as três divergências conciliadas"
     }
@@ -264,7 +267,7 @@ Fora do código o lote é o mesmo, e só o `Artifact` muda. Um relatório:
 }
 ```
 
-Na Task de ação externa o `Artifact` vai sem `arquivos`, só com o `resumo` do que foi feito, e a prova é uma `Evidence` com `fonte` e `resultado`; o lote está no [cookbook](./references/patch_cookbook.md), em "executor: registrar a ação externa".
+Na Task de ação externa o `Artifact` vai sem `arquivos` e sem âncora, só com o `resumo` do que foi feito, e a prova é uma `Evidence` com `fonte` e `resultado`; o lote está no [cookbook](./references/patch_cookbook.md), em "executor: registrar a ação externa".
 
 ## Referências
 

@@ -91,7 +91,7 @@ def _concluir_fatia(kernel: WriteKernel, id_task: str) -> ResultadoSubmissao:
         kernel,
         [
             _propriedade(id_task, "status", "em_andamento"),
-            *_produzido(f"art-{id_task}", TipoNo.ARTIFACT, {"commit": "abc123"}),
+            *_produzido(f"art-{id_task}", TipoNo.ARTIFACT, {"commit": "abc1230000000000000000000000000000000000"}),
             _aresta(f"art-{id_task}", id_task, TipoAresta.DERIVA_DE),
             _propriedade(id_task, "status", "concluido"),
         ],

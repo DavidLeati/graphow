@@ -55,7 +55,7 @@ def _montar_kernel(status_da_sessao: str = StatusSessao.CONCLUIDA.value) -> Writ
             _aresta("sess", "q-1", TipoAresta.PRODUZ),
             _no("const-1", TipoNo.CONSTRAINT, "Zero dependencias"),
             _aresta("sess", "const-1", TipoAresta.PRODUZ),
-            _no("art-1", TipoNo.ARTIFACT, "kernel.py"),
+            _no("art-1", TipoNo.ARTIFACT, "kernel.py", commit="c0ffee0000000000000000000000000000000000"),
             _aresta("sess", "art-1", TipoAresta.PRODUZ),
             _no("t-1", TipoNo.TASK, "Tarefa feita", status="concluido"),
             _aresta("sess", "t-1", TipoAresta.PRODUZ),

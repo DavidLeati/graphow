@@ -83,7 +83,7 @@ def _produzir_artefato(servidor_executor: GraphowMCPServer) -> dict[str, Any]:
         {
             "justificativa": "Artefato pronto para revisao",
             "operacoes": [
-                {"op": "add", "path": "/nos/art-1", "value": {"id": "art-1", "tipo": "Artifact", "rotulo": "models.py", "propriedades": {"linhas": 45}}},
+                {"op": "add", "path": "/nos/art-1", "value": {"id": "art-1", "tipo": "Artifact", "rotulo": "models.py", "propriedades": {"linhas": 45, "commit": "c0ffee0000000000000000000000000000000000"}}},
                 {"op": "add", "path": "/arestas/e-prod-art", "value": {"id": "e-prod-art", "origem_id": "sess-01", "destino_id": "art-1", "tipo": "produz"}},
                 {"op": "add", "path": "/arestas/e-art-deriva", "value": {"id": "e-art-deriva", "origem_id": "art-1", "destino_id": "t1", "tipo": "deriva_de"}},
                 {"op": "replace", "path": "/nos/t1/propriedades/status", "value": StatusTask.PRONTO_PARA_REVISAO.value},

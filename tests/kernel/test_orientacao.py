@@ -106,7 +106,7 @@ def test_revisor_sobe_do_artefato_ate_a_decisao_que_escopa_a_tarefa_nominal() ->
     recibo = _submeter(
         kernel,
         PapelAutor.EXECUTOR,
-        _no("art", TipoNo.ARTIFACT),
+        _no("art", TipoNo.ARTIFACT, {"commit": "c0ffee0000000000000000000000000000000000"}),
         _aresta("sess-2", "art", TipoAresta.PRODUZ),
         _aresta("art", "task", TipoAresta.DERIVA_DE),
     )
@@ -165,7 +165,7 @@ def test_evidencia_do_executor_aponta_o_artefato_que_avalia_nominal() -> None:
     recibo = _submeter(
         kernel,
         PapelAutor.EXECUTOR,
-        _no("art", TipoNo.ARTIFACT),
+        _no("art", TipoNo.ARTIFACT, {"commit": "c0ffee0000000000000000000000000000000000"}),
         _aresta("sess-2", "art", TipoAresta.PRODUZ),
         _aresta("art", "task", TipoAresta.DERIVA_DE),
         _no("evi-teste", TipoNo.EVIDENCE, {"saida": "14 passed"}),
@@ -193,7 +193,7 @@ def test_decisao_do_goal_desce_a_qualquer_profundidade_da_decomposicao_nominal()
     assert _submeter(
         kernel,
         PapelAutor.EXECUTOR,
-        _no("art-sub", TipoNo.ARTIFACT),
+        _no("art-sub", TipoNo.ARTIFACT, {"commit": "c0ffee0000000000000000000000000000000000"}),
         _aresta("sess-2", "art-sub", TipoAresta.PRODUZ),
         _aresta("art-sub", "sub", TipoAresta.DERIVA_DE),
     ).sucesso

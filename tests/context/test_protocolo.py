@@ -36,6 +36,7 @@ def test_linha_do_papel_sai_do_role_gate_nominal() -> None:
     assert "Evidence" in executor
     assert "registra Aprendizado" in executor
     assert "evidencia_sem_localizacao" not in executor
+    assert "artifact_sem_ancora" in executor and "artifact_sem_ancora" not in planejador
     assert "`planejador`" in planejador
     assert "cria Evidence" in planejador
     assert "`trecho`" in planejador

@@ -10,11 +10,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-34 módulos · 5718 linhas · 35 classes
+35 módulos · 5860 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 41 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
+| [`kernel/ancora_do_artifact.py`](#kernelancoradoartifact) | 140 | A âncora do Artifact: o hash que liga a entrega registrada ao conteúdo que ela entregou. |
 | [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |
 | [`kernel/estrutura_apos_lote.py`](#kernelestruturaaposlote) | 135 | Hierarquia e origem conferidas no estado depois do lote, e não na lista de criações. |
@@ -25,10 +26,10 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 | [`kernel/forma_e_identidade.py`](#kernelformaeidentidade) | 158 | Forma e identidade de cada operação do lote, conferidas pelo SchemaGate antes dos outros portões. |
 | [`kernel/gestos_de_escopo.py`](#kernelgestosdeescopo) | 70 | Quem escreve o plano aprovado e a resposta de desvio de um Goal: o gesto da política, não o papel. |
 | [`kernel/gestos_de_no.py`](#kernelgestosdeno) | 242 | Gestos de governança que o RoleGate aplica aos nós: quem os faz é decidido pela política do projeto. |
-| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 387 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
+| [`kernel/invariant_gate.py`](#kernelinvariantgate) | 384 | Portão 3: Validação de Invariantes de Integridade Relacional do Grafo (Invariant Gate). |
 | [`kernel/ligacao_de_escopo.py`](#kernelligacaodeescopo) | 118 | A Task que nasce sob um plano aprovado diz de onde veio (D2 do escopo governado). |
 | [`kernel/livro_do_aceite.py`](#kernellivrodoaceite) | 394 | O livro do aceite não se reescreve: o que prova que o Goal está pronto só cresce, e só por quem pode escrevê-lo. |
-| [`kernel/localizacao.py`](#kernellocalizacao) | 195 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
+| [`kernel/localizacao.py`](#kernellocalizacao) | 200 | Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal. |
 | [`kernel/matriz_papeis.py`](#kernelmatrizpapeis) | 279 | Matriz de propriedade por papel: quem cria, edita e remove cada peça do grafo. |
 | [`kernel/observadores.py`](#kernelobservadores) | 54 | Notificação pós-commit dos eventos aceitos pelos quatro portões. |
 | [`kernel/papel_do_orquestrador.py`](#kernelpapeldoorquestrador) | 328 | O papel `orquestrador`: o laço em código que grava o livro-razão do Goal que ele conduz. |
@@ -55,6 +56,28 @@ O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado
 ### Funções do módulo
 
 - `aceite_libera_o_fechamento(view: GrafoView, id_task: str) -> bool` — Alguma Decision de aceite legítima orienta a Task e justifica-se pelo veredito vigente dela.
+
+## `kernel/ancora_do_artifact.py`
+
+A âncora do Artifact: o hash que liga a entrega registrada ao conteúdo que ela entregou.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `CAMPO_COMMIT` | `str` | `'commit'` |
+| `CAMPO_SHA256` | `str` | `'sha256'` |
+| `CAMPO_CAMINHO` | `str` | `'caminho'` |
+| `ANCORA_COMMIT` | `str` | `'commit'` |
+| `ANCORA_SHA256` | `str` | `'sha256'` |
+| `PADRAO_DO_COMMIT` | `re.Pattern[str]` | `re.compile('[0-9a-fA-F]{40}')` |
+| `PADRAO_DO_SHA256` | `re.Pattern[str]` | `re.compile('[0-9a-fA-F]{64}')` |
+| `SEGMENTOS_DO_ELEMENTO` | `int` | `2` |
+| `FORMAS_DA_ANCORA` | `str` | `"O Artifact novo leva 'commit' (o hash de 40 caracteres hexadecimais do…` |
+
+### Funções do módulo
+
+- `ancora_do_artifact(propriedades: Mapping[str, Any]) -> str | None` — `commit`, `sha256` ou None, quando o Artifact não tem âncora válida.
+- `diagnosticar_ancora(propriedades: Mapping[str, Any]) -> str | None` — O que falta ou está errado na âncora; None quando ela vale.
+- `validar_ancora_do_artifact(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao` — Recusa o Artifact que o lote deixaria sem âncora quando ele precisa dela.
 
 ## `kernel/composicao.py`
 
@@ -379,6 +402,7 @@ Localização de uma Evidence: de onde veio o fato, onde nele e o trecho literal
 - `contar_linhas(trecho: str) -> int` — Linhas como o editor as conta: só quebra de linha separa, e a quebra final não abre linha nova.
 - `diagnosticar_localizacao(propriedades: Mapping[str, Any]) -> str | None` — O que falta ou está errado no ponteiro; None quando ele está inteiro.
 - `projetar_evidencias_do_lote(proposta: PropostaPatch, estado: GrafoEstado) -> tuple[EvidenciaNoLote, ...]` — As Evidence que o lote toca, depois de convertidas e aplicadas como o kernel as gravaria.
+- `projetar_nos_do_lote(proposta: PropostaPatch, estado: GrafoEstado) -> tuple[NoGrafo, ...]` — Os nós que o lote toca, como ficarão gravados depois dele; vazio quando o lote não se converte.
 
 ## `kernel/matriz_papeis.py`
 

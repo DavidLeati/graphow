@@ -261,7 +261,7 @@ Não escreva `em_andamento` por patch. `assumir_tarefa(id_task)` toma a posse e 
 
 ## executor: registrar o artefato e pedir revisão
 
-Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_de` e avança o status. Depende da posse tomada no passo anterior. O `produz` não é opcional: todo nó novo, exceto `Projeto`, precisa de aresta de contenção no mesmo lote, e `deriva_de` não é uma — sem ela o lote cai com `no_fora_da_hierarquia`.
+Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_de` e avança o status. Depende da posse tomada no passo anterior. O `produz` não é opcional: todo nó novo, exceto `Projeto`, precisa de aresta de contenção no mesmo lote, e `deriva_de` não é uma — sem ela o lote cai com `no_fora_da_hierarquia`. O `Artifact` nasce ancorado: no código, `commit` com o hash de 40 caracteres do commit que traz a entrega (`git rev-parse HEAD`) e os `arquivos` que ele mudou (`git show --name-only --format= <commit>`); fora de repositório git, `sha256` com os 64 caracteres hexadecimais do conteúdo do documento (`sha256sum relatorio.md`, ou `Get-FileHash` no Windows) e `caminho`. Sem um dos dois, o InvariantGate recusa com `artifact_sem_ancora`.
 
 ```json
 {
@@ -275,6 +275,7 @@ Cria o `Artifact`, pendura na sessão por `produz`, liga à tarefa por `deriva_d
         "tipo": "Artifact",
         "rotulo": "src/graphow/parsers/csv.py",
         "propriedades": {
+          "commit": "3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e4b6d8f0a",
           "arquivos": ["src/graphow/parsers/csv.py", "tests/test_csv_parser.py"],
           "resumo": "parser CSV com tratamento de erros de encoding e testes de unidade"
         }
@@ -325,7 +326,7 @@ Enviar um e-mail, marcar uma reunião, publicar: a Task entrega um gesto no mund
 }
 ```
 
-Quem a executa é o gesto `acao_externa` da política: o humano, que é o padrão e o que vale em `governanca_maxima`, ou o executor, que é o que vale em `arbitragem_maxima` e o que a política personalizada pode escolher. Com o gesto no humano, o `assumir_tarefa` do executor é recusado; a pessoa faz o gesto, e a sessão humana registra a prova em nome dela. Com o gesto no executor, ele faz o gesto com as ferramentas que tem e registra a prova. O lote é o mesmo nos dois casos: um `Artifact` sem `arquivos`, com o `resumo` do que foi feito, e a `Evidence` de prova com `fonte` e `resultado`, ligada por `deriva_de` ao `Artifact` e à Task.
+Quem a executa é o gesto `acao_externa` da política: o humano, que é o padrão e o que vale em `governanca_maxima`, ou o executor, que é o que vale em `arbitragem_maxima` e o que a política personalizada pode escolher. Com o gesto no humano, o `assumir_tarefa` do executor é recusado; a pessoa faz o gesto, e a sessão humana registra a prova em nome dela. Com o gesto no executor, ele faz o gesto com as ferramentas que tem e registra a prova. O lote é o mesmo nos dois casos: um `Artifact` sem `arquivos`, com o `resumo` do que foi feito, e a `Evidence` de prova com `fonte` e `resultado`, ligada por `deriva_de` ao `Artifact` e à Task. É o único `Artifact` que nasce sem âncora (`commit` ou `sha256`): o gesto não deixa conteúdo, e o `deriva_de` à Task de ação externa, no mesmo lote, é o que o isenta.
 
 ```json
 {

@@ -87,7 +87,7 @@ def _entrega(id_task: str, id_artifact: str) -> list[dict[str, Any]]:
     """O lote único do passo 6 do executor: Artifact, Evidence da verificação e a troca de status."""
     id_evidencia = f"evi-verif-{id_task}"
     return [
-        *_produzido(id_artifact, "Artifact", arquivos=["src/precos/preco.py"], resumo="preco via taxa_para_fator"),
+        *_produzido(id_artifact, "Artifact", commit="c0ffee0000000000000000000000000000000000", arquivos=["src/precos/preco.py"], resumo="preco via taxa_para_fator"),
         _aresta(id_artifact, id_task, "deriva_de"),
         *_produzido(id_evidencia, "Evidence", comando="pytest tests/precos", resultado="3 passed"),
         _aresta(id_evidencia, id_artifact, "deriva_de"),

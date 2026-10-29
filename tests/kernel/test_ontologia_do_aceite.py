@@ -128,7 +128,7 @@ def test_deriva_de_so_chega_ao_criterio_do_goal_e_nao_a_decisao_edge_case() -> N
     """Caso de borda: o commit dos testes deriva do Criterio do humano, mas nada do laço deriva da Decision dele."""
     kernel = _kernel_com_goal_do_gerente()
 
-    ao_criterio = _submeter(kernel, [*_produzido("art-aceite", TipoNo.ARTIFACT, SESSAO, {"commit": "abc"}),
+    ao_criterio = _submeter(kernel, [*_produzido("art-aceite", TipoNo.ARTIFACT, SESSAO, {"commit": "abc0000000000000000000000000000000000000"}),
                                      _aresta("art-aceite", "crit-1", TipoAresta.DERIVA_DE)], PapelAutor.ORQUESTRADOR)
     a_decisao = _submeter(kernel, [*_produzido("nota", TipoNo.NOTE, SESSAO), _aresta("nota", "dec-1", TipoAresta.DERIVA_DE)],
                           PapelAutor.ORQUESTRADOR)

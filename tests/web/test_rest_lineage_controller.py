@@ -29,7 +29,8 @@ def test_rastrear_linhagem_fluxo_nominal() -> None:
     sessao_id = _pendurar_sessao(canvas_ctrl)
     canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Goal", rotulo="Objetivo Raiz", id_no="goal-1", sessao_id=sessao_id))
     canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Task", rotulo="Tarefa Intermediaria", id_no="task-1", sessao_id=sessao_id))
-    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Artifact", rotulo="Codigo Gerado", id_no="art-1", sessao_id=sessao_id))
+    canvas_ctrl.criar_no(RequisicaoNovoNo(tipo="Artifact", rotulo="Codigo Gerado", id_no="art-1", sessao_id=sessao_id,
+                                         propriedades={"commit": "c0ffee0000000000000000000000000000000000"}))
 
     canvas_ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="goal-1", destino_id="task-1", tipo="decompoe"))
     canvas_ctrl.criar_aresta(RequisicaoNovaAresta(origem_id="art-1", destino_id="task-1", tipo="deriva_de"))

@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 
-from graphow.core.models import GrafoEstado
+from graphow.core.models import GrafoEstado, NoGrafo
 from graphow.core.types import PapelAutor, TipoNo
 from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
 from graphow.kernel.patch_models import PropostaPatch
@@ -153,11 +153,21 @@ class EvidenciaNoLote:
 
 
 def projetar_evidencias_do_lote(proposta: PropostaPatch, estado: GrafoEstado) -> tuple[EvidenciaNoLote, ...]:
-    """As Evidence que o lote toca, depois de convertidas e aplicadas como o kernel as gravaria.
+    """As Evidence que o lote toca, depois de convertidas e aplicadas como o kernel as gravaria."""
+    return tuple(
+        EvidenciaNoLote(id=no.id, papel_de_quem_criou=no.proveniencia.papel, propriedades=no.propriedades)
+        for no in projetar_nos_do_lote(proposta, estado)
+        if no.tipo == TipoNo.EVIDENCE
+    )
+
+
+def projetar_nos_do_lote(proposta: PropostaPatch, estado: GrafoEstado) -> tuple[NoGrafo, ...]:
+    """Os nós que o lote toca, como ficarão gravados depois dele; vazio quando o lote não se converte.
 
     Só os nós tocados entram na antevisão, para o custo acompanhar o tamanho do
-    lote e não o do grafo. O `add` sobre uma Evidence existente a recria com o
-    autor do lote, e o acumulador registra isso como a criação que é.
+    lote e não o do grafo. O `add` sobre um nó existente o recria com o autor
+    do lote, e o acumulador registra isso como a criação que é. A âncora do
+    Artifact (kernel/ancora_do_artifact.py) julga pela mesma antevisão.
     """
     tocados = _nos_tocados(proposta)
     if not tocados:
@@ -170,12 +180,7 @@ def projetar_evidencias_do_lote(proposta: PropostaPatch, estado: GrafoEstado) ->
     except (KeyError, ValueError):
         return ()
     depois = antevisao.congelar()
-    nos = (depois.nos.get(id_no) for id_no in tocados)
-    return tuple(
-        EvidenciaNoLote(id=no.id, papel_de_quem_criou=no.proveniencia.papel, propriedades=no.propriedades)
-        for no in nos
-        if no is not None and no.tipo == TipoNo.EVIDENCE
-    )
+    return tuple(no for no in (depois.nos.get(id_no) for id_no in tocados) if no is not None)
 
 
 def _nos_tocados(proposta: PropostaPatch) -> tuple[str, ...]:

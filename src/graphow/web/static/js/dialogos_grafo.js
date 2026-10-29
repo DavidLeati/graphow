@@ -29,6 +29,15 @@ const CORPO_POR_TIPO = {
     dica: "O contexto e a ambiguidade, por extenso.",
     exemploDeTitulo: "Ex.: Qual formato de autenticação usar?",
   },
+  // O kernel recusa o Artifact sem âncora (artifact_sem_ancora): no canvas, a
+  // âncora é o commit. O documento fora de git, com sha256 e caminho, vem do agente.
+  Artifact: {
+    chave: "commit",
+    rotulo: "Commit",
+    nota: "hash de 40 caracteres do commit que traz a entrega",
+    dica: "Ex.: o que `git rev-parse HEAD` imprime depois do commit da entrega.",
+    exemploDeTitulo: "Ex.: Autenticação JWT entregue",
+  },
 };
 const CORPO_PADRAO = {
   chave: "descricao",
