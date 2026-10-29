@@ -25,6 +25,7 @@ acompanhamento.
 from collections.abc import Sequence
 from pathlib import Path
 
+from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, integrar_por_fast_forward, remover_area
@@ -128,6 +129,9 @@ def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistra
     andou = _branch_andou(repositorio, configuracao.ramo, head)
     if andou:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, andou)
+    cancelado = _cancelado_depois_da_leitura(contexto)
+    if cancelado is not None:
+        return cancelado
     if configuracao.modo == m.MODO_AUTONOMO:
         try:
             integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base)
@@ -159,6 +163,21 @@ def _branch_andou(repositorio: Path, ramo: str, head: str) -> str:
         f"{head[:12]}: alguem a mudou fora do orquestrador depois da verificacao. O Goal nao fecha; volte a branch a "
         f"{head[:12]}, ou cancele o Goal com `--cancelar --motivo`."
     )
+
+
+def _cancelado_depois_da_leitura(contexto: ContextoDoGoal) -> Parada | None:
+    """O cancelamento que chegou depois da leitura do passo: o laço relê o Goal logo antes de integrar, e não integra.
+
+    Na revisão da T3b (achado 7), o `--cancelar` gravado durante o passo não
+    era visto até o passo seguinte: o fast-forward levava o Goal à base, e o
+    fechamento sobrescrevia o cancelamento.
+    """
+    estado = contexto.estado()
+    if not estado.cancelado:
+        return None
+    motivo = str(estado.propriedades.get(a.CAMPO_MOTIVO_DO_CANCELAMENTO, ""))
+    return Parada(contexto.id_goal, MotivoDaParada.CANCELADO,
+                  f"O Goal {contexto.id_goal} foi cancelado antes da integracao, que nao aconteceu: {motivo}")
 
 
 def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
