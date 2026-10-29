@@ -7,8 +7,9 @@ que escondeu mudança com as flags do índice, que criou um módulo com o nome
 do runner de testes ou que pôs num conftest.py um hook do pytest que decide o
 resultado (orquestrador/aceite_intocado.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
-vermelhos até a fatia que os atende), passa a fatia de risco, e a que mudou a
-configuração de teste (o que é sinal, e não recusa), pela revisão
+vermelhos até a fatia que os atende) e devolve a área à árvore conferida, sem
+o que a suíte escreveu (orquestrador/suite_sem_rastro.py), passa a fatia de
+risco, e a que mudou a configuração de teste (o que é sinal, e não recusa), pela revisão
 (orquestrador/revisao_da_fatia.py) e só então commita na branch do Goal, com
 a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
@@ -60,6 +61,7 @@ from graphow.orquestrador.saida_do_aceite import dentro_do_aceite, e_cache
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import arquivos_ocultos, rodar_suite
+from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
 
 STATUS_PRONTO: str = "pronto"
 STATUS_DUVIDA: str = "duvida"
@@ -195,7 +197,9 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
     if problema:
         return problema
     plano = estado.plano or {}
-    with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
+    rastro = contexto.patch(f"{tentativa.fatia.id}-t{tentativa.numero}-suite")
+    with sem_o_que_a_suite_escreve(contexto.area, rastro), arquivos_ocultos(
+            contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(
             contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s,

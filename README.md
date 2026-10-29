@@ -954,10 +954,15 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    `teste_errado`),
    roda a suíte ele mesmo, sem os testes de aceite, no mesmo bash da ferramenta
    Bash dos agentes (o Git Bash no Windows, nunca o do WSL; `GRAPHOW_SHELL`
-   escolhe outro), passa a fatia de risco (a marcada, ou a que já falhou uma
-   vez) por uma sessão nova de revisão, que julga o diff contra os critérios
-   dela antes do commit, e commita na branch do Goal com a mensagem que cita a
-   fatia e os critérios; o commit vira `Artifact`. Nas outras fatias não há
+   escolhe outro), e devolve a área à árvore que as recusas conferiram: o que
+   a suíte criou ou mudou vai a um `.patch` e sai, e os ignorados ficam
+   (`orquestrador/suite_sem_rastro.py`; um `verificar.py` que gerava um
+   conftest.py com hook ia à base no commit). Passa a fatia de risco (a
+   marcada, ou a que já falhou uma vez) por uma sessão nova de revisão, que
+   julga o diff contra os critérios dela antes do commit, e commita na branch
+   do Goal com a mensagem que cita a fatia e os critérios; o commit vira
+   `Artifact`. A suíte da verificação também não deixa rastro, e o commit das
+   pendências leva só o documento do Goal. Nas outras fatias não há
    revisão, e o problema da revisão que rejeita vira `Achado` da revisão (com a
    gravidade do código), e não Note. **O aceite fica intocado**
    (`orquestrador/aceite_intocado.py`): a fatia que mexe em `aceite/` (o

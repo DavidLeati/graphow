@@ -31,7 +31,10 @@ Num marco intermediário o parecer sobre um critério que só um marco seguinte
 completa não conta, e o achado não pode tocar esse critério: ele ainda não foi
 construído. A verificação, os Achados e as pendências vão ao livro-razão num
 lote só (orquestrador/gravacao_da_verificacao.py), e o documento do Goal é
-sincronizado com as pendências num commit só dele.
+sincronizado com as pendências num commit só dele, pelo caminho. O que a
+suíte escreve sai da área logo depois dela (orquestrador/suite_sem_rastro.py):
+na sonda L2 da revisão da T2k+T2l, o conftest.py que ela gerava ia à base no
+commit das pendências, que levava a área inteira.
 """
 
 from collections.abc import Mapping, Sequence
@@ -54,6 +57,7 @@ from graphow.orquestrador.saida_do_verificador import TITULO_DA_SUITE_VERMELHA, 
 from graphow.orquestrador.segunda_opiniao import com_a_segunda_opiniao
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import LIMITE_DO_TRECHO, ResultadoDaSuite, arquivos_ocultos, rodar_suite
+from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
 from graphow.orquestrador.tipo_da_verificacao import TipoDaVerificacao, escolher_o_tipo
 
 
@@ -72,7 +76,9 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     if isinstance(dados, Parada):
         return dados
     tirado = (*tirado, *preparar_o_aceite(contexto.area, commit_do_aceite))
-    with arquivos_ocultos(contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
+    rastro = contexto.patch(f"suite-{len(estado.verificacoes) + 1}")
+    with sem_o_que_a_suite_escreve(contexto.area, rastro), arquivos_ocultos(
+            contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
     registro = _registro(contexto, estado, marco, dados=dados, suite=suite, aceite=aceite, head=head, tirado=tirado, tipo=tipo)
@@ -243,11 +249,12 @@ def _pendencias_depois(
 
 
 def sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]], *, numero: int) -> None:
-    """Reescreve a seção de pendências do documento como o livro-razão a tem e commita, se ele mudou."""
-    caminho = contexto.area / caminho_do_documento(contexto.configuracao.slug)
+    """Reescreve a seção de pendências do documento como o livro-razão a tem e commita só ele, pelo caminho, se ele mudou."""
+    documento = caminho_do_documento(contexto.configuracao.slug)
+    caminho = contexto.area / documento
     if not caminho.is_file():
         return
-    if not gravar_se_mudou(caminho, com_pendencias(caminho.read_text(encoding="utf-8"), pendencias)) or not contexto.git.mudancas():
+    if not gravar_se_mudou(caminho, com_pendencias(caminho.read_text(encoding="utf-8"), pendencias)) or not contexto.git.mudancas(documento):
         return
     assunto = f"Registra as pendencias da verificacao {numero} do Goal {contexto.configuracao.slug}"
-    contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal))
+    contexto.commitar(mensagem_do_orquestrador(assunto, "", id_goal=contexto.id_goal), caminhos=(documento,))
