@@ -9,6 +9,12 @@ processos. Ela guarda quem a tomou: PID, máquina, início, comando e uma ficha
 
 A segunda chamada recebe `GoalOcupado`, com quem roda e como liberar. A trava
 velha, de um PID que não existe mais nesta máquina, é liberada com um aviso.
+Depois de um boot, o PID da trava pode ser de outro processo vivo; por isso
+ela guarda também a hora de criação do processo (no Windows, a do
+GetProcessTimes; no Linux, a do /proc), e o dono vive se o PID vive com a
+mesma hora. Na trava sem a hora (a de antes dela), o dono vive se o processo
+do PID nasceu antes do início da trava. A hora que não dá para ler conta
+como a mesma.
 A de outra máquina não: daqui não dá para saber se o processo de lá vive, e a
 mensagem diz como liberar à mão. A liberação renomeia o arquivo antes de
 apagá-lo e confere a ficha, para não apagar a trava nova que outra chamada
@@ -26,6 +32,7 @@ from pathlib import Path
 import socket
 import sys
 import time
+from typing import Any
 import uuid
 
 from graphow.core.exceptions import GraphowError
@@ -37,6 +44,11 @@ PAUSA_ENTRE_TENTATIVAS_S: float = 0.05
 CONSULTA_LIMITADA: int = 0x1000
 AINDA_ATIVO: int = 259
 ACESSO_NEGADO: int = 5
+# O FILETIME conta intervalos de 100 ns desde 1601; a época do Unix começa nesta contagem.
+FILETIME_POR_SEGUNDO: int = 10_000_000
+FILETIME_DA_EPOCA_UNIX: int = 116_444_736_000_000_000
+# A folga na comparação das horas de criação (no Linux, a hora do boot vem em segundos inteiros).
+FOLGA_DA_CRIACAO_S: float = 2.0
 
 
 class GoalOcupado(GraphowError):
@@ -52,6 +64,7 @@ class DonoDaTrava:
     inicio: str
     comando: str
     ficha: str
+    criacao: float | None = None
 
     def descrever(self) -> str:
         """O dono como a mensagem o mostra."""
@@ -113,7 +126,8 @@ def ler_dono(caminho: Path) -> DonoDaTrava | None:
         dono = DonoDaTrava(**json.loads(_ler_texto(caminho)))
     except (ValueError, TypeError):
         return None
-    return dono if isinstance(dono.pid, int) else None
+    criacao_legivel = dono.criacao is None or isinstance(dono.criacao, (int, float))
+    return dono if isinstance(dono.pid, int) and criacao_legivel else None
 
 
 def _ler_texto(caminho: Path) -> str:
@@ -139,15 +153,24 @@ def processo_vivo(pid: int) -> bool:
     return True
 
 
-def _vivo_no_windows(pid: int) -> bool:
-    """OpenProcess e o código de saída: sem processo, o erro 87; o que existe e não deixa abrir, o 5; o vivo, 259."""
+def _kernel32() -> Any:
+    """O kernel32 do Windows com os protótipos que a trava usa (nada que encerre processo)."""
     from ctypes import wintypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.OpenProcess.restype = wintypes.HANDLE
     kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
     kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    kernel32.GetProcessTimes.argtypes = (wintypes.HANDLE, *([ctypes.POINTER(wintypes.FILETIME)] * 4))
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    return kernel32
+
+
+def _vivo_no_windows(pid: int) -> bool:
+    """OpenProcess e o código de saída: sem processo, o erro 87; o que existe e não deixa abrir, o 5; o vivo, 259."""
+    from ctypes import wintypes
+
+    kernel32 = _kernel32()
     alca = kernel32.OpenProcess(CONSULTA_LIMITADA, False, pid)
     if not alca:
         return bool(ctypes.get_last_error() == ACESSO_NEGADO)
@@ -158,10 +181,59 @@ def _vivo_no_windows(pid: int) -> bool:
         kernel32.CloseHandle(alca)
 
 
+def hora_de_criacao(pid: int) -> float | None:
+    """Quando o processo do PID foi criado, em segundos da época do Unix; None quando não dá para ler."""
+    if sys.platform == "win32":
+        return _criacao_no_windows(pid)
+    return _criacao_no_linux(pid)
+
+
+def _criacao_no_windows(pid: int) -> float | None:
+    """GetProcessTimes: o primeiro FILETIME é a criação do processo."""
+    from ctypes import wintypes
+
+    kernel32 = _kernel32()
+    alca = kernel32.OpenProcess(CONSULTA_LIMITADA, False, pid)
+    if not alca:
+        return None
+    try:
+        tempos = [wintypes.FILETIME() for _ in range(4)]
+        if not kernel32.GetProcessTimes(alca, *(ctypes.byref(tempo) for tempo in tempos)):
+            return None
+        filetime = (tempos[0].dwHighDateTime << 32) | tempos[0].dwLowDateTime
+        return (filetime - FILETIME_DA_EPOCA_UNIX) / FILETIME_POR_SEGUNDO
+    finally:
+        kernel32.CloseHandle(alca)
+
+
+def _criacao_no_linux(pid: int) -> float | None:
+    """O campo 22 do /proc/<pid>/stat (tiques desde o boot) somado à hora do boot; None fora do Linux."""
+    try:
+        estado = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        boot = next(linha for linha in Path("/proc/stat").read_text(encoding="utf-8").splitlines() if linha.startswith("btime"))
+        campos = estado.rsplit(")", 1)[-1].split()
+        return int(boot.split()[1]) + int(campos[19]) / os.sysconf("SC_CLK_TCK")
+    except (OSError, StopIteration, IndexError, ValueError, AttributeError):
+        return None
+
+
+def _mesmo_processo(dono: DonoDaTrava) -> bool:
+    """O processo do PID é o dono: a mesma hora de criação; na trava sem ela, um processo criado antes do início dela."""
+    atual = hora_de_criacao(dono.pid)
+    if atual is None:
+        return True
+    if dono.criacao is not None:
+        return abs(atual - dono.criacao) <= FOLGA_DA_CRIACAO_S
+    try:
+        return atual <= datetime.fromisoformat(dono.inicio).timestamp() + FOLGA_DA_CRIACAO_S
+    except ValueError:
+        return True
+
+
 def _quem_sou() -> DonoDaTrava:
     """Esta execução como dona da trava."""
     inicio = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-    return DonoDaTrava(os.getpid(), socket.gethostname(), inicio, " ".join(sys.argv), uuid.uuid4().hex)
+    return DonoDaTrava(os.getpid(), socket.gethostname(), inicio, " ".join(sys.argv), uuid.uuid4().hex, hora_de_criacao(os.getpid()))
 
 
 def _escrever_exclusivo(caminho: Path, conteudo: str) -> bool:
@@ -186,11 +258,13 @@ def _liberar_a_velha(caminho: Path, id_goal: str) -> str:
         return ""
     if dono.maquina != socket.gethostname():
         raise GoalOcupado(_mensagem_de_outra_maquina(caminho, id_goal, dono), {"trava": str(caminho)})
-    if processo_vivo(dono.pid):
+    vivo = processo_vivo(dono.pid)
+    if vivo and _mesmo_processo(dono):
         raise GoalOcupado(_mensagem_em_execucao(caminho, id_goal, dono), {"trava": str(caminho)})
     if not _tirar_a_velha(caminho, dono):
         return ""
-    return f"Aviso: a trava do Goal {id_goal} era do {dono.descrever()}, que nao existe mais nesta maquina; foi liberada."
+    quem = "cujo PID hoje e de outro processo, criado em outra hora" if vivo else "que nao existe mais nesta maquina"
+    return f"Aviso: a trava do Goal {id_goal} era do {dono.descrever()}, {quem}; foi liberada."
 
 
 def _tirar_a_velha(caminho: Path, velha: DonoDaTrava) -> bool:

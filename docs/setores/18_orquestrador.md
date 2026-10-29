@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-57 módulos · 10897 linhas · 83 classes
+57 módulos · 10971 linhas · 83 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -65,7 +65,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 246 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 246 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
-| [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 235 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
+| [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 169 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 260 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
@@ -1705,12 +1705,15 @@ Um orquestrador por Goal: a trava que impede duas execuções de `graphow orques
 | `CONSULTA_LIMITADA` | `int` | `4096` |
 | `AINDA_ATIVO` | `int` | `259` |
 | `ACESSO_NEGADO` | `int` | `5` |
+| `FILETIME_POR_SEGUNDO` | `int` | `10000000` |
+| `FILETIME_DA_EPOCA_UNIX` | `int` | `116444736000000000` |
+| `FOLGA_DA_CRIACAO_S` | `float` | `2.0` |
 
 ### `DonoDaTrava`
 
 *DTO imutável* — Quem tomou a trava: o processo, a máquina, desde quando, com que comando e a ficha que a distingue.
 
-**Campos:** `pid: int`, `maquina: str`, `inicio: str`, `comando: str`, `ficha: str`
+**Campos:** `pid: int`, `maquina: str`, `inicio: str`, `comando: str`, `ficha: str`, `criacao: float | None`
 
 - `descrever() -> str` — O dono como a mensagem o mostra.
 
@@ -1731,6 +1734,7 @@ Um orquestrador por Goal: a trava que impede duas execuções de `graphow orques
 - `soltar_trava(trava: TravaDoGoal) -> None` — Solta a trava se ela ainda é desta execução (a ficha confere); no Windows, espera quem a lê fechar o arquivo.
 - `ler_dono(caminho: Path) -> DonoDaTrava | None` — Quem tem a trava; None sem trava, ou com uma que não dá para ler (vazia, corrompida ou de outro formato).
 - `processo_vivo(pid: int) -> bool` — O processo de PID dado existe nesta máquina (no POSIX, o sinal 0; no Windows, OpenProcess, que não mata nada).
+- `hora_de_criacao(pid: int) -> float | None` — Quando o processo do PID foi criado, em segundos da época do Unix; None quando não dá para ler.
 
 ## `orquestrador/validacao_json.py`
 
