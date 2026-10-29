@@ -71,6 +71,7 @@ MARCA_DO_TETO: str = "excedeu o teto do ciclo"
 MARCA_DA_CONFERENCIA: str = "achado novo da conferencia, sem regressao"
 MARCA_DA_REGRESSAO: str = "regressao nao confirmada"
 MARCA_DO_PARECER: str = "reprovado na conferencia sem achado que bloqueie; vale o parecer anterior"
+MARCA_DO_CORRIGIDO: str = "reprovado na conferencia sem achado que bloqueie; o que o reprovava foi corrigido"
 # O que a conferência diz de cada achado conferido: só o `corrigido` o resolve.
 PARECER_CORRIGIDO: str = "corrigido"
 PARECER_PERSISTE: str = "persiste"

@@ -1001,12 +1001,14 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    da conferencia, sem regressao", e nenhum dos dois vai à segunda opinião (na
    bancada de 12/10, cada verificação depois de uma correção era outra caçada,
    que achava bordas novas, e o laço não convergia). O critério (ou a decisão)
-   que atendia e que a conferência reprova sem bloqueante que o toque (o que
-   persiste, a regressão confirmada, o teste de aceite que falhou) fica com o
-   parecer anterior, e o dela vira acompanhamento; o que já não atendia segue
-   como ela disse, com o sintético quando nada o toca. O tipo vai na
-   verificação e no `--status`, e a conferência final limpa no commit atual
-   vale como a verificação final.
+   que a conferência reprova sem bloqueante que o toque (o que persiste, a
+   regressão confirmada, o teste de aceite que falhou) fica `atende`, qualquer
+   que fosse o parecer anterior: o que atendia volta ao parecer anterior, e o
+   que não atendia fica `atende` quando os bloqueantes conferidos que o citavam
+   receberam `corrigido` (o sintético inclusive); o dela vira acompanhamento
+   marcado. Só o reprovado sem bloqueante conferido que o cite segue como ela
+   disse, com o sintético. O tipo vai na verificação e no `--status`, e a
+   conferência final limpa no commit atual vale como a verificação final.
    Com as fatias do marco concluídas, uma sessão
    nova do verificador, sem nada de quem implementou, roda a suíte, os testes de
    aceite e o programa de verdade, executa as checagens, na caçada sonda as bordas que os

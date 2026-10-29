@@ -1,9 +1,10 @@
-"""A conferência só bloqueia o que o código confirma: a regressão e o critério que ela reprova (T2h).
+"""A conferência só bloqueia o que o código confirma: a regressão e o critério que ela reprova (T2h, T2j).
 
 Na revisão da T2c+T2d, a borda nova que a conferência chamava de regressão
 num critério que já estava `parcial` virava bloqueante e correção, e o
 critério que atendia e ela dava por `parcial` por uma borda nova ganhava o
-bloqueante sintético: as duas saídas eram só a palavra dela.
+bloqueante sintético: as duas saídas eram só a palavra dela. O critério que
+já não atendia, com o bloqueante dele dado por `corrigido`, também (T2j).
 """
 
 from pathlib import Path
@@ -12,9 +13,17 @@ from typing import Any
 import pytest
 
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
-from graphow.orquestrador.saida_do_verificador import MARCA_DA_CONFERENCIA, MARCA_DA_REGRESSAO, MARCA_DO_PARECER, Verificacao
-from graphow.orquestrador.tipo_da_verificacao import na_conferencia, que_podem_regredir
+from graphow.orquestrador.saida_do_verificador import (
+    MARCA_DA_CONFERENCIA,
+    MARCA_DA_REGRESSAO,
+    MARCA_DO_CORRIGIDO,
+    MARCA_DO_PARECER,
+    Parecer,
+    Verificacao,
+)
+from graphow.orquestrador.tipo_da_verificacao import com_os_pareceres_sustentados, na_conferencia, que_podem_regredir
 
 from tests.orquestrador.apoio_laco import (
     BLOQUEANTE_DO_README,
@@ -33,6 +42,7 @@ from tests.orquestrador.apoio_laco import (
 )
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
+V1_1: str = "achado-goal-soma-v1-1"
 NUL_COMO_REGRESSAO: dict[str, Any] = {
     "titulo": "README com NUL trava o leitor", "descricao": "NUL colado no exemplo", "prova": "printf '\\0' >> README.md",
     "local": "README.md:2", "criterios": ["C2"], "decisoes": [], "severidade": "media", "alcance": "uso_previsto",
@@ -168,3 +178,56 @@ def test_criterio_com_teste_de_aceite_falhando_na_conferencia_ainda_bloqueia_nom
     assert [x.texto("titulo") for x in conferencia.bloqueantes()] == ["O teste de aceite test_c1_soma de C1 falhou"]
     assert all(x.texto("marca") != MARCA_DO_PARECER for x in conferencia.achados)
     assert [f.codigo for f in estado.fatias] == ["F1", "F2", "M1.K1.1", "M1.K2.1"]
+
+
+def test_criterio_que_ja_estava_parcial_com_o_bloqueante_corrigido_fecha_pela_borda_nova_nominal(tmp_path: Path) -> None:
+    """T2j.1 (S3): C2 parcial na caçada; a conferência dá o bloqueante por corrigido e C2 parcial pela borda nova; o Goal fecha."""
+    roteiro = roteiro_completo()
+    roteiro["verificador"] = [verificacao("parcial", [BLOQUEANTE_DO_README]), verificacao("parcial", [BORDA_NOVA_EM_C2])]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = _estado(bancada)
+    conferencia = estado.verificacoes[1]
+    assert conferencia.bloqueantes() == () and conferencia.limpa
+    assert _pareceres(estado, 1)["C2"] == "atende"
+    assert f"{V1_1} conferido corrigido" in str(conferencia.propriedades["pareceres"])
+    marcas = [(x.texto("titulo"), x.gravidade, x.texto("marca")) for x in conferencia.achados]
+    assert marcas == [("README sem exemplo com negativos", "acompanhamento", MARCA_DA_CONFERENCIA),
+                      ("C2 parcial na conferencia", "acompanhamento", MARCA_DO_CORRIGIDO)]
+    assert [f.codigo for f in estado.fatias] == ["F1", "F2", "M1.K1.1"]
+    assert any(p.get("titulo") == "README sem exemplo com negativos" for p in estado.pendencias)
+
+
+def test_criterio_parcial_com_o_achado_que_persiste_continua_bloqueando_nominal(tmp_path: Path) -> None:
+    """T2j.2: o mesmo S3, mas a conferência diz que o bloqueante de C2 persiste: C2 segue parcial e vai à correção."""
+    roteiro = roteiro_completo()
+    roteiro["executor"].append(executor_pronto({"README.md": README_COM_EXEMPLO + "somar(-2, -3) == -5.\n"}))
+    roteiro["verificador"] = [verificacao("parcial", [BLOQUEANTE_DO_README]),
+                              verificacao("parcial", [{**BLOQUEANTE_DO_README, "persiste": V1_1}, BORDA_NOVA_EM_C2]),
+                              verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    estado = _estado(bancada)
+    conferencia = estado.verificacoes[1]
+    assert _pareceres(estado, 1)["C2"] == "parcial"
+    assert [(x.texto("titulo"), x.texto("persiste")) for x in conferencia.bloqueantes()] == [("README sem exemplo", V1_1)]
+    assert all(x.texto("marca") not in (MARCA_DO_CORRIGIDO, MARCA_DO_PARECER) for x in conferencia.achados)
+    assert [f.codigo for f in estado.fatias] == ["F1", "F2", "M1.K1.1", "M1.K2.1"]
+
+
+def test_reprovado_sem_bloqueante_conferido_que_o_cite_segue_reprovado_edge_case() -> None:
+    """Caso de borda: C2 parcial antes sem bloqueante conferido que o cite (só um acompanhamento) segue parcial, com o sintético."""
+    saida = {**verificacao("parcial")["saida"], "conferidos": [{"achado": V1_1, "parecer": "corrigido", "prova": "ok"}]}
+    acompanhamento = AchadoRegistrado(V1_1, "ver-goal-soma-1", "acompanhamento", "pendente", {"criterios": ["C2"]})
+
+    sustentada = com_os_pareceres_sustentados(Verificacao.de_json(saida), (Parecer("C2", "parcial", "README lido"),),
+                                              (acompanhamento,))
+
+    assert [p.veredito for p in sustentada.criterios] == ["atende", "parcial"] and sustentada.achados == ()
+    assert [x.titulo for x in sustentada.bloqueantes()] == ["C2 parcial"]

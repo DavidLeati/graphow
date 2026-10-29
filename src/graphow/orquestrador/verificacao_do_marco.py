@@ -87,8 +87,9 @@ def _registro(
 ) -> RegistroDaVerificacao:
     """A verificação julgada (na conferência, com o destino dela), com a segunda opinião, a suíte e o aceite do orquestrador.
 
-    Na conferência, por último, o que atendia e ela reprova sem bloqueante
-    que o toque (nem o teste de aceite que falhou) fica com o parecer de antes.
+    Na conferência, por último, o que ela reprova sem bloqueante que o toque
+    (nem o teste de aceite que falhou) fica `atende`: o parecer de antes, ou o
+    `atende` de quando o bloqueante conferido que o reprovava foi corrigido.
     """
     saida, chamadas = dados
     julgada = tipo.ajustar(replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas))
