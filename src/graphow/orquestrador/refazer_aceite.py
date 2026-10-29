@@ -52,6 +52,7 @@ from graphow.orquestrador.saida_do_aceite import (
 )
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
+from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
 from graphow.orquestrador.vermelho_do_refeito import conferir_o_vermelho_de_antes
 
@@ -165,7 +166,11 @@ def _sem_o_refeito(atual: SaidaDoAceite, pedido: PedidoDoHumano, problemas: Sequ
 
 def _conferir(contexto: ContextoDoGoal, estado: EstadoDoGoal, refeito: SaidaDoAceite, *, pedido: PedidoDoHumano,
               rodar: Any) -> tuple[str, ...]:
-    """Só o critério do pedido, com a forma do aceite, mexendo só nos arquivos dele em aceite/, e cada teste rodando direito."""
+    """Só o critério do pedido, com a forma do aceite, mexendo só nos arquivos dele em aceite/, e cada teste rodando direito.
+
+    O que o teste escreve ao rodar na ponta vai a um .patch e sai da área,
+    como na conferência do autor (orquestrador/autor_de_aceite.py).
+    """
     criterio = pedido.alvo
     if [c.id for c in refeito.criterios] != [criterio]:
         return (f"devolva so o criterio {criterio} em 'criterios'",)
@@ -176,7 +181,8 @@ def _conferir(contexto: ContextoDoGoal, estado: EstadoDoGoal, refeito: SaidaDoAc
                  *(f"{caminho} e teste de outro criterio: refaca so os de {criterio}" for caminho in mudados if caminho in alheios)]
     if problemas:
         return tuple(problemas)
-    execucoes = rodar_testes(refeito, rodar)
+    with sem_o_que_a_suite_escreve(contexto.area, contexto.patch(f"aceite-refeito-{pedido.id}-vermelho")):
+        execucoes = rodar_testes(refeito, rodar)
     return tuple(f"o teste {e.teste} de {criterio} nao passa e nao falha numa assercao dele: {motivo}"
                  for e in execucoes if not e.passou and (motivo := e.vermelho_invalido()))
 

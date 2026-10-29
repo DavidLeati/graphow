@@ -18,11 +18,13 @@ import pytest
 
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco, Parada
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE, NovoPedido
 from graphow.orquestrador.saida_do_verificador import MARCA_DA_REGRESSAO
 from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
 from tests.orquestrador.apoio_laco import (
+    ACEITE_C1,
     ACOMPANHAMENTO,
     BLOQUEANTE_DO_README,
     README_COM_EXEMPLO,
@@ -30,6 +32,7 @@ from tests.orquestrador.apoio_laco import (
     SOMA_COM_DOCSTRING,
     SOMA_ERRADA,
     Bancada,
+    autor_de_aceite,
     executor_pronto,
     montar_bancada,
     revisao,
@@ -174,4 +177,33 @@ def test_conftest_que_o_codigo_escreve_no_aceite_nao_chega_a_branch_nominal(tmp_
     aceite = next(linha[:40] for linha in log if "Escreve os testes de aceite" in linha)
     assert _arquivos(bancada, aceite) == ["aceite/aceite_c1.py", "docs/goals/soma.md"]
     guardado = next((bancada.raiz / "estado").rglob("aceite-vermelho-1.patch"))
+    assert "pytest_pyfunc_call" in guardado.read_text(encoding="utf-8")
+
+
+def test_conftest_que_o_teste_refeito_escreve_na_ponta_sai_da_area_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (T2n.2): no refazer, o teste roda na ponta e importa o código que escreve o conftest.py com hook.
+
+    O commit do refazer já ia pelo caminho, mas o conftest ficava na área, e a
+    fatia seguinte o via como seu. Agora ele vai ao .patch da conferência.
+    """
+    refeito = autor_de_aceite()
+    refeito["saida"]["criterios"] = refeito["saida"]["criterios"][:1]
+    refeito["arquivos"] = {"aceite/aceite_c1.py": ACEITE_C1 + "# refeito\n"}
+    roteiro = roteiro_completo()
+    roteiro["aceite"].append(refeito)
+    bancada = montar_bancada(tmp_path, roteiro)
+    _soma_que_gera_o_conftest(bancada)
+    orquestrador = bancada.orquestrador()
+    orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco())
+    area = bancada.raiz / "estado" / "goal-soma" / "area"
+    assert not (area / "conftest.py").exists()
+
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_REFAZER_ACEITE, "o teste nao cobre negativos", "david", alvo="C1"))
+    parada = orquestrador.rodar("goal-soma", OpcoesDoLaco())
+
+    assert parada.motivo == MotivoDaParada.AGUARDANDO_APROVACAO, parada.mensagem
+    assert [c["papel"] for c in bancada.chamadas()] == ["planejador", "aceite", "aceite"]
+    assert not (area / "conftest.py").exists()
+    assert git(area, "status", "--porcelain").strip() == ""
+    guardado = next((bancada.raiz / "estado").rglob("aceite-refeito-*-vermelho.patch"))
     assert "pytest_pyfunc_call" in guardado.read_text(encoding="utf-8")
