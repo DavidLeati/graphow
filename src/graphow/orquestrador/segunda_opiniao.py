@@ -39,10 +39,10 @@ def com_a_segunda_opiniao(contexto: ContextoDoGoal, verificacao: Verificacao, *,
 def _rebaixavel(achado: Achado) -> bool:
     """O achado do verificador que não toca critério nem decisão, ou que ele julgou de entrada extrema.
 
-    Na conferência, o achado que persiste e o novo sem regressão não vão a ela:
+    Na conferência, o achado que persiste e o que ela rebaixou não vão a ela:
     o destino deles não depende do que ele toca (orquestrador/tipo_da_verificacao.py).
     """
-    conferido = bool(achado.persiste) or achado.novo_na_conferencia
+    conferido = bool(achado.persiste or achado.rebaixado_na_conferencia)
     return achado.origem == ORIGEM_DO_VERIFICADOR and not conferido and (not achado.toca or achado.extremo)
 
 

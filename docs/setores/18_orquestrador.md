@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-47 módulos · 8589 linhas · 68 classes
+47 módulos · 8651 linhas · 68 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -54,7 +54,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 152 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
-| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 160 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
+| [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 222 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 152 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 168 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -1120,6 +1120,7 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 | `TETO_DE_BLOQUEANTES` | `int` | `5` |
 | `MARCA_DO_TETO` | `str` | `'excedeu o teto do ciclo'` |
 | `MARCA_DA_CONFERENCIA` | `str` | `'achado novo da conferencia, sem regressao'` |
+| `MARCA_DA_REGRESSAO` | `str` | `'regressao nao confirmada'` |
 | `PARECER_CORRIGIDO` | `str` | `'corrigido'` |
 | `PARECER_PERSISTE` | `str` | `'persiste'` |
 | `PARECERES_DO_CONFERIDO` | `tuple[str, ...]` | `(PARECER_CORRIGIDO, PARECER_PERSISTE)` |
@@ -1128,7 +1129,7 @@ A saída do verificador como objeto tipado: os pareceres, os comandos e os achad
 
 *DTO imutável* — Um problema achado na verificação: o que é, a prova, onde, o que ele toca, o alcance e de quem veio.
 
-**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`, `segunda_opiniao: str`, `sem_acordo: bool`, `reproducao: tuple[str, ...]`, `alcance: str`, `decisao_do_limite: str`, `alcance_da_segunda_opiniao: str`, `excedeu_o_teto: bool`, `persiste: str`, `regressao: bool`, `novo_na_conferencia: bool`
+**Campos:** `titulo: str`, `descricao: str`, `prova: str`, `local: str`, `criterios: tuple[str, ...]`, `decisoes: tuple[str, ...]`, `severidade: str`, `origem: str`, `segunda_opiniao: str`, `sem_acordo: bool`, `reproducao: tuple[str, ...]`, `alcance: str`, `decisao_do_limite: str`, `alcance_da_segunda_opiniao: str`, `excedeu_o_teto: bool`, `persiste: str`, `regressao: bool`, `rebaixado_na_conferencia: str`
 
 - `toca() -> tuple[str, ...]` `[property]` — Os critérios e as decisões que o achado toca, sem repetir; a decisão que fala do limite inclusive.
 - `extremo() -> bool` `[property]` — Entrada extrema de cujo limite nenhuma decisão fala, sem a segunda opinião dizer que é de uso previsto.
@@ -1393,9 +1394,9 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 
 ### `TipoDaVerificacao`
 
-*DTO imutável* — O tipo da verificação que o laço vai rodar e, na conferência, os achados que ela confere, os excedentes e de onde partiu.
+*DTO imutável* — O tipo da verificação que o laço vai rodar e, na conferência, o que ela confere, de onde partiu e o que pode ter regredido.
 
-**Campos:** `tipo: str`, `conferidos: tuple[AchadoRegistrado, ...]`, `antes: str`, `excedentes: tuple[AchadoRegistrado, ...]`
+**Campos:** `tipo: str`, `conferidos: tuple[AchadoRegistrado, ...]`, `antes: str`, `excedentes: tuple[AchadoRegistrado, ...]`, `podem_regredir: tuple[str, ...]`
 
 - `papel() -> str` `[property]` — O papel da sessão: o prompt, o schema e o modelo do tipo.
 - `ids_dos_conferidos() -> tuple[str, ...]` `[property]` — Os ids dos achados que a conferência confere: cada um pede um parecer.
@@ -1405,7 +1406,9 @@ O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco i
 
 ### Funções do módulo
 
-- `escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado) -> TipoDaVerificacao` — A conferência quando o marco já tem verificação gravada; senão a do marco intermediário, ou a caçada na final.
+- `escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal | None) -> TipoDaVerificacao` — A conferência quando o marco já tem verificação gravada; senão a do marco intermediário, ou a caçada na final.
+- `pareceres_gravados(itens: object) -> tuple[Parecer, ...]` — Os pareceres de critério e de decisão como a verificação os gravou.
+- `que_podem_regredir(atendiam: Sequence[str], arquivos: Mapping[str, frozenset[str]], diff: frozenset[str] | None) -> tuple[str, ...]` — Os critérios que atendiam e cujos arquivos o diff das correções toca; sem o diff ou sem os arquivos de um, ele entra.
 - `na_conferencia(verificacao: Verificacao, conferidos: Sequence[AchadoRegistrado], excedentes: Sequence[AchadoRegistrado]) -> Verificacao` — A conferência com o destino de cada achado do verificador e um bloqueante por conferido que persiste.
 - `diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str` — O diff do commit da verificação anterior até o atual, sem o documento do Goal, cortado; vazio sem o commit de antes.
 

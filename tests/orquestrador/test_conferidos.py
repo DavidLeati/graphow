@@ -15,6 +15,7 @@ from graphow.orquestrador.validacao_json import validar_contra_esquema
 from tests.orquestrador.apoio_laco import (
     BLOQUEANTE_DO_README,
     README_COM_EXEMPLO,
+    SOMA_CERTA,
     SOMA_COM_DOCSTRING,
     Bancada,
     executor_pronto,
@@ -144,11 +145,12 @@ def test_cinco_persistentes_e_uma_regressao_seguem_bloqueantes_e_o_goal_nao_fech
 
     Os 6 viram bloqueantes e duas fatias de correção. A conferência seguinte diz
     que o 5º ainda persiste: o laço para sem ciclo, e o original e a cópia dele
-    seguem abertos, sem o fecho dar nenhum por resolvido.
+    seguem abertos, sem o fecho dar nenhum por resolvido. A correção mexe também
+    em soma.py, da fatia de C1, e a regressão em C1 é confirmada (T2h).
     """
     roteiro = roteiro_completo()
-    roteiro["executor"][2] = executor_pronto({"README.md": SEM_EXEMPLO})
-    roteiro["executor"] += [executor_pronto({"soma.py": SOMA_COM_DOCSTRING, "README.md": README_COM_EXEMPLO}),
+    roteiro["executor"][2] = executor_pronto({"README.md": SEM_EXEMPLO, "soma.py": SOMA_COM_DOCSTRING})
+    roteiro["executor"] += [executor_pronto({"soma.py": SOMA_CERTA, "README.md": README_COM_EXEMPLO}),
                             executor_pronto({"README.md": README_COM_EXEMPLO + "Mais.\n"})]
     persistentes = [{**falha, "persiste": f"achado-goal-soma-v1-{i}"} for i, falha in enumerate(_falhas(5), start=1)]
     terceira = _conferencia([*((f"achado-goal-soma-v2-{i}", "corrigido") for i in range(1, 6)), (V2_6, "persiste")])

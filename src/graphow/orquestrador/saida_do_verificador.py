@@ -35,10 +35,9 @@ Na conferência, que roda depois de cada ciclo de correção, a gravidade tem
 mais uma regra (orquestrador/tipo_da_verificacao.py): cada achado conferido
 ganha um parecer, `corrigido` ou `persiste`, com a prova, e faltar um é saída
 inválida; o que persiste é bloqueante; o achado novo só vale se for regressão
-de critério (`regressao`), e o que não é vira acompanhamento marcado "achado
-novo da conferencia, sem regressao". Na bancada de 12/10, cada verificação
-depois de uma correção era outra caçada, que achava bordas novas, e o laço não
-convergia.
+de critério (`regressao`) que o código confirma, e o que não é vira
+acompanhamento marcado. Na bancada de 12/10, cada verificação depois de uma
+correção era outra caçada, que achava bordas novas, e o laço não convergia.
 
 Quando a configuração de teste entregue faz passar um teste de aceite que a do
 commit do aceite reprova fora de uma asserção (import, coleta, ambiente), o
@@ -70,6 +69,7 @@ ALCANCES: tuple[str, ...] = (ALCANCE_USO_PREVISTO, ALCANCE_EXTREMO)
 TETO_DE_BLOQUEANTES: int = 5
 MARCA_DO_TETO: str = "excedeu o teto do ciclo"
 MARCA_DA_CONFERENCIA: str = "achado novo da conferencia, sem regressao"
+MARCA_DA_REGRESSAO: str = "regressao nao confirmada"
 # O que a conferência diz de cada achado conferido: só o `corrigido` o resolve.
 PARECER_CORRIGIDO: str = "corrigido"
 PARECER_PERSISTE: str = "persiste"
@@ -163,10 +163,10 @@ class Achado:
     # Vazio quando a segunda opinião não julgou o achado.
     alcance_da_segunda_opiniao: str = ""
     excedeu_o_teto: bool = False
-    # Na conferência: o id do achado conferido que persiste, a regressão de critério e o achado novo que não é nenhum dos dois.
+    # Na conferência: o id do achado conferido que persiste, a regressão de critério e, para o que ela rebaixa, a marca.
     persiste: str = ""
     regressao: bool = False
-    novo_na_conferencia: bool = False
+    rebaixado_na_conferencia: str = ""
 
     @property
     def toca(self) -> tuple[str, ...]:
@@ -183,11 +183,11 @@ class Achado:
     def gravidade(self) -> str:
         """Bloqueante quando o orquestrador viu falhar, quando a segunda opinião não concordou ou quando toca algo e não é extremo.
 
-        O que passou do teto da verificação e o achado novo da conferência que não
-        é regressão são acompanhamento, sejam o que forem; o achado conferido que
-        persiste é bloqueante, como era.
+        O que passou do teto da verificação e o que a conferência rebaixou (o
+        achado novo, a regressão não confirmada) são acompanhamento, sejam o que
+        forem; o achado conferido que persiste é bloqueante, como era.
         """
-        if self.excedeu_o_teto or self.novo_na_conferencia:
+        if self.excedeu_o_teto or self.rebaixado_na_conferencia:
             return a.GRAVIDADE_ACOMPANHAMENTO
         if self.persiste or self.origem == ORIGEM_DO_ORQUESTRADOR or self.sem_acordo or (self.toca and not self.extremo):
             return a.GRAVIDADE_BLOQUEANTE
@@ -205,7 +205,7 @@ class Achado:
     @property
     def marca(self) -> str:
         """Por que o código rebaixou o achado que tocava algo; vazio quando não rebaixou."""
-        return MARCA_DO_TETO if self.excedeu_o_teto else MARCA_DA_CONFERENCIA if self.novo_na_conferencia and self.toca else ""
+        return MARCA_DO_TETO if self.excedeu_o_teto else self.rebaixado_na_conferencia if self.toca else ""
 
     @classmethod
     def de_json(cls, dados: Mapping[str, Any]) -> "Achado":

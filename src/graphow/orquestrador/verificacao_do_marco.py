@@ -66,7 +66,7 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
     tirado = preparar_o_aceite(contexto.area, commit_do_aceite)
     aceite = rodar_o_aceite(contexto, estado, criterios_ate_o_marco(estado, marco), final=marco.final)
     descartar_mudancas(contexto.area, contexto.patch(f"aceite-{len(estado.verificacoes) + 1}"))
-    tipo = escolher_o_tipo(estado, marco)
+    tipo = escolher_o_tipo(estado, marco, contexto.git)
     dados = _sessao_do_verificador(contexto, estado, marco, head=head, aceite=aceite, tipo=tipo)
     if isinstance(dados, Parada):
         return dados

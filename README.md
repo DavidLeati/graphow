@@ -992,11 +992,15 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    sessão volta uma vez); só o `corrigido` resolve o achado, e o que persiste é
    bloqueante, como o achado listado com `persiste` (o id dele) ou, sem ele,
    como o conferido era. A
-   regressão de critério (`regressao`) segue a regra de sempre, e o achado novo
-   que não é regressão vira acompanhamento marcado "achado novo da
-   conferencia, sem regressao", sem segunda opinião (na bancada de 12/10, cada
-   verificação depois de uma correção era outra caçada, que achava bordas
-   novas, e o laço não convergia). O tipo vai na verificação e no `--status`,
+   regressão de critério (`regressao`) só segue a regra de sempre quando o
+   código a confirma: ela cita um critério que estava `atende` na verificação
+   anterior do marco, e o diff das correções toca um arquivo dele (os que as
+   fatias do critério previram e commitaram; sem como saber, basta a primeira
+   condição); a outra vira acompanhamento marcado "regressao nao confirmada".
+   O achado novo que não é regressão vira acompanhamento marcado "achado novo
+   da conferencia, sem regressao", e nenhum dos dois vai à segunda opinião (na
+   bancada de 12/10, cada verificação depois de uma correção era outra caçada,
+   que achava bordas novas, e o laço não convergia). O tipo vai na verificação e no `--status`,
    e a conferência final limpa no commit atual vale como a verificação final.
    Com as fatias do marco concluídas, uma sessão
    nova do verificador, sem nada de quem implementou, roda a suíte, os testes de

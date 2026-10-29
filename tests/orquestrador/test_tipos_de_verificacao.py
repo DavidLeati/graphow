@@ -12,6 +12,7 @@ from graphow.orquestrador.status import formatar_status
 from tests.orquestrador.apoio_laco import (
     BLOQUEANTE_DO_README,
     README_COM_EXEMPLO,
+    SOMA_CERTA,
     SOMA_COM_DOCSTRING,
     Bancada,
     executor_pronto,
@@ -78,11 +79,16 @@ def test_dois_marcos_com_um_ciclo_cada_rodam_marco_conferencia_cacada_conferenci
 
 
 def test_conferencia_rebaixa_o_achado_novo_e_bloqueia_a_regressao_nominal(tmp_path: Path) -> None:
-    """T2d.2: na conferência, a borda nova em C2 vira acompanhamento marcado, e a regressão em C1 vira bloqueante e correção."""
+    """T2d.2: na conferência, a borda nova em C2 vira acompanhamento marcado, e a regressão em C1 vira bloqueante e correção.
+
+    C1 atendia na caçada, e a correção do README mexeu também em soma.py, que
+    a fatia de C1 entregou: a regressão é confirmada pelo código (T2h).
+    """
     roteiro = roteiro_completo()
+    roteiro["executor"][2] = executor_pronto({"README.md": README_COM_EXEMPLO, "soma.py": SOMA_COM_DOCSTRING})
     roteiro["verificador"] = [verificacao("parcial", [BLOQUEANTE_DO_README]), verificacao("atende", [BORDA_NOVA_EM_C2, REGRESSAO_EM_C1]),
                               verificacao("atende")]
-    roteiro["executor"].append(executor_pronto({"soma.py": SOMA_COM_DOCSTRING}))
+    roteiro["executor"].append(executor_pronto({"soma.py": SOMA_CERTA}))
     bancada = montar_bancada(tmp_path, roteiro)
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
