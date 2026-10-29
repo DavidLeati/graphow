@@ -3,8 +3,10 @@
 Na auditoria, duas entregas ficaram sem commit, e o grafo não tinha como dizer
 o que elas eram. O Artifact novo nasce ancorado, numa de duas formas:
 
-- código num repositório git: `commit`, o hash de 40 caracteres hexadecimais
-  do commit que traz a entrega (e os `arquivos` que o git diz que ele mudou);
+- código num repositório git: `commit`, o hash do commit que traz a entrega,
+  com 40 caracteres hexadecimais (SHA-1, o formato padrão do git) ou 64 (o
+  repositório criado com `--object-format=sha256`), e os `arquivos` que o git
+  diz que ele mudou;
 - fora de repositório git (trabalho que não é código, decisão 1 do BRIEF):
   `sha256`, os 64 caracteres hexadecimais do conteúdo do documento, e
   `caminho`, onde o documento mora.
@@ -22,11 +24,15 @@ Artifact antigo, sem âncora, segue editável, e o replay do banco antigo não
 passa pelos portões.
 
 A Task de ação externa (`entrega: acao_externa`) não deixa conteúdo para trás:
-o Artifact que deriva dela segue só com o `resumo`, e a prova é a Evidence com
-`fonte` e `resultado`.
+o Artifact que deriva só dela segue com o `resumo`, e a prova é a Evidence com
+`fonte` e `resultado`. A isenção pede que todos os `deriva_de` do Artifact vão a
+Tasks de ação externa: com um só, o executor isentava a entrega de código
+citando, ao lado da Task dele, qualquer Task de ação externa do grafo. Pela
+mesma razão, o Artifact sem âncora que deriva de ação externa não ganha depois
+um `deriva_de` a outra Task.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 import re
 from typing import Any
 
@@ -42,13 +48,17 @@ CAMPO_SHA256: str = "sha256"
 CAMPO_CAMINHO: str = "caminho"
 ANCORA_COMMIT: str = "commit"
 ANCORA_SHA256: str = "sha256"
-PADRAO_DO_COMMIT: re.Pattern[str] = re.compile(r"[0-9a-fA-F]{40}")
+PADRAO_DO_COMMIT: re.Pattern[str] = re.compile(r"[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?")
 PADRAO_DO_SHA256: re.Pattern[str] = re.compile(r"[0-9a-fA-F]{64}")
 SEGMENTOS_DO_ELEMENTO: int = 2
 FORMAS_DA_ANCORA: str = (
-    "O Artifact novo leva 'commit' (o hash de 40 caracteres hexadecimais do commit que traz a entrega) ou, "
+    "O Artifact novo leva 'commit' (o hash do commit que traz a entrega: 40 caracteres hexadecimais, ou 64 no "
+    "repositorio sha256) ou, "
     "fora de repositorio git, 'sha256' (os 64 caracteres hexadecimais do conteudo do documento) e 'caminho' "
     "(onde o documento mora)"
+)
+ISENCAO_DA_ACAO_EXTERNA: str = (
+    "So o Artifact cujos 'deriva_de' vao todos a Tasks de acao externa (entrega: acao_externa) segue sem ancora"
 )
 
 
@@ -72,7 +82,7 @@ def diagnosticar_ancora(propriedades: Mapping[str, Any]) -> str | None:
         return None
     commit, sha256 = propriedades.get(CAMPO_COMMIT), propriedades.get(CAMPO_SHA256)
     if commit not in (None, ""):
-        return f"'commit' {commit!r} nao e um hash de commit do git (40 caracteres hexadecimais)"
+        return f"'commit' {commit!r} nao e um hash de commit do git (40 ou 64 caracteres hexadecimais)"
     if sha256 not in (None, "") and not _casa(PADRAO_DO_SHA256, sha256):
         return f"'sha256' {sha256!r} nao tem 64 caracteres hexadecimais"
     if sha256 not in (None, ""):
@@ -83,18 +93,36 @@ def diagnosticar_ancora(propriedades: Mapping[str, Any]) -> str | None:
 def validar_ancora_do_artifact(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
     """Recusa o Artifact que o lote deixaria sem âncora quando ele precisa dela."""
     recriados, nos = _recriados(proposta), projetar_nos_do_lote(proposta, estado)
+    tocados = {no.id: no for no in nos}
     for no in nos:
         if no.tipo != TipoNo.ARTIFACT or _antigo_sem_ancora(no.id, estado, recriados=recriados):
             continue
         problema = diagnosticar_ancora(no.propriedades)
-        if problema is not None and not _de_acao_externa(no.id, proposta, estado, tocados=nos):
-            return ResultadoValidacao.falha(
-                f"Artifact '{no.id}' sem ancora: {problema}. {FORMAS_DA_ANCORA}",
-                "InvariantGate",
-                {"id_no": no.id},
-                modo=ModoFalhaMAST.ARTIFACT_SEM_ANCORA,
-            )
+        if problema is not None and not _isento(_de_acao_externa(no.id, proposta, estado, tocados=tocados)):
+            return _recusa(no.id, problema)
+    for id_no in _origens_de_deriva_do_lote(proposta):
+        no = tocados.get(id_no) or estado.nos.get(id_no)
+        if no is None or no.tipo != TipoNo.ARTIFACT or ancora_do_artifact(no.propriedades) is not None:
+            continue
+        derivadas = _de_acao_externa(id_no, proposta, estado, tocados=tocados)
+        if any(derivadas) and not all(derivadas):
+            return _recusa(id_no, "deriva de Task de acao externa e de Task que nao e")
     return ResultadoValidacao.sucesso()
+
+
+def _isento(derivadas: list[bool]) -> bool:
+    """A isenção da ação externa: há `deriva_de`, e todos vão a Tasks de ação externa."""
+    return bool(derivadas) and all(derivadas)
+
+
+def _recusa(id_no: str, problema: str) -> ResultadoValidacao:
+    """A recusa do Artifact sem âncora, com o que falta, as formas da âncora e a isenção."""
+    return ResultadoValidacao.falha(
+        f"Artifact '{id_no}' sem ancora: {problema}. {FORMAS_DA_ANCORA}. {ISENCAO_DA_ACAO_EXTERNA}",
+        "InvariantGate",
+        {"id_no": id_no},
+        modo=ModoFalhaMAST.ARTIFACT_SEM_ANCORA,
+    )
 
 
 def _segmentos(caminho: str) -> list[str]:
@@ -116,14 +144,21 @@ def _antigo_sem_ancora(id_no: str, estado: GrafoEstado, *, recriados: frozenset[
     return ancora_do_artifact(anterior.propriedades) is None
 
 
-def _de_acao_externa(id_no: str, proposta: PropostaPatch, estado: GrafoEstado, *, tocados: Iterable[NoGrafo]) -> bool:
-    """O Artifact deriva de uma Task de ação externa, pela aresta do lote ou pela que já existia."""
-    tasks = {no.id: no for no in tocados if no.tipo == TipoNo.TASK}
-    for destino in _destinos_de_deriva(id_no, proposta, estado):
-        task = tasks.get(destino) or estado.nos.get(destino)
-        if task is not None and task.tipo == TipoNo.TASK and ler_texto(task.propriedades, CAMPO_ENTREGA) == ENTREGA_ACAO_EXTERNA:
-            return True
-    return False
+def _de_acao_externa(id_no: str, proposta: PropostaPatch, estado: GrafoEstado, *, tocados: Mapping[str, NoGrafo]) -> list[bool]:
+    """Para cada `deriva_de` do Artifact (os do lote e, se ele já existia, os gravados), se o destino é Task de ação externa."""
+    return [_e_acao_externa(tocados.get(destino) or estado.nos.get(destino)) for destino in _destinos_de_deriva(id_no, proposta, estado)]
+
+
+def _e_acao_externa(no: NoGrafo | None) -> bool:
+    """O nó é uma Task com `entrega: acao_externa`, como ficará depois do lote."""
+    return no is not None and no.tipo == TipoNo.TASK and ler_texto(no.propriedades, CAMPO_ENTREGA) == ENTREGA_ACAO_EXTERNA
+
+
+def _origens_de_deriva_do_lote(proposta: PropostaPatch) -> tuple[str, ...]:
+    """Os nós de onde sai um `deriva_de` que o lote cria."""
+    valores = (item.value for item in proposta.operacoes if item.op == OperacaoPatch.ADD and _segmentos(item.path)[:1] == ["arestas"])
+    origens = (str(valor.get("origem_id", "")) for valor in valores if isinstance(valor, dict) and valor.get("tipo") == TipoAresta.DERIVA_DE.value)
+    return tuple(dict.fromkeys(origens))
 
 
 def _destinos_de_deriva(id_no: str, proposta: PropostaPatch, estado: GrafoEstado) -> list[str]:

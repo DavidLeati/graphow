@@ -12,7 +12,7 @@ from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.storage.sqlite_store import SQLiteEventStore
-from tests.mcp.cenario_governanca import montar_kernel, servidor
+from tests.mcp.cenario_governanca import DONO_DA_POSSE, montar_kernel, servidor
 
 SESSAO: str = "sess-a"
 COMMIT: str = "0123456789abcdef0123456789abcdef01234567"
@@ -112,3 +112,68 @@ def test_banco_com_artifact_antigo_sem_hash_faz_replay_e_segue_editavel_nominal(
     assert antigo is not None and antigo.obter_propriedade("commit") is None
     assert edicao["sucesso"] is True, edicao
     assert novo["sucesso"] is False and novo["modo_de_falha"] == "artifact_sem_ancora"
+
+
+def test_commit_do_repositorio_sha256_ancora_nominal() -> None:
+    """O repositório `--object-format=sha256` dá commit de 64 hex: é âncora `commit`; 50 hex não é de formato nenhum."""
+    kernel = montar_kernel()
+
+    recibo = _propor(kernel, _artifact("art-cod", commit=SHA256, arquivos=["soma.py"]))
+    torto = _propor(kernel, _artifact("art-torto", commit=SHA256[:50]))
+
+    assert ancora_do_artifact({"commit": SHA256}) == ANCORA_COMMIT
+    assert recibo["sucesso"] is True, recibo
+    assert torto["sucesso"] is False and "40 ou 64 caracteres" in torto["mensagem"]
+
+
+def _deriva(origem: str, destino: str) -> dict[str, Any]:
+    """A aresta `deriva_de` do Artifact a uma Task."""
+    id_aresta = f"deriva_de-{origem}-{destino}"
+    return {"op": "add", "path": f"/arestas/{id_aresta}",
+            "value": {"id": id_aresta, "origem_id": origem, "destino_id": destino, "tipo": "deriva_de"}}
+
+
+def _kernel_com_acao_externa(*, acao_externa_no_executor: bool) -> WriteKernel:
+    """O cenário com a Task de código `task-a` livre e as Tasks de ação externa `t-envio` e `t-aviso`."""
+    kernel = montar_kernel()
+    if acao_externa_no_executor:
+        assert servidor(kernel, "humano").executar_ferramenta("configurar_governanca", {
+            "escopo": "proj-a", "preset": "personalizada", "personalizada": {"acao_externa": "executor"}})["sucesso"]
+    for id_task in ("t-envio", "t-aviso"):
+        assert servidor(kernel, "planejador", "orquestrador").executar_ferramenta("criar_tarefa", {
+            "titulo": f"Enviar {id_task}", "id_task": id_task, "id_sessao": SESSAO, "entrega": "acao_externa",
+            "criterio_pronto": "enviado"})["sucesso"]
+    kernel.liberar_lock_task("task-a", DONO_DA_POSSE)
+    return kernel
+
+
+@pytest.mark.parametrize(("papel", "acao_externa_no_executor"), [("executor", False), ("executor", True), ("humano", False)])
+def test_isencao_da_acao_externa_pede_todos_os_deriva_de_edge_case(papel: str, acao_externa_no_executor: bool) -> None:
+    """Caso de borda (C2): citar uma Task de ação externa ao lado da Task de código não isenta; só ação externa, isenta."""
+    kernel = _kernel_com_acao_externa(acao_externa_no_executor=acao_externa_no_executor)
+    assert servidor(kernel, papel).executar_ferramenta("assumir_tarefa", {"id_task": "task-a"})["sucesso"]
+
+    misto = _propor(kernel, [*_artifact("art-cod", resumo="soma.py", arquivos=["soma.py"]),
+                             _deriva("art-cod", "task-a"), _deriva("art-cod", "t-envio")], papel)
+    puro = _propor(kernel, [*_artifact("art-envio", resumo="e-mail enviado"),
+                            _deriva("art-envio", "t-envio"), _deriva("art-envio", "t-aviso")], papel)
+    solto = _propor(kernel, _artifact("art-solto", resumo="sem deriva_de"), papel)
+
+    assert misto["sucesso"] is False and misto["modo_de_falha"] == "artifact_sem_ancora"
+    assert "todos a Tasks de acao externa" in misto["mensagem"]
+    assert kernel.obter_view().obter_no("art-cod") is None
+    assert puro["sucesso"] is True, puro
+    assert solto["sucesso"] is False and solto["modo_de_falha"] == "artifact_sem_ancora"
+
+
+def test_artifact_isento_nao_ganha_depois_deriva_de_a_task_de_codigo_edge_case() -> None:
+    """Caso de borda: o Artifact sem âncora da ação externa não vira, num lote seguinte, entrega da Task de código."""
+    kernel = _kernel_com_acao_externa(acao_externa_no_executor=False)
+    assert _propor(kernel, [*_artifact("art-envio", resumo="e-mail enviado"), _deriva("art-envio", "t-envio")], "humano")["sucesso"]
+
+    codigo = _propor(kernel, [_deriva("art-envio", "task-a")], "humano")
+    outra_acao = _propor(kernel, [_deriva("art-envio", "t-aviso")], "humano")
+
+    assert codigo["sucesso"] is False and codigo["modo_de_falha"] == "artifact_sem_ancora"
+    assert "deriva de Task de acao externa e de Task que nao e" in codigo["mensagem"]
+    assert outra_acao["sucesso"] is True, outra_acao

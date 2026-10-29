@@ -48,9 +48,9 @@ EXIGENCIAS_DO_PAPEL: Mapping[PapelAutor, str] = {
         "evidencia_sem_localizacao."
     ),
     PapelAutor.EXECUTOR: (
-        "Seu Artifact leva a ancora: `commit` (o hash de 40 caracteres do commit que traz a entrega) ou, fora de "
-        "repositorio git, `sha256` (do conteudo do documento) e `caminho`; sem ela o InvariantGate recusa com "
-        "artifact_sem_ancora. So o da Task de acao externa vai sem."
+        "Seu Artifact leva a ancora: `commit` (o hash do commit que traz a entrega, 40 ou 64 caracteres) ou, fora "
+        "de repositorio git, `sha256` (do conteudo do documento) e `caminho`; sem ela o InvariantGate recusa com "
+        "artifact_sem_ancora. So vai sem o Artifact cujos `deriva_de` vao todos a Tasks de acao externa."
     ),
 }
 

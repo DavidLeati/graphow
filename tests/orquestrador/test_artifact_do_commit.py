@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from graphow.core.types import TipoNo
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.livro_razao import fora_do_commit
@@ -59,3 +61,24 @@ def test_fora_do_commit_compara_caminhos_como_o_git_os_escreve_edge_case() -> No
     assert fora_do_commit(["./a.py", "pasta\\b.py"], ["a.py", "pasta/b.py"]) == ""
     assert fora_do_commit(["a.py", "c.py", "c.py"], ["a.py"]) == "declarados e fora do commit: c.py"
     assert fora_do_commit([], []) == ""
+
+
+def test_laco_fecha_no_repositorio_sha256_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Caso de borda (C4): no repositório `--object-format=sha256` o commit tem 64 hex, e o kernel o aceita como âncora.
+
+    Antes, o kernel recusava o Artifact do plano e o laço parava em FALHA
+    depois de pagar o planejador.
+    """
+    monkeypatch.setenv("GIT_DEFAULT_HASH", "sha256")
+    bancada = montar_bancada(tmp_path, roteiro_completo())
+    assert len(git(bancada.repositorio, "rev-parse", "HEAD").strip()) == 64
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FECHADO, parada.mensagem
+    artefatos = [no for no in bancada.kernel.obter_view().listar_todos_os_nos() if no.tipo == TipoNo.ARTIFACT]
+    assert {no.id for no in artefatos} >= {"art-goal-soma-plano", "art-aceite-goal-soma", "art-task-soma-f1-t1"}
+    for artefato in artefatos:
+        commit = str(artefato.obter_propriedade("commit"))
+        assert len(commit) == 64, artefato.id
+        assert sorted(artefato.obter_propriedade("arquivos")) == sorted(_arquivos_do_commit(bancada.repositorio, commit)), artefato.id
