@@ -21,10 +21,11 @@ entregue aprova, e o Goal travava. Agora:
   devolvendo 0. Se falha por import, coleta ou ambiente, é provável que seja
   um layout novo: vai ao verificador com o fim das duas saídas e o hash do
   commit do aceite, e ele deve um parecer por diferença (`legitima` ou
-  `ilegitima`, com o motivo). O `ilegitima` vira bloqueante, e o parecer que
-  falta invalida a saída. O comando de todos só conta quando nenhum teste
-  sozinho mudou de resultado, e o teste que falha com a configuração entregue
-  já reprova o critério pela rodada dela;
+  `ilegitima`, com o motivo), vendo o diff de cada arquivo que configura o
+  teste, do commit do aceite à ponta. O `ilegitima` vira bloqueante, e o
+  parecer que falta invalida a saída. O comando de todos só conta quando
+  nenhum teste sozinho mudou de resultado, e o teste que falha com a
+  configuração entregue já reprova o critério pela rodada dela;
 - a mudança de configuração continua indo à revisão de risco
   (orquestrador/execucao_da_fatia.py).
 """
@@ -34,7 +35,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.core import aceite as a
-from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite, trocas_da_configuracao
+from graphow.orquestrador.configuracao_do_aceite import configuracao_do_aceite, diff_da_configuracao, trocas_da_configuracao
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal
 from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
@@ -59,12 +60,13 @@ Par = tuple[ExecucaoDeAceite, ExecucaoDeAceite]
 
 @dataclass(frozen=True)
 class AceiteNoCommit:
-    """As execuções do aceite com a configuração entregue e, quando ela mudou, com a do commit do aceite."""
+    """As execuções do aceite com a configuração entregue e, quando ela mudou, com a do commit do aceite e o diff dela."""
 
     execucoes: tuple[ExecucaoDeAceite, ...]
     com_a_do_aceite: tuple[ExecucaoDeAceite, ...] = ()
     trocados: tuple[str, ...] = ()
     commit: str = ""
+    diff: str = ""
 
     def diferencas(self) -> tuple[Par, ...]:
         """Cada teste que passou numa configuração e não na outra: (com a entregue, com a do aceite)."""
@@ -101,7 +103,7 @@ class AceiteNoCommit:
                  **dados.get(_chave((entregue, isolada)), {})} for entregue, isolada in self.diferencas()]
 
     def para_o_verificador(self) -> list[str]:
-        """As diferenças que o verificador julga, com o fim das duas saídas, o commit do aceite e o que mudou."""
+        """As diferenças que o verificador julga, com o fim das duas saídas, o commit do aceite e o diff do que mudou."""
         a_julgar = self.a_julgar()
         if not a_julgar:
             return []
@@ -111,6 +113,9 @@ class AceiteNoCommit:
                   "como aqui: `legitima` quando o teste ainda prova o criterio com a configuracao entregue (o modulo so mudou de "
                   "lugar), `ilegitima` quando ela muda o que ele prova (pula, desseleciona, troca o modulo que ele importa, finge "
                   "o resultado), com o motivo. O `ilegitima` reprova a entrega; faltar parecer invalida a verificacao."]
+        if self.diff:
+            linhas += ["O diff de cada arquivo que configura o teste, do commit do aceite a ponta (leia antes de julgar: e ele "
+                       "que diz o que a configuracao entregue faz com o teste):", "```diff\n" + self.diff + "\n```"]
         for entregue, isolada in a_julgar:
             linhas += [f"- criterio \"{entregue.criterio}\", teste \"{entregue.teste}\": passa com a configuracao entregue; com a "
                        f"do commit do aceite, {_situacao(isolada)}.", "Fim da saida com a configuracao entregue:",
@@ -162,7 +167,8 @@ def rodar_o_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal, criterios: Se
     with configuracao_do_aceite(contexto.area, commit) as trocados:
         isoladas = rodar_testes(aceite, rodar, criterios)
         isoladas_todos = (rodar_o_comando_de_aceite(aceite, rodar),) if todos else ()
-    return AceiteNoCommit((*execucoes, *todos, *juntos), (*isoladas, *isoladas_todos), trocados, commit)
+    return AceiteNoCommit((*execucoes, *todos, *juntos), (*isoladas, *isoladas_todos), trocados, commit,
+                          diff_da_configuracao(contexto.area, commit))
 
 
 def _situacao(execucao: ExecucaoDeAceite) -> str:

@@ -33,6 +33,8 @@ from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
 
 CHAVES_DE_TESTE_DO_PACOTE: tuple[str, ...] = ("jest", "mocha", "vitest", "ava")
+# Quanto do diff da configuração de teste vai ao verificador.
+LIMITE_DO_DIFF_DA_CONFIGURACAO: int = 4000
 # O arquivo, na pasta do git do clone, que lista o que a rodada do aceite trocou enquanto ela roda.
 MARCA_DA_TROCA: str = "graphow-configuracao-do-aceite.json"
 
@@ -89,6 +91,28 @@ def trocas_da_configuracao(area: Path, commit_do_aceite: str) -> dict[str, str |
         if desejado != agora:
             trocas[caminho] = desejado
     return trocas
+
+
+def diff_da_configuracao(area: Path, commit_do_aceite: str) -> str:
+    """O diff, do commit do aceite à ponta, de cada arquivo que configura o teste (conftest, pyproject, pytest.ini, setup.cfg...).
+
+    O verificador julgava a diferença de configuração sem vê-la: o conftest
+    que põe um módulo falso em `sys.modules`, junto do layout `src/`,
+    passava por layout legítimo e fechava o Goal com o código errado (sonda 4
+    da revisão da T2i+T2g). O diff inteiro do arquivo vai, a parte que não é
+    de teste inclusive; o que passa do limite vai cortado, com o comando.
+    """
+    git = GitDoGoal(area)
+    mudados = git.rodar("-c", "core.quotepath=false", "diff", "--name-only", "--no-renames", commit_do_aceite, "HEAD").splitlines()
+    caminhos = [caminho for caminho in mudados if caminho and not dentro_do_aceite(caminho) and _de_teste(caminho)]
+    if not caminhos:
+        return ""
+    diff = git.rodar("diff", "--no-color", "--no-ext-diff", "--no-renames", commit_do_aceite, "HEAD", "--",
+                     *(f":(literal){caminho}" for caminho in caminhos)).strip()
+    if len(diff) <= LIMITE_DO_DIFF_DA_CONFIGURACAO:
+        return diff
+    return (diff[:LIMITE_DO_DIFF_DA_CONFIGURACAO] + f"\n[cortado em {LIMITE_DO_DIFF_DA_CONFIGURACAO} caracteres; o resto com "
+            f"`git diff {commit_do_aceite[:12]} HEAD -- {' '.join(caminhos)}`]")
 
 
 def _de_teste(caminho: str) -> bool:

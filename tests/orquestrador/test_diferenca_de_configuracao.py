@@ -318,3 +318,33 @@ def test_conftest_com_hook_e_layout_src_e_recusado_na_fatia_e_nao_fecha_edge_cas
     assert estado is not None and estado.configuracao is not None and estado.fatias[0].falhas == 2
     arquivos = git(bancada.repositorio, "ls-tree", "-r", "--name-only", estado.configuracao.ramo).split()
     assert "conftest.py" not in arquivos and "src/soma.py" not in arquivos and "soma.py" in arquivos
+
+
+# A burla da sonda 4 da revisão da T2i+T2g: o layout `src/` com a soma errada e o conftest que troca o módulo, sem hook.
+BURLA_SEM_HOOK: dict[str, Any] = executor_pronto(
+    {"src/soma.py": SOMA_ERRADA, "pyproject.toml": PYTHONPATH_SRC, "conftest.py": TROCA_O_MODULO_NO_CONFTEST,
+     "verificar.py": "print('ok')\n"},
+    comandos=[[sys.executable, "-c", "import os; os.remove('soma.py')"]])
+
+
+def test_briefing_da_diferenca_traz_o_diff_do_conftest_e_do_pyproject_edge_case(tmp_path: Path) -> None:
+    """T2l.3: o verificador que julga a diferença vê o diff, do commit do aceite à ponta, de cada arquivo que configura o teste.
+
+    Antes ele julgava sem ver o conftest que põe um módulo falso em
+    `sys.modules`, e o `legitima` fechava o Goal com `somar` devolvendo 0. O
+    verificador falso não lê o briefing: o teste confere o que chega a ele.
+    """
+    roteiro = _roteiro(copy.deepcopy(BURLA_SEM_HOOK))
+    roteiro["aceite"] = [aceite_em_pytest(ACEITE_PELO_CAMINHO_DO_PYTEST)]
+    roteiro["executor"] = [roteiro["executor"][0], roteiro["executor"][2]]
+    roteiro["verificador"] = [_verificacao_com_parecer("legitima")]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    briefing = bancada.chamadas("verificador")[0]["stdin"]
+    assert 'criterio "C1", teste "test_c1_soma"' in briefing
+    diff = briefing.split("O diff de cada arquivo que configura o teste, do commit do aceite a ponta")[1]
+    assert "+++ b/conftest.py" in diff and "+sys.modules['soma'] = falso" in diff
+    assert "+++ b/pyproject.toml" in diff and '+pythonpath = ["src"]' in diff
+    assert "src/soma.py" not in diff.split("## ")[0]

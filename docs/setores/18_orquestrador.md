@@ -10,18 +10,18 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-50 módulos · 9201 linhas · 70 classes
+50 módulos · 9231 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`orquestrador/aceite_intocado.py`](#orquestradoraceiteintocado) | 278 | Os testes de aceite rodam sempre da cópia intocada, sem arquivo solto do executor em `aceite/` nem configuração solta. |
-| [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 196 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
+| [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 163 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
-| [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 180 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
+| [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 188 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
@@ -105,16 +105,16 @@ O aceite que o orquestrador roda no commit verificado: com a configuração entr
 
 ### `AceiteNoCommit`
 
-*DTO imutável* — As execuções do aceite com a configuração entregue e, quando ela mudou, com a do commit do aceite.
+*DTO imutável* — As execuções do aceite com a configuração entregue e, quando ela mudou, com a do commit do aceite e o diff dela.
 
-**Campos:** `execucoes: tuple[ExecucaoDeAceite, ...]`, `com_a_do_aceite: tuple[ExecucaoDeAceite, ...]`, `trocados: tuple[str, ...]`, `commit: str`
+**Campos:** `execucoes: tuple[ExecucaoDeAceite, ...]`, `com_a_do_aceite: tuple[ExecucaoDeAceite, ...]`, `trocados: tuple[str, ...]`, `commit: str`, `diff: str`
 
 - `diferencas() -> tuple[Par, ...]` — Cada teste que passou numa configuração e não na outra: (com a entregue, com a do aceite).
 - `escondidas() -> tuple[Par, ...]` — Os que, com a configuração do aceite, falham numa asserção: a entregue esconde uma falha real.
 - `a_julgar() -> tuple[Par, ...]` — Os que, com a configuração do aceite, falham por import, coleta ou ambiente: vão ao verificador.
 - `chaves_a_julgar() -> tuple[tuple[str, str], ...]` — O critério e o teste de cada diferença que pede o parecer do verificador.
 - `diferencas_em_json(pareceres: Sequence[ParecerDaDiferenca]) -> list[dict[str, Any]]` — As diferenças como a verificação as grava, com quem as julgou e o parecer do verificador, quando houve.
-- `para_o_verificador() -> list[str]` — As diferenças que o verificador julga, com o fim das duas saídas, o commit do aceite e o que mudou.
+- `para_o_verificador() -> list[str]` — As diferenças que o verificador julga, com o fim das duas saídas, o commit do aceite e o diff do que mudou.
 - `julgar(verificacao: Verificacao) -> Verificacao` — A verificação com o que as diferenças decidem: a falha escondida reprova o critério, e o `ilegitima` vira bloqueante.
 
 ### Funções do módulo
@@ -211,6 +211,7 @@ A segunda rodada do aceite: com a configuração de teste do commit do aceite, q
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CHAVES_DE_TESTE_DO_PACOTE` | `tuple[str, ...]` | `('jest', 'mocha', 'vitest', 'ava')` |
+| `LIMITE_DO_DIFF_DA_CONFIGURACAO` | `int` | `4000` |
 | `MARCA_DA_TROCA` | `str` | `'graphow-configuracao-do-aceite.json'` |
 | `MISTOS` | `Mapping[str, Callable[[str, str], str]]` | `{'pyproject.toml': _com_as_tabelas_do_aceite(lambda nome: nome.startswi…` |
 
@@ -219,6 +220,7 @@ A segunda rodada do aceite: com a configuração de teste do commit do aceite, q
 - `configuracao_do_aceite(area: Path, commit_do_aceite: str) -> Iterator[tuple[str, ...]]` — Enquanto o bloco roda, a configuração de teste é a do commit do aceite; devolve o que trocou e, no fim, volta à ponta.
 - `restaurar_a_configuracao_entregue(area: Path) -> tuple[str, ...]` — O que a rodada do aceite trocou e não desfez (o processo caiu no meio dela) volta à ponta; devolve o que voltou.
 - `trocas_da_configuracao(area: Path, commit_do_aceite: str) -> dict[str, str | None]` — O conteúdo que cada arquivo de configuração de teste tem de ter durante o aceite (None: o arquivo sai).
+- `diff_da_configuracao(area: Path, commit_do_aceite: str) -> str` — O diff, do commit do aceite à ponta, de cada arquivo que configura o teste (conftest, pyproject, pytest.ini, setup.cfg...).
 
 ## `orquestrador/contexto_do_laco.py`
 
