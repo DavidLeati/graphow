@@ -15,7 +15,7 @@ sessão. A saída com `conferidos` vai como está. Cada resposta pode:
 - `texto`: o `result` em texto, quando a saída estruturada não vem;
 - `arquivos`: arquivos a escrever na pasta de trabalho antes de responder;
 - `comandos`: comandos a rodar na pasta, com o ambiente recebido (a trava do
-  git inclusive); o código e a saída de erro de cada um vão para o registro;
+  git inclusive); o código e as saídas de cada um vão para o registro;
 - `custo`: o custo desta invocação; numa sessão retomada o resultado traz o
   acumulado, como o Claude Code faz;
 - `bash`: as chamadas da ferramenta Bash que o stream mostra: o comando (com o
@@ -117,7 +117,7 @@ def _executar(resposta: dict) -> list[dict]:
     feitos = []
     for comando in resposta.get("comandos", []):
         feito = subprocess.run(comando, capture_output=True, text=True, check=False)
-        feitos.append({"comando": comando, "codigo": feito.returncode, "erro": feito.stderr})
+        feitos.append({"comando": comando, "codigo": feito.returncode, "erro": feito.stderr, "saida": feito.stdout})
     return feitos
 
 

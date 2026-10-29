@@ -5,10 +5,13 @@ roda ou retoma um Goal que já existe (o do gerente pede `--repo` na primeira
 vez). `--aprovar-plano` é o portão do modo supervisionado: o humano grava a
 aprovação no próprio Goal (o portão é do orquestrador, e não do escopo
 governado) e o laço segue. `--status` só lê. O estado de cada Goal (área de trabalho, streams das sessões, patches e a trava do git)
-fica em `<pasta do banco>/orquestrar/<goal>/`.
+fica em `<pasta do banco>/orquestrar/<goal>/`, com a trava que deixa uma só
+execução conduzir o Goal (`orquestrador/trava_do_goal.py`); o `--status` não a
+pede.
 
 Sai com 0 quando o Goal fecha (ou no status), com 3 quando o laço para num
-portão que espera o humano ou o orçamento, e com 1 na falha.
+portão que espera o humano ou o orçamento, ou quando outra execução conduz o
+Goal (parada `ocupado`), e com 1 na falha.
 """
 
 import argparse
@@ -37,6 +40,7 @@ from graphow.orquestrador.pedidos_do_humano import (
 )
 from graphow.orquestrador.sessoes_de_papel import MODO_DE_PERMISSAO_PADRAO, modelo_padrao
 from graphow.orquestrador.status import formatar_status
+from graphow.orquestrador.trava_do_goal import GoalOcupado
 from graphow.sessoes.sessao_claude import ExecutorDeSessao
 from graphow.storage.telemetria_de_sessoes import RepositorioTelemetria
 
@@ -135,6 +139,8 @@ def executar_orquestrar(argumentos: argparse.Namespace, ambiente: AmbienteDoOrqu
     except (PedidoInvalido, PedidoRecusado) as erro:
         ambiente.console.escrever_linha(erro.formatar_para_llm())
         return CODIGO_FALHA
+    except GoalOcupado as ocupado:
+        parada = Parada(argumentos.goal, MotivoDaParada.OCUPADO, ocupado.mensagem)
     return _relatar(parada, ambiente, telemetria)
 
 

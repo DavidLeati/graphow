@@ -11,6 +11,7 @@ parada legível, e não uma exceção no meio da chamada.
 """
 
 from collections.abc import Callable
+import dataclasses
 from pathlib import Path
 
 from graphow.core import aceite as a
@@ -58,10 +59,13 @@ from graphow.orquestrador.retirada_de_criterio import retirar_criterio
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
 from graphow.orquestrador.trava_do_git import gravar_hook_da_trava, instalar_trava
+from graphow.orquestrador.trava_do_goal import GoalOcupado, conduzindo
 from graphow.orquestrador.verificacao_do_goal import verificar_ou_fechar
 from graphow.projection.graph_view import GrafoView
 
 LIMITE_DE_PASSOS: int = 200
+# Os pedidos que o laço atende refazendo trabalho: gravados com a trava do Goal, como o laço que os atende.
+PEDIDOS_COM_A_TRAVA: frozenset[str] = frozenset({PEDIDO_RETIRAR_CRITERIO, PEDIDO_RECUSAR_PLANO, PEDIDO_REFAZER_ACEITE})
 
 __all__ = ["Orquestrador", "PedidoInvalido"]
 
@@ -81,11 +85,17 @@ class Orquestrador:
         return self.rodar(id_goal, opcoes, raiz_do_repositorio(repositorio))
 
     def rodar(self, id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None = None) -> Parada:
-        """Roda ou retoma o Goal até ele fechar ou o laço parar; a falha de domínio vira parada."""
+        """Roda ou retoma o Goal até ele fechar ou o laço parar, com a trava do Goal; a falha de domínio vira parada.
+
+        A trava (orquestrador/trava_do_goal.py) é tomada antes de qualquer
+        escrita e solta no fim, inclusive por exceção. Com ela tomada por outra
+        execução, a parada `ocupado` diz quem roda e como liberar.
+        """
         try:
-            return self._rodar(id_goal, opcoes, repositorio)
-        except GraphowError as erro:
-            return _parada_de_falha(id_goal, erro)
+            with conduzindo(self._pasta_do_goal(id_goal), id_goal) as trava:
+                return _com_o_aviso(self._rodar_sem_excecao(id_goal, opcoes, repositorio), trava.aviso)
+        except GoalOcupado as ocupado:
+            return Parada(id_goal, MotivoDaParada.OCUPADO, ocupado.mensagem)
 
     def aprovar_plano(self, id_goal: str, autor: str) -> str:
         """O portão do plano do orquestrador: o humano aprova junto o plano e os testes de aceite, no commit deles.
@@ -108,7 +118,19 @@ class Orquestrador:
         return f"Plano e testes de aceite do Goal {id_goal} aprovados por {autor} (em {str(aprovacao['documento'])[:12]})."
 
     def pedir(self, id_goal: str, pedido: NovoPedido) -> str:
-        """Grava o pedido do humano (orquestrador/pedidos_do_humano.py), conferido contra o Goal como ele está."""
+        """Grava o pedido do humano (orquestrador/pedidos_do_humano.py), conferido contra o Goal como ele está.
+
+        Os pedidos que refazem trabalho (retirar, recusar, refazer) pedem a
+        trava do Goal: com outra execução rodando, `GoalOcupado`. Os outros
+        são uma gravação só, que a execução em curso lê no passo seguinte.
+        """
+        if pedido.acao not in PEDIDOS_COM_A_TRAVA:
+            return self._gravar_pedido(id_goal, pedido)
+        with conduzindo(self._pasta_do_goal(id_goal), id_goal) as trava:
+            return "\n".join(filter(None, (trava.aviso, self._gravar_pedido(id_goal, pedido))))
+
+    def _gravar_pedido(self, id_goal: str, pedido: NovoPedido) -> str:
+        """O pedido conferido e gravado, e a linha que o descreve."""
         estado = ler_estado(self._view(), id_goal)
         if estado is None or estado.configuracao is None:
             raise PedidoInvalido("o Goal nao e conduzido pelo orquestrador", {"id_goal": id_goal})
@@ -120,6 +142,17 @@ class Orquestrador:
     def _view(self) -> GrafoView:
         """O grafo agora."""
         return self._dependencias.kernel.obter_view()
+
+    def _pasta_do_goal(self, id_goal: str) -> Path:
+        """A pasta de estado do Goal: o clone, as sessões, as travas."""
+        return self._dependencias.pasta_de_estado / id_goal
+
+    def _rodar_sem_excecao(self, id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada:
+        """O laço, com a falha de domínio como parada."""
+        try:
+            return self._rodar(id_goal, opcoes, repositorio)
+        except GraphowError as erro:
+            return _parada_de_falha(id_goal, erro)
 
     def _goal_da_spec(self, spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> str:
         """O Goal que a spec retoma ou cria, criado no livro-razão quando é novo."""
@@ -275,6 +308,11 @@ def _portao_do_plano(contexto: ContextoDoGoal) -> Parada:
         f"e aprove com `graphow orquestrar --goal {contexto.id_goal} --aprovar-plano`, recuse com `--recusar-plano --motivo "
         f"\"...\"` (o planejador o refaz) ou peca `--refazer-aceite <criterio> --motivo \"...\"` (o autor refaz os testes dele).",
     )
+
+
+def _com_o_aviso(parada: Parada, aviso: str) -> Parada:
+    """A parada com o aviso da trava velha liberada na frente, quando houve um."""
+    return dataclasses.replace(parada, mensagem=f"{aviso}\n{parada.mensagem}") if aviso else parada
 
 
 def _parada_de_falha(id_goal: str, erro: GraphowError) -> Parada:

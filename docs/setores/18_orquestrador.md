@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-54 módulos · 10193 linhas · 77 classes
+55 módulos · 10467 linhas · 80 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 188 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 189 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 85 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
@@ -38,7 +38,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 282 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 320 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 371 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
@@ -63,6 +63,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 246 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 191 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
+| [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 235 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 169 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 260 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
@@ -718,13 +719,14 @@ O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LIMITE_DE_PASSOS` | `int` | `200` |
+| `PEDIDOS_COM_A_TRAVA` | `frozenset[str]` | `frozenset({PEDIDO_RETIRAR_CRITERIO, PEDIDO_RECUSAR_PLANO, PEDIDO_REFAZE…` |
 
 ### `Orquestrador`
 
 *serviço* — Conduz Goals com as dependências dadas; cada chamada roda até o Goal fechar ou o laço parar.
 
 - `iniciar_da_spec(spec: Path, repositorio: Path, opcoes: OpcoesDoLaco) -> Parada` — Cria o Goal da spec (ou retoma o que a mesma spec já criou) e roda; a falha de domínio vira parada.
-- `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar; a falha de domínio vira parada.
+- `rodar(id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada` — Roda ou retoma o Goal até ele fechar ou o laço parar, com a trava do Goal; a falha de domínio vira parada.
 - `aprovar_plano(id_goal: str, autor: str) -> str` — O portão do plano do orquestrador: o humano aprova junto o plano e os testes de aceite, no commit deles.
 - `pedir(id_goal: str, pedido: NovoPedido) -> str` — Grava o pedido do humano (orquestrador/pedidos_do_humano.py), conferido contra o Goal como ele está.
 
@@ -1626,6 +1628,45 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 - `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório ou de configuração.
 - `fotografar_clone(area: Path) -> FotoDoClone` — A foto do clone, tirada logo antes da sessão.
 - `restaurar_o_clone(foto: FotoDoClone) -> str` — Deixa o clone como a foto: a branch do Goal, as outras refs, a configuração e os hooks; diz o que desfez.
+
+## `orquestrador/trava_do_goal.py`
+
+Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NOME_DA_TRAVA` | `str` | `'orquestrar.trava'` |
+| `TENTATIVAS` | `int` | `3` |
+| `PAUSA_ENTRE_TENTATIVAS_S` | `float` | `0.05` |
+| `CONSULTA_LIMITADA` | `int` | `4096` |
+| `AINDA_ATIVO` | `int` | `259` |
+| `ACESSO_NEGADO` | `int` | `5` |
+
+### `DonoDaTrava`
+
+*DTO imutável* — Quem tomou a trava: o processo, a máquina, desde quando, com que comando e a ficha que a distingue.
+
+**Campos:** `pid: int`, `maquina: str`, `inicio: str`, `comando: str`, `ficha: str`
+
+- `descrever() -> str` — O dono como a mensagem o mostra.
+
+### `GoalOcupado` (GraphowError)
+
+*serviço* — Outra execução de `graphow orquestrar` conduz o Goal, ou a trava dele não dá para ler ou tomar.
+
+### `TravaDoGoal`
+
+*DTO imutável* — A trava tomada: onde ela está, de quem é e o aviso da trava velha que foi liberada para tomá-la.
+
+**Campos:** `caminho: Path`, `dono: DonoDaTrava`, `aviso: str`
+
+### Funções do módulo
+
+- `conduzindo(pasta: Path, id_goal: str) -> Iterator[TravaDoGoal]` — A trava do Goal durante o bloco; ela é solta no fim, inclusive por exceção ou parada.
+- `tomar_trava(pasta: Path, id_goal: str) -> TravaDoGoal` — Toma a trava do Goal na pasta de estado dele, liberando a velha desta máquina; `GoalOcupado` quando outra vale.
+- `soltar_trava(trava: TravaDoGoal) -> None` — Solta a trava se ela ainda é desta execução (a ficha confere); no Windows, espera quem a lê fechar o arquivo.
+- `ler_dono(caminho: Path) -> DonoDaTrava | None` — Quem tem a trava; None sem trava, ou com uma que não dá para ler (vazia, corrompida ou de outro formato).
+- `processo_vivo(pid: int) -> bool` — O processo de PID dado existe nesta máquina (no POSIX, o sinal 0; no Windows, OpenProcess, que não mata nada).
 
 ## `orquestrador/validacao_json.py`
 

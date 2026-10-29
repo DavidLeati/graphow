@@ -47,6 +47,7 @@ class MotivoDaParada(str, Enum):
     PRONTO_PARA_INTEGRAR = "pronto_para_integrar"
     BLOQUEANTES_RESTANTES = "bloqueantes_restantes"
     LIMITE_DE_USO = "limite_de_uso"
+    OCUPADO = "ocupado"
     FALHA = "falha"
 
 
