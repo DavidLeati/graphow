@@ -1,9 +1,13 @@
 """O laço do orquestrador de ponta a ponta, com um `claude -p` falso que responde por papel num repositório de brinquedo."""
 
 import copy
+import json
 from pathlib import Path
+import sys
 
 import pytest
+
+import graphow
 
 from graphow.core.types import PapelAutor
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
@@ -95,8 +99,28 @@ def test_sessoes_rodam_sem_mcp_com_schema_prompt_do_pacote_e_git_travado_nominal
     assert "Edit" not in chamadas[4]["argv"][chamadas[4]["argv"].index("--tools") + 1]
     conferencia = chamadas[-1]["argv"]
     assert conferencia[conferencia.index("--tools") + 1] == "Bash,Read,Glob,Grep" and conferencia[conferencia.index("--model") + 1] == "sonnet"
-    opiniao = argumentos_do_papel("segunda_opiniao", 1.0)
+    opiniao = argumentos_do_papel("segunda_opiniao", 1.0, hook=Path("hook.json"))
     assert opiniao[opiniao.index("--tools") + 1] == ""
+
+
+def test_cada_papel_recebe_o_hook_da_trava_por_settings_nominal(completo: tuple[Bancada, Parada]) -> None:
+    """T3a.2: a linha de comando de cada papel traz `--settings` com o hook PreToolUse do Python e do módulo certos."""
+    bancada, _ = completo
+    raiz_do_pacote = Path(graphow.__file__).resolve().parent.parent
+
+    caminhos = {chamada["argv"][chamada["argv"].index("--settings") + 1] for chamada in bancada.chamadas()}
+    assert len(caminhos) == 1
+    caminho = Path(caminhos.pop())
+    configuracao = json.loads(caminho.read_text(encoding="utf-8"))
+
+    assert caminho.parent.parent == bancada.raiz / "estado"
+    assert {chamada["papel"] for chamada in bancada.chamadas()} >= {"planejador", "aceite", "executor", "verificador"}
+    [grupo] = configuracao["hooks"]["PreToolUse"]
+    [hook] = grupo["hooks"]
+    assert grupo["matcher"] == "Bash" and hook["type"] == "command" and hook["onFailure"] == "block"
+    assert hook["command"] == sys.executable and hook["args"][:2] == ["-I", "-c"]
+    assert repr(str(raiz_do_pacote)) in hook["args"][2] and "from graphow.orquestrador.hook_do_git import responder" in hook["args"][2]
+    assert (raiz_do_pacote / "graphow" / "orquestrador" / "hook_do_git.py").is_file()
 
 
 def test_briefing_do_executor_traz_criterios_decisoes_e_o_que_ja_foi_entregue_nominal(completo: tuple[Bancada, Parada]) -> None:

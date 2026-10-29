@@ -4,9 +4,9 @@ Cada papel roda numa sessão `claude -p` nova, pela peça da fase 0
 (graphow.sessoes): o prompt de papel do pacote por `--append-system-prompt-file`,
 o schema por `--json-schema`, sem servidor MCP (`--strict-mcp-config`), sem os
 hooks, as skills e os subagentes do usuário (`--setting-sources project`), só
-com as ferramentas do papel (`--tools`), com o git de escrita negado
-(`--disallowedTools` e a trava no ambiente) e com o que resta do orçamento do
-Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
+com as ferramentas do papel (`--tools`), com o git de escrita negado (o hook
+PreToolUse da trava por `--settings`, `--disallowedTools` e a trava no
+ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o
 que era: o que o agente mexeu no git do clone é desfeito e vai na resposta
 como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
@@ -96,6 +96,7 @@ class ConfiguracaoDasSessoes:
 
     pasta_das_sessoes: Path
     ambiente_da_trava: Mapping[str, str]
+    hook_da_trava: Path
     modelos: Mapping[str, str] = field(default_factory=dict)
     modo_de_permissao: str = MODO_DE_PERMISSAO_PADRAO
     tempo_limite_s: float = 3600.0
@@ -202,7 +203,9 @@ class SessoesDePapel:
             retomar=retomar,
             banco_graphow=self._configuracao.banco_dos_hooks,
             tempo_limite_s=self._configuracao.tempo_limite_s,
-            argumentos_extras=argumentos_do_papel(pedido.papel, pedido.orcamento_restante_usd, esquema=pedido.esquema),
+            argumentos_extras=argumentos_do_papel(
+                pedido.papel, pedido.orcamento_restante_usd, esquema=pedido.esquema, hook=self._configuracao.hook_da_trava
+            ),
             ambiente_extra=self._configuracao.ambiente_da_trava,
         )
         aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
@@ -228,8 +231,13 @@ def _marca_da_invocacao() -> str:
     return f"{datetime.now():%Y%m%dT%H%M%S}-{secrets.token_hex(2)}"
 
 
-def argumentos_do_papel(papel: str, orcamento_restante_usd: float, *, esquema: Mapping[str, Any] | None = None) -> tuple[str, ...]:
-    """O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último."""
+def argumentos_do_papel(
+    papel: str, orcamento_restante_usd: float, *, hook: Path, esquema: Mapping[str, Any] | None = None
+) -> tuple[str, ...]:
+    """O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
+
+    `hook` é o settings do hook PreToolUse da trava do git (trava_do_git.gravar_hook_da_trava).
+    """
     return (
         "--append-system-prompt-file", str(caminho_do_prompt(papel)),
         "--json-schema", json.dumps(esquema or ESQUEMA_POR_PAPEL[papel], separators=(",", ":")),
@@ -237,6 +245,7 @@ def argumentos_do_papel(papel: str, orcamento_restante_usd: float, *, esquema: M
         "--setting-sources", FONTES_DE_CONFIGURACAO,
         "--tools", ",".join(FERRAMENTAS_POR_PAPEL[papel]),
         "--max-budget-usd", f"{max(orcamento_restante_usd, ORCAMENTO_MINIMO_DA_SESSAO_USD):.2f}",
+        "--settings", str(hook),
         "--disallowedTools", *regras_que_negam_git(("Bash",)),
     )
 

@@ -57,7 +57,7 @@ from graphow.orquestrador.replanejamento import replanejar
 from graphow.orquestrador.retirada_de_criterio import retirar_criterio
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
-from graphow.orquestrador.trava_do_git import instalar_trava
+from graphow.orquestrador.trava_do_git import gravar_hook_da_trava, instalar_trava
 from graphow.orquestrador.verificacao_do_goal import verificar_ou_fechar
 from graphow.projection.graph_view import GrafoView
 
@@ -177,6 +177,7 @@ class Orquestrador:
             self._dependencias.telemetria,
             ConfiguracaoDasSessoes(
                 pasta_das_sessoes=pasta / "sessoes", ambiente_da_trava={**AMBIENTE_SEM_CACHE, **instalar_trava(pasta / "trava-do-git")},
+                hook_da_trava=gravar_hook_da_trava(pasta),
                 modelos=self._dependencias.modelos, modo_de_permissao=self._dependencias.modo_de_permissao,
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
                 esperar=self._dependencias.esperar,
