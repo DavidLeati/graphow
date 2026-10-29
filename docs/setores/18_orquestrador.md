@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-50 módulos · 9231 linhas · 70 classes
+50 módulos · 9234 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,7 +25,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 188 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
-| [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 82 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
+| [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 85 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
@@ -337,7 +337,7 @@ O diff das correções que vai à conferência: o resumo de todos os arquivos, o
 ### Funções do módulo
 
 - `diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str` — O resumo e o corpo do diff do commit da verificação anterior até o atual, sem o documento do Goal; vazio sem o commit de antes.
-- `prioridade_no_diff(caminho: str) -> int` — A ordem do arquivo no corpo: `src/`, os testes, o resto e, por último, `docs/` e o README.
+- `prioridade_no_diff(caminho: str) -> int` — A ordem do arquivo no corpo: `src/`, os testes (os de `aceite/` inclusive), o resto e, por último, `docs/` e o README.
 
 ## `orquestrador/documento_do_goal.py`
 

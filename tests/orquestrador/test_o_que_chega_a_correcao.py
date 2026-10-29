@@ -10,10 +10,12 @@ fatia inteira, com o achado herdado de outro marco sem as dele.
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
-from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes
+from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes, prioridade_no_diff
 from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.historico_da_correcao import MAXIMO_DE_CHAMADAS, chamadas_que_reproduzem
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado, VerificacaoRegistrada
@@ -160,3 +162,10 @@ def test_diff_que_cabe_vai_inteiro_sem_aviso_nominal(tmp_path: Path) -> None:
 
     assert "soma.py | 2 +-" in diff and "+    return a + b" in diff and "Aviso" not in diff
     assert diff_das_correcoes(GitDoGoal(repositorio), "", "soma") == ""
+
+
+@pytest.mark.parametrize(("caminho", "prioridade"), [("src/soma.py", 0), ("aceite/aceite_c1.py", 1), ("tests/test_x.py", 1),
+                                                     ("x_test.go", 1), ("soma.py", 2), ("docs/a.md", 3), ("README.md", 3)])
+def test_testes_de_aceite_entram_no_grupo_dos_testes_no_diff_edge_case(caminho: str, prioridade: int) -> None:
+    """T2l: `aceite/aceite_c1.py` não casa com o padrão de nome de teste, e ia ao grupo do resto."""
+    assert prioridade_no_diff(caminho) == prioridade

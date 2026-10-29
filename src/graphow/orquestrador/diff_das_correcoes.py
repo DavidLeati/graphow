@@ -6,7 +6,8 @@ o README ocupavam o espaço antes de `src/`. Agora vai primeiro o `--stat`
 inteiro, com todos os arquivos, e depois o corpo de cada um, até o limite:
 `src/` e os testes antes do resto, `docs/` e o README por último. O arquivo
 que não cabe inteiro vai cortado, e o aviso diz qual foi e quais ficaram de
-fora, com o comando que os mostra.
+fora, com o comando que os mostra. Os testes de aceite (`aceite/aceite_c1.py`)
+contam como testes: o nome deles não casa com o padrão dos de teste.
 """
 
 from collections.abc import Sequence
@@ -15,6 +16,7 @@ import re
 
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
 
 # Quanto do corpo do diff vai à conferência; o resumo vai inteiro.
 LIMITE_DO_CORPO: int = 8000
@@ -47,13 +49,14 @@ def diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str:
 
 
 def prioridade_no_diff(caminho: str) -> int:
-    """A ordem do arquivo no corpo: `src/`, os testes, o resto e, por último, `docs/` e o README."""
+    """A ordem do arquivo no corpo: `src/`, os testes (os de `aceite/` inclusive), o resto e, por último, `docs/` e o README."""
     partes = caminho.lower().split("/")
     if partes[0] == "docs" or partes[-1].startswith("readme"):
         return 3
     if partes[0] == "src":
         return 0
-    return 1 if PASTAS_DE_TESTE & set(partes[:-1]) or NOME_DE_TESTE.search(partes[-1]) else 2
+    de_teste = dentro_do_aceite(caminho) or PASTAS_DE_TESTE & set(partes[:-1]) or NOME_DE_TESTE.search(partes[-1])
+    return 1 if de_teste else 2
 
 
 def _corpo(git: GitDoGoal, antes: str, arquivos: Sequence[str]) -> CorpoDoDiff:
