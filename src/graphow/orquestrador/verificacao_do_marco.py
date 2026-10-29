@@ -86,20 +86,22 @@ def _registro(
     dados: tuple[Mapping[str, Any], tuple[ComandoRodado, ...]], suite: ResultadoDaSuite, aceite: AceiteNoCommit, head: str,
     tirado: Sequence[str], tipo: TipoDaVerificacao,
 ) -> RegistroDaVerificacao:
-    """A verificação julgada (na conferência, com o destino dela), com a segunda opinião, a suíte e o aceite do orquestrador.
+    """A verificação julgada, com a suíte e o aceite do orquestrador, a segunda opinião e, na conferência, a regra dela.
 
-    Na conferência, por último, o que ela reprova sem bloqueante que o toque
-    (nem o teste de aceite que falhou) fica `atende`: o parecer de antes, ou o
-    `atende` de quando o bloqueante conferido que o reprovava foi corrigido.
+    O que o orquestrador viu (a suíte, o aceite) entra antes do destino que a
+    conferência dá a cada achado: a regressão só se confirma quando o critério
+    atendia ou viraria `atende`, e o teste de aceite vermelho o impede. Por
+    último, o que ela reprova e a regra dá por `atende` sai `atende`
+    (orquestrador/regra_da_conferencia.py).
     """
     saida, chamadas = dados
-    julgada = tipo.ajustar(replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas))
-    verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
+    lida = replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas)
     if not suite.passou:
-        verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
+        lida = lida.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
+    julgada = tipo.ajustar(aceite.julgar(_com_o_aceite(lida, aceite.execucoes)))
+    verificacao = tipo.sustentar(com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco)))
     registro = RegistroDaVerificacao(
-        numero=len(estado.verificacoes) + 1, commit=head,
-        verificacao=tipo.sustentar(aceite.julgar(_com_o_aceite(verificacao, aceite.execucoes))),
+        numero=len(estado.verificacoes) + 1, commit=head, verificacao=verificacao,
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(estado.plano or {}),
         ciclo=estado.ciclos_do_marco(marco), final=marco.final, marco=marco.id,
         aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco, verificacao.confirmados),

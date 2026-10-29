@@ -16,6 +16,7 @@ from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.documento_do_goal import com_pendencias
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.saida_do_verificador import Achado, Parecer, Verificacao, conferir_verificacao
+from graphow.orquestrador.regra_da_conferencia import RegraDaConferencia
 from graphow.orquestrador.tipo_da_verificacao import TIPO_CONFERENCIA, TipoDaVerificacao
 
 from tests.orquestrador.apoio_git import git
@@ -57,7 +58,8 @@ def test_criterio_reprovado_que_so_um_extremo_toca_ganha_bloqueante_sintetico_ed
 def test_na_conferencia_o_criterio_que_atendia_e_so_um_extremo_toca_fica_com_o_parecer_anterior_edge_case() -> None:
     """Caso de borda (T2h): a mesma saída numa conferência, com C2 `atende` antes, não ganha o sintético; o que não atendia, ganha."""
     dados = {**verificacao("parcial")["saida"], "achados": [EXTREMO_QUE_TOCA_C2]}
-    antes = {c2: TipoDaVerificacao(TIPO_CONFERENCIA, anteriores=(Parecer("C2", c2, "README lido"),)) for c2 in ("atende", "parcial")}
+    antes = {c2: TipoDaVerificacao(TIPO_CONFERENCIA, regra=RegraDaConferencia(anteriores=(Parecer("C2", c2, "README lido"),)))
+             for c2 in ("atende", "parcial")}
 
     atendia, nao_atendia = (antes[c2].sustentar(Verificacao.de_json(dados)) for c2 in ("atende", "parcial"))
 

@@ -995,22 +995,27 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    `corrigido` ou `persiste`, com a prova (faltar um é saída inválida, e a
    sessão volta uma vez); só o `corrigido` resolve o achado, e o que persiste é
    bloqueante, como o achado listado com `persiste` (o id dele) ou, sem ele,
-   como o conferido era. A
-   regressão de critério (`regressao`) só segue a regra de sempre quando o
-   código a confirma: ela cita um critério que estava `atende` na verificação
-   anterior do marco, e o diff das correções toca um arquivo dele (os que as
-   fatias do critério previram e commitaram; sem como saber, basta a primeira
-   condição); a outra vira acompanhamento marcado "regressao nao confirmada".
-   O achado novo que não é regressão vira acompanhamento marcado "achado novo
-   da conferencia, sem regressao", e nenhum dos dois vai à segunda opinião (na
-   bancada de 12/10, cada verificação depois de uma correção era outra caçada,
-   que achava bordas novas, e o laço não convergia). O critério (ou a decisão)
-   que a conferência reprova sem bloqueante que o toque (o que persiste, a
-   regressão confirmada, o teste de aceite que falhou) fica `atende`, qualquer
-   que fosse o parecer anterior: o que atendia volta ao parecer anterior, e o
-   que não atendia fica `atende` quando os bloqueantes conferidos que o citavam
-   receberam `corrigido` (o sintético inclusive); o dela vira acompanhamento
-   marcado. Só o reprovado sem bloqueante conferido que o cite segue como ela
+   como o conferido era. A regra da conferência fica num ponto só
+   (`orquestrador/regra_da_conferencia.py`): um critério ou decisão só sai
+   `atende` se todo bloqueante conhecido que o cita está resolvido (os
+   conferidos receberam `corrigido` e nenhum excedente do teto está pendente),
+   se nenhuma regressão confirmada o cita e se nenhum teste de aceite dele
+   falha. A regressão (`regressao`) que cita X só segue a regra de sempre
+   quando o código a confirma: X atendia na verificação anterior do marco, ou
+   viraria `atende` agora pela regra, e o diff das correções (sem o documento
+   do Goal e o aceite) toca o `local` do achado, um arquivo das fatias do plano
+   de X (sem as de correção) ou um arquivo de critério nenhum ("sem como
+   saber"; sem o diff, basta a primeira condição); a outra vira acompanhamento
+   marcado "regressao nao confirmada". O achado novo que não é regressão vira
+   acompanhamento marcado "achado novo da conferencia, sem regressao", e
+   nenhum dos dois vai à segunda opinião (na bancada de 12/10, cada verificação
+   depois de uma correção era outra caçada, que achava bordas novas, e o laço
+   não convergia). O critério (ou a decisão) que ela reprova sem bloqueante
+   que o toque e que a regra dá por `atende` fica `atende`: o que atendia volta
+   ao parecer anterior, e o que não atendia fica com a prova dos conferidos
+   corrigidos que o citavam; o dela vira acompanhamento marcado. O critério em
+   desacordo sobre o teste de aceite ela julga, e o parecer dela vale como
+   está; o reprovado sem bloqueante conferido que o cite também segue como ela
    disse, com o sintético. O tipo vai na verificação e no `--status`, e a
    conferência final limpa no commit atual vale como a verificação final.
    Com as fatias do marco concluídas, uma sessão
