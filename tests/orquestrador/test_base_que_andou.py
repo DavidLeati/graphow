@@ -8,6 +8,7 @@ import pytest
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
+from graphow.orquestrador import base_que_andou
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
@@ -18,6 +19,7 @@ from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
     Bancada,
+    Queda,
     ate_o_portao_aprovado,
     executor_pronto,
     montar_bancada,
@@ -143,6 +145,31 @@ def test_base_que_andou_em_arquivo_de_fora_rebaseia_e_integra_sem_nova_verificac
     artefato = bancada.kernel.obter_view().obter_no("art-task-soma-f1-t1")
     assert artefato is not None and _na_historia(bancada.repositorio, str(artefato.obter_propriedade("commit")))
     assert not _na_historia(bancada.repositorio, str(artefato.obter_propriedade("commit_antes_do_rebase")))
+
+
+def test_queda_entre_o_registro_do_rebase_e_as_refs_retoma_pelas_refs_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Caso de borda: o processo cai depois de gravar o rebase e antes das refs; rodar de novo leva as refs e integra."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    executor, hashes = _andando_depois_do(bancada, "verificador", "NOTAS.txt", "anotacao do humano\n")
+
+    def cair(*_: object) -> None:
+        raise Queda()
+
+    monkeypatch.setattr(base_que_andou, "mover_as_refs", cair)
+    with pytest.raises(Queda):
+        bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    (rebase,) = _rebases(bancada)
+    assert git(bancada.repositorio, "rev-parse", RAMO).strip() == rebase.obter_propriedade("commit_antes")
+    monkeypatch.undo()
+
+    parada = bancada.orquestrador().rodar("goal-soma", AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == rebase.obter_propriedade("commit")
+    assert _na_historia(bancada.repositorio, hashes[0]) and len(_rebases(bancada)) == 1
+    assert _verificacoes(bancada) == ["verificador"]
 
 
 def test_base_que_andou_em_arquivo_de_criterio_refaz_a_verificacao_final_antes_de_integrar_nominal(tmp_path: Path) -> None:
