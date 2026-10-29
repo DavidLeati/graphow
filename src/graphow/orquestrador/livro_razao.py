@@ -231,13 +231,12 @@ class LivroRazaoDoGoal:
         )
 
     def registrar_trava_mexida(self, papel: str, fatia: str, motivo: str) -> None:
-        """A sessão de papel que mexeu na trava do git vira Note do Goal, ou da fatia, com o papel e o motivo."""
+        """A sessão de papel que mexeu na trava do git vira Note da Sessao do Goal (e da fatia, quando há), com o papel e o motivo."""
         id_nota = f"nota-trava-mexida-{papel}-{secrets.token_hex(4)}"
         propriedades = {"acao": m.ACAO_DA_TRAVA_MEXIDA, "papel": papel, "fatia": fatia, "motivo": motivo}
         rotulo = f"A sessao do {papel} mexeu na trava do git"
-        operacoes = [*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades),
-                     aresta(id_nota, fatia or self.id_goal, TipoAresta.DERIVA_DE)]
-        self.gravar(operacoes, rotulo)
+        da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []
+        self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
 
     def registrar_revisao(self, id_task: str, tentativa: int, *, dados: Mapping[str, Any], achados: Sequence[ItemPatch] = ()) -> None:
         """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote."""

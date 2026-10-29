@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-57 módulos · 10971 linhas · 83 classes
+57 módulos · 10970 linhas · 83 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -43,7 +43,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 396 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 133 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 345 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 344 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
@@ -952,7 +952,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `devolver_tentativa(id_task: str, tentativas: int) -> None` — A tentativa que a API recusou não conta: a fatia volta a pendente, com as tentativas de antes dela.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, com os `arquivos` lidos dele, e a fatia fecha.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
-- `registrar_trava_mexida(papel: str, fatia: str, motivo: str) -> None` — A sessão de papel que mexeu na trava do git vira Note do Goal, ou da fatia, com o papel e o motivo.
+- `registrar_trava_mexida(papel: str, fatia: str, motivo: str) -> None` — A sessão de papel que mexeu na trava do git vira Note da Sessao do Goal (e da fatia, quando há), com o papel e o motivo.
 - `registrar_revisao(id_task: str, tentativa: int) -> None` — O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.

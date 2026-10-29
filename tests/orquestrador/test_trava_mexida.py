@@ -6,7 +6,7 @@ import sys
 
 from graphow.core.types import TipoNo
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.trava_do_git import ARQUIVO_DO_HOOK, configuracao_do_hook
 
@@ -118,3 +118,17 @@ def test_sessao_que_reescreve_o_settings_do_hook_perde_o_trabalho_e_a_seguinte_o
     assert json.loads(settings.read_text(encoding="utf-8")) == configuracao_do_hook()
     [nota] = _notas_da_trava(bancada)
     assert nota["papel"] == "executor" and "settings do hook" in str(nota["motivo"])
+
+
+def test_planejador_que_mexe_no_claude_falha_e_o_motivo_fica_no_livro_edge_case(tmp_path: Path) -> None:
+    """Fora da fatia vale o mesmo: o planejador que criou `.claude/settings.json` falha com o motivo, que vira Note do Goal."""
+    roteiro = roteiro_completo()
+    roteiro["planejador"][0]["arquivos"] = {".claude/settings.json": DESLIGA}
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FALHA and "a sessao criou ou mudou em .claude/" in parada.mensagem
+    [nota] = _notas_da_trava(bancada)
+    assert nota["papel"] == "planejador" and nota["fatia"] == ""
+    assert not (Path(bancada.chamadas("planejador")[0]["cwd"]) / ".claude").exists()
