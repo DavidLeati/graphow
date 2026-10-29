@@ -15,7 +15,8 @@ from typing import Any
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.documento_do_goal import com_pendencias
 from graphow.orquestrador.leitura_do_goal import ler_estado
-from graphow.orquestrador.saida_do_verificador import Achado, Verificacao, conferir_verificacao
+from graphow.orquestrador.saida_do_verificador import Achado, Parecer, Verificacao, conferir_verificacao
+from graphow.orquestrador.tipo_da_verificacao import TIPO_CONFERENCIA, TipoDaVerificacao
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import montar_bancada, roteiro_completo, segunda_opiniao, verificacao
@@ -44,13 +45,26 @@ def test_achado_que_toca_criterio_com_alcance_extremo_vira_acompanhamento_nomina
 
 
 def test_criterio_reprovado_que_so_um_extremo_toca_ganha_bloqueante_sintetico_edge_case() -> None:
-    """Caso de borda: C2 parcial com só o achado extremo tocando-o; sem o sintético, nada a corrigir e nada fecha."""
+    """Caso de borda, na caçada: C2 parcial com só o achado extremo tocando-o; sem o sintético, nada a corrigir e nada fecha."""
     dados = {**verificacao("parcial")["saida"], "achados": [EXTREMO_QUE_TOCA_C2]}
 
     verificacao_lida = Verificacao.de_json(dados)
 
     assert [achado.titulo for achado in verificacao_lida.bloqueantes()] == ["C2 parcial"]
     assert [achado.titulo for achado in verificacao_lida.acompanhamentos()] == ["README com NUL no exemplo quebra o leitor"]
+
+
+def test_na_conferencia_o_criterio_que_atendia_e_so_um_extremo_toca_fica_com_o_parecer_anterior_edge_case() -> None:
+    """Caso de borda (T2h): a mesma saída numa conferência, com C2 `atende` antes, não ganha o sintético; o que não atendia, ganha."""
+    dados = {**verificacao("parcial")["saida"], "achados": [EXTREMO_QUE_TOCA_C2]}
+    antes = {c2: TipoDaVerificacao(TIPO_CONFERENCIA, anteriores=(Parecer("C2", c2, "README lido"),)) for c2 in ("atende", "parcial")}
+
+    atendia, nao_atendia = (antes[c2].sustentar(Verificacao.de_json(dados)) for c2 in ("atende", "parcial"))
+
+    assert atendia.bloqueantes() == () and [p.veredito for p in atendia.criterios] == ["atende", "atende"]
+    assert [achado.titulo for achado in atendia.acompanhamentos()] == ["README com NUL no exemplo quebra o leitor",
+                                                                      "C2 parcial na conferencia"]
+    assert [achado.titulo for achado in nao_atendia.bloqueantes()] == ["C2 parcial"]
 
 
 def test_decisao_que_fala_do_limite_faz_o_extremo_ser_uso_previsto_nominal() -> None:

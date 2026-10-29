@@ -30,13 +30,18 @@ acompanhamento que passou do teto de bloqueantes (o excedente) vai na lista
 da conferência com o id: se ela o acha de novo e o cita em `persiste`, ele
 volta a bloquear, em vez de virar achado novo sem regressão.
 
-Na mesma revisão, a borda nova marcada `regressao` num critério que já estava
-`parcial` virava bloqueante e correção: era só a palavra da conferência. Agora
-o código decide. A regressão só bloqueia se cita um critério que atendia na
-verificação anterior do marco e cujos arquivos (os que as fatias dele
-previram e commitaram) o diff das correções toca; sem como saber, vale só a
-primeira condição; o resto vira acompanhamento marcado "regressao nao
-confirmada". A caçada não muda.
+Na mesma revisão, duas saídas ainda eram só a palavra da conferência: a borda
+nova marcada `regressao` num critério que já estava `parcial` virava
+bloqueante e correção, e o critério que atendia e ela dava por `parcial` por
+uma borda nova (um acompanhamento) ganhava o bloqueante sintético. Agora o
+código decide as duas. A regressão só bloqueia se cita um critério que
+atendia na verificação anterior do marco e cujos arquivos (os que as fatias
+dele previram e commitaram) o diff das correções toca; sem como saber, vale
+só a primeira condição; o resto vira acompanhamento marcado "regressao nao
+confirmada". O critério (ou a decisão) que atendia e que ela reprova sem
+bloqueante que o toque (o que persiste, a regressão confirmada, o teste de
+aceite que falhou) fica com o parecer anterior, e o dela vira acompanhamento.
+O que já não atendia segue como ela disse. A caçada não muda.
 
 O tipo vai na Evidence da verificação (`tipo_da_verificacao`) e no `--status`.
 """
@@ -54,6 +59,7 @@ from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado
 from graphow.orquestrador.saida_do_verificador import (
     MARCA_DA_CONFERENCIA,
     MARCA_DA_REGRESSAO,
+    MARCA_DO_PARECER,
     MARCA_DO_TETO,
     ORIGEM_DO_VERIFICADOR,
     Achado,
@@ -77,15 +83,16 @@ LIMITE_DO_DIFF_DAS_CORRECOES: int = 8000
 class TipoDaVerificacao:
     """O tipo da verificação que o laço vai rodar e, na conferência, o que ela confere, de onde partiu e o que pode ter regredido.
 
-    Na conferência, `podem_regredir` são os critérios que atendiam na
-    verificação de antes e cujos arquivos o diff das correções toca (ou todos
-    os que atendiam, quando não há como saber).
+    Na conferência, `anteriores` são os pareceres da verificação de antes, e
+    `podem_regredir` os critérios que atendiam nela e cujos arquivos o diff das
+    correções toca (ou todos os que atendiam, quando não há como saber).
     """
 
     tipo: str
     conferidos: tuple[AchadoRegistrado, ...] = ()
     antes: str = ""
     excedentes: tuple[AchadoRegistrado, ...] = ()
+    anteriores: tuple[Parecer, ...] = ()
     podem_regredir: tuple[str, ...] = ()
 
     @property
@@ -114,6 +121,10 @@ class TipoDaVerificacao:
             return verificacao
         return na_conferencia(verificacao, self.conferidos, self.excedentes, podem_regredir=self.podem_regredir)
 
+    def sustentar(self, verificacao: Verificacao) -> Verificacao:
+        """Na conferência, o que atendia e ela reprova sem bloqueante que o toque fica com o parecer de antes; nos outros, como veio."""
+        return com_os_pareceres_sustentados(verificacao, self.anteriores) if self.conferencia else verificacao
+
 
 def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal | None = None) -> TipoDaVerificacao:
     """A conferência quando o marco já tem verificação gravada; senão a do marco intermediário, ou a caçada na final."""
@@ -128,8 +139,8 @@ def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal
     atendiam = tuple(p.id for p in anteriores if p.veredito == a.VEREDITO_QUE_ATENDE and p.id in do_plano)
     diff = _arquivos_do_diff(git, ultima.commit)
     arquivos = {id_c: _arquivos_do_criterio(estado, git, id_c) for id_c in atendiam} if git is not None and diff is not None else {}
-    return TipoDaVerificacao(TIPO_CONFERENCIA, _conferidos(estado, ultima.id), ultima.commit, excedentes,
-                             podem_regredir=que_podem_regredir(atendiam, arquivos, diff))
+    return TipoDaVerificacao(TIPO_CONFERENCIA, _conferidos(estado, ultima.id), ultima.commit, excedentes, anteriores,
+                             que_podem_regredir(atendiam, arquivos, diff))
 
 
 def pareceres_gravados(itens: object) -> tuple[Parecer, ...]:
@@ -212,6 +223,34 @@ def _com_o_destino(achado: Achado, por_id: Mapping[str, AchadoRegistrado], podem
     if achado.regressao and podem_regredir.intersection(achado.criterios):
         return achado
     return replace(achado, persiste="", rebaixado_na_conferencia=MARCA_DA_REGRESSAO if achado.regressao else MARCA_DA_CONFERENCIA)
+
+
+def com_os_pareceres_sustentados(verificacao: Verificacao, anteriores: Sequence[Parecer]) -> Verificacao:
+    """O critério ou a decisão que atendia antes e que a conferência reprova sem bloqueante que o toque volta ao parecer anterior.
+
+    O bloqueante que o sustenta é o que persiste, a regressão confirmada ou o
+    teste de aceite que falhou (o achado do orquestrador com o critério). Sem
+    ele, o parecer da conferência vira acompanhamento marcado. O que já não
+    atendia segue como ela disse.
+    """
+    atendiam = {parecer.id: parecer for parecer in anteriores if parecer.veredito == a.VEREDITO_QUE_ATENDE}
+    tocados = {id_t for achado in verificacao.achados if achado.gravidade == a.GRAVIDADE_BLOQUEANTE for id_t in achado.toca}
+    soltos = {parecer.id: parecer for parecer in (*verificacao.criterios, *verificacao.decisoes)
+              if parecer.veredito != a.VEREDITO_QUE_ATENDE and parecer.id in atendiam and parecer.id not in tocados}
+    return replace(
+        verificacao, criterios=tuple(atendiam[p.id] if p.id in soltos else p for p in verificacao.criterios),
+        decisoes=tuple(atendiam[p.id] if p.id in soltos else p for p in verificacao.decisoes),
+        achados=(*verificacao.achados, *(_reprovado_sem_achado(parecer) for parecer in soltos.values())),
+    )
+
+
+def _reprovado_sem_achado(parecer: Parecer) -> Achado:
+    """O acompanhamento do parecer que a conferência deu sem bloqueante que o sustente."""
+    decisao = parecer.id.upper().startswith("D")
+    descricao = f"a conferencia deu {parecer.id} {parecer.veredito} sem achado que bloqueie nem teste de aceite falhando"
+    return Achado(f"{parecer.id} {parecer.veredito} na conferencia", descricao, prova=parecer.prova,
+                  criterios=() if decisao else (parecer.id,), decisoes=(parecer.id,) if decisao else (),
+                  rebaixado_na_conferencia=MARCA_DO_PARECER)
 
 
 def diff_das_correcoes(git: GitDoGoal, antes: str, slug: str) -> str:

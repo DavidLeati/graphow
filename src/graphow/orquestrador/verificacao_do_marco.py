@@ -85,14 +85,19 @@ def _registro(
     dados: tuple[Mapping[str, Any], tuple[ComandoRodado, ...]], suite: ResultadoDaSuite, aceite: AceiteNoCommit, head: str,
     tirado: Sequence[str], tipo: TipoDaVerificacao,
 ) -> RegistroDaVerificacao:
-    """A verificação julgada (na conferência, com o destino dela), com a segunda opinião, a suíte e o aceite do orquestrador."""
+    """A verificação julgada (na conferência, com o destino dela), com a segunda opinião, a suíte e o aceite do orquestrador.
+
+    Na conferência, por último, o que atendia e ela reprova sem bloqueante
+    que o toque (nem o teste de aceite que falhou) fica com o parecer de antes.
+    """
     saida, chamadas = dados
     julgada = tipo.ajustar(replace(_so_o_que_o_marco_julga(Verificacao.de_json(saida), estado, marco), comandos=chamadas))
     verificacao = com_a_segunda_opiniao(contexto, julgada, textos=_textos_julgaveis(estado, marco))
     if not suite.passou:
         verificacao = verificacao.com_achado_do_orquestrador(TITULO_DA_SUITE_VERMELHA, suite.descrever()[-LIMITE_DO_TRECHO:])
     registro = RegistroDaVerificacao(
-        numero=len(estado.verificacoes) + 1, verificacao=aceite.julgar(_com_o_aceite(verificacao, aceite.execucoes)), commit=head,
+        numero=len(estado.verificacoes) + 1, commit=head,
+        verificacao=tipo.sustentar(aceite.julgar(_com_o_aceite(verificacao, aceite.execucoes))),
         commit_do_codigo=contexto.commit_do_codigo(), suite=suite, nos=nos_do_plano(estado.plano or {}),
         ciclo=estado.ciclos_do_marco(marco), final=marco.final, marco=marco.id,
         aceite=[execucao.em_json() for execucao in aceite.execucoes], resolver=estado.corrigidos(marco, verificacao.confirmados),
