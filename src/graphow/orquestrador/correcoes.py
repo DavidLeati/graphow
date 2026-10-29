@@ -9,7 +9,8 @@ o ciclo inteiro vira uma fatia só: a verificação abre no máximo
 `TETO_DE_BLOQUEANTES` bloqueantes (orquestrador/saida_do_verificador.py), e a
 sessão de correção leva todos, com as provas e as chamadas que os
 reproduzem. Só a verificação final, que cobra também os bloqueantes que os
-outros marcos deixaram, passa do teto; aí o ciclo se divide em fatias de
+outros marcos deixaram, e a conferência com achados que persistem (que não
+contam no teto) passam dele; aí o ciclo se divide em fatias de
 `MAXIMO_POR_FATIA`, na ordem, para a sessão não virar um marco inteiro.
 
 A área do achado (o arquivo do local, sem local o primeiro critério ou

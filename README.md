@@ -1034,15 +1034,18 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    também diz o que ele fere e o alcance. Ele só fica acompanhamento se ela
    também não citar nada ou também disser extremo (sem resposta, os dois não
    concordaram, e ele é bloqueante). Uma verificação abre no máximo 5
-   bloqueantes: ficam os que o orquestrador viu falhar e depois os do
+   bloqueantes novos: ficam os que o orquestrador viu falhar e depois os do
    verificador, na ordem dele; o resto vira acompanhamento marcado "excedeu o
-   teto do ciclo", visível nas pendências. A verificação vira `Evidence` ligada ao Goal e cada achado um
+   teto do ciclo", visível nas pendências. O achado que persiste não conta no
+   teto e segue bloqueante (na revisão, o 5º persistente passava do teto e o
+   fecho o dava por resolvido). A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes do ciclo viram uma fatia de correção só, que
    deriva de todos eles, mesmo em arquivos diferentes, e leva no briefing cada
    achado com a prova e as chamadas da verificação que o reproduzem
    (`orquestrador/correcoes.py`); só a verificação final, que cobra também os
-   bloqueantes dos outros marcos, pode passar de 5 e se dividir em fatias de 5.
+   bloqueantes dos outros marcos, e a conferência com achados que persistem
+   podem passar de 5 e se dividir em fatias de 5.
    A correção agrupada que falha duas vezes se divide numa fatia por achado.
    São até dois ciclos por marco (`--ciclos-de-correcao` muda o número,
    gravado no Goal). O marco intermediário que esgota os ciclos segue, com

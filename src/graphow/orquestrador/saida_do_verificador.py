@@ -20,11 +20,14 @@ O que o próprio orquestrador viu falhar (a suíte, o teste de aceite) é
 bloqueante por origem. A `severidade` que o verificador sugere fica gravada,
 informativa, e não muda o destino.
 
-Uma verificação abre no máximo 5 bloqueantes (`TETO_DE_BLOQUEANTES`): o
-primeiro marco da agenda, na bancada, abriu 12, e cada correção trazia bordas
-novas. Os de maior prioridade ficam; o resto vira acompanhamento marcado
-"excedeu o teto do ciclo", visível nas pendências, e volta a bloquear se uma
-verificação seguinte o achar de novo.
+Uma verificação abre no máximo 5 bloqueantes novos (`TETO_DE_BLOQUEANTES`):
+o primeiro marco da agenda, na bancada, abriu 12, e cada correção trazia
+bordas novas. Os de maior prioridade ficam; o resto vira acompanhamento
+marcado "excedeu o teto do ciclo", visível nas pendências. O teto vale para os
+bloqueantes novos do ciclo (os da caçada, os de regressão): o achado que
+persiste segue bloqueante e não conta nele. Na revisão da T2c+T2d, a
+conferência reproduziu os 5 da caçada e achou uma regressão; o 5º persistente
+passou do teto, e o fecho o deu por resolvido.
 
 Na conferência, que roda depois de cada ciclo de correção, a gravidade tem
 mais uma regra (orquestrador/tipo_da_verificacao.py): cada achado conferido
@@ -286,14 +289,16 @@ class Verificacao:
     def _no_teto(self) -> tuple[tuple[Achado, ...], tuple[Achado, ...]]:
         """Os bloqueantes dentro do teto e os que passaram dele, marcados.
 
-        Ficam os de maior prioridade: os que o orquestrador viu falhar (a suíte,
-        o teste de aceite, o critério reprovado sem achado), que são fato, e
-        depois os do verificador, na ordem em que ele os listou. Com até o teto,
-        nada muda; a saída mantém a ordem, e o id de cada nó Achado com ela.
+        O que persiste fica sempre dentro e não conta. Dos novos, ficam os de
+        maior prioridade: os que o orquestrador viu falhar (a suíte, o teste de
+        aceite, o critério reprovado sem achado), que são fato, e depois os do
+        verificador, na ordem em que ele os listou. Com até o teto, nada muda;
+        a saída mantém a ordem, e o id de cada nó Achado com ela.
         """
         candidatos = self._candidatos()
-        ordem = sorted(range(len(candidatos)), key=lambda i: candidatos[i].origem != ORIGEM_DO_ORQUESTRADOR)
-        dentro = set(ordem[:TETO_DE_BLOQUEANTES])
+        novos = sorted((i for i, c in enumerate(candidatos) if not c.persiste),
+                       key=lambda i: candidatos[i].origem != ORIGEM_DO_ORQUESTRADOR)
+        dentro = {*novos[:TETO_DE_BLOQUEANTES], *(i for i, c in enumerate(candidatos) if c.persiste)}
         return (tuple(c for i, c in enumerate(candidatos) if i in dentro),
                 tuple(replace(c, excedeu_o_teto=True) for i, c in enumerate(candidatos) if i not in dentro))
 

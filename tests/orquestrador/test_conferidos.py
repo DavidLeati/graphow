@@ -5,18 +5,21 @@ from typing import Any
 
 import pytest
 
-from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.kernel.fechamento_do_goal import motivos_para_nao_fechar
+from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.esquemas import ESQUEMA_DA_CONFERENCIA
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
-from graphow.orquestrador.saida_do_verificador import Verificacao, conferir_verificacao
+from graphow.orquestrador.saida_do_verificador import MARCA_DO_TETO, Verificacao, conferir_verificacao
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 
 from tests.orquestrador.apoio_laco import (
     BLOQUEANTE_DO_README,
     README_COM_EXEMPLO,
+    SOMA_COM_DOCSTRING,
     Bancada,
     executor_pronto,
     montar_bancada,
+    revisao,
     roteiro_completo,
     verificacao,
 )
@@ -24,6 +27,8 @@ from tests.orquestrador.apoio_laco import (
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 V1_1: str = "achado-goal-soma-v1-1"
 V1_2: str = "achado-goal-soma-v1-2"
+V2_6: str = "achado-goal-soma-v2-6"
+SEM_EXEMPLO: str = "# brinquedo\nUse somar(a, b) agora.\n"
 PROVA_QUE_PERSISTE: str = "grep -c somar README.md: 1, ainda sem exemplo com resultado"
 
 
@@ -101,7 +106,7 @@ def test_conferencia_que_omite_o_conferido_volta_a_sessao_e_so_o_corrigido_resol
 def test_parecer_persiste_sem_achado_listado_vira_o_bloqueante_e_o_original_se_resolve_com_ele_edge_case(tmp_path: Path) -> None:
     """Caso de borda: o `persiste` só no parecer repete o achado como bloqueante, e o original se resolve com a cópia."""
     roteiro = roteiro_completo()
-    roteiro["executor"][2] = executor_pronto({"README.md": "# brinquedo\nUse somar(a, b) agora.\n"})
+    roteiro["executor"][2] = executor_pronto({"README.md": SEM_EXEMPLO})
     roteiro["executor"].append(executor_pronto({"README.md": README_COM_EXEMPLO}))
     persiste = _conferencia([(V1_1, "persiste")])
     persiste["saida"]["conferidos"][0]["prova"] = PROVA_QUE_PERSISTE
@@ -117,3 +122,60 @@ def test_parecer_persiste_sem_achado_listado_vira_o_bloqueante_e_o_original_se_r
     assert (copia.texto("persiste"), copia.texto("prova")) == (V1_1, PROVA_QUE_PERSISTE)
     assert [f.codigo for f in estado.fatias if copia.id in f.lista("achados")] == ["M1.K2.1"]
     assert [(a.id, a.estado) for v in estado.verificacoes for a in v.bloqueantes()] == [(V1_1, "resolvido"), (copia.id, "resolvido")]
+
+
+def _falhas(n: int) -> list[dict[str, Any]]:
+    """N bloqueantes do verificador no README, todos em C2."""
+    return [{**BLOQUEANTE_DO_README, "titulo": f"README falha {i}", "local": "README.md:2"} for i in range(1, n + 1)]
+
+
+REGRESSAO_EM_C1: dict[str, Any] = {
+    "titulo": "somar quebrou", "descricao": "somar(2, 3) devolve 6 depois da correcao",
+    "prova": "python -c 'from soma import somar; print(somar(2, 3))' imprimiu 6", "local": "soma.py:2", "criterios": ["C1"],
+    "decisoes": [], "severidade": "alta", "alcance": "uso_previsto", "regressao": True,
+}
+
+
+def test_cinco_persistentes_e_uma_regressao_seguem_bloqueantes_e_o_goal_nao_fecha_com_o_quinto_aberto_nominal(
+    tmp_path: Path,
+) -> None:
+    """T2f.1 (S5): a correção não resolve os 5; a conferência os reproduz e acha uma regressão; nenhum some no teto.
+
+    Os 6 viram bloqueantes e duas fatias de correção. A conferência seguinte diz
+    que o 5º ainda persiste: o laço para sem ciclo, e o original e a cópia dele
+    seguem abertos, sem o fecho dar nenhum por resolvido.
+    """
+    roteiro = roteiro_completo()
+    roteiro["executor"][2] = executor_pronto({"README.md": SEM_EXEMPLO})
+    roteiro["executor"] += [executor_pronto({"soma.py": SOMA_COM_DOCSTRING, "README.md": README_COM_EXEMPLO}),
+                            executor_pronto({"README.md": README_COM_EXEMPLO + "Mais.\n"})]
+    persistentes = [{**falha, "persiste": f"achado-goal-soma-v1-{i}"} for i, falha in enumerate(_falhas(5), start=1)]
+    terceira = _conferencia([*((f"achado-goal-soma-v2-{i}", "corrigido") for i in range(1, 6)), (V2_6, "persiste")])
+    roteiro["verificador"] = [verificacao("parcial", _falhas(5)), verificacao("parcial", [REGRESSAO_EM_C1, *persistentes]), terceira]
+    roteiro["revisor"] = [revisao() for _ in range(8)]
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.BLOQUEANTES_RESTANTES, parada.mensagem
+    assert "README falha 5" in parada.mensagem
+    estado = _estado(bancada)
+    segunda = [(a.texto("titulo"), a.gravidade, a.texto("marca")) for a in estado.verificacoes[1].achados]
+    assert segunda == [("somar quebrou", "bloqueante", ""), *((f"README falha {i}", "bloqueante", "") for i in range(1, 6))]
+    assert [f.codigo for f in estado.fatias][-2:] == ["M1.K2.1", "M1.K2.2"]
+    quinto = [estado.achado(i) for i in ("achado-goal-soma-v1-5", V2_6, "achado-goal-soma-v3-1")]
+    assert [(a.estado, a.texto("persiste")) for a in quinto if a is not None] == [
+        ("corrigido", ""), ("corrigido", "achado-goal-soma-v1-5"), ("aberto", V2_6)]
+    assert not estado.fechado and motivos_para_nao_fechar(bancada.kernel.obter_view(), "goal-soma")
+
+
+def test_persistentes_nao_contam_no_teto_dos_novos_edge_case() -> None:
+    """Caso de borda: 6 novos e 2 que persistem dão 7 bloqueantes; só o 6º novo passa do teto."""
+    persistentes = [{**falha, "titulo": f"persiste {i}", "persiste": f"achado-goal-soma-v1-{i}"}
+                    for i, falha in enumerate(_falhas(2), start=1)]
+    saida = verificacao("parcial", [*_falhas(6), *persistentes])["saida"]
+
+    julgada = Verificacao.de_json(saida)
+
+    assert [a.titulo for a in julgada.bloqueantes()] == [*(f"README falha {i}" for i in range(1, 6)), "persiste 1", "persiste 2"]
+    assert [(a.titulo, a.marca) for a in julgada.acompanhamentos()] == [("README falha 6", MARCA_DO_TETO)]

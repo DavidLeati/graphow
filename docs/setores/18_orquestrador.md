@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-47 módulos · 8552 linhas · 68 classes
+47 módulos · 8558 linhas · 68 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -22,7 +22,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
-| [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 105 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
+| [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
@@ -47,7 +47,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 100 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 164 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 293 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
-| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 381 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
+| [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 386 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 357 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
