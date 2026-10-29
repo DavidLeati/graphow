@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-48 módulos · 8841 linhas · 69 classes
+48 módulos · 8888 linhas · 69 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 162 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
-| [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 141 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
+| [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 180 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 186 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
@@ -35,7 +35,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 94 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 266 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 274 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 368 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 312 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
@@ -198,11 +198,13 @@ A segunda rodada do aceite: com a configuração de teste do commit do aceite, q
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `CHAVES_DE_TESTE_DO_PACOTE` | `tuple[str, ...]` | `('jest', 'mocha', 'vitest', 'ava')` |
+| `MARCA_DA_TROCA` | `str` | `'graphow-configuracao-do-aceite.json'` |
 | `MISTOS` | `Mapping[str, Callable[[str, str], str]]` | `{'pyproject.toml': _com_as_tabelas_do_aceite(lambda nome: nome.startswi…` |
 
 ### Funções do módulo
 
 - `configuracao_do_aceite(area: Path, commit_do_aceite: str) -> Iterator[tuple[str, ...]]` — Enquanto o bloco roda, a configuração de teste é a do commit do aceite; devolve o que trocou e, no fim, volta à ponta.
+- `restaurar_a_configuracao_entregue(area: Path) -> tuple[str, ...]` — O que a rodada do aceite trocou e não desfez (o processo caiu no meio dela) volta à ponta; devolve o que voltou.
 - `trocas_da_configuracao(area: Path, commit_do_aceite: str) -> dict[str, str | None]` — O conteúdo que cada arquivo de configuração de teste tem de ter durante o aceite (None: o arquivo sai).
 
 ## `orquestrador/contexto_do_laco.py`

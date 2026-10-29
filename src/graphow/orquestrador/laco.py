@@ -20,6 +20,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.atendimento_dos_pedidos import conferir_pedido
 from graphow.orquestrador.autor_de_aceite import escrever_aceite
+from graphow.orquestrador.configuracao_do_aceite import restaurar_a_configuracao_entregue
 from graphow.orquestrador.contexto_do_laco import (
     ContextoDoGoal,
     DependenciasDoLaco,
@@ -134,7 +135,13 @@ class Orquestrador:
         return alvo.id_goal
 
     def _rodar(self, id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada:
-        """O laço, passo a passo, até uma parada."""
+        """O laço, passo a passo, até uma parada.
+
+        Antes do primeiro passo, a configuração de teste que a rodada do
+        aceite deixou trocada (o processo caiu no meio dela) volta à
+        entregue: todo passo pode commitar a área, o pedido do humano
+        inclusive, e o commit levaria a do aceite.
+        """
         estado = ler_estado(self._view(), id_goal)
         if estado is None:
             raise GoalInexistente("Goal nao encontrado no livro-razao", {"id_goal": id_goal})
@@ -144,6 +151,7 @@ class Orquestrador:
             return _parada_do_cancelamento(estado)
         contexto = self._contexto(estado, opcoes, repositorio)
         preparar_area(contexto.area_do_goal)
+        restaurar_a_configuracao_entregue(contexto.area)
         for _ in range(LIMITE_DE_PASSOS):
             try:
                 parada = _passo(contexto)

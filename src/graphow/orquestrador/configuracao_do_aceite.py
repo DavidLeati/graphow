@@ -11,11 +11,20 @@ package.json) só a parte de teste volta, e o resto (as dependências, o `type`
 do pacote) fica como o executor deixou. Depois, a área volta à ponta. O teste
 que dá resultado diferente nas duas rodadas vai ao verificador, que julga se
 a mudança é legítima; a fatia que a fez vai à revisão de risco, como sinal.
+
+Enquanto a configuração do aceite está na área, uma marca na pasta do git do
+clone lista o que trocou. O processo que cai no meio da rodada deixa a marca,
+e a retomada volta esses arquivos à ponta antes de qualquer passo
+(`restaurar_a_configuracao_entregue`, no começo de `Orquestrador._rodar`).
+Sem isso, o pedido do humano atendido na retomada commitava a área com
+`git add -A`, e a configuração do aceite ia para a branch do Goal no lugar
+da entregue (sonda 2 da revisão da T2b+T2a2).
 """
 
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -24,18 +33,48 @@ from graphow.orquestrador.git_do_goal import GitDoGoal
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
 
 CHAVES_DE_TESTE_DO_PACOTE: tuple[str, ...] = ("jest", "mocha", "vitest", "ava")
+# O arquivo, na pasta do git do clone, que lista o que a rodada do aceite trocou enquanto ela roda.
+MARCA_DA_TROCA: str = "graphow-configuracao-do-aceite.json"
 
 
 @contextmanager
 def configuracao_do_aceite(area: Path, commit_do_aceite: str) -> Iterator[tuple[str, ...]]:
     """Enquanto o bloco roda, a configuração de teste é a do commit do aceite; devolve o que trocou e, no fim, volta à ponta."""
     trocas = trocas_da_configuracao(area, commit_do_aceite) if commit_do_aceite else {}
+    _marcar(area, trocas)
     for caminho, conteudo in trocas.items():
         _escrever(area / caminho, conteudo)
     try:
         yield tuple(sorted(trocas))
     finally:
         _voltar_a_ponta(area, trocas)
+        _marca(area).unlink(missing_ok=True)
+
+
+def restaurar_a_configuracao_entregue(area: Path) -> tuple[str, ...]:
+    """O que a rodada do aceite trocou e não desfez (o processo caiu no meio dela) volta à ponta; devolve o que voltou."""
+    marca = _marca(area)
+    if not marca.is_file():
+        return ()
+    trocados = tuple(str(caminho) for caminho in json.loads(marca.read_text(encoding="utf-8")))
+    _voltar_a_ponta(area, dict.fromkeys(trocados))
+    marca.unlink()
+    return trocados
+
+
+def _marca(area: Path) -> Path:
+    """Onde fica a marca da troca: na pasta do git do clone, que nenhum commit leva e nenhum descarte apaga."""
+    return area / GitDoGoal(area).rodar("rev-parse", "--git-path", MARCA_DA_TROCA).strip()
+
+
+def _marcar(area: Path, trocas: Mapping[str, str | None]) -> None:
+    """A marca com os caminhos trocados, gravada por inteiro (num arquivo à parte e depois renomeado) antes da troca."""
+    if not trocas:
+        return
+    marca = _marca(area)
+    provisoria = marca.with_name(marca.name + ".tmp")
+    provisoria.write_text(json.dumps(sorted(trocas)), encoding="utf-8")
+    os.replace(provisoria, marca)
 
 
 def trocas_da_configuracao(area: Path, commit_do_aceite: str) -> dict[str, str | None]:

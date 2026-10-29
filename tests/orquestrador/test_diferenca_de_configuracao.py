@@ -19,11 +19,14 @@ import pytest
 
 from graphow.orquestrador import configuracao_do_aceite as cda
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit
+from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.gravacao_do_aceite import commit_da_configuracao
 from graphow.orquestrador.leitura_do_goal import VerificacaoRegistrada, ler_estado
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_RETIRAR_CRITERIO, NovoPedido
 from graphow.orquestrador.saida_do_aceite import ExecucaoDeAceite
 from graphow.orquestrador.saida_do_verificador import ParecerDaDiferenca, Verificacao, conferir_verificacao
 
+from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
     SOMA_CERTA,
     SOMA_ERRADA,
@@ -192,7 +195,11 @@ def test_comando_de_todos_so_conta_sem_diferenca_de_teste_sozinho_edge_case() ->
 
 
 def test_queda_na_segunda_rodada_retoma_com_a_configuracao_entregue_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """T2a2.4: o processo cai com a área na configuração do aceite; a retomada a descarta e roda o aceite com a entregue."""
+    """T2a2.4: o processo cai com a área na configuração do aceite; a retomada a volta à entregue e roda o aceite com ela.
+
+    A volta é no começo da retomada (T2g), pela marca da troca: quando a
+    verificação descarta o que está fora de commit, já não há nada a guardar.
+    """
     bancada = _bancada_do_layout(tmp_path, [_verificacao_com_parecer("legitima") for _ in range(2)])
     monkeypatch.setattr(cda, "_voltar_a_ponta", cai_uma_vez(cda._voltar_a_ponta))
 
@@ -205,4 +212,32 @@ def test_queda_na_segunda_rodada_retoma_com_a_configuracao_entregue_edge_case(tm
     primeira = _verificacoes(bancada)[0].propriedades
     assert [(e["teste"], e["passou"]) for e in primeira["aceite_do_orquestrador"]][0] == ("test_c1_soma", True)
     assert {p["id"]: p["veredito"] for p in primeira["pareceres"]}["C1"] == "atende"
-    assert list((bancada.raiz / "estado").rglob("antes-da-verificacao-1.patch"))
+    assert not list((bancada.raiz / "estado").rglob("antes-da-verificacao-1.patch"))
+    assert not list((bancada.raiz / "estado").rglob(cda.MARCA_DA_TROCA))
+
+
+def test_queda_na_segunda_rodada_e_pedido_antes_da_retomada_mantem_a_configuracao_entregue_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T2g.1 (sonda 2 da revisão da T2b+T2a2): o processo cai com a área na configuração do aceite, e o humano retira C2.
+
+    A retomada volta a configuração à entregue antes do primeiro passo: o
+    commit da retirada leva só o documento do Goal, e o `pythonpath` entregue
+    segue na branch do Goal até o fechamento.
+    """
+    bancada = _bancada_do_layout(tmp_path, [_verificacao_com_parecer("legitima") for _ in range(3)])
+    monkeypatch.setattr(cda, "_voltar_a_ponta", cai_uma_vez(cda._voltar_a_ponta))
+    orquestrador = bancada.orquestrador()
+    with pytest.raises(Queda):
+        orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    assert len(list((bancada.raiz / "estado").rglob(cda.MARCA_DA_TROCA))) == 1
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_RETIRAR_CRITERIO, "C2 fica para outro Goal", "david", alvo="C2"))
+
+    parada = orquestrador.rodar("goal-soma", OpcoesDoLaco(modo="autonomo"))
+
+    assert parada.fechou, parada.mensagem
+    commits = dict(linha.split(" ", 1) for linha in git(bancada.repositorio, "log", "--format=%H %s", "main").splitlines())
+    retirada = next(h for h, assunto in commits.items() if assunto.startswith("Registra os criterios retirados"))
+    assert git(bancada.repositorio, "show", "--name-only", "--format=", retirada).split() == ["docs/goals/soma.md"]
+    assert git(bancada.repositorio, "show", "main:pyproject.toml") == PYTHONPATH_SRC
+    assert not list((bancada.raiz / "estado").rglob(cda.MARCA_DA_TROCA))
