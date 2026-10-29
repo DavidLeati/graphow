@@ -13,7 +13,7 @@ import pytest
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
-from graphow.orquestrador.pedidos_do_humano import PEDIDO_RETIRAR_CRITERIO, NovoPedido
+from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE, PEDIDO_RETIRAR_CRITERIO, NovoPedido
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import SOMA_CERTA, VERIFICAR, Bancada, ExecutorQueCai, Queda, executor_pronto, montar_bancada
@@ -75,3 +75,22 @@ def test_retirada_depois_da_queda_commita_so_o_documento_e_a_tentativa_seguinte_
     assert parada.motivo == MotivoDaParada.PENDENCIA and f1.falhas == 2
     assert "conftest.py com hook do pytest que decide o resultado" in f1.texto(m.CAMPO_ULTIMO_ERRO)
 
+
+def test_refazer_depois_da_queda_nao_culpa_o_autor_de_aceite_pelos_arquivos_do_executor_edge_case(tmp_path: Path) -> None:
+    """T2l.2: antes do refazer, a metade da fatia vai ao .patch dela; o autor mantém C1 na primeira volta, e o Goal fecha."""
+    bancada = _cai_no_executor(tmp_path)
+    orquestrador = bancada.orquestrador()
+    orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_REFAZER_ACEITE, "o teste de C1 me parece errado", "david", alvo="C1"))
+
+    parada = orquestrador.rodar("goal-soma", AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    patches = [caminho.name for caminho in (bancada.raiz / "estado").rglob("*.patch")]
+    assert not [nome for nome in patches if nome.startswith("aceite-refeito")], patches
+    metade = next((bancada.raiz / "estado").rglob("*-t1-interrompida.patch")).read_text(encoding="utf-8")
+    assert "metade.txt" in metade and "conftest.py" in metade
+    assert len(bancada.chamadas("aceite")) == 2
+    refeito = _commit_com(bancada, "os testes de aceite de C1")
+    assert all(caminho.startswith("aceite/") for caminho in refeito), refeito
+    na_branch = git(bancada.repositorio, "ls-tree", "-r", "--name-only", _ramo(bancada)).split()
+    assert "conftest.py" not in na_branch and "metade.txt" not in na_branch

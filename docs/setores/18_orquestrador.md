@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-50 módulos · 9175 linhas · 70 classes
+50 módulos · 9201 linhas · 70 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -29,14 +29,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 355 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 374 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 398 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 94 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 131 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 274 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 281 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 368 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 312 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
@@ -471,6 +471,7 @@ O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, 
 ### Funções do módulo
 
 - `executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Parada | None` — Roda uma tentativa da fatia; a parada diz por que o laço não segue.
+- `guardar_a_fatia_interrompida(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> EstadoDoGoal` — Antes do pedido do humano, a fatia que caiu no meio da sessão é tratada como na retomada; devolve o estado relido.
 
 ## `orquestrador/falhas_da_api.py`
 

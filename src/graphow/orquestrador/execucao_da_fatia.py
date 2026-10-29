@@ -14,7 +14,9 @@ a mensagem que cita a fatia e os critérios, e grava o Artifact com o hash. A
 dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
 ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
 pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
-e sai da área, para não vazar para a fatia seguinte.
+e sai da área, para não vazar para a fatia seguinte. A fatia que caiu no
+meio da sessão passa por isso na retomada, e antes do pedido do humano que
+chega primeiro (`guardar_a_fatia_interrompida`).
 """
 
 from collections.abc import Mapping
@@ -302,6 +304,23 @@ def _virar_pendencia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, motivo: s
         f"A fatia {fatia.codigo} ({fatia.id}) virou pendencia: {motivo}. O que ela deixou esta em "
         f"{contexto.pasta / 'patches'}. Corrija o que impede e reabra a Task (status pendente) para tentar de novo.",
     )
+
+
+def guardar_a_fatia_interrompida(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> EstadoDoGoal:
+    """Antes do pedido do humano, a fatia que caiu no meio da sessão é tratada como na retomada; devolve o estado relido.
+
+    A tentativa conta como falha, e o que ela deixou vai ao .patch dela e sai
+    da área. Sem isso, o autor que refazia um critério trabalhava na área com
+    a metade do executor e levava a culpa por ela (sonda 3 da revisão da
+    T2i+T2g). A fatia com o commit na branch e a que guardou a entrega para a
+    revisão ficam para a retomada: nada delas está solto na área.
+    """
+    caidas = [fatia for fatia in estado.fatias if fatia.status == m.STATUS_EM_ANDAMENTO
+              and not fatia.propriedades.get(m.CAMPO_ENTREGA_PENDENTE)
+              and commit_da_fatia(contexto.area, fatia.id, contexto.configuracao.base) is None]
+    for fatia in caidas:
+        _registrar_interrupcao(contexto, fatia)
+    return contexto.estado() if caidas else estado
 
 
 def _registrar_interrupcao(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> None:

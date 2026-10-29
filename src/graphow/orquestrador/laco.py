@@ -38,7 +38,7 @@ from graphow.orquestrador.entrada_do_goal import (
     goal_da_spec,
     pedido_de_adocao,
 )
-from graphow.orquestrador.execucao_da_fatia import executar_fatia
+from graphow.orquestrador.execucao_da_fatia import executar_fatia, guardar_a_fatia_interrompida
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import descartar_mudancas, preparar_area, raiz_do_repositorio
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
@@ -48,6 +48,7 @@ from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_REFAZER_ACEITE,
     PEDIDO_RETIRAR_CRITERIO,
     NovoPedido,
+    PedidoDoHumano,
     gravar_pedido,
 )
 from graphow.orquestrador.planejamento import planejar
@@ -211,26 +212,32 @@ def _passo(contexto: ContextoDoGoal) -> Parada | None:
 
 
 Etapa = Callable[[ContextoDoGoal, EstadoDoGoal], Parada | None]
+Atendimento = Callable[[ContextoDoGoal, EstadoDoGoal, PedidoDoHumano], Parada | None]
 
 
 def _etapa_antes_das_fatias(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Etapa | None:
     """O que vem antes das fatias, na ordem: a retirada de critério, a recusa do plano, o plano, o aceite, o aceite a refazer e o portão."""
     retiradas = estado.pedidos_pendentes(PEDIDO_RETIRAR_CRITERIO)
     if estado.plano is not None and retiradas:
-        return lambda c, e: retirar_criterio(c, e, retiradas[0])
+        return _pedido(retirar_criterio, retiradas[0])
     recusas = estado.pedidos_pendentes(PEDIDO_RECUSAR_PLANO)
     if estado.plano is not None and recusas:
-        return lambda c, e: replanejar(c, e, recusas[0])
+        return _pedido(replanejar, recusas[0])
     if estado.plano is None:
         return planejar
     if estado.aceite is None:
         return escrever_aceite
     refazer = estado.pedidos_pendentes(PEDIDO_REFAZER_ACEITE)
     if refazer:
-        return lambda c, e: refazer_aceite(c, e, refazer[0])
+        return _pedido(refazer_aceite, refazer[0])
     if contexto.configuracao.modo == m.MODO_SUPERVISIONADO and not estado.plano_aprovado:
         return lambda c, _: _portao_do_plano(c)
     return None
+
+
+def _pedido(atender: Atendimento, pedido: PedidoDoHumano) -> Etapa:
+    """A etapa que atende o pedido do humano depois de a fatia interrompida ir ao .patch dela, com a área no commit."""
+    return lambda contexto, estado: atender(contexto, guardar_a_fatia_interrompida(contexto, estado), pedido)
 
 
 def _parada_do_limite(contexto: ContextoDoGoal, erro: LimiteDaApi) -> Parada:
