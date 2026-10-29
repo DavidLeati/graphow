@@ -25,6 +25,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from graphow.core.aceite import CAMPO_COMMIT_DO_ACEITE
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.aceite_intocado import (
     configuracoes_mudadas,
@@ -143,10 +144,11 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
 
 def _pausar_para_refazer(contexto: ContextoDoGoal, tentativa: Tentativa, saida: SaidaDoExecutor) -> bool:
     """O teste errado do modo autônomo: a fatia volta à fila e o laço pede o refazer, uma vez por critério; senão, segue."""
-    fatia = tentativa.fatia
-    refeitos = contexto.estado().propriedades.get(CAMPO_CRITERIOS_REFEITOS) or []
-    if saida.teste_errado in refeitos:
-        contexto.livro.gravar([propriedade(fatia.id, CAMPO_DESACORDO, {"criterio": saida.teste_errado, "argumento": saida.duvida})],
+    fatia, estado = tentativa.fatia, contexto.estado()
+    if saida.teste_errado in (estado.propriedades.get(CAMPO_CRITERIOS_REFEITOS) or []):
+        desacordo = {"criterio": saida.teste_errado, "argumento": saida.duvida,
+                     CAMPO_COMMIT_DO_ACEITE: estado.commits_do_aceite.get(saida.teste_errado, "")}
+        contexto.livro.gravar([propriedade(fatia.id, CAMPO_DESACORDO, desacordo)],
                               f"Desacordo sobre o teste de aceite de {saida.teste_errado} na fatia {fatia.id}")
         return False
     patch = _guardar(contexto, fatia, f"t{tentativa.numero}-teste-errado")

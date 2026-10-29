@@ -347,14 +347,14 @@ def _desacordos(estado: EstadoDoGoal) -> list[str]:
     linhas = []
     for fatia in estado.fatias:
         resposta, desacordo = fatia.propriedades.get("resposta_do_autor_de_aceite"), fatia.propriedades.get("desacordo_sobre_o_teste")
-        if isinstance(resposta, Mapping) and not resposta.get("mudou"):
+        if isinstance(resposta, Mapping) and not resposta.get("mudou") and estado.desacordo_vigente(resposta):
             linhas.append(f"- {resposta.get('criterio')}: o executor de {fatia.codigo} disse que o teste esta errado; o autor o manteve: "
                           f"{resposta.get('resumo', '')}")
-        if isinstance(desacordo, Mapping):
+        if isinstance(desacordo, Mapping) and estado.desacordo_vigente(desacordo):
             linhas.append(f"- {desacordo.get('criterio')}: o executor de {fatia.codigo} insistiu: {desacordo.get('argumento', '')}")
     refeitos = estado.propriedades.get("refeito_sem_vermelho")
     linhas += [f"- {item.get('criterio')}: o humano pediu para refazer o teste ({item.get('motivo', '')}); {item.get('porque', '')}"
-               for item in (refeitos if isinstance(refeitos, list) else []) if isinstance(item, Mapping)]
+               for item in (refeitos if isinstance(refeitos, list) else []) if isinstance(item, Mapping) and estado.desacordo_vigente(item)]
     return linhas
 
 

@@ -1020,7 +1020,8 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    ao parecer anterior, e o que não atendia fica com a prova dos conferidos
    corrigidos que o citavam; o dela vira acompanhamento marcado. O critério em
    desacordo sobre o teste de aceite ela julga, e o parecer dela vale como
-   está; o reprovado sem bloqueante conferido que o cite também segue como ela
+   está, até o teste dele ser refeito (o commit do aceite do `Criterio` muda,
+   e o desacordo expira); o reprovado sem bloqueante conferido que o cite também segue como ela
    disse, com o sintético. O tipo vai na verificação e no `--status`, e a
    conferência final limpa no commit atual vale como a verificação final.
    Com as fatias do marco concluídas, uma sessão

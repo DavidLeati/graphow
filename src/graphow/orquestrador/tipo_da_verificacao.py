@@ -157,13 +157,19 @@ def _excedentes(estado: EstadoDoGoal, marco: MarcoRegistrado, todos: Sequence[Ac
 
 
 def criterios_em_desacordo(estado: EstadoDoGoal) -> frozenset[str]:
-    """Os critérios cujo teste de aceite está em desacordo: o autor manteve o que o executor disse errado, ou o refazer ficou com o antigo."""
+    """Os critérios cujo teste de aceite está em desacordo: o autor manteve o que o executor disse errado, ou o refazer ficou com o antigo.
+
+    O desacordo expira quando o teste do critério é refeito depois dele (o
+    commit do aceite do Criterio muda): na revisão da T2k+T2l, ele valia para
+    sempre, e a regra nunca mais virava o parecer do critério.
+    """
     respostas = (fatia.propriedades.get("resposta_do_autor_de_aceite") for fatia in estado.fatias)
     desacordos = (fatia.propriedades.get("desacordo_sobre_o_teste") for fatia in estado.fatias)
     refeitos = estado.propriedades.get("refeito_sem_vermelho")
     itens = (*(r for r in respostas if isinstance(r, Mapping) and not r.get("mudou")), *desacordos,
              *(refeitos if isinstance(refeitos, list) else ()))
-    return frozenset(str(item.get("criterio")) for item in itens if isinstance(item, Mapping) and item.get("criterio"))
+    return frozenset(str(item.get("criterio")) for item in itens
+                     if isinstance(item, Mapping) and item.get("criterio") and estado.desacordo_vigente(item))
 
 
 def _fora_do_diff(estado: EstadoDoGoal) -> frozenset[str]:

@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
+from graphow.core.aceite import CAMPO_COMMIT_DO_ACEITE
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_autor_de_aceite
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
@@ -198,7 +199,7 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite,
             sem_vermelho: str = "") -> None:
     """O aceite novo no Goal (o commit dele é o da revisão), o Criterio ligado aos testes novos e o pedido atendido."""
     if sem_vermelho and not pedido.fatia:
-        _registrar_o_desacordo(contexto, estado, pedido, porque=sem_vermelho)
+        _registrar_o_desacordo(contexto, estado, pedido, porque=sem_vermelho, commit=commit)
     anteriores = [str(a) for a in (estado.aceite or {}).get("arquivos", [])]
     arquivos = tuple(dict.fromkeys([*anteriores, *(teste.arquivo for _, teste in novo.testes())]))
     versao = m.versao_do_plano(estado.propriedades)
@@ -208,12 +209,16 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite,
         commit_da_configuracao=commit_da_configuracao(estado.aceite)))
 
 
-def _registrar_o_desacordo(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano, *, porque: str) -> None:
-    """O refazer do humano que ficou com o teste antigo: sem fatia que o leve, o desacordo vai ao Goal, e dali à verificação."""
+def _registrar_o_desacordo(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano, *, porque: str, commit: str) -> None:
+    """O refazer do humano que ficou com o teste antigo: sem fatia que o leve, o desacordo vai ao Goal, e dali à verificação.
+
+    Ele leva o commit do aceite que o critério passa a ter (o deste refazer):
+    o refazer seguinte do critério o troca, e o desacordo expira.
+    """
     valor = estado.propriedades.get(CAMPO_REFEITO_SEM_VERMELHO)
     anteriores = [dict(item) for item in (valor if isinstance(valor, list) else [])
                   if isinstance(item, Mapping) and item.get("pedido") != pedido.id]
-    desacordo = {"criterio": pedido.alvo, "pedido": pedido.id, "motivo": pedido.motivo, "porque": porque}
+    desacordo = {"criterio": pedido.alvo, "pedido": pedido.id, "motivo": pedido.motivo, "porque": porque, CAMPO_COMMIT_DO_ACEITE: commit}
     contexto.livro.gravar([propriedade(contexto.id_goal, CAMPO_REFEITO_SEM_VERMELHO, [*anteriores, desacordo])],
                           f"O teste refeito de {pedido.alvo} nao falhou antes da implementacao: fica o antigo")
 
@@ -221,7 +226,7 @@ def _registrar_o_desacordo(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedid
 def _responder_a_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano, *, commit: str, resumo: str) -> None:
     """A fatia que apontou o teste errado recebe o que o autor fez (refez ou manteve, e o porquê); o refazer do agente conta uma vez."""
     mudou = any(dentro_do_aceite(caminho) for caminho in arquivos_do_commit(contexto.area, commit))
-    resposta = {"criterio": pedido.alvo, "mudou": mudou, "resumo": resumo, "pedido": pedido.id}
+    resposta = {"criterio": pedido.alvo, "mudou": mudou, "resumo": resumo, "pedido": pedido.id, CAMPO_COMMIT_DO_ACEITE: commit}
     operacoes = [propriedade(pedido.fatia, CAMPO_RESPOSTA_DO_AUTOR, resposta)]
     if pedido.id.startswith(PREFIXO_DO_PEDIDO_AUTOMATICO):
         refeitos = [str(c) for c in estado.propriedades.get(CAMPO_CRITERIOS_REFEITOS) or []]

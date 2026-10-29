@@ -7,7 +7,7 @@ dependências concluídas e sem dúvida aberta, na ordem do plano.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from graphow.core import aceite as a
@@ -124,6 +124,8 @@ class EstadoDoGoal:
     plano_aprovado: bool = False
     pedidos: tuple[PedidoDoHumano, ...] = ()
     decisoes_do_agente: tuple[DecisaoDoAgente, ...] = ()
+    # O commit do aceite de cada critério, como o Criterio dele o guarda: muda quando o teste dele é refeito.
+    commits_do_aceite: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def configuracao(self) -> m.ConfiguracaoDoGoal | None:
@@ -169,6 +171,14 @@ class EstadoDoGoal:
         """As pendências gravadas no Goal."""
         valor = self.propriedades.get(m.CAMPO_PENDENCIAS)
         return [dict(item) for item in valor if isinstance(item, Mapping)] if isinstance(valor, list) else []
+
+    def desacordo_vigente(self, item: Mapping[str, Any]) -> bool:
+        """O desacordo sobre o teste de aceite do critério ainda vale: o teste não foi refeito depois dele (o commit do aceite é o mesmo).
+
+        O desacordo de antes da T2m, sem o commit gravado, vale como valia.
+        """
+        gravado = item.get(a.CAMPO_COMMIT_DO_ACEITE)
+        return gravado is None or gravado == self.commits_do_aceite.get(str(item.get("criterio")), "")
 
     def achado(self, id_achado: str) -> AchadoRegistrado | None:
         """O nó Achado de qualquer verificação do Goal, pelo id."""
@@ -298,7 +308,16 @@ def ler_estado(view: GrafoView, id_goal: str) -> EstadoDoGoal | None:
         plano_aprovado=_plano_aprovado_pelo_humano(goal),
         pedidos=ler_pedidos(view, id_goal),
         decisoes_do_agente=ler_decisoes_do_agente(view, id_goal),
+        commits_do_aceite=_commits_do_aceite(view, goal),
     )
+
+
+def _commits_do_aceite(view: GrafoView, goal: NoGrafo) -> dict[str, str]:
+    """O commit do aceite de cada critério do plano, lido do Criterio dele."""
+    plano = goal.obter_propriedade(m.CAMPO_PLANO)
+    criterios = [c for c in plano.get("criterios", []) if isinstance(c, Mapping)] if isinstance(plano, Mapping) else []
+    nos = ((str(c.get("id")), view.obter_no(str(c.get("no") or ""))) for c in criterios)
+    return {id_c: str(no.obter_propriedade(a.CAMPO_COMMIT_DO_ACEITE) or "") for id_c, no in nos if no is not None}
 
 
 def _plano_aprovado_pelo_humano(goal: NoGrafo) -> bool:
