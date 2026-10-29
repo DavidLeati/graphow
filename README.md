@@ -1034,11 +1034,14 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    verificador, na ordem dele; o resto vira acompanhamento marcado "excedeu o
    teto do ciclo", visível nas pendências. A verificação vira `Evidence` ligada ao Goal e cada achado um
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
-   pendências. Os bloqueantes viram fatias de correção que derivam deles, os do
-   mesmo arquivo (o caminho normalizado: `./x.py` é `x.py`, as barras, a caixa
-   no Windows) ou, sem local, do mesmo critério, juntos numa fatia só, até
-   dois ciclos por marco (`--ciclos-de-correcao` muda o número, gravado no
-   Goal). O marco intermediário que esgota os ciclos segue, com
+   pendências. Os bloqueantes do ciclo viram uma fatia de correção só, que
+   deriva de todos eles, mesmo em arquivos diferentes, e leva no briefing cada
+   achado com a prova e as chamadas da verificação que o reproduzem
+   (`orquestrador/correcoes.py`); só a verificação final, que cobra também os
+   bloqueantes dos outros marcos, pode passar de 5 e se dividir em fatias de 5.
+   A correção agrupada que falha duas vezes se divide numa fatia por achado.
+   São até dois ciclos por marco (`--ciclos-de-correcao` muda o número,
+   gravado no Goal). O marco intermediário que esgota os ciclos segue, com
    os bloqueantes abertos, para os marcos seguintes rodarem; a verificação final
    os cobra de novo, com os ciclos dela, e só esgotados esses o laço para. O
    acompanhamento fica como pendência do Goal, no documento e no `--status`.
