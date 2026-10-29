@@ -11,8 +11,9 @@ Um lote recusado é defeito do orquestrador, e não do agente: vira erro com o
 motivo do kernel, e o laço para.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 from graphow.core import aceite as a
@@ -52,6 +53,27 @@ def aresta(origem: str, destino: str, tipo: TipoAresta) -> ItemPatch:
 def propriedade(id_no: str, chave: str, valor: object) -> ItemPatch:
     """A escrita de uma propriedade de um nó que já existe."""
     return ItemPatch(OperacaoPatch.REPLACE, f"/nos/{id_no}/propriedades/{chave}", valor)
+
+
+def fora_do_commit(declarados: Iterable[str], do_commit: Sequence[str]) -> str:
+    """O que foi declarado e o commit não traz, como trecho da observação do Artifact; vazio quando ele traz tudo.
+
+    O Artifact leva os arquivos lidos do commit, e não os declarados: quem
+    entrega pode citar o que não mudou, e só o git diz o que mudou.
+    """
+    no_commit = {_caminho_do_git(caminho) for caminho in do_commit}
+    faltam = [caminho for caminho in dict.fromkeys(declarados) if _caminho_do_git(caminho) not in no_commit]
+    return "declarados e fora do commit: " + ", ".join(faltam) if faltam else ""
+
+
+def _caminho_do_git(caminho: str) -> str:
+    """O caminho como o git o escreve: barras para a frente e sem o `./` do começo."""
+    return str(PurePosixPath(caminho.replace("\\", "/")))
+
+
+def juntar_observacoes(*partes: str) -> str:
+    """As observações que não estão vazias, numa frase só."""
+    return "; ".join(parte for parte in partes if parte)
 
 
 @dataclass(frozen=True)
@@ -156,19 +178,20 @@ class LivroRazaoDoGoal:
         )
 
     def concluir_fatia(
-        self, id_task: str, tentativa: int, *, commit: str, saida: SaidaDoExecutor, observacao: str = "",
-        achados: Sequence[str] = (), extra: Sequence[ItemPatch] = (),
+        self, id_task: str, tentativa: int, *, commit: str, arquivos: Sequence[str], saida: SaidaDoExecutor,
+        observacao: str = "", achados: Sequence[str] = (), extra: Sequence[ItemPatch] = (),
     ) -> None:
-        """O commit vira Artifact da fatia, e a fatia fecha; a observação diz o que o orquestrador desfez no git.
+        """O commit vira Artifact da fatia, com os `arquivos` lidos dele, e a fatia fecha.
 
-        Na fatia de correção, os Achados que ela corrige passam a corrigidos no
-        mesmo lote: resolvidos, só quando uma conferência os der por corrigidos e
-        a verificação do marco sair limpa.
+        A observação diz o que o orquestrador desfez no git e o que o executor
+        declarou e o commit não traz. Na fatia de correção, os Achados que ela
+        corrige passam a corrigidos no mesmo lote: resolvidos, só quando uma
+        conferência os der por corrigidos e a verificação do marco sair limpa.
         """
         id_artefato = f"art-{id_task}-t{tentativa}"
         propriedades = {
-            m.CAMPO_COMMIT: commit, "arquivos": list(saida.arquivos), "resumo": saida.resumo, "testes": list(saida.testes),
-            "observacao": observacao,
+            m.CAMPO_COMMIT: commit, "arquivos": list(arquivos), "resumo": saida.resumo, "testes": list(saida.testes),
+            "observacao": juntar_observacoes(observacao, fora_do_commit(saida.arquivos, arquivos)),
         }
         self.gravar(
             [

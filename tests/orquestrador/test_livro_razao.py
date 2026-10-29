@@ -19,6 +19,11 @@ from graphow.orquestrador.suite import ResultadoDaSuite
 
 from tests.orquestrador.test_esquemas_e_saidas import PLANO, VERIFICACAO
 
+def _hash(prefixo: str) -> str:
+    """Um hash de commit de 40 caracteres que começa pelo prefixo: o kernel recusa Artifact sem ele."""
+    return prefixo.ljust(40, "0")
+
+
 CONFIGURACAO: m.ConfiguracaoDoGoal = m.ConfiguracaoDoGoal(
     modo=m.MODO_AUTONOMO, repositorio="C:/repo", area="C:/areas/soma", ramo="graphow/soma", base="main",
     slug="soma", orcamento_usd=30.0,
@@ -30,7 +35,7 @@ def _livro_com_plano() -> tuple[WriteKernel, LivroRazaoDoGoal]:
     kernel = montar_kernel_em_memoria()
     livro = LivroRazaoDoGoal(kernel, "goal-soma")
     livro.criar_goal(GoalNovo("goal-soma", "soma", "# Pedido\nSomar dois numeros.", CONFIGURACAO, "repo"))
-    gravar_plano(livro, PlanoParaGravar(Plano.de_json(PLANO), "soma", "abc123", "docs/goals/soma.md", renomear_goal=True))
+    gravar_plano(livro, PlanoParaGravar(Plano.de_json(PLANO), "soma", _hash("abc123"), "docs/goals/soma.md", renomear_goal=True))
     return kernel, livro
 
 
@@ -60,13 +65,13 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     saida = SaidaDoExecutor("pronto", "feito", ("soma.py",), ("pytest: ok",))
     for id_task in ("task-soma-f1", "task-soma-f2"):
         livro.iniciar_tentativa(id_task, 1)
-        livro.concluir_fatia(id_task, 1, commit="c0ffee" + id_task[-1], saida=saida)
+        livro.concluir_fatia(id_task, 1, commit=_hash("c0ffee" + id_task[-1]), arquivos=("soma.py",), saida=saida)
 
     verificacao = Verificacao.de_json(VERIFICACAO)
     pendencia = {"gravidade": "acompanhamento", "titulo": "nome", "descricao": "d", "origem": "verificacao 1"}
     suite = ResultadoDaSuite("python verificar.py", 0, "ok")
     nos = _nos_do_plano(kernel)
-    id_evidencia = gravar_verificacao(livro, RegistroDaVerificacao(1, verificacao, "c0ffee2", "c0ffee2", suite, nos, [pendencia]))
+    id_evidencia = gravar_verificacao(livro, RegistroDaVerificacao(1, verificacao, _hash("c0ffee2"), _hash("c0ffee2"), suite, nos, [pendencia]))
     estado = ler_estado(kernel.obter_view(), "goal-soma")
     assert estado is not None and estado.ultima_verificacao is not None
     livro.criar_correcoes(id_evidencia, estado.ultima_verificacao.bloqueantes(), ciclo=1, ordem=2)
@@ -80,13 +85,13 @@ def test_fatias_fecham_em_ordem_e_a_verificacao_liga_o_goal_nominal() -> None:
     correcao = estado.fatias[-1]
     assert correcao.texto(m.CAMPO_CORRIGE) == id_evidencia
     livro.iniciar_tentativa(correcao.id, 1)
-    livro.concluir_fatia(correcao.id, 1, commit="c0ffee3", saida=saida)
+    livro.concluir_fatia(correcao.id, 1, commit=_hash("c0ffee3"), arquivos=("soma.py",), saida=saida)
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "criterios": [
         {"id": "C1", "veredito": "atende", "prova": "ok"}, {"id": "C2", "veredito": "atende", "prova": "ok"}]})
-    gravar_verificacao(livro, RegistroDaVerificacao(2, limpa, "c0ffee3", "c0ffee3", suite, nos, ciclo=1,
+    gravar_verificacao(livro, RegistroDaVerificacao(2, limpa, _hash("c0ffee3"), _hash("c0ffee3"), suite, nos, ciclo=1,
                                                     resolver=("achado-goal-soma-v1-1",)))
-    livro.gravar_ponta({"commit": "c0ffee3", "commit_do_codigo": "c0ffee3"})
-    livro.fechar("c0ffee3")
+    livro.gravar_ponta({"commit": _hash("c0ffee3"), "commit_do_codigo": _hash("c0ffee3")})
+    livro.fechar(_hash("c0ffee3"))
     final = ler_estado(kernel.obter_view(), "goal-soma")
     assert final is not None and final.fechado and final.ultima_verificacao.limpa
 
@@ -103,11 +108,11 @@ def test_kernel_recusa_fechar_com_a_verificacao_de_um_commit_antigo_edge_case() 
     kernel, livro = _livro_com_plano()
     limpa = Verificacao.de_json({**copy.deepcopy(VERIFICACAO), "achados": [], "criterios": [
         {"id": "C1", "veredito": "atende", "prova": "ok"}, {"id": "C2", "veredito": "atende", "prova": "ok"}]})
-    gravar_verificacao(livro, RegistroDaVerificacao(1, limpa, "c0ffee1", "c0ffee1", ResultadoDaSuite("s", 0, "ok"), _nos_do_plano(kernel)))
-    livro.gravar_ponta({"commit": "c0ffee9", "commit_do_codigo": "c0ffee9"})
+    gravar_verificacao(livro, RegistroDaVerificacao(1, limpa, _hash("c0ffee1"), _hash("c0ffee1"), ResultadoDaSuite("s", 0, "ok"), _nos_do_plano(kernel)))
+    livro.gravar_ponta({"commit": _hash("c0ffee9"), "commit_do_codigo": _hash("c0ffee9")})
 
     with pytest.raises(LoteRecusado) as recusa:
-        livro.fechar("c0ffee9")
+        livro.fechar(_hash("c0ffee9"))
 
     assert recusa.value.contexto["modo"] == "fechamento_sem_verificacao_limpa"
     assert "ponta da branch do Goal esta em c0ffee9" in recusa.value.contexto["motivo"]

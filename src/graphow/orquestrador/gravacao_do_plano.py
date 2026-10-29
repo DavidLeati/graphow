@@ -7,7 +7,8 @@ texto inteiro e o motivo; cada fatia, uma Task sob o Goal por `decompoe`, com
 as dependências como `depende_de`. O que o Goal já trazia do gerente (critério
 ou decisão com id) é reaproveitado, e não duplicado. O Goal guarda o plano
 inteiro em `plano`, com o comando da suíte, o nó de cada critério e decisão e
-o commit do documento do Goal.
+o commit do documento do Goal, que vira o Artifact do plano com os arquivos
+lidos do commit.
 """
 
 from collections.abc import Mapping
@@ -17,18 +18,19 @@ from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch, OperacaoPatch
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
+from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, fora_do_commit, propriedade
 from graphow.orquestrador.saidas import Criterio, Decisao, Fatia, Plano
 
 
 @dataclass(frozen=True)
 class PlanoParaGravar:
-    """O plano conferido e o que o cerca: o slug, os nós já fixados e o commit do documento."""
+    """O plano conferido e o que o cerca: o slug, os nós já fixados e o commit do documento, com os arquivos dele."""
 
     plano: Plano
     slug: str
     commit_do_documento: str
     caminho_do_documento: str
+    arquivos_do_commit: tuple[str, ...] = ()
     nos_fixados: Mapping[str, str] = field(default_factory=dict)
     renomear_goal: bool = False
     versao: int = 1
@@ -109,9 +111,10 @@ def _operacoes_da_fatia(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar, fatia:
 
 
 def _operacoes_do_documento(livro: LivroRazaoDoGoal, pedido: PlanoParaGravar) -> list[ItemPatch]:
-    """O commit do documento do Goal como Artifact do plano."""
+    """O commit do documento do Goal como Artifact do plano: o documento que o commit não traz fica na observação."""
     id_artefato = f"art-{livro.id_goal}-plano" + (f"-v{pedido.versao}" if pedido.versao > 1 else "")
-    propriedades = {m.CAMPO_COMMIT: pedido.commit_do_documento, "arquivos": [pedido.caminho_do_documento]}
+    propriedades = {m.CAMPO_COMMIT: pedido.commit_do_documento, "arquivos": list(pedido.arquivos_do_commit),
+                    "observacao": fora_do_commit([pedido.caminho_do_documento], pedido.arquivos_do_commit)}
     return livro.produzido(id_artefato, TipoNo.ARTIFACT, f"Plano do Goal em {pedido.caminho_do_documento}", propriedades=propriedades)
 
 

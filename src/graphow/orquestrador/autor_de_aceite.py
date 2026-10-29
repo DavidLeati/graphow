@@ -75,14 +75,15 @@ def escrever_aceite(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
     if commit is None:
         gravar_aceite_proposto(contexto.livro, None)
         return None
-    declarados = [teste.arquivo for _, teste in saida.testes()]
-    do_commit = [a for a in arquivos_do_commit(contexto.area, commit) if dentro_do_aceite(a) and not e_cache(a)]
-    arquivos = tuple(dict.fromkeys([*declarados, *do_commit]))
+    declarados = tuple(dict.fromkeys(teste.arquivo for _, teste in saida.testes()))
+    do_commit = arquivos_do_commit(contexto.area, commit)
+    arquivos = tuple(dict.fromkeys([*declarados, *(a for a in do_commit if dentro_do_aceite(a) and not e_cache(a))]))
     execucoes = [dict(item) for item in proposto.get("execucoes", []) if isinstance(item, Mapping)]
     pedidos = [pedido.id for pedido in estado.pedidos_pendentes(PEDIDO_REFAZER_ACEITE)]
     atendidos = tuple(dict.fromkeys([*(str(x) for x in estado.propriedades.get(a.CAMPO_PEDIDOS_ATENDIDOS) or []), *pedidos]))
     gravar_aceite(contexto.livro, AceiteParaGravar(saida, commit, arquivos, execucoes, nos_do_plano(estado.plano or {}),
-                                                   id_do_aceite=id_do_aceite, atendidos=atendidos if pedidos else ()))
+                                                   id_do_aceite=id_do_aceite, atendidos=atendidos if pedidos else (),
+                                                   do_commit=do_commit, declarados=declarados))
     return None
 
 

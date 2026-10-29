@@ -1,8 +1,10 @@
 """Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal.
 
 O commit dos testes de aceite vira um Artifact que deriva de cada Criterio
-que eles provam, com os arquivos, o comando de aceite e as execuções em que o
-orquestrador os viu vermelhos antes da implementação. Cada Criterio ganha os
+que eles provam, com os arquivos lidos do commit (o teste declarado que o
+commit não traz, porque já estava na base, vai para a observação), o comando
+de aceite e as execuções em que o orquestrador os viu vermelhos antes da
+implementação. Cada Criterio ganha os
 testes que o provam (arquivo, nome, comando), a lista de checagem, quando é
 `checagem`, e a justificativa, quando o código já o atendia. O Goal guarda o
 aceite inteiro (`aceite`): é dele que o laço lê o comando, os testes de cada
@@ -17,13 +19,18 @@ from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
+from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, fora_do_commit, propriedade
 from graphow.orquestrador.saida_do_aceite import SaidaDoAceite
 
 
 @dataclass(frozen=True)
 class AceiteParaGravar:
-    """O aceite conferido e commitado: a saída do autor, o commit, os arquivos, as execuções e o nó de cada critério."""
+    """O aceite conferido e commitado: a saída do autor, o commit, os arquivos, as execuções e o nó de cada critério.
+
+    `arquivos` são os do aceite inteiro, que o executor não toca e que o Goal
+    guarda; `do_commit`, os que o git diz que o commit mudou, e é o que o
+    Artifact leva; `declarados`, os testes que o autor entregou neste commit.
+    """
 
     saida: SaidaDoAceite
     commit: str
@@ -35,6 +42,8 @@ class AceiteParaGravar:
     atendidos: tuple[str, ...] = ()
     so: tuple[str, ...] = ()
     commit_da_configuracao: str = ""
+    do_commit: tuple[str, ...] = ()
+    declarados: tuple[str, ...] = ()
 
     def em_json(self) -> dict[str, Any]:
         """O aceite como propriedade do Goal."""
@@ -62,8 +71,9 @@ def gravar_aceite(livro: LivroRazaoDoGoal, pedido: AceiteParaGravar) -> None:
     """O Artifact do commit dos testes, a ligação de cada critério aos seus testes e o aceite no Goal, num lote."""
     id_artefato = f"art-{pedido.id_do_aceite or m.id_do_aceite(livro.id_goal)}"
     propriedades = {
-        m.CAMPO_COMMIT: pedido.commit, "arquivos": list(pedido.arquivos), "comando_aceite": pedido.saida.comando_aceite,
+        m.CAMPO_COMMIT: pedido.commit, "arquivos": list(pedido.do_commit), "comando_aceite": pedido.saida.comando_aceite,
         "resumo": pedido.saida.resumo, "vermelhos_antes_da_implementacao": [dict(item) for item in pedido.execucoes],
+        "observacao": fora_do_commit(pedido.declarados, pedido.do_commit),
     }
     operacoes = [
         *livro.produzido(id_artefato, TipoNo.ARTIFACT, f"Testes de aceite em {pedido.commit[:12]}", propriedades=propriedades),

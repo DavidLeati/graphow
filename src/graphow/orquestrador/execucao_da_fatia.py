@@ -136,8 +136,8 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
         return _falhou(contexto, tentativa, problema)
     documentar_decisoes(contexto, fatia, saida.decisoes)
     commit = contexto.commitar(_mensagem(contexto, fatia, saida), vazio_permitido=True)
-    contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, saida=saida, observacao=desfeito,
-                                  achados=m.achados_da_correcao(fatia.propriedades),
+    contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, arquivos=arquivos_do_commit(contexto.area, commit),
+                                  saida=saida, observacao=desfeito, achados=m.achados_da_correcao(fatia.propriedades),
                                   extra=operacoes_das_decisoes(contexto.livro, fatia.id, tentativa.numero, decisoes=saida.decisoes))
     return None
 
@@ -373,8 +373,9 @@ def _concluir_pelo_commit(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> b
     if commit is None:
         return False
     resumo = commit.mensagem.split("\n\n")[1] if commit.mensagem.count("\n\n") >= 2 else ""
-    saida = SaidaDoExecutor(STATUS_PRONTO, resumo, arquivos_do_commit(contexto.area, commit.hash))
+    arquivos = arquivos_do_commit(contexto.area, commit.hash)
+    saida = SaidaDoExecutor(STATUS_PRONTO, resumo, arquivos)
     observacao = "retomada: o commit da fatia ja estava na branch quando o orquestrador parou"
-    contexto.livro.concluir_fatia(fatia.id, fatia.tentativas, commit=commit.hash, saida=saida, observacao=observacao,
-                                  achados=m.achados_da_correcao(fatia.propriedades))
+    contexto.livro.concluir_fatia(fatia.id, fatia.tentativas, commit=commit.hash, arquivos=arquivos, saida=saida,
+                                  observacao=observacao, achados=m.achados_da_correcao(fatia.propriedades))
     return True

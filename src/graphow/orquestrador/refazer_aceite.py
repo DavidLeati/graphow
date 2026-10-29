@@ -209,10 +209,12 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, novo: SaidaDoAceite,
     anteriores = [str(a) for a in (estado.aceite or {}).get("arquivos", [])]
     arquivos = tuple(dict.fromkeys([*anteriores, *(teste.arquivo for _, teste in novo.testes())]))
     versao = m.versao_do_plano(estado.propriedades)
+    declarados = tuple(dict.fromkeys(teste.arquivo for criterio, teste in novo.testes() if criterio.id == pedido.alvo))
     gravar_aceite(contexto.livro, AceiteParaGravar(
         novo, commit, arquivos, [], nos_do_plano(estado.plano or {}), id_do_aceite=f"{m.id_do_aceite(contexto.id_goal, versao)}-r{_revisoes(estado) + 1}",
         revisoes=_revisoes(estado) + 1, atendidos=tuple(atendidos_com(estado, pedido.id)), so=(pedido.alvo,),
-        commit_da_configuracao=commit_da_configuracao(estado.aceite)))
+        commit_da_configuracao=commit_da_configuracao(estado.aceite), do_commit=arquivos_do_commit(contexto.area, commit),
+        declarados=declarados))
 
 
 def _registrar_o_desacordo(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHumano, *, porque: str, commit: str) -> None:

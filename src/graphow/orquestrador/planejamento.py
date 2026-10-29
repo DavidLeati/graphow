@@ -25,6 +25,7 @@ from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, escrever_documento, renderizar_documento
 from graphow.orquestrador.esquemas import ESQUEMA_DO_PLANO, PAPEL_PLANEJADOR
 from graphow.orquestrador.git_do_goal import (
+    arquivos_do_commit,
     descartar_mudancas,
     mensagem_do_orquestrador,
     ultimo_commit_do_arquivo,
@@ -124,6 +125,7 @@ def _gravar(contexto: ContextoDoGoal, estado: EstadoDoGoal, plano: Plano, *, fix
             slug=configuracao.slug,
             commit_do_documento=commit,
             caminho_do_documento=caminho,
+            arquivos_do_commit=arquivos_do_commit(contexto.area, commit),
             nos_fixados=fixos.nos_fixados,
             renomear_goal=not fixos.nos_fixados and _criado_pelo_orquestrador(contexto),
             versao=m.versao_do_plano(estado.propriedades),
