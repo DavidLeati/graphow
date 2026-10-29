@@ -1056,9 +1056,11 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    nó `Achado`, no mesmo lote do estado de cada `Criterio` julgado e das
    pendências. Os bloqueantes do ciclo viram uma fatia de correção só, que
    deriva de todos eles, mesmo em arquivos diferentes, e leva no briefing cada
-   achado com a prova e as chamadas da verificação que o reproduzem
-   (`orquestrador/correcoes.py`); só a verificação final, que cobra também os
-   bloqueantes dos outros marcos, e a conferência com achados que persistem
+   achado com a prova e as chamadas que o reproduzem, da verificação em que ele
+   nasceu (ao menos uma por achado, até 8 na fatia;
+   `orquestrador/historico_da_correcao.py`), e o aviso de que a segunda falha
+   a divide (`orquestrador/correcoes.py`); só a verificação final, que cobra
+   também os bloqueantes dos outros marcos, e a conferência com achados que persistem
    podem passar de 5 e se dividir em fatias de 5.
    A correção agrupada que falha duas vezes se divide numa fatia por achado.
    São até dois ciclos por marco (`--ciclos-de-correcao` muda o número,

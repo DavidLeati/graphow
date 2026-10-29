@@ -11,6 +11,10 @@ commit anterior e o id da verificação. Agora:
   achado citam. Não vão as outras que saíram com erro: a revisão da rodada 3
   viu a correção receber as sondas negativas esperadas (o `lista vazia` que
   sai com 2 de propósito) como "reproduza com eles";
+- cada achado busca as chamadas na verificação em que nasceu, e cada um tem
+  ao menos uma, até 8 no total: na revisão da T2e, o corte de 8 valia para a
+  fatia inteira, e o primeiro achado que casava com tudo ocupava as 8; o
+  bloqueante herdado de outro marco, que a final cobra, ficava sem as dele;
 - quando um achado do mesmo arquivo, ou do mesmo critério, já teve correção
   num ciclo anterior do marco, a correção leva o diff daquela tentativa e o
   que a verificação seguinte disse dela;
@@ -23,6 +27,7 @@ import re
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.correcoes import area_do_achado
 from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 
 LIMITE_DO_DIFF: int = 4000
@@ -34,19 +39,40 @@ CAMPO_REPRODUCAO: str = "reproducao"
 
 
 def chamadas_que_reproduzem(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> list[str]:
-    """As chamadas Bash da verificação que reproduzem os achados da correção, e os comandos marcados que o stream não mostra."""
-    verificacao = next((v for v in estado.verificacoes if v.id == fatia.texto(m.CAMPO_CORRIGE)), None)
+    """As chamadas que reproduzem cada achado da correção, da verificação em que ele nasceu: ao menos uma por achado, até 8.
+
+    Com mais de um achado, cada linha leva o id do achado dela.
+    """
+    achados = [a for id_achado in m.achados_da_correcao(fatia.propriedades) if (a := estado.achado(id_achado))]
+    repartidas = _repartir([_chamadas_do_achado(estado, achado) for achado in achados])
+    if len(achados) == 1:
+        return repartidas[0]
+    return [f"- {achado.id}: {linha[2:]}" for achado, linhas in zip(achados, repartidas, strict=True) for linha in linhas]
+
+
+def _chamadas_do_achado(estado: EstadoDoGoal, achado: AchadoRegistrado) -> list[str]:
+    """As chamadas Bash da verificação do achado que o reproduzem, e os comandos marcados que o stream não mostra."""
+    verificacao = next((v for v in estado.verificacoes if v.id == achado.verificacao), None)
     chamadas = [c for c in (verificacao.propriedades.get("comandos") or []) if isinstance(c, Mapping)] if verificacao else []
-    linhas: list[str] = []
-    for achado in (a for id_achado in m.achados_da_correcao(fatia.propriedades) if (a := estado.achado(id_achado))):
-        marcados = [str(comando) for comando in achado.lista(CAMPO_REPRODUCAO)]
-        texto = "\n".join((achado.texto("prova"), achado.texto("descricao")))
-        trechos = [_normal(trecho) for trecho in (*marcados, *CITACAO_DE_COMANDO.findall(texto)) if trecho.strip()]
-        escolhidas = [c for c in chamadas if _reproduz(_normal(str(c.get("comando", ""))), trechos, _normal(texto))]
-        linhas += [f"- `{c.get('comando', '')}` saiu com {c.get('codigo')}: {str(c.get('saida', ''))[-300:]}" for c in escolhidas]
-        vistos = {_normal(str(c.get("comando", ""))) for c in escolhidas}
-        linhas += [f"- `{comando}` (o verificador o marcou como reproducao)" for comando in marcados if _normal(comando) not in vistos]
-    return list(dict.fromkeys(linhas))[:MAXIMO_DE_CHAMADAS]
+    marcados = [str(comando) for comando in achado.lista(CAMPO_REPRODUCAO)]
+    texto = "\n".join((achado.texto("prova"), achado.texto("descricao")))
+    trechos = [_normal(trecho) for trecho in (*marcados, *CITACAO_DE_COMANDO.findall(texto)) if trecho.strip()]
+    escolhidas = [c for c in chamadas if _reproduz(_normal(str(c.get("comando", ""))), trechos, _normal(texto))]
+    linhas = [f"- `{c.get('comando', '')}` saiu com {c.get('codigo')}: {str(c.get('saida', ''))[-300:]}" for c in escolhidas]
+    vistos = {_normal(str(c.get("comando", ""))) for c in escolhidas}
+    linhas += [f"- `{comando}` (o verificador o marcou como reproducao)" for comando in marcados if _normal(comando) not in vistos]
+    return list(dict.fromkeys(linhas))
+
+
+def _repartir(por_achado: Sequence[Sequence[str]]) -> list[list[str]]:
+    """A primeira linha de cada achado, sempre; depois a segunda de cada um, e assim por diante, sem repetir, até o máximo."""
+    fila = sorted((rodada, indice) for indice, linhas in enumerate(por_achado) for rodada in range(len(linhas)))
+    escolhidas: list[tuple[int, str]] = []
+    for rodada, indice in fila:
+        linha = por_achado[indice][rodada]
+        if rodada == 0 or (len(escolhidas) < MAXIMO_DE_CHAMADAS and all(linha != outra for _, outra in escolhidas)):
+            escolhidas.append((indice, linha))
+    return [[linha for dono, linha in escolhidas if dono == indice] for indice in range(len(por_achado))]
 
 
 def _normal(texto: str) -> str:

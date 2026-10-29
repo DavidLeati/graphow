@@ -10,7 +10,12 @@ fatia inteira, com o achado herdado de outro marco sem as dele.
 from pathlib import Path
 from typing import Any
 
+from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.briefing import ContextoDaFatia, briefing_do_executor
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.historico_da_correcao import MAXIMO_DE_CHAMADAS, chamadas_que_reproduzem
+from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado, VerificacaoRegistrada
+from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 
 from tests.orquestrador.apoio_laco import autor_de_aceite, montar_bancada, roteiro_completo
 
@@ -51,3 +56,55 @@ def test_desacordo_do_executor_da_correcao_chega_a_conferencia_nominal(tmp_path:
     assert "## Desacordos sobre testes de aceite (julgue o criterio)" in conferencia
     assert ("- C1: o executor de M1.K1.1 disse que o teste esta errado; o autor o manteve: o teste esta certo: importa da "
             "raiz, como a suite") in conferencia
+
+
+# Na final, o achado que casa com tudo (a reprodução marcada é o prefixo de toda sonda) vem antes de três com uma sonda cada.
+SONDAS_DA_FINAL: list[dict[str, Any]] = [{"comando": f"python sonda.py --caso {n:02d}", "codigo": 1, "saida": f"falhou {n:02d}"}
+                                         for n in range(1, 13)]
+CHAMADA_DO_M1: dict[str, Any] = {"comando": "python antigo.py --lista", "codigo": 1, "saida": "quebrou no M1"}
+
+
+def _achado(id_achado: str, verificacao: str, **propriedades: Any) -> AchadoRegistrado:
+    """Um bloqueante aberto da verificação dada."""
+    return AchadoRegistrado(id_achado, verificacao, "bloqueante", "aberto", {"titulo": id_achado, **propriedades})
+
+
+def _final_com_cinco_achados() -> tuple[EstadoDoGoal, FatiaRegistrada]:
+    """A correção da final com cinco achados: o que casa com tudo, três da final com uma sonda cada e o herdado do M1."""
+    geral = _achado("a-geral", "ver-2", reproducao=["python sonda.py"], prova="as sondas falham")
+    especificos = [_achado(f"a-{n}", "ver-2", prova=f"rodei `python sonda.py --caso {n}` e falhou") for n in (10, 11, 12)]
+    herdado = _achado("a-m1", "ver-1", prova="rodei `python antigo.py --lista` e quebrou")
+    do_m1 = VerificacaoRegistrada("ver-1", "c1", "parcial", 1, {"comandos": [CHAMADA_DO_M1]}, achados=(herdado,), marco="M1")
+    final = VerificacaoRegistrada("ver-2", "c2", "parcial", 1, {"comandos": SONDAS_DA_FINAL}, achados=(geral, *especificos),
+                                  marco="M2")
+    ids = ["a-geral", "a-10", "a-11", "a-12", "a-m1"]
+    fatia = FatiaRegistrada("task-k1", "M2.K1.1", "Corrige: a-geral (e mais 4)", "pendente", 3,
+                            {m.CAMPO_CORRIGE: "ver-2", m.CAMPO_ACHADOS: ids})
+    return EstadoDoGoal("goal-x", "Goal x", "ativo", {}, fatias=(fatia,), verificacoes=(do_m1, final)), fatia
+
+
+def test_cada_achado_da_correcao_tem_a_sua_chamada_e_o_herdado_traz_a_dele_edge_case() -> None:
+    """T2i.3: com cinco achados e um que casa com tudo, cada um tem ao menos uma chamada, até 8; o herdado do M1 traz a da verificação dele."""
+    estado, fatia = _final_com_cinco_achados()
+
+    linhas = chamadas_que_reproduzem(estado, fatia)
+
+    assert len(linhas) == MAXIMO_DE_CHAMADAS
+    for id_achado, comando in (("a-geral", "python sonda.py --caso 01"), ("a-10", "python sonda.py --caso 10"),
+                               ("a-11", "python sonda.py --caso 11"), ("a-12", "python sonda.py --caso 12"),
+                               ("a-m1", "python antigo.py --lista")):
+        assert any(linha.startswith(f"- {id_achado}: `{comando}` saiu com 1") for linha in linhas), (id_achado, linhas)
+    assert "- a-m1: `python antigo.py --lista` saiu com 1: quebrou no M1" in linhas
+    assert len(set(linhas)) == len(linhas)
+
+
+def test_briefing_da_correcao_agrupada_fala_no_plural_e_diz_que_ela_se_divide_nominal() -> None:
+    """A fatia de correção com cinco achados diz que corrige cinco e que, na segunda falha, se divide em uma por achado."""
+    estado, fatia = _final_com_cinco_achados()
+
+    briefing = briefing_do_executor(estado, fatia, ContextoDaFatia(tentativa=1))
+
+    assert "(na segunda falha, a fatia se divide em uma por achado)" in briefing
+    assert "Esta fatia corrige 5 achados bloqueantes que a verificacao ver-2 do Goal cobrou." in briefing
+    assert "## Achados que esta fatia corrige" in briefing
+    assert "## Chamadas que reproduzem os achados, da verificacao de cada um (rode-as antes e depois da correcao)" in briefing

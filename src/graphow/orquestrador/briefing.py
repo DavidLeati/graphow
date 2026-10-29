@@ -102,14 +102,15 @@ class ContextoDaFatia:
 
 def briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto: ContextoDaFatia) -> str:
     """O pedido ao executor da fatia, com tudo o que a governa por extenso."""
-    plano = estado.plano or {}
+    plano, varios = estado.plano or {}, len(_achados_da_fatia(estado, fatia)) > 1
     return _juntar([
         f"# Fatia {fatia.codigo} do Goal {estado.id_goal}: {fatia.titulo}",
-        f"Sessao {contexto.tentativa} desta fatia; {fatia.falhas} falha(s) ate agora (na segunda, a fatia vira pendencia). "
-        "Pasta: a area de trabalho do Goal, na branch dele.",
+        f"Sessao {contexto.tentativa} desta fatia; {fatia.falhas} falha(s) ate agora (na segunda falha, a fatia "
+        + ("se divide em uma por achado). " if varios else "vira pendencia). ") + "Pasta: a area de trabalho do Goal, na branch dele.",
         _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), _correcao(estado, fatia)]),
-        _bloco("Achado que esta fatia corrige", _achado_da_correcao(estado, fatia)),
-        _bloco("Chamadas da verificacao que reproduzem o achado (rode-as antes e depois da correcao)",
+        _bloco("Achados que esta fatia corrige" if varios else "Achado que esta fatia corrige", _achado_da_correcao(estado, fatia)),
+        _bloco("Chamadas que reproduzem os achados, da verificacao de cada um (rode-as antes e depois da correcao)" if varios
+               else "Chamadas da verificacao que reproduzem o achado (rode-as antes e depois da correcao)",
                chamadas_que_reproduzem(estado, fatia)),
         _bloco("A mesma falha ja teve correcao num ciclo anterior", list(contexto.correcoes_anteriores)),
         _bloco("Criterios que esta fatia cobre, com os testes de aceite que os provam (nao os altere)",
@@ -179,14 +180,23 @@ def _arquivos(fatia: FatiaRegistrada) -> str:
 
 
 def _correcao(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str:
-    """Na fatia de correção, de onde ela veio."""
-    origem = fatia.texto(m.CAMPO_CORRIGE)
-    return f"Esta fatia corrige um achado bloqueante da verificacao {origem} do Goal." if origem else ""
+    """Na fatia de correção, de onde ela veio e quantos achados ela corrige."""
+    origem, quantos = fatia.texto(m.CAMPO_CORRIGE), len(_achados_da_fatia(estado, fatia))
+    if not origem:
+        return ""
+    if quantos > 1:
+        return f"Esta fatia corrige {quantos} achados bloqueantes que a verificacao {origem} do Goal cobrou."
+    return f"Esta fatia corrige um achado bloqueante da verificacao {origem} do Goal."
+
+
+def _achados_da_fatia(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> list[AchadoRegistrado]:
+    """Os Achados que a fatia de correção corrige; com mais de um, a segunda falha a divide (execucao_da_fatia._esgotou)."""
+    return [achado for id_achado in m.achados_da_correcao(fatia.propriedades) if (achado := estado.achado(id_achado))]
 
 
 def _achado_da_correcao(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> list[str]:
     """Cada Achado inteiro que a fatia de correção corrige, o que ele fere e a ordem: o teste de regressão antes."""
-    achados = [achado for id_achado in m.achados_da_correcao(fatia.propriedades) if (achado := estado.achado(id_achado))]
+    achados = _achados_da_fatia(estado, fatia)
     if not achados:
         return []
     plano = estado.plano or {}
