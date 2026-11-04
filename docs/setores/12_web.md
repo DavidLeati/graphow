@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-32 módulos · 3843 linhas · 62 classes
+32 módulos · 3856 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -40,7 +40,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rotas_governanca.py`](#webrotasgovernanca) | 138 | As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_propostas.py`](#webrotaspropostas) | 37 | As rotas HTTP da caixa de propostas fora do Goal, fora do roteador pelo mesmo motivo das da memória. |
-| [`web/rotas_rastro.py`](#webrotasrastro) | 80 | A rota GET /api/rastro: o rastro dos critérios de um Goal, o mesmo dado do `graphow orquestrar --rastro`. |
+| [`web/rotas_rastro.py`](#webrotasrastro) | 93 | A rota GET /api/rastro: o rastro dos critérios de um Goal, o mesmo dado do `graphow orquestrar --rastro`. |
 | [`web/server.py`](#webserver) | 394 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |

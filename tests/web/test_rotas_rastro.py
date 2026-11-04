@@ -12,12 +12,16 @@ import urllib.request
 
 import pytest
 
-from graphow.kernel.composicao import montar_kernel_em_memoria
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.kernel.composicao import abrir_kernel_sqlite, montar_kernel_em_memoria
+from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
+from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.rastro import ler_rastro
+from graphow.storage.sqlite_store import SQLiteEventStore
 from graphow.web.server import EnderecoServidor, GraphowWebServer
 
 from tests.orquestrador.apoio_git import git
@@ -115,3 +119,33 @@ def test_rota_marca_o_commit_fora_da_branch_e_guarda_a_conta_entre_pedidos_edge_
     assert segundo == primeiro and ("merge-base", "--is-ancestor") in {chamada[:2] for chamada in do_primeiro}
     assert chamadas[len(do_primeiro):] == [("rev-parse", "--verify", "--quiet", "refs/heads/graphow/soma^{commit}")]
 
+
+def _dois_goals(tmp_path: Path) -> Path:
+    """O banco montado direto no log: dois Goals e um Criterio que escopa só o segundo."""
+    def no(id_no: str, tipo: TipoNo) -> ItemPatch:
+        return ItemPatch(OperacaoPatch.ADD, f"/nos/{id_no}", {"id": id_no, "tipo": tipo.value, "rotulo": id_no})
+
+    escopa = {"id": "escopa-crit-b", "origem_id": "crit-b", "destino_id": "goal-b", "tipo": TipoAresta.ESCOPA.value}
+    operacoes = (no("goal-a", TipoNo.GOAL), no("goal-b", TipoNo.GOAL), no("crit-b", TipoNo.CRITERIO),
+                 ItemPatch(OperacaoPatch.ADD, "/arestas/escopa-crit-b", escopa))
+    proposta = PropostaPatch.criar(DadosPropostaPatch(autor="david", papel=PapelAutor.HUMANO, operacoes=operacoes, justificativa="teste"))
+    banco = tmp_path / "dois-goals.db"
+    with SQLiteEventStore(banco) as store:
+        store.append_eventos(ConversorPatchParaEventos().converter(proposta, 0))
+    return banco
+
+
+def test_criterio_de_outro_goal_volta_404_dizendo_de_qual_goal_ele_e_edge_case(tmp_path: Path) -> None:
+    """T3f2.3: `?goal=A&criterio=<de B>` vem 404, e a mensagem diz que o Criterio é de B; com o Goal dele, 200."""
+    store, kernel = abrir_kernel_sqlite(_dois_goals(tmp_path))
+    try:
+        with _servidor(kernel) as base:
+            de_outro = _ler(f"{base}/api/rastro?goal=goal-a&criterio=crit-b")
+            do_dele = _ler(f"{base}/api/rastro?goal=goal-b&criterio=crit-b")
+            sem_criterio = _ler(f"{base}/api/rastro?goal=goal-a&criterio=nao-existe")
+    finally:
+        store.fechar()
+
+    assert de_outro == (404, {"sucesso": False, "mensagem": "o Criterio 'crit-b' e do Goal 'goal-b', e nao do Goal 'goal-a'"})
+    assert do_dele[0] == 200 and do_dele[1]["goal"] == "goal-b" and do_dele[1]["criterios"] == []
+    assert sem_criterio[0] == 404 and "'nao-existe' nao e Criterio de um Goal" in sem_criterio[1]["mensagem"]

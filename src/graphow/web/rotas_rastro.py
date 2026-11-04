@@ -8,7 +8,10 @@ quando a ponta da branch do Goal anda.
 
 `?goal=<id>` devolve todos os critérios do plano; `?criterio=<id>` (o nó
 Criterio, o que o inspetor tem à mão) acha o Goal que ele escopa e devolve só
-ele. 400 sem nenhum dos dois, 404 quando o Goal não existe.
+ele. 400 sem nenhum dos dois, 404 quando o Goal não existe e quando os dois
+vêm e o Criterio não é do Goal pedido (a mensagem diz de qual Goal ele é):
+antes, a resposta era 200 com a lista vazia, como se o critério não tivesse
+rastro.
 """
 
 from collections.abc import Mapping
@@ -47,10 +50,13 @@ class RastroWebController:
         if not id_goal and not id_criterio:
             return _recusa("Informe o Goal em ?goal=<id> ou o Criterio em ?criterio=<id>", HTTPStatus.BAD_REQUEST)
         view = self._kernel.obter_view(ramo_id)
-        alvo = id_goal or _goal_do_criterio(view, id_criterio)
+        goals = _goals_do_criterio(view, id_criterio) if id_criterio else ()
+        alvo = id_goal or next(iter(goals), "")
         estado = ler_estado(view, alvo) if alvo else None
         if estado is None:
             return _recusa(f"'{id_goal or id_criterio}' nao leva a um Goal do ramo '{ramo_id}'", HTTPStatus.NOT_FOUND)
+        if id_criterio and alvo not in goals:
+            return _recusa(_de_outro_goal(id_criterio, alvo, goals), HTTPStatus.NOT_FOUND)
         rastro = ler_rastro(view, estado, LeituraPorGoal(view, self._memoria)).em_json()
         if id_criterio:
             rastro["criterios"] = [criterio for criterio in rastro["criterios"] if criterio["no"] == id_criterio]
@@ -66,13 +72,20 @@ def tratar_get_rastro(manipulador: ManipuladorComRastro, params: Mapping[str, li
     manipulador._responder_json(resposta.corpo, resposta.status)
 
 
-def _goal_do_criterio(view: GrafoView, id_criterio: str) -> str:
-    """O Goal que o Criterio escopa; vazio quando o nó não é Criterio ou não escopa Goal."""
+def _goals_do_criterio(view: GrafoView, id_criterio: str) -> tuple[str, ...]:
+    """Os Goals que o Criterio escopa; nenhum quando o nó não é Criterio ou não escopa Goal."""
     no = view.obter_no(id_criterio)
     if no is None or no.tipo != TipoNo.CRITERIO:
-        return ""
+        return ()
     goals = (view.obter_no(aresta.destino_id) for aresta in view.obter_arestas_saida(id_criterio, TipoAresta.ESCOPA))
-    return next((goal.id for goal in goals if goal is not None and goal.tipo == TipoNo.GOAL), "")
+    return tuple(goal.id for goal in goals if goal is not None and goal.tipo == TipoNo.GOAL)
+
+
+def _de_outro_goal(id_criterio: str, id_goal: str, goals: tuple[str, ...]) -> str:
+    """A recusa do Criterio pedido com um Goal que não é o dele, dizendo de qual ele é."""
+    if not goals:
+        return f"'{id_criterio}' nao e Criterio de um Goal; o Goal '{id_goal}' nao o tem"
+    return f"o Criterio '{id_criterio}' e do Goal {', '.join(repr(goal) for goal in goals)}, e nao do Goal '{id_goal}'"
 
 
 def _recusa(mensagem: str, status: HTTPStatus) -> RespostaHttpWeb:
