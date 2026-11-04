@@ -26,6 +26,7 @@ import {
 import { montarSeloDoArbitro, rotuloDaResposta } from "./selo_do_arbitro.js";
 import { aprovarPlano, responderDesvio } from "./escopo_gestos.js";
 import { htmlDoEscopo, htmlDoEscopoIndisponivel } from "./escopo_modelo.js";
+import { htmlDoRastro, htmlDoRastroIndisponivel } from "./rastro_do_criterio.js";
 import { formatarTextoDeLeitura } from "./texto_formatado.js";
 
 const MAXIMO_DE_CONEXOES_NO_RESUMO = 6;
@@ -159,6 +160,7 @@ export class InspectorView {
     this.raiz.querySelectorAll("textarea").forEach((campo) => ajustarCampo(campo));
     if (no.tipo === "Aprendizado") this.completarAprendizado(no);
     if (no.tipo === "Goal") this.completarEscopo(no);
+    if (no.tipo === "Criterio") this.completarRastro(no);
   }
 
   /**
@@ -224,6 +226,7 @@ export class InspectorView {
     if (no.tipo === "Aprendizado") return this.montarBlocoDoAprendizado(no, desabilitado);
     if (ehConteiner(no.tipo)) return this.montarResumoDoConteiner(no);
     if (no.tipo === "Goal") return '<div data-bloco="escopo"></div>';
+    if (no.tipo === "Criterio") return '<div data-bloco="rastro"></div>';
     return "";
   }
 
@@ -327,6 +330,16 @@ export class InspectorView {
     const alvo = this.raiz.querySelector("[data-bloco=escopo]");
     if (!alvo || this.noRenderizado?.id !== no.id) return;
     alvo.innerHTML = resposta.sucesso ? htmlDoEscopo(resposta) : htmlDoEscopoIndisponivel(resposta.mensagem);
+  }
+
+  /** O rastro do Criterio vem do servidor (orquestrador/rastro.py); como o placar, o bloco nasce vazio e é preenchido. */
+  async completarRastro(no) {
+    // A conferência é na ponta de agora: viajando no log, ela mentiria sobre o passado.
+    if (this.state.isTimeTraveling) return;
+    const resposta = await api.rastro(no.id, this.state.currentBranch);
+    const alvo = this.raiz.querySelector("[data-bloco=rastro]");
+    if (!alvo || this.noRenderizado?.id !== no.id) return;
+    alvo.innerHTML = resposta.sucesso ? htmlDoRastro(resposta) : htmlDoRastroIndisponivel(resposta.mensagem);
   }
 
   /** Um gesto de escopo (aprovar, responder) e, se o servidor o aceitou, o placar de depois no lugar do de antes. */

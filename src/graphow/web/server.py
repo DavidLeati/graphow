@@ -43,6 +43,7 @@ from graphow.web.rotas_governanca import tratar_get_governanca, tratar_post_gove
 from graphow.web.rotas_escopo import tratar_get_escopo, tratar_post_escopo
 from graphow.web.rotas_memoria import tratar_get_memoria, tratar_post_aprendizado, tratar_post_promocao
 from graphow.web.rotas_propostas import tratar_get_propostas, tratar_post_decisao_de_proposta
+from graphow.web.rotas_rastro import RastroWebController, tratar_get_rastro
 from graphow.reactive.engine import MotorReativo
 from graphow.web.composicao import montar_tempo_real, montar_vigia_do_log
 from graphow.web.desconexao_cliente import eh_desconexao_do_cliente
@@ -84,6 +85,7 @@ class GraphowHTTPHandler(ManipuladorProtegido):
             "/api/memoria": lambda: tratar_get_memoria(self, params),
             "/api/propostas": lambda: tratar_get_propostas(self, params),
             "/api/escopo": lambda: tratar_get_escopo(self, params),
+            "/api/rastro": lambda: tratar_get_rastro(self, params),
         }
         handler = rotas.get(caminho)
         if handler:
@@ -339,6 +341,7 @@ class GraphowThreadingServer(ThreadingHTTPServer):
         self.propostas_ctrl: PropostasWebController = PropostasWebController(kernel, self.identidade)
         self.escopo_ctrl: EscopoWebController = EscopoWebController(kernel, self.identidade)
         self.governanca_ctrl: GovernancaWebController = GovernancaWebController(kernel, self.identidade)
+        self.rastro_ctrl: RastroWebController = RastroWebController(kernel, self.canvas_ctrl.memoria_da_conferencia)
         self.sse_ctrl: SSEWebController = SSEWebController()
         self.assets_provider: StaticAssetsProvider = StaticAssetsProvider()
         self.motor_reativo: MotorReativo = montar_tempo_real(kernel, self.sse_ctrl)

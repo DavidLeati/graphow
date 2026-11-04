@@ -84,6 +84,8 @@ export const api = {
   decidirProposta: (corpo) => pedir("/api/propostas/decisoes", comCorpo("POST", corpo)),
   // O placar de escopo do Goal: plano aprovado, desvio, gatilhos K e M e os limiares com a origem.
   escopo: (goal, ramo) => pedir(`/api/escopo?${montarQuery({ goal, ramo })}`),
+  // O rastro do Criterio no Goal que ele escopa: testes, fatias, verificação e achados (o mesmo do `--rastro`).
+  rastro: (criterio, ramo) => pedir(`/api/rastro?${montarQuery({ criterio, ramo })}`),
   // Os dois gestos do humano sobre o escopo; a resposta traz o placar de depois.
   aprovarPlano: (corpo) => pedir("/api/escopo/aprovar_plano", comCorpo("POST", corpo)),
   responderDesvio: (corpo) => pedir("/api/escopo/responder_desvio", comCorpo("POST", corpo)),

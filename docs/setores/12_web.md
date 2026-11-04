@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-31 módulos · 3760 linhas · 60 classes
+32 módulos · 3843 linhas · 62 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -40,7 +40,8 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/rotas_governanca.py`](#webrotasgovernanca) | 138 | As rotas HTTP da governança, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_memoria.py`](#webrotasmemoria) | 54 | As rotas HTTP da memória, fora do roteador para ele continuar do tamanho de um roteador. |
 | [`web/rotas_propostas.py`](#webrotaspropostas) | 37 | As rotas HTTP da caixa de propostas fora do Goal, fora do roteador pelo mesmo motivo das da memória. |
-| [`web/server.py`](#webserver) | 391 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
+| [`web/rotas_rastro.py`](#webrotasrastro) | 80 | A rota GET /api/rastro: o rastro dos critérios de um Goal, o mesmo dado do `graphow orquestrar --rastro`. |
+| [`web/server.py`](#webserver) | 394 | Servidor HTTP integrado e despachante de rotas REST, SSE e Assets da interface do Graphow. |
 | [`web/sse_controller.py`](#webssecontroller) | 123 | Controlador de Server-Sent Events para transmissão de eventos em tempo real para a UI. |
 | [`web/static_assets_provider.py`](#webstaticassetsprovider) | 61 | Provedor seguro de arquivos estáticos para a Single-Page Application do Graphow. |
 | [`web/vigia_do_log.py`](#webvigiadolog) | 129 | Vigia que leva ao canal SSE os eventos escritos por outros processos. |
@@ -680,6 +681,30 @@ As rotas HTTP da caixa de propostas fora do Goal, fora do roteador pelo mesmo mo
 
 - `tratar_get_propostas(manipulador: ManipuladorComPropostas, params: Mapping[str, list[str]]) -> None` — Publica as propostas abertas do ramo, as de um Projeto quando `projeto` vem na query.
 - `tratar_post_decisao_de_proposta(manipulador: ManipuladorComPropostas, payload: Mapping[str, Any]) -> None` — Aceita ou descarta uma proposta sob a identidade fixada no servidor.
+
+## `web/rotas_rastro.py`
+
+A rota GET /api/rastro: o rastro dos critérios de um Goal, o mesmo dado do `graphow orquestrar --rastro`.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `RAMO_PADRAO` | `str` | `'main'` |
+
+### `ManipuladorComRastro` (Protocol)
+
+*serviço* — O que esta rota usa do manipulador HTTP: o servidor e a resposta JSON.
+
+**Campos:** `server: Any`
+
+### `RastroWebController`
+
+*serviço* — Lê o rastro dos critérios de um Goal do ramo, com a conferência guardada entre pedidos.
+
+- `ler(id_goal: str, id_criterio: str, ramo_id: str) -> RespostaHttpWeb` — O rastro do Goal (ou só do critério pedido); 400 sem alvo, 404 sem Goal.
+
+### Funções do módulo
+
+- `tratar_get_rastro(manipulador: ManipuladorComRastro, params: Mapping[str, list[str]]) -> None` — Publica o rastro pedido em `goal` ou `criterio`, no ramo de `ramo`.
 
 ## `web/server.py`
 
