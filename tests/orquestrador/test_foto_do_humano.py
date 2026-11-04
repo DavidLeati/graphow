@@ -1,5 +1,6 @@
 """T3a5, T3a6 e T3a8: a foto do repositório do humano em volta de cada sessão; a perda para o laço, o avanço segue."""
 
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -9,15 +10,17 @@ from typing import Any
 import pytest
 
 from graphow.core.models import NoGrafo
-from graphow.core.types import TipoNo
+from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador.conferencia_do_humano import SOBRESCRITO, conferir_as_fotos, conferir_o_humano
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao, fotografar_o_humano
+from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
+from graphow.orquestrador.registro_do_rebase import ACAO_DO_REBASE, CAMPO_COMMIT_ANTES
 from graphow.orquestrador.suite import shell_dos_agentes
 
 from tests.orquestrador.apoio_git import criar_repositorio, git, git_bytes
-from tests.orquestrador.apoio_laco import Bancada, executor_pronto, montar_bancada
+from tests.orquestrador.apoio_laco import SPEC, Bancada, executor_pronto, montar_bancada
 from tests.orquestrador.test_retomada import TUDO, roteiro_farto
 from tests.orquestrador.test_trava_do_git import ExecutorComHumano
 
@@ -25,6 +28,9 @@ AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 TRABALHO: str = "TRABALHO DO HUMANO, NAO COMMITADO\n"
 RASCUNHO: bytes = b"rascunho solto\r\ncom CRLF\r\n"
 HASH: re.Pattern[str] = re.compile(r"\b[0-9a-f]{40,64}\b")
+SPEC_DO_OUTRO: str = SPEC
+GOAL_DO_OUTRO: str = "goal-outro"
+RAMO_DO_OUTRO: str = "refs/heads/graphow/outro"
 
 
 def _sujo(pasta: Path) -> Path:
@@ -329,3 +335,59 @@ def test_humano_que_commita_o_sujo_e_troca_de_branch_durante_a_sessao_e_o_laco_f
         "ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> lateral #",
         "NOTAS.txt mudou, e o conteudo de antes esta em refs/heads/main"]
 
+
+def _outro_goal(bancada: Bancada, *, do_humano: bool) -> str:
+    """O Goal `goal-outro` no mesmo grafo e no mesmo repositório, parado no portão do plano, e a branch dele no repositório do
+    humano; com `do_humano`, um commit do humano (sem o trailer do Goal) por cima. Devolve a ponta da branch."""
+    spec = bancada.raiz / "spec-outro.md"
+    spec.write_text(SPEC_DO_OUTRO, encoding="utf-8")
+    parada = bancada.orquestrador().iniciar_da_spec(spec, bancada.repositorio, OpcoesDoLaco())
+    assert parada.motivo == MotivoDaParada.AGUARDANDO_APROVACAO, parada.mensagem
+    bancada.trocar_roteiro(roteiro_farto())
+    ponta = git(bancada.repositorio, "rev-parse", RAMO_DO_OUTRO).strip()
+    assert f"Graphow-Goal: {GOAL_DO_OUTRO}" in git(bancada.repositorio, "log", "-1", "--format=%(trailers)", ponta)
+    if do_humano:
+        ponta = git(bancada.repositorio, "commit-tree", f"{ponta}^{{tree}}", "-p", ponta, "-m", "Do humano").strip()
+        git(bancada.repositorio, "update-ref", RAMO_DO_OUTRO, ponta)
+    return ponta
+
+
+def _rebase_do_outro_goal(bancada: Bancada) -> None:
+    """O que o orquestrador do outro Goal faz no rebase: refaz os commits da branch (data nova), grava a Evidence
+    `rebase_do_goal` com o par e só então move a branch no repositório do humano."""
+    repositorio, antes = bancada.repositorio, git(bancada.repositorio, "rev-parse", RAMO_DO_OUTRO).strip()
+    novo = git(repositorio, "merge-base", "main", antes).strip()
+    for commit in git(repositorio, "rev-list", "--reverse", antes, "--not", novo).split():
+        mensagem = git(repositorio, "log", "-1", "--format=%B", commit).strip()
+        feito = subprocess.run(["git", "-C", str(repositorio), "commit-tree", f"{commit}^{{tree}}", "-p", novo, "-m", mensagem],
+                               capture_output=True, text=True, check=True, env={**os.environ, "GIT_COMMITTER_DATE": "2001-01-01T00:00:00Z"})
+        novo = feito.stdout.strip()
+    livro = LivroRazaoDoGoal(bancada.kernel, GOAL_DO_OUTRO)
+    propriedades = {"acao": ACAO_DO_REBASE, CAMPO_COMMIT_ANTES: antes, "commit": novo}
+    livro.gravar([*livro.produzido(f"rebase-{GOAL_DO_OUTRO}-1", TipoNo.EVIDENCE, "Rebase 1 do outro Goal", propriedades=propriedades),
+                  aresta(f"rebase-{GOAL_DO_OUTRO}-1", GOAL_DO_OUTRO, TipoAresta.DERIVA_DE)], "Rebase do outro Goal")
+    git(repositorio, "update-ref", RAMO_DO_OUTRO, novo, antes)
+
+
+@pytest.mark.parametrize("do_humano", [False, True], ids=["so_do_goal", "com_commit_sem_o_trailer"])
+def test_rebase_de_outro_goal_durante_a_sessao_nao_para_o_laco_edge_case(tmp_path: Path, do_humano: bool) -> None:
+    """T3a8.2: dois Goals no mesmo repositório. Durante a sessão do executor do Goal da soma, o outro Goal refaz a branch
+    dele, com a Evidence; o laço segue e fecha. Contraprova: a mesma ref, com um commit do humano sem o trailer que sai da
+    história no rebase, para o laço."""
+    bancada = montar_bancada(tmp_path, roteiro_farto())
+    _outro_goal(bancada, do_humano=do_humano)
+
+    parada = bancada.orquestrador(executor=ExecutorComHumano(bancada.executor, lambda: _rebase_do_outro_goal(bancada), na=3)
+                                  ).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    if do_humano:
+        assert parada.motivo == MotivoDaParada.FALHA and RAMO_DO_OUTRO in parada.mensagem, parada.mensagem
+        (nota,) = _notas_do_humano(bancada)
+        (perda,) = nota.obter_propriedade("perdas")
+        assert f"saiu da historia commit sem Graphow-Goal: {GOAL_DO_OUTRO}" in perda
+        return
+    assert parada.fechou, parada.mensagem
+    assert _notas_do_humano(bancada) == []
+    avancos = [HASH.sub("#", item) for nota in _notas_do_humano(bancada, "repositorio_do_humano_avancou")
+               for item in nota.obter_propriedade("avancos")]
+    assert avancos == [f"ref {RAMO_DO_OUTRO} refeita pelo rebase do Goal {GOAL_DO_OUTRO} (# -> #)"]

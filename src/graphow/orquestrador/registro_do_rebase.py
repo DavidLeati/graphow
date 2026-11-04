@@ -30,9 +30,18 @@ hashes dos commits do Goal. O registro vem antes das refs, num lote só:
 O processo que cai entre o registro e as refs deixa o livro-razão à frente do
 git: antes de preparar a área, `retomar_o_rebase` desfaz o rebase pela metade e
 leva as refs que ficaram para trás ao último registrado.
+
+O rebase move a branch do Goal fora de fast-forward também no repositório do
+humano, e a conferência que outro Goal faz dele depois de cada sessão
+(orquestrador/conferencia_do_humano.py) só não o conta como perda pelo que
+está aqui: `ramos_dos_outros_goals` dá a ela a branch de cada outro Goal do
+mesmo repositório e os pares de antes e de depois das Evidence de rebase dele.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from functools import partial
+import os
+from pathlib import Path
 from typing import Any
 
 from graphow.core import aceite as a
@@ -40,12 +49,13 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.patch_models import ItemPatch
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.conferencia_do_humano import LeitorDosOutrosGoals, RamoDeOutroGoal
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal
 from graphow.orquestrador.correcoes import normalizar_caminho
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.git_do_goal import TRAILER_DA_TASK, GitDoGoal, commits_entre
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
-from graphow.orquestrador.livro_razao import aresta, propriedade
+from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
 from graphow.orquestrador.rebase_no_clone import RebaseNoClone, mover_as_refs, recuperar_o_clone
 from graphow.orquestrador.tipo_da_verificacao import arquivos_dos_criterios
 from graphow.projection.graph_view import GrafoView
@@ -166,3 +176,31 @@ def retomar_o_rebase(contexto: ContextoDoGoal) -> None:
     if rebases:
         antes, depois = (str(rebases[-1].obter_propriedade(chave) or "") for chave in (CAMPO_COMMIT_ANTES, m.CAMPO_COMMIT))
         mover_as_refs(contexto.area_do_goal, antes, depois)
+
+
+def leitor_dos_outros_goals(livro: LivroRazaoDoGoal) -> LeitorDosOutrosGoals:
+    """O que a conferência do repositório do humano recebe para reconhecer o rebase de outro Goal: as branches dos outros
+    Goals do grafo, lidas na hora em que ela pede (orquestrador/conferencia_do_humano.py)."""
+    return partial(ramos_dos_outros_goals, livro.view, livro.id_goal)
+
+
+def ramos_dos_outros_goals(view: Callable[[], GrafoView], id_goal: str, repositorio: Path) -> tuple[RamoDeOutroGoal, ...]:
+    """A branch de cada outro Goal orquestrado no mesmo repositório (o `ramo` exato da configuração dele), com o par de cada
+    rebase que o orquestrador dele registrou, pela ordem."""
+    grafo, alvo = view(), _mesmo_caminho(str(repositorio))
+    goals = [(goal.id, goal.obter_propriedade(m.CAMPO_ORQUESTRACAO)) for goal in grafo.listar_nos_por_tipo(TipoNo.GOAL)]
+    configurados = [(goal, configuracao) for goal, configuracao in goals if goal != id_goal and isinstance(configuracao, Mapping)]
+    return tuple(RamoDeOutroGoal(goal, f"refs/heads/{configuracao['ramo']}", _pares_dos_rebases(grafo, goal))
+                 for goal, configuracao in configurados
+                 if configuracao.get("ramo") and _mesmo_caminho(str(configuracao.get("repositorio") or "")) == alvo)
+
+
+def _pares_dos_rebases(view: GrafoView, id_goal: str) -> tuple[tuple[str, str], ...]:
+    """O commit de antes e o de depois de cada rebase registrado do Goal."""
+    return tuple((str(no.obter_propriedade(CAMPO_COMMIT_ANTES) or ""), str(no.obter_propriedade(m.CAMPO_COMMIT) or ""))
+                 for no in rebases_do_goal(view, id_goal))
+
+
+def _mesmo_caminho(caminho: str) -> str:
+    """O caminho do repositório comparável: absoluto, resolvido e na caixa do sistema; vazio sem caminho."""
+    return os.path.normcase(str(Path(caminho).resolve())) if caminho else ""

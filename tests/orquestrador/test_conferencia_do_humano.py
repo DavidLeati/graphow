@@ -6,7 +6,12 @@ import re
 
 import pytest
 
-from graphow.orquestrador.conferencia_do_humano import RepositorioDoHumanoMexido, conferir_as_fotos, conferir_o_humano
+from graphow.orquestrador.conferencia_do_humano import (
+    RamoDeOutroGoal,
+    RepositorioDoHumanoMexido,
+    conferir_as_fotos,
+    conferir_o_humano,
+)
 from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao, fotografar_o_humano
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
@@ -16,7 +21,13 @@ VOLTOU: str = "voltou ao conteudo do HEAD ou do indice de antes da sessao"
 SUMIU: str = "sumiu da arvore sem ir a um commit"
 SOBRESCRITO: str = "foi sobrescrito por um conteudo que o git ja tinha, e o de antes nao ficou em commit nem no indice"
 TROCADA: str = "indice INDICE.txt: a entrada foi trocada por um conteudo que o git ja tinha"
+GOAL_B: str = "goal-outro"
+RAMO_B: str = "refs/heads/graphow/outro"
+DO_GOAL_B: str = f"Graphow-Goal: {GOAL_B}"
 Acao = Callable[[Path], object]
+# A sessão que mexe na branch do outro Goal: recebe o repositório, a base nova e a ponta da branch, e devolve os rebases
+# (antes, depois) que o grafo registra dele.
+Sessao = Callable[[Path, str, str], tuple[tuple[str, str], ...]]
 
 
 def _humano(pasta: Path) -> Path:
@@ -191,3 +202,157 @@ def test_humano_que_commita_o_sujo_e_troca_de_branch_avanca_nominal(tmp_path: Pa
         f"INDICE.txt mudou, e o conteudo de antes {na_main}", f"indice INDICE.txt: a entrada mudou, e o conteudo preparado {na_main}",
         f"NOTAS.txt mudou, e o conteudo de antes {na_main}", f"rascunho.txt sumiu, e o conteudo de antes {na_main}"])
 
+
+def _commit(repositorio: Path, pai: str, *paragrafos: str) -> str:
+    """Um commit novo sobre o pai, com a árvore dele; cada parágrafo vai num `-m`."""
+    return git(repositorio, "commit-tree", f"{pai}^{{tree}}", "-p", pai, *(f"-m{paragrafo}" for paragrafo in paragrafos)).strip()
+
+
+def _outro_goal(pasta: Path, *paragrafos: str) -> tuple[Path, str, str]:
+    """A branch do outro Goal com um commit dele (os parágrafos dados, o trailer dele por padrão) sobre a base de antes, e a
+    base que andou; devolve o repositório, a base nova e a ponta da branch."""
+    repositorio = criar_repositorio(pasta)
+    inicial = git(repositorio, "rev-parse", "HEAD").strip()
+    git(repositorio, "commit", "-q", "--allow-empty", "-m", "A base andou")
+    ponta = _commit(repositorio, inicial, "Plano do outro Goal", *(paragrafos or (DO_GOAL_B,)))
+    git(repositorio, "update-ref", RAMO_B, ponta)
+    return repositorio, git(repositorio, "rev-parse", "HEAD").strip(), ponta
+
+
+def _reaplicar(repositorio: Path, base: str, ponta: str) -> str:
+    """O rebase: cada commit da ponta que a base não tem, refeito sobre ela com a mesma mensagem."""
+    novo = base
+    for commit in git(repositorio, "rev-list", "--reverse", ponta, "--not", base).split():
+        mensagem = git(repositorio, "log", "-1", "--format=%B", commit).strip()
+        novo = git(repositorio, "commit-tree", f"{commit}^{{tree}}", "-p", novo, f"-m{mensagem}").strip()
+    return novo
+
+
+def _rebase(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O outro Goal refaz a branch sobre a base nova e registra o par."""
+    novo = _reaplicar(repositorio, base, ponta)
+    git(repositorio, "update-ref", RAMO_B, novo, ponta)
+    return ((ponta, novo),)
+
+
+def _commit_depois_do_rebase(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase e, depois, uma fatia do outro Goal por cima."""
+    rebases = _rebase(repositorio, base, ponta)
+    git(repositorio, "update-ref", RAMO_B, _commit(repositorio, rebases[0][1], "Fatia", DO_GOAL_B))
+    return rebases
+
+
+def _commit_antes_do_rebase(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """Uma fatia do outro Goal e, depois, o rebase dela."""
+    fatia = _commit(repositorio, ponta, "Fatia", DO_GOAL_B)
+    git(repositorio, "update-ref", RAMO_B, fatia)
+    return _rebase(repositorio, base, fatia)
+
+
+def _dois_rebases(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase e, com a base andando de novo, outro rebase da ponta nova."""
+    ((_, primeiro),) = _rebase(repositorio, base, ponta)
+    segundo = _reaplicar(repositorio, _commit(repositorio, base, "A base andou de novo"), primeiro)
+    git(repositorio, "update-ref", RAMO_B, segundo, primeiro)
+    return ((ponta, primeiro), (primeiro, segundo))
+
+
+def _so_fast_forward(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """Uma fatia do outro Goal, sem rebase."""
+    git(repositorio, "update-ref", RAMO_B, _commit(repositorio, ponta, "Fatia", DO_GOAL_B))
+    return ()
+
+
+def _conferir_o_rebase(repositorio: Path, sessao: Sessao, *, base: str, ponta: str, com_leitor: bool = True) -> tuple[list[str], int]:
+    """As mudanças da sessão (sem os hashes), com o leitor dos outros Goals do grafo (este e um terceiro), e quantas vezes ele
+    foi lido."""
+    antes = foto_antes_da_sessao(repositorio)
+    assert antes is not None
+    rebases = sessao(repositorio, base, ponta)
+    lidos: list[Path] = []
+
+    def leitor(alvo: Path) -> list[RamoDeOutroGoal]:
+        lidos.append(alvo)
+        return [RamoDeOutroGoal(GOAL_B, RAMO_B, rebases), RamoDeOutroGoal("goal-terceiro", "refs/heads/graphow/terceiro")]
+
+    mexido = conferir_as_fotos(antes, fotografar_o_humano(repositorio, antes.listados), leitor if com_leitor else None)
+    assert set(lidos) <= {repositorio}
+    return [("perda: " if texto in mexido.perdas else "") + HASH.sub("#", texto) for texto in (*mexido.perdas, *mexido.avancos)], len(lidos)
+
+
+REFEITA: str = f"ref {RAMO_B} refeita pelo rebase do Goal {GOAL_B} (# -> #)"
+FORA: str = f"perda: ref {RAMO_B} andou fora de fast-forward (# -> #)"
+SEM_REBASE: str = f"{FORA}; e a branch do Goal {GOAL_B}, mas nenhum rebase registrado dele a leva ate ali"
+SEM_TRAILER: str = f"{FORA}; e a branch do Goal {GOAL_B}, mas saiu da historia commit sem {DO_GOAL_B} (#)"
+REBASES_QUE_SEGUEM: list[tuple[str, Sessao, list[str], int]] = [
+    ("rebase", _rebase, [REFEITA], 1),
+    ("fatia_depois_do_rebase", _commit_depois_do_rebase, [REFEITA], 1),
+    ("fatia_antes_do_rebase", _commit_antes_do_rebase, [REFEITA], 1),
+    ("dois_rebases", _dois_rebases, [REFEITA], 1),
+    ("so_fast_forward", _so_fast_forward, [f"ref {RAMO_B} andou por fast-forward (# -> #)"], 0),
+]
+
+
+@pytest.mark.parametrize(("sessao", "esperado", "lidos"), [caso[1:] for caso in REBASES_QUE_SEGUEM],
+                         ids=[caso[0] for caso in REBASES_QUE_SEGUEM])
+def test_rebase_de_outro_goal_com_a_evidence_dele_segue_nominal(tmp_path: Path, sessao: Sessao, esperado: list[str], lidos: int) -> None:
+    """T3a8.2: o outro Goal refaz a branch dele sobre a base nova (e commita antes ou depois), com o par registrado; não é
+    perda. O grafo só é lido quando uma ref anda fora de fast-forward, e uma vez."""
+    repositorio, base, ponta = _outro_goal(tmp_path / "humano")
+
+    assert _conferir_o_rebase(repositorio, sessao, base=base, ponta=ponta) == (esperado, lidos)
+
+
+def _rebase_sem_registro(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase da branch, sem a Evidence dele no grafo."""
+    _rebase(repositorio, base, ponta)
+    return ()
+
+
+def _rebase_com_o_par_de_outro(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase da branch, com a Evidence de outro par: ela chega à ponta nova, mas parte de um commit que não é o de antes
+    nem vem depois dele."""
+    (_, novo), = _rebase(repositorio, base, ponta)
+    return ((base, novo),)
+
+
+def _rebase_e_branch_apagada(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase registrado e a branch apagada no repositório do humano."""
+    novo = _reaplicar(repositorio, base, ponta)
+    git(repositorio, "update-ref", "-d", RAMO_B)
+    return ((ponta, novo),)
+
+
+def _rebase_da_parecida(repositorio: Path, base: str, ponta: str) -> tuple[tuple[str, str], ...]:
+    """O rebase de `graphow/outra`, que não é a branch de Goal nenhum, com o par registrado na branch do outro Goal."""
+    novo = _reaplicar(repositorio, base, ponta)
+    git(repositorio, "update-ref", "refs/heads/graphow/outra", novo, ponta)
+    return ((ponta, novo),)
+
+
+def test_rebase_de_outro_goal_sem_o_que_o_justifica_para_edge_case(tmp_path: Path) -> None:
+    """T3a8.2, contraprova: a branch do outro Goal fora de fast-forward para sem o leitor do grafo, sem o rebase registrado,
+    com o par de outro rebase, e com um commit sem o trailer dele (do humano, no corpo da mensagem ou de outro Goal) que sai."""
+    repositorio, base, ponta = _outro_goal(tmp_path / "sem-leitor")
+    assert _conferir_o_rebase(repositorio, _rebase, base=base, ponta=ponta, com_leitor=False) == ([FORA], 0)
+    for nome, sessao in (("sem-rebase", _rebase_sem_registro), ("outro-par", _rebase_com_o_par_de_outro)):
+        repositorio, base, ponta = _outro_goal(tmp_path / nome)
+        assert _conferir_o_rebase(repositorio, sessao, base=base, ponta=ponta) == ([SEM_REBASE], 1), nome
+    for nome, paragrafos in (("no-corpo", (DO_GOAL_B, "Um paragrafo depois")), ("de-outro-goal", ("Graphow-Goal: goal-terceiro",))):
+        repositorio, base, ponta = _outro_goal(tmp_path / nome, *paragrafos)
+        assert _conferir_o_rebase(repositorio, _rebase, base=base, ponta=ponta) == ([SEM_TRAILER], 1), nome
+    repositorio, base, ponta = _outro_goal(tmp_path / "do-humano")
+    do_humano = _commit(repositorio, ponta, "Commit do humano na branch do outro Goal")
+    git(repositorio, "update-ref", RAMO_B, do_humano)
+    assert _conferir_o_rebase(repositorio, _rebase, base=base, ponta=do_humano) == ([SEM_TRAILER], 1), "so o do humano"
+
+
+def test_ref_parecida_e_branch_apagada_do_outro_goal_sao_perda_edge_case(tmp_path: Path) -> None:
+    """T3a8.2: a ref com o prefixo `graphow/` que não é a branch de um Goal é perda, mesmo com o par igual ao de um rebase
+    registrado; e a branch apagada do outro Goal também."""
+    repositorio, base, ponta = _outro_goal(tmp_path / "parecida")
+    git(repositorio, "update-ref", "refs/heads/graphow/outra", ponta)
+    assert _conferir_o_rebase(repositorio, _rebase_da_parecida, base=base, ponta=ponta) == (
+        ["perda: ref refs/heads/graphow/outra andou fora de fast-forward (# -> #)"], 1)
+    repositorio, base, ponta = _outro_goal(tmp_path / "apagada")
+    assert _conferir_o_rebase(repositorio, _rebase_e_branch_apagada, base=base, ponta=ponta) == ([f"perda: ref {RAMO_B} apagada (era #)"], 0)

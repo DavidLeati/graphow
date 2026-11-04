@@ -18,7 +18,12 @@ que a recupera:
 - o mesmo para o conteúdo preparado no índice, que sai ou dá lugar a um que o
   git já tinha sem ficar na árvore, no índice, no HEAD nem numa ponta que andou;
 - o arquivo rastreado limpo que sumiu sem a remoção ir a um commit;
-- a ref apagada ou que andou fora de fast-forward;
+- a ref apagada, ou que andou fora de fast-forward, salvo a branch de outro
+  Goal do grafo no mesmo repositório que o rebase dele refez: o par de antes e
+  de depois segue os rebases que o orquestrador dele registrou (Evidence
+  `rebase_do_goal`, lida do grafo pelo leitor que a conferência recebe), e todo
+  commit que sai da história traz `Graphow-Goal: <aquele Goal>` no bloco de
+  trailers. Sem o leitor, a ref fora de fast-forward é perda;
 - um arquivo que muda o que o git roda (orquestrador/arquivos_do_git.py: a
   configuração, os includes, os hooks, o exclude e o reflog do stash): um
   `core.hooksPath` plantado roda código do agente no próximo commit do
@@ -28,19 +33,19 @@ repositório do humano; mudou algum, a parada vem dali, sem rodar mais git, e
 diz qual arquivo mudou. Só com eles iguais a foto de depois roda o git.
 É avanço, que segue com uma Note no livro-razão: o arquivo novo ou que mudou
 para um conteúdo novo (ou cujo conteúdo de antes ficou num commit), a entrada
-nova no índice, a ref nova ou que andou por fast-forward e a troca de HEAD,
-com as mudanças carregadas. Cada linha tem o seu caso em
-tests/orquestrador/test_conferencia_do_humano.py.
+nova no índice, a ref nova, a que andou por fast-forward ou que o rebase de
+outro Goal refez e a troca de HEAD, com as mudanças carregadas. Cada linha tem
+o seu caso em tests/orquestrador/test_conferencia_do_humano.py.
 
 O lado seguro tem custo: do humano, também param o `git stash` (o reflog
 muda), o `commit --amend`, o rebase, o `git config`, a edição da configuração
 global ou de um hook versionado (husky, `.githooks/`) e o `mv` de arquivo
-mudado ou solto; de outro Goal, o rebase da branch dele.
+mudado ou solto.
 """
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from functools import partial
+from functools import cache, partial
 from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
@@ -48,11 +53,13 @@ from graphow.orquestrador.arquivos_do_git import AUSENTE, conteudo_do_arquivo, l
 from graphow.orquestrador.foto_do_humano import (
     NAO_RASTREADO,
     FotoDoHumano,
+    commits_sem_o_goal,
     fotografar_o_humano,
     objetos_nos_commits,
     soltos_da_salvaguarda,
 )
 from graphow.orquestrador.git_da_foto import e_ancestral_no_humano
+from graphow.orquestrador.git_do_goal import TRAILER_DO_GOAL
 from graphow.orquestrador.salvaguarda_do_humano import Salvaguarda, comandos_de_recuperacao
 
 MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
@@ -93,13 +100,28 @@ class HumanoMexido:
 
 
 @dataclass(frozen=True)
+class RamoDeOutroGoal:
+    """A branch (`refs/heads/<ramo>`) de outro Goal do grafo no mesmo repositório e o par (antes, depois) de cada rebase que o
+    orquestrador dele registrou, pela ordem."""
+
+    goal: str
+    ref: str
+    rebases: tuple[tuple[str, str], ...] = ()
+
+
+# Quem lê do grafo as branches dos outros Goals do repositório dado (orquestrador/registro_do_rebase.py).
+LeitorDosOutrosGoals = Callable[[Path], Sequence[RamoDeOutroGoal]]
+
+
+@dataclass(frozen=True)
 class _Conferencia:
-    """As duas fotos e o que a conferência consulta no git do humano: a história e o objeto de cada caminho nos commits de
-    antes e de depois."""
+    """As duas fotos e o que a conferência consulta no git do humano: a história, as branches dos outros Goals (lidas do grafo
+    uma vez, só quando uma ref anda fora de fast-forward) e o objeto de cada caminho nos commits de antes e de depois."""
 
     antes: FotoDoHumano
     depois: FotoDoHumano
     e_ancestral: Callable[[str, str], bool]
+    ramos: Callable[[], Mapping[str, RamoDeOutroGoal]]
     objetos: Mapping[tuple[str, str], str] = field(default_factory=dict)
 
 
@@ -117,12 +139,13 @@ class RepositorioDoHumanoMexido(GraphowError):
     """O repositório do humano perdeu trabalho durante a sessão de papel: o laço para em FALHA."""
 
 
-def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None) -> None:
+def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None,
+                      outros_goals: LeitorDosOutrosGoals | None = None) -> None:
     """Depois da sessão, a foto refeita; o que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`)."""
     if antes is None:
         return
     mexido = conferir_os_arquivos_do_git(antes) or conferir_as_fotos(
-        antes, fotografar_o_humano(antes.repositorio, antes.listados, vigia=antes.vigia))
+        antes, fotografar_o_humano(antes.repositorio, antes.listados, vigia=antes.vigia), outros_goals)
     if not mexido.perdas and not mexido.avancos:
         return
     if registrar is not None:
@@ -146,9 +169,10 @@ def conferir_os_arquivos_do_git(antes: FotoDoHumano) -> HumanoMexido | None:
                         arvore_conferida=False)
 
 
-def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano) -> HumanoMexido:
-    """O que mudou de uma foto para a outra, separado em perda e avanço."""
-    conferencia = _conferencia(antes, depois)
+def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None = None) -> HumanoMexido:
+    """O que mudou de uma foto para a outra, separado em perda e avanço; sem o leitor dos outros Goals, nenhuma ref fora de
+    fast-forward é o rebase de um deles."""
+    conferencia = _conferencia(antes, depois, outros_goals)
     do_git = _do_git(antes.do_git, depois.do_git)
     mudancas = [*_refs(conferencia), *_cabeca(antes, depois), *_arquivos(conferencia), *do_git]
     soltos = tuple(caminho for caminho in soltos_da_salvaguarda(antes) if depois.conteudos.get(caminho) == AUSENTE)
@@ -185,10 +209,11 @@ def _aviso_do_git(mexido: HumanoMexido) -> str:
             "rodar qualquer git nesse repositorio, inclusive os comandos de recuperacao, que rodariam o que foi plantado.")
 
 
-def _conferencia(antes: FotoDoHumano, depois: FotoDoHumano) -> _Conferencia:
+def _conferencia(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None) -> _Conferencia:
     """O que a conferência consulta: o objeto, nos commits de antes e de depois, de cada caminho que mudou para um conteúdo que
     o git sabe (ou sumiu), num processo só, e nenhum quando não há caminho assim."""
-    conferencia = _Conferencia(antes, depois, partial(e_ancestral_no_humano, antes.repositorio))
+    ramos = cache(lambda: {ramo.ref: ramo for ramo in (outros_goals(antes.repositorio) if outros_goals is not None else ())})
+    conferencia = _Conferencia(antes, depois, partial(e_ancestral_no_humano, antes.repositorio), ramos)
     caminhos = [caminho for caminho in antes.listados if _pede_os_commits(caminho, antes, depois)]
     commits = {antes.cabeca.rpartition(" ")[2], *antes.refs.values(), *(commit for _, commit in _pontas_de_depois(antes, depois))}
     return replace(conferencia, objetos=objetos_nos_commits(antes.repositorio, ((c, caminho) for caminho in caminhos for c in commits)))
@@ -208,7 +233,8 @@ def _pontas_de_depois(antes: FotoDoHumano, depois: FotoDoHumano) -> tuple[tuple[
 
 
 def _refs(conferencia: _Conferencia) -> Iterator[Mudanca]:
-    """A ref apagada ou que andou fora de fast-forward é perda; a nova e a que andou por fast-forward, avanço."""
+    """A ref apagada é perda; a que andou fora de fast-forward também, salvo o rebase de outro Goal; a nova e a que andou por
+    fast-forward, avanço."""
     antes, depois = conferencia.antes, conferencia.depois
     for nome in sorted(set(antes.refs) | set(depois.refs)):
         era, agora = antes.refs.get(nome, ""), depois.refs.get(nome, "")
@@ -218,7 +244,34 @@ def _refs(conferencia: _Conferencia) -> Iterator[Mudanca]:
             yield (not agora, f"ref {nome} " + (f"apagada (era {era})" if era else f"nova ({agora})"))
             continue
         avancou = conferencia.e_ancestral(era, agora)
-        yield (not avancou, f"ref {nome} andou {'por' if avancou else 'fora de'} fast-forward ({era} -> {agora})")
+        yield (False, f"ref {nome} andou por fast-forward ({era} -> {agora})") if avancou else _fora_de_fast_forward(nome, conferencia)
+
+
+def _fora_de_fast_forward(nome: str, conferencia: _Conferencia) -> Mudanca:
+    """A ref fora de fast-forward é perda, salvo a branch de outro Goal (pelo nome exato) que os rebases registrados dele levam
+    de antes a depois sem tirar da história commit sem o trailer dele."""
+    era, agora = conferencia.antes.refs[nome], conferencia.depois.refs[nome]
+    texto, ramo = f"ref {nome} andou fora de fast-forward ({era} -> {agora})", conferencia.ramos().get(nome)
+    if ramo is None:
+        return True, texto
+    if not _refeita_pelos_rebases((era, agora), ramo, conferencia.e_ancestral):
+        return True, f"{texto}; e a branch do Goal {ramo.goal}, mas nenhum rebase registrado dele a leva ate ali"
+    alheios = commits_sem_o_goal(conferencia.antes.repositorio, era, agora, goal=ramo.goal)
+    if alheios is None or alheios:
+        sem = ", ".join(resumo(alheios)) if alheios else "o git nao listou os commits"
+        return True, f"{texto}; e a branch do Goal {ramo.goal}, mas saiu da historia commit sem {TRAILER_DO_GOAL}: {ramo.goal} ({sem})"
+    return False, f"ref {nome} refeita pelo rebase do Goal {ramo.goal} ({era} -> {agora})"
+
+
+def _refeita_pelos_rebases(par: tuple[str, str], ramo: RamoDeOutroGoal, e_ancestral: Callable[[str, str], bool]) -> bool:
+    """De antes a depois pelos rebases registrados do Goal: cada um parte da ponta de então (ou de um commit depois dela, o Goal
+    que commitou antes do rebase), e o último chega a depois (ou a um commit antes dele, o Goal que commitou depois)."""
+    era, agora = par
+    ponta = era
+    for de, para in ramo.rebases:
+        if de == ponta or e_ancestral(ponta, de):
+            ponta = para
+    return ponta != era and (ponta == agora or e_ancestral(ponta, agora))
 
 
 def _cabeca(antes: FotoDoHumano, depois: FotoDoHumano) -> list[Mudanca]:

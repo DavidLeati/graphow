@@ -49,6 +49,7 @@ from graphow.orquestrador.arquivos_do_git import (
     ler_os_arquivos_do_git,
 )
 from graphow.orquestrador.git_da_foto import git_da_foto
+from graphow.orquestrador.git_do_goal import TRAILER_DO_GOAL
 from graphow.orquestrador.salvaguarda_do_humano import PedidoDeSalvaguarda, Salvaguarda, salvaguardar
 
 # Quantos campos o registro do `status --porcelain=v2` tem antes do caminho, por tipo (mudado, renomeado, em conflito, solto).
@@ -212,4 +213,15 @@ def objetos_nos_commits(repositorio: Path, pedidos: Iterable[tuple[str, str]]) -
     entrada = "".join(f"{commit}:{caminho}\n" for commit, caminho in lista).encode("utf-8")
     saida = (git_da_foto(repositorio, ("cat-file", "--batch-check=%(objectname)"), entrada=entrada) or "").splitlines()
     return {pedido: objeto for pedido, objeto in zip(lista, saida) if OBJETO_DO_GIT.fullmatch(objeto)} if len(saida) == len(lista) else {}
+
+
+def commits_sem_o_goal(repositorio: Path, era: str, agora: str, *, goal: str) -> tuple[str, ...] | None:
+    """Os commits que saíram da história (`log <era> --not <agora>`) sem `Graphow-Goal: <goal>` no bloco de trailers;
+    None quando o git falha."""
+    formato = f"--format=%H%n%(trailers:key={TRAILER_DO_GOAL},valueonly,unfold)"
+    saida = git_da_foto(repositorio, ("log", "-z", "--no-show-signature", formato, era, "--not", agora, "--"))
+    if saida is None:
+        return None
+    registros = [registro.strip().splitlines() for registro in saida.split("\x00") if registro.strip()]
+    return tuple(linhas[0] for linhas in registros if goal not in (valor.strip() for valor in linhas[1:]))
 

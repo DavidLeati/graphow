@@ -32,7 +32,7 @@ from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
 from graphow.orquestrador.comandos_do_stream import comandos_bash, comandos_nao_rodados, problema_dos_comandos
-from graphow.orquestrador.conferencia_do_humano import RegistroDoHumanoMexido, conferir_o_humano
+from graphow.orquestrador.conferencia_do_humano import LeitorDosOutrosGoals, RegistroDoHumanoMexido, conferir_o_humano
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_AUTOR_DE_ACEITE,
@@ -104,6 +104,7 @@ class ConfiguracaoDasSessoes:
     repositorio_do_humano: Path | None = None
     registrar_humano_mexido: RegistroDoHumanoMexido | None = None
     salvaguarda_do_humano: Path | None = None
+    outros_goals: LeitorDosOutrosGoals | None = None
 
 
 @dataclass(frozen=True)
@@ -171,7 +172,8 @@ class SessoesDePapel:
             resposta = self._rodar_e_conferir(pedido)
         finally:
             desfeito = restaurar_o_clone(foto)
-            conferir_o_humano(humano, pedido.papel, pedido.fatia, registrar=self._configuracao.registrar_humano_mexido)
+            conferir_o_humano(humano, pedido.papel, pedido.fatia, registrar=self._configuracao.registrar_humano_mexido,
+                              outros_goals=self._configuracao.outros_goals)
         return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
