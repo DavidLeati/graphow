@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**18 alas · 322 módulos · 47975 linhas · 553 classes**
+**18 alas · 323 módulos · 48108 linhas · 555 classes**
 
 ---
 
@@ -76,7 +76,7 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1749 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
-| 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 5 | 566 | 8 |
+| 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 6 | 699 | 10 |
 | 17 | [Bancada de Medição](setores/17_bancada.md) | `graphow.bancada` | 14 | 1933 | 28 |
 | 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 61 | 11640 | 85 |
 

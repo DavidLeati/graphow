@@ -9,6 +9,7 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.trava_do_git import ARQUIVO_DO_HOOK, configuracao_do_hook
+from graphow.orquestrador.trava_do_goal import processo_vivo
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import SOMA_CERTA, VERIFICAR, Bancada, executor_pronto, montar_bancada, roteiro_completo
@@ -132,3 +133,41 @@ def test_planejador_que_mexe_no_claude_falha_e_o_motivo_fica_no_livro_edge_case(
     [nota] = _notas_da_trava(bancada)
     assert nota["papel"] == "planejador" and nota["fatia"] == ""
     assert not (Path(bancada.chamadas("planejador")[0]["cwd"]) / ".claude").exists()
+
+
+# O processo que o executor deixa vivo: espera a próxima sessão regravar o settings do hook e o troca por `{}`.
+VIGIA: str = """import time
+from pathlib import Path
+settings = Path("..") / "settings-da-trava.json"
+antes = settings.stat().st_mtime_ns
+limite = time.monotonic() + 120
+while time.monotonic() < limite:
+    if settings.stat().st_mtime_ns != antes:
+        settings.write_text("{}", encoding="utf-8")
+        break
+    time.sleep(0.02)
+"""
+# O comando do executor: abre o vigia solto, sem prender a saída dele, e imprime o PID.
+DEIXA_VIVO: str = ("import subprocess, sys; nulo = subprocess.DEVNULL; "
+                   "print(subprocess.Popen([sys.executable, sys.argv[1]], stdin=nulo, stdout=nulo, stderr=nulo).pid)")
+
+
+def test_processo_deixado_vivo_pela_sessao_morre_antes_da_conferencia_edge_case(tmp_path: Path) -> None:
+    """T3a3.3: o executor deixa vivo um processo que reescreveria o settings do hook na sessão seguinte.
+
+    Ele morre com a árvore da sessão, antes da conferência dela: nenhuma
+    sessão leva a culpa, o settings segue íntegro e o Goal fecha.
+    """
+    (tmp_path / "vigia.py").write_text(VIGIA, encoding="utf-8")
+    roteiro = roteiro_completo()
+    roteiro["executor"][0] = {**roteiro["executor"][0], "comandos": [[sys.executable, "-c", DEIXA_VIVO, str(tmp_path / "vigia.py")]]}
+    bancada = montar_bancada(tmp_path, roteiro)
+
+    _rodar(bancada)
+
+    primeira = bancada.chamadas("executor")[0]
+    vigia = int(primeira["comandos"][0]["saida"].strip())
+    assert not processo_vivo(vigia), "o processo que a sessao deixou vivo sobreviveu a ela"
+    assert _notas_da_trava(bancada) == []
+    settings = Path(primeira["argv"][primeira["argv"].index("--settings") + 1])
+    assert json.loads(settings.read_text(encoding="utf-8")) == configuracao_do_hook()

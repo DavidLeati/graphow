@@ -10,14 +10,45 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-5 módulos · 566 linhas · 8 classes
+6 módulos · 699 linhas · 10 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
+| [`sessoes/arvore_da_sessao.py`](#sessoesarvoredasessao) | 157 | A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo esgotado e no fim normal. |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
 | [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 197 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 79 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 235 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 211 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+
+## `sessoes/arvore_da_sessao.py`
+
+A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo esgotado e no fim normal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NO_WINDOWS` | `bool` | `os.name == 'nt'` |
+| `TEMPO_DO_TASKKILL_S` | `float` | `30.0` |
+| `TEMPO_PARA_O_JOB_ESVAZIAR_S` | `float` | `5.0` |
+| `CRIACAO_DA_SESSAO` | `int` | `4 if NO_WINDOWS else 0` |
+| `ACESSO_AO_PROCESSO` | `int` | `256 | 1 | 2048` |
+| `CONTABILIDADE_DO_JOB` | `int` | `1` |
+| `CODIGO_DA_ARVORE_MORTA` | `int` | `1` |
+
+### `ArvoreDaSessao`
+
+*DTO imutável* — O PID da sessão e, no Windows, a alça do Job Object em que ela e os descendentes dela nascem.
+
+**Campos:** `pid: int`, `job: int | None`
+
+### `_ContabilidadeDoJob` (ctypes.Structure)
+
+*serviço* — JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: os quatro tempos e as contagens de processos do job.
+
+### Funções do módulo
+
+- `prender_a_arvore(processo: subprocess.Popen[bytes]) -> ArvoreDaSessao` — No Windows, põe o processo (nascido suspenso) num Job Object e o solta; no POSIX, o grupo dele já é a árvore.
+- `matar_a_arvore(processo: subprocess.Popen[bytes], arvore: ArvoreDaSessao) -> None` — A sessão e tudo o que nasceu dela, vivo ou órfão; no Windows, espera o job esvaziar.
+- `matar_arvore(processo: subprocess.Popen[bytes]) -> None` — O processo e os descendentes dele, a partir do PID; o próprio processo morre de qualquer jeito.
 
 ## `sessoes/executavel.py`
 
@@ -109,11 +140,6 @@ O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em qu
 
 Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `NO_WINDOWS` | `bool` | `os.name == 'nt'` |
-| `TEMPO_DO_TASKKILL_S` | `float` | `30.0` |
-
 ### `ExecutorDeSessao`
 
 *serviço* — Lança o `claude -p` de cada pedido e espera por ele até o tempo limite.
@@ -144,6 +170,5 @@ Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 
 ### Funções do módulo
 
-- `matar_arvore(processo: subprocess.Popen[bytes]) -> None` — O processo e os descendentes dele, a partir do PID; o próprio processo morre de qualquer jeito.
 - `em_iso(instante: datetime) -> str` — O instante em ISO 8601 com fuso, em segundos.
 

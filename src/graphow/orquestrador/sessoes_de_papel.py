@@ -216,7 +216,7 @@ class SessoesDePapel:
         return resultado
 
     def _invocar(self, pedido: PedidoDePapel, prompt: str, retomar: str) -> ResultadoDeSessao:
-        """Uma invocação de `claude -p`, com a trava selada antes e conferida depois; a telemetria nasce em andamento."""
+        """Uma invocação de `claude -p`: a trava selada antes e conferida depois que a árvore dela morreu; a telemetria nasce em andamento."""
         sufixo = "-retomada" if retomar else ""
         nome = "-".join(parte for parte in (pedido.papel, pedido.fatia, f"t{pedido.tentativa}") if parte) + sufixo
         arquivo = self._configuracao.pasta_das_sessoes / f"{nome}-{_marca_da_invocacao()}.jsonl"

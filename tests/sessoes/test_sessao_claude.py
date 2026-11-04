@@ -15,6 +15,7 @@ from tests.sessoes.apoio import (
     comando_do_falso,
     criar_executavel_falso,
     esperar_fim,
+    processo_vivo,
 )
 
 PROMPT: str = "Implemente a demanda descrita em ../spec.md. Não faça perguntas."
@@ -123,6 +124,22 @@ def test_tempo_esgotado_mata_a_arvore_aberta_por_um_cmd_edge_case(tmp_path: Path
     assert resultado.tempo_esgotado is True
     assert esperar_fim(int(str(chamada["pid"]))), "o claude aberto pelo .cmd sobreviveu ao tempo esgotado"
     assert esperar_fim(int(str(chamada["pid_do_filho"]))), "o filho que a sessao abriu sobreviveu ao tempo esgotado"
+
+
+def test_fim_normal_mata_o_filho_que_a_sessao_deixou_vivo_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (T3a3.3): a sessão aberta pelo `.cmd` sai bem e deixa vivo um filho, órfão do falso que saiu.
+
+    Ele podia mexer no clone depois da conferência da sessão: morre antes de `rodar` voltar.
+    """
+    falso = criar_executavel_falso(tmp_path / "bin")
+    registro = tmp_path / "registro"
+    executor = ExecutorDeSessao((str(falso),), ambiente_de_teste(registro, GRAPHOW_TESTE_FILHO="1"))
+
+    resultado = executor.rodar(_pedido(tmp_path))
+
+    chamada = chamadas_registradas(registro)[0]
+    assert (resultado.tempo_esgotado, resultado.codigo_saida) == (False, 0)
+    assert not processo_vivo(int(str(chamada["pid_do_filho"]))), "o filho que a sessao deixou sobreviveu ao fim dela"
 
 
 def test_codigo_de_saida_diferente_de_zero_e_erro_edge_case(tmp_path: Path) -> None:

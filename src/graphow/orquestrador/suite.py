@@ -30,7 +30,7 @@ import shutil
 import subprocess
 
 from graphow.sessoes.pedido import VARIAVEL_DO_BANCO
-from graphow.sessoes.sessao_claude import NO_WINDOWS, matar_arvore
+from graphow.sessoes.arvore_da_sessao import NO_WINDOWS, matar_arvore
 
 VARIAVEL_DO_SHELL: str = "GRAPHOW_SHELL"
 # A variável com que o Claude Code acha o Git Bash no Windows: o orquestrador acha o mesmo.
