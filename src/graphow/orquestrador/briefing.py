@@ -143,12 +143,15 @@ def _suite_e_aceite(estado: EstadoDoGoal) -> list[str]:
     return linhas
 
 
-def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, motivo: str = "") -> str:
+def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, motivo: str = "", mesclada: str = "") -> str:
     """O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões e o que mudou."""
     plano = estado.plano or {}
+    onde = (f"A mudanca da fatia esta na pasta atual, fora de commit, sobre a ponta do Goal com a base nova mesclada: veja com "
+            f"`git diff {mesclada}` (o `git diff HEAD` mostra tambem o que a base trouxe, que nao e da fatia)." if mesclada else
+            "A mudanca da fatia esta na pasta atual, fora de commit: veja com `git status` e `git diff HEAD`.")
     return _juntar([
         f"# Revisao da fatia de risco {fatia.codigo} do Goal {estado.id_goal}: {fatia.titulo}",
-        "A mudanca da fatia esta na pasta atual, fora de commit: veja com `git status` e `git diff HEAD`.",
+        onde,
         _bloco("Objetivo da fatia", [fatia.texto(m.CAMPO_OBJETIVO), _arquivos(fatia), f"Por que ela e revisada: {motivo}" if motivo else ""]),
         _bloco("Criterios que a fatia cobre, com os testes de aceite que os provam", _criterios_com_aceite(estado, fatia.lista(m.CAMPO_CRITERIOS))),
         _bloco("Decisoes que o trabalho segue", _decisoes(plano)),

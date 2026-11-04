@@ -177,8 +177,8 @@ class EstadoDoGoal:
 
         O desacordo de antes da T2m, sem o commit gravado, vale como valia.
         """
-        gravado = item.get(a.CAMPO_COMMIT_DO_ACEITE)
-        return gravado is None or gravado == self.commits_do_aceite.get(str(item.get("criterio")), "")
+        gravado, refeitos = item.get(a.CAMPO_COMMIT_DO_ACEITE), _refeitos(self.propriedades.get(a.CAMPO_ACEITE_ANTES_DO_REBASE))
+        return gravado is None or refeitos.get(str(gravado), gravado) == self.commits_do_aceite.get(str(item.get("criterio")), "")
 
     def achado(self, id_achado: str) -> AchadoRegistrado | None:
         """O nó Achado de qualquer verificação do Goal, pelo id."""
@@ -331,7 +331,13 @@ def _plano_aprovado_pelo_humano(goal: NoGrafo) -> bool:
     aceite = goal.obter_propriedade(m.CAMPO_ACEITE)
     alvo = aceite.get("commit") if isinstance(aceite, Mapping) else None
     humano = isinstance(aprovacao, Mapping) and aprovacao.get("papel") == PapelAutor.HUMANO.value
-    return humano and (alvo is None or aprovacao.get("documento") == alvo)
+    documento = str(aprovacao.get("documento")) if isinstance(aprovacao, Mapping) else ""
+    return humano and (alvo is None or _refeitos(goal.obter_propriedade(a.CAMPO_ACEITE_ANTES_DO_REBASE)).get(documento, documento) == alvo)
+
+
+def _refeitos(valor: object) -> Mapping[str, str]:
+    """O commit que o rebase fez de cada commit do aceite de antes dele (orquestrador/registro_do_rebase.py); vazio sem rebase."""
+    return {str(k): str(v) for k, v in valor.items()} if isinstance(valor, Mapping) else {}
 
 
 def _fatias(view: GrafoView, id_goal: str) -> tuple[FatiaRegistrada, ...]:

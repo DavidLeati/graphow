@@ -224,7 +224,7 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
     if vermelho:
         return vermelho
     motivo = de_risco(tentativa.fatia) or _sinal_da_configuracao(tentativa.fatia, configuracao)
-    return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo)) if motivo else ""
+    return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo, tentativa.referencia)) if motivo else ""
 
 
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:

@@ -18,9 +18,11 @@ trabalho do humano é recusada (`desfaz_a_base`). A suíte e os testes de
 aceite rodam na área resolvida; o aceite vermelho também recusa a tentativa
 (orquestrador/vermelho_do_rebase.py).
 
-O commit da fatia tem a base nova como pai e leva o trabalho do Goal inteiro:
-a história da branch passa a ser a base nova e esse commit, verde pela suíte
-da fatia. O livro-razão registra esse rebase como o limpo, antes de as refs
+O commit da fatia leva o trabalho do Goal inteiro sobre a base nova e os
+commits de antes da primeira fatia (o plano e os testes de aceite), refeitos
+sobre ela (`antes_das_fatias_sobre`): a história da branch passa a ser a base
+nova, esses commits e o da fatia, verde pela suíte da fatia, e o laço segue
+com o commit do aceite que tem a base. O livro-razão registra esse rebase como o limpo, antes de as refs
 andarem (orquestrador/registro_do_rebase.py, com `fatia_de_conflito`), e as
 fatias e os Artifact de antes passam a apontar para o commit dela. O commit
 do código muda, a verificação final roda de novo, e o Goal integra por
@@ -41,6 +43,7 @@ from graphow.orquestrador.rebase_no_clone import (
     RebaseNoClone,
     arquivos_entre,
     arvore_mesclada,
+    antes_das_fatias_sobre,
     commit_sobre,
     mover_as_refs,
 )
@@ -159,10 +162,11 @@ def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem:
         return contexto.commitar(mensagem, vazio_permitido=True)
     base, git = str(conflito.get("base", "")), contexto.git
     antes = git.head()
-    novo = commit_sobre(contexto.area, mensagem, pai=base)
     antigos = tuple(reversed(commits_entre(contexto.area, base, antes)))
+    pai, refeitos = antes_das_fatias_sobre(contexto.area, base, antigos)
+    novo = commit_sobre(contexto.area, mensagem, pai=pai)
     feito = RebaseNoClone(git.rodar("merge-base", antes, base).strip(), base, antes, novo,
-                          tuple((commit.hash, novo) for commit in antigos), arquivos_entre(git, antes, novo))
+                          tuple((commit.hash, refeitos.get(commit.hash, novo)) for commit in antigos), arquivos_entre(git, antes, novo))
     registrar_o_rebase(contexto, contexto.estado(), feito, conflito=fatia.id)
     mover_as_refs(contexto.area_do_goal, antes, novo)
     contexto.registrar_ponta()

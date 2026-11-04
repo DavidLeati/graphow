@@ -252,7 +252,7 @@ def test_conflito_com_a_base_no_autonomo_abre_a_fatia_de_conflito_e_o_goal_fecha
     assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_RESOLVIDA
     assert _na_historia(bancada.repositorio, hashes[0]) and git(bancada.repositorio, "rev-list", "--merges", "main") == ""
     trailers = git(bancada.repositorio, "log", "--format=%(trailers:key=Graphow-Task,valueonly)", f"{hashes[0]}..main").split()
-    assert trailers == [conflito.id], "a historia da branch e a base nova mais o commit da fatia de conflito"
+    assert trailers == [conflito.id, "aceite-goal-soma"], "a historia: a base nova, o plano e o aceite refeitos e a fatia"
     assert _verificacoes(bancada) == ["verificador", "conferencia"]
     (rebase,) = _rebases(bancada)
     assert rebase.obter_propriedade("fatia_de_conflito") == conflito.id and rebase.obter_propriedade("verificacao_vale") is False

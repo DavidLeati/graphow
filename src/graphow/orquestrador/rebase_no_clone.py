@@ -18,11 +18,19 @@ a área, desfaz o primeiro (`recuperar_o_clone`) e termina o segundo
 (`mover_as_refs`).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from graphow.orquestrador.git_do_goal import IDENTIDADE_DE_RESERVA, AreaDoGoal, FalhaDoGitDoGoal, GitDoGoal, commits_entre
+from graphow.orquestrador.git_do_goal import (
+    IDENTIDADE_DE_RESERVA,
+    TRAILER_DA_TASK,
+    AreaDoGoal,
+    CommitDoGit,
+    FalhaDoGitDoGoal,
+    GitDoGoal,
+    commits_entre,
+)
 from graphow.orquestrador.refs_do_humano import recusar_se_aberta
 from graphow.orquestrador.suite_sem_rastro import guardar_a_arvore
 
@@ -185,6 +193,30 @@ def commit_sobre(area: Path, mensagem: str, *, pai: str) -> str:
     arvore = git.rodar("write-tree").strip()
     identidade = () if git.tentar("config", "user.email").saida.strip() else IDENTIDADE_DE_RESERVA
     return git.rodar(*identidade, "commit-tree", arvore, "-p", pai, "-m", mensagem).strip()
+
+
+def antes_das_fatias_sobre(area: Path, base: str, commits: Sequence[CommitDoGit]) -> tuple[str, dict[str, str]]:
+    """Os commits de antes da primeira fatia (o plano, os testes de aceite), na ordem, refeitos sobre a base; o último e o par de cada.
+
+    Na fatia de conflito, a história da branch passa a ser a base nova, esses
+    commits e o da fatia: o commit dos testes de aceite continua na branch,
+    agora com a base (orquestrador/registro_do_rebase.py). Cada um vai por
+    `merge-tree` com o pai dele como base da mescla; o primeiro que é de
+    fatia, ou que não se aplica limpo, para a lista, e o resto vai no commit
+    da fatia.
+    """
+    git, pai, pares = GitDoGoal(area), base, {}
+    identidade = () if git.tentar("config", "user.email").saida.strip() else IDENTIDADE_DE_RESERVA
+    for commit in commits:
+        tarefa = commit.valor_do_trailer(TRAILER_DA_TASK)
+        if tarefa and not tarefa.startswith("aceite-"):
+            break
+        arvore = git.tentar("merge-tree", "--write-tree", f"--merge-base={commit.hash}^", pai, commit.hash)
+        if arvore.codigo != 0:
+            break
+        pai = git.rodar(*identidade, "commit-tree", arvore.saida.split()[0], "-p", pai, "-m", commit.mensagem).strip()
+        pares[commit.hash] = pai
+    return pai, pares
 
 
 def _ref(git: GitDoGoal, ref: str) -> str:

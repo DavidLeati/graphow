@@ -275,6 +275,11 @@ class CommitDoGit:
         """O git leu o trailer `chave: valor` no fim da mensagem (a chave sem caixa, como no git); a linha do corpo não conta."""
         return any(c.strip().lower() == chave.lower() and v.strip() == valor for c, _, v in (t.partition(":") for t in self.trailers))
 
+    def valor_do_trailer(self, chave: str) -> str:
+        """O valor do último trailer `chave` (a chave sem caixa); vazio sem ele."""
+        valores = [v.strip() for c, _, v in (t.partition(":") for t in self.trailers) if c.strip().lower() == chave.lower()]
+        return valores[-1] if valores else ""
+
 
 def commits_entre(area: Path, antes: str, depois: str = "HEAD", *, primeiro_pai: bool = False) -> tuple[CommitDoGit, ...]:
     """Os commits de `antes..depois`, do mais novo ao mais antigo, com a mensagem e os trailers que o git leu nela.

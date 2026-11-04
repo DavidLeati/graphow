@@ -389,8 +389,9 @@ vocabulário de propriedades que o kernel e o orquestrador dividem mora em
   produzida pela Sessao do
   orquestrador do Goal, por onde ele entra no laço, e com a proveniência do
   humano. Só o humano a cria, e ninguém a edita nem a remove. O Goal guarda os
-  pedidos que o laço atendeu (`pedidos_atendidos`) e os planos recusados
-  (`planos_recusados`), ambos do orquestrador; o `Criterio` que o plano novo
+  pedidos que o laço atendeu (`pedidos_atendidos`), os planos recusados
+  (`planos_recusados`) e, depois do rebase, o commit de antes de cada commit
+  do aceite que ele refez (`aceite_antes_do_rebase`), todos do orquestrador; o `Criterio` que o plano novo
   não traz mais fica `retirado`, com a Decision do pedido que recusou o plano,
   e o que o humano retira por `retirar_criterio` também, com a Decision dele (os
   Achados abertos que ferem só aquele critério se descartam no mesmo lote).

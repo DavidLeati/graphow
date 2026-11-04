@@ -14,7 +14,10 @@ na árvore revisada e nos arquivos da mudança, e cada problema da
 rejeição, um nó Achado que deriva dela, com a gravidade que o código decide
 (o que toca critério ou decisão é bloqueante), e não uma Note. A rejeição é
 uma falha da tentativa, com os problemas no briefing da seguinte; a revisão
-que aprova a fatia depois resolve os bloqueantes que ela abriu. O revisor não
+que aprova a fatia depois resolve os bloqueantes que ela abriu. Na fatia de
+conflito, a mudança é o que difere da referência da tentativa, a árvore da
+ponta do Goal com a base nova mesclada, como nas recusas: o selo do `.claude/`
+volta a ela, e o que a base trouxe não aparece como da fatia. O revisor não
 muda a entrega: o orquestrador fotografa a mudança antes da sessão e, se ela
 não for a mesma depois, devolve a área ao que o executor deixou.
 """
@@ -36,6 +39,7 @@ from graphow.orquestrador.esquemas import PAPEL_REVISOR
 from graphow.orquestrador.git_do_goal import GitDoGoal, descartar_mudancas
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
+from graphow.orquestrador.rebase_no_clone import mudados_desde
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DA_REVISAO, Achado
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
@@ -57,6 +61,7 @@ class PedidoDeRevisao:
     fatia: FatiaRegistrada
     tentativa: int
     motivo: str
+    referencia: str = "HEAD"
 
 
 def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDeRevisao) -> "str | Parada | RejeicaoDaRevisao":
@@ -64,12 +69,13 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
-    foto, mudados = _fotografar(contexto.area), contexto.git.caminhos_mudados()
+    foto, mudados = _fotografar(contexto.area), mudados_desde(contexto.area, pedido.referencia)
+    mesclada = "" if pedido.referencia in ("HEAD", contexto.git.head()) else pedido.referencia
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_REVISOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=pedido.fatia.id, tentativa=pedido.tentativa,
-            briefing=briefing_do_revisor(estado, pedido.fatia, mudados, motivo=pedido.motivo),
-            conferir=_conferir, orcamento_restante_usd=contexto.restante(),
+            briefing=briefing_do_revisor(estado, pedido.fatia, mudados, motivo=pedido.motivo, mesclada=mesclada),
+            conferir=_conferir, orcamento_restante_usd=contexto.restante(), referencia_do_selo=pedido.referencia,
         )
     )
     desfeito = _restaurar(contexto, foto, pedido)
