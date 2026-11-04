@@ -45,6 +45,7 @@ from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit, rodar_o_aceite
 from graphow.orquestrador.briefing import PedidoDaConferencia, briefing_da_conferencia, briefing_do_verificador
+from graphow.orquestrador.conferencia_na_leitura import PAPEL_DO_ORQUESTRADOR, LeituraDaConferencia
 from graphow.orquestrador.conferencia_da_evidencia import arquivos_mudados
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes
@@ -233,7 +234,10 @@ def _briefing(
         return briefing_do_verificador(estado, head, contexto.git.commits_desde(contexto.configuracao.base), marco=marco,
                                        diferencas=aceite.para_o_verificador())
     diff = diff_das_correcoes(contexto.git, tipo.antes, contexto.configuracao.slug)
-    pedido = PedidoDaConferencia(tipo.conferidos, tipo.antes, diff, aceite.para_o_verificador(), tipo.excedentes)
+    anteriores = estado.verificacoes_do_marco(marco)
+    conferencia = LeituraDaConferencia(contexto.git).conferir(PAPEL_DO_ORQUESTRADOR, anteriores[-1].propriedades) if anteriores else None
+    pedido = PedidoDaConferencia(tipo.conferidos, tipo.antes, diff, aceite.para_o_verificador(), tipo.excedentes,
+                                 conferencia_da_anterior=conferencia)
     return briefing_da_conferencia(estado, head, marco=marco, pedido=pedido)
 
 

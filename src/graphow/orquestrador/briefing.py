@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.conferencia_da_evidencia import ConferenciaDaEvidencia
+from graphow.orquestrador.conferencia_na_leitura import aviso_de_historico
 from graphow.orquestrador.historico_da_correcao import chamadas_que_reproduzem
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada, MarcoRegistrado
@@ -295,6 +297,7 @@ class PedidoDaConferencia:
     diff: str
     diferencas: Sequence[str] = ()
     excedentes: Sequence[AchadoRegistrado] = ()
+    conferencia_da_anterior: ConferenciaDaEvidencia | None = None
 
 
 def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRegistrado, pedido: PedidoDaConferencia) -> str:
@@ -316,7 +319,7 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
         _bloco("Achados conferidos (reproduza cada um)",[linha for achado in pedido.conferidos for linha in _conferido(achado)]),
         _bloco("Excedentes do teto do ciclo (nao precisa reproduzi-los; se der com um, liste-o em `achados` com `persiste` = o id)",
                [f"- {achado.id}: {achado.texto('titulo')} ({achado.texto('local') or 'sem local'})" for achado in pedido.excedentes]),
-        _bloco(f"Pareceres da verificacao anterior ({anterior.id if anterior else '-'})",
+        _bloco(_titulo_dos_pareceres(anterior.id if anterior else "-", pedido.conferencia_da_anterior),
                [f"- {p.get('id')} {p.get('veredito')}: {p.get('prova', '')}" for p in (pareceres or []) if isinstance(p, Mapping)]),
         "## Diff das correcoes\n" + pedido.diff if pedido.diff else "",
         "Devolva a conferencia no JSON do schema, com um parecer para cada criterio acima"
@@ -326,6 +329,15 @@ def briefing_da_conferencia(estado: EstadoDoGoal, commit: str, *, marco: MarcoRe
         + ". Em `achados`, liste a regressao de criterio (`regressao`: true); o conferido que persiste pode ir tambem, com "
         "`persiste` = o id dele. O achado novo que nao e regressao nao vira correcao.",
     ])
+
+
+def _titulo_dos_pareceres(id_anterior: str, conferencia: ConferenciaDaEvidencia | None) -> str:
+    """O título dos pareceres de antes; a verificação que não vale na ponta leva o aviso nele, e não passa por fato vigente."""
+    titulo = f"Pareceres da verificacao anterior ({id_anterior})"
+    if conferencia is None or conferencia.vigente:
+        return titulo
+    return (f"{titulo}, {aviso_de_historico(conferencia)}: sao historico, nao fato vigente; julgue cada criterio pelo "
+            "codigo do commit conferido")
 
 
 def _conferido(achado: AchadoRegistrado) -> list[str]:

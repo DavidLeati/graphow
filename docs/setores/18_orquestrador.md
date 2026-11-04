@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-63 módulos · 11991 linhas · 87 classes
+64 módulos · 12134 linhas · 89 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,10 +19,11 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 101 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 386 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
-| [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 109 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
+| [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 114 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
+| [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 97 | A conferência da Evidence na hora da leitura: o briefing e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 197 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
@@ -39,7 +40,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 132 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
-| [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 118 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
+| [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 324 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
@@ -65,7 +66,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 400 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
-| [`orquestrador/status.py`](#orquestradorstatus) | 114 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
+| [`orquestrador/status.py`](#orquestradorstatus) | 136 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 257 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
@@ -73,7 +74,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 217 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 273 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 65 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
@@ -187,7 +188,7 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 
 *DTO imutável* — O que a conferência confere: os achados que as correções trataram, o commit de onde elas partiram e o diff delas.
 
-**Campos:** `conferidos: Sequence[AchadoRegistrado]`, `antes: str`, `diff: str`, `diferencas: Sequence[str]`, `excedentes: Sequence[AchadoRegistrado]`
+**Campos:** `conferidos: Sequence[AchadoRegistrado]`, `antes: str`, `diff: str`, `diferencas: Sequence[str]`, `excedentes: Sequence[AchadoRegistrado]`, `conferencia_da_anterior: ConferenciaDaEvidencia | None`
 
 ### Funções do módulo
 
@@ -253,7 +254,39 @@ A conferência da Evidence sobre código na leitura: os arquivos que ela afirma 
 ### Funções do módulo
 
 - `conferir_evidencia(propriedades: Mapping[str, Any], git: GitDoGoal, ponta: str) -> ConferenciaDaEvidencia` — A Evidence conferida contra a ponta dada, no git dado (a área do Goal ou o repositório do humano).
+- `sem_ancora(propriedades: Mapping[str, Any]) -> ConferenciaDaEvidencia` — A Evidence sem âncora válida, com o motivo: não precisa de git.
 - `arquivos_mudados(git: GitDoGoal, antes: str, depois: str) -> tuple[str, ...]` — Os caminhos que mudaram entre as duas árvores, como o git os escreve, o renomeado pelas duas pontas.
+
+## `orquestrador/conferencia_na_leitura.py`
+
+A conferência da Evidence na hora da leitura: o briefing e o `--status` perguntam aqui.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `NAO_CONFERIDA` | `str` | `'nao_conferida'` |
+| `PAPEL_DO_ORQUESTRADOR` | `str` | `PapelAutor.ORQUESTRADOR.value` |
+| `MAXIMO_DE_ARQUIVOS_NO_ROTULO` | `int` | `8` |
+| `ROTULOS` | `dict[str, str]` | `{VIGENTE: 'vigente', SEM_ANCORA: 'sem ancora', NAO_CONFERIDA: 'nao conf…` |
+
+### `GitDaLeitura` (GitDoGoal)
+
+*DTO imutável* — O git de uma leitura: cada consulta roda uma vez e fica guardada até a leitura acabar.
+
+**Campos:** `memoria: dict[tuple[str, ...], SaidaDoGit]`
+
+- `tentar() -> SaidaDoGit` — A consulta, do cache quando a leitura já a fez.
+
+### `LeituraDaConferencia`
+
+*serviço* — Uma leitura: o git em que a Evidence ancorada confere (ou nenhum) e a ponta.
+
+- `conferir(papel: str, propriedades: Mapping[str, Any]) -> ConferenciaDaEvidencia | None` — A conferência da Evidence gravada pelo papel; None quando ela não é sobre código nem tem âncora.
+
+### Funções do módulo
+
+- `leitura_do_repositorio(repositorio: object, ramo: object) -> LeituraDaConferencia` — A leitura no repositório, na ponta da branch; sem git quando a pasta não é repositório ou a branch não existe.
+- `rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str` — O rótulo curto: `vigente`, `desatualizada (mudaram: ...)`, `sem ancora` ou `nao conferida`.
+- `aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str` — O aviso do briefing para a Evidence que não vale na ponta: o estado em maiúsculas e os arquivos, ou o motivo.
 
 ## `orquestrador/configuracao_do_aceite.py`
 

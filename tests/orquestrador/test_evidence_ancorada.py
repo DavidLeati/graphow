@@ -80,3 +80,21 @@ def test_revisao_de_risco_ancora_na_arvore_revisada_e_o_commit_da_fatia_nao_a_de
     assert revisada.obter_propriedade("commit") != fatia.obter_propriedade("commit"), "a revisao vem antes do commit da fatia"
     conferencia = conferir_evidencia(revisada.propriedades, GitDoGoal(bancada.repositorio), ponta="main")
     assert (conferencia.estado, conferencia.arquivos) == (VIGENTE, ())
+
+
+def test_briefing_da_conferencia_nao_lista_a_verificacao_desatualizada_como_fato_vigente_nominal(tmp_path: Path) -> None:
+    """T3d2.1: os pareceres da verificação anterior que a correção desatualizou vêm com o aviso, e não como fato vigente.
+
+    A correção de M1 mexe em soma.py, que a verificação ver-1 afirma; a de M2,
+    no README, que a ver-3 afirma. Cada conferência recebe os pareceres de
+    antes sob o aviso, com o arquivo que mudou.
+    """
+    bancada = montar_bancada(tmp_path, roteiro_em_dois_marcos_com_um_ciclo_cada())
+
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO).fechou
+
+    primeira, segunda = (chamada["stdin"] for chamada in bancada.chamadas("conferencia"))
+    for briefing, anterior, arquivo in ((primeira, "ver-goal-soma-1", "soma.py"), (segunda, "ver-goal-soma-3", "README.md")):
+        assert f"## Pareceres da verificacao anterior ({anterior}), DESATUALIZADA: {arquivo} mudaram desde o commit dela: " \
+               "sao historico, nao fato vigente" in briefing, briefing
+        assert f"## Pareceres da verificacao anterior ({anterior})\n" not in briefing

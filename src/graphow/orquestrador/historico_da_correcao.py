@@ -25,6 +25,7 @@ from collections.abc import Mapping, Sequence
 import re
 
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.conferencia_na_leitura import PAPEL_DO_ORQUESTRADOR, LeituraDaConferencia, aviso_de_historico
 from graphow.orquestrador.correcoes import area_do_achado
 from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
@@ -93,7 +94,7 @@ def tentativas_anteriores(area: GitDoGoal, estado: EstadoDoGoal, fatia: FatiaReg
     anteriores = [f for f in estado.fatias if f.texto(m.CAMPO_CORRIGE) and f.texto(m.CAMPO_CORRIGE) != fatia.texto(m.CAMPO_CORRIGE)
                   and f.status == m.STATUS_CONCLUIDO and f.texto(m.CAMPO_MARCO) == fatia.texto(m.CAMPO_MARCO) and areas & _areas(estado, f)]
     linhas = [_diff_da_tentativa(area, f) for f in anteriores[-MAXIMO_DE_TENTATIVAS_ANTERIORES:]]
-    return (*linhas, *_verificacao_que_reprovou(estado, fatia)) if linhas else ()
+    return (*linhas, *_verificacao_que_reprovou(area, estado, fatia)) if linhas else ()
 
 
 def _areas(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> set[str]:
@@ -107,12 +108,14 @@ def _diff_da_tentativa(area: GitDoGoal, fatia: FatiaRegistrada) -> str:
     return f"A correcao {fatia.codigo} ({fatia.titulo}) mudou isto, e a falha voltou:\n```diff\n{diff}\n```"
 
 
-def _verificacao_que_reprovou(estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Sequence[str]:
-    """O resumo e os pareceres sem `atende` da verificação que pediu esta correção."""
+def _verificacao_que_reprovou(area: GitDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Sequence[str]:
+    """O resumo e os pareceres sem `atende` da verificação que pediu esta correção, com o aviso quando ela não vale na ponta."""
     verificacao = next((v for v in estado.verificacoes if v.id == fatia.texto(m.CAMPO_CORRIGE)), None)
     if verificacao is None:
         return ()
     pareceres = verificacao.propriedades.get(m.CAMPO_PARECERES)
     reprovados = [f"  - {p.get('id')} {p.get('veredito')}: {p.get('prova', '')}" for p in pareceres or []
                   if isinstance(p, Mapping) and p.get("veredito") != "atende"]
-    return [f"A verificacao {verificacao.id}, depois dela, disse: {verificacao.propriedades.get('resumo', '')}", *reprovados]
+    conferencia = LeituraDaConferencia(area).conferir(PAPEL_DO_ORQUESTRADOR, verificacao.propriedades)
+    aviso = f" ({aviso_de_historico(conferencia)}; e historico, nao fato vigente)" if conferencia and not conferencia.vigente else ""
+    return [f"A verificacao {verificacao.id}, depois dela, disse{aviso}: {verificacao.propriedades.get('resumo', '')}", *reprovados]

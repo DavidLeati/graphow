@@ -1,13 +1,23 @@
 """O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou.
 
-Lê só o livro-razão e a tabela de telemetria: não roda sessão nem git. Mostra
-o estado de cada critério, os testes de aceite, os marcos e as verificações
-deles, os Achados bloqueantes que seguem abertos e as pendências.
+Lê o livro-razão e a tabela de telemetria, e não roda sessão. Mostra o estado
+de cada critério, os testes de aceite, os marcos e as verificações deles, os
+Achados bloqueantes que seguem abertos e as pendências. Cada verificação sai
+conferida na ponta da branch do Goal, no repositório do humano
+(orquestrador/conferencia_na_leitura.py): desatualizada com os arquivos que
+mudaram, sem âncora, ou não conferida quando o repositório ou a branch não
+estão mais lá.
 """
 
 from collections.abc import Sequence
 
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.conferencia_na_leitura import (
+    PAPEL_DO_ORQUESTRADOR,
+    LeituraDaConferencia,
+    leitura_do_repositorio,
+    rotulo_da_conferencia,
+)
 from graphow.orquestrador.esquemas import PAPEIS
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.retirada_de_criterio import retirados as retiradas_do_goal
@@ -26,10 +36,7 @@ def formatar_status(estado: EstadoDoGoal, registros: Sequence[SessaoRegistrada])
     linhas.append(_linha_do_plano(estado))
     linhas.extend(_linhas_do_aceite(estado))
     linhas.extend(["Fatias:", *(_linha_da_fatia(fatia) for fatia in estado.fatias)] if estado.fatias else [])
-    linhas.extend(
-        ["Verificacoes:", *(f"  {v.id} ({v.marco or '-'}, {v.tipo or '-'}): {v.veredito} em {v.commit[:12]} ({len(v.bloqueantes())} bloqueante(s))"
-                            for v in estado.verificacoes)] if estado.verificacoes else []
-    )
+    linhas.extend(_linhas_das_verificacoes(estado))
     abertos = [a for v in estado.verificacoes for a in v.bloqueantes() if a.estado not in ("resolvido", "descartado")]
     linhas.extend(["Achados bloqueantes sem resolver:", *(f"  - {a.id}: {a.texto('titulo')} ({a.estado})" for a in abertos)]
                   if abertos else [])
@@ -39,6 +46,21 @@ def formatar_status(estado: EstadoDoGoal, registros: Sequence[SessaoRegistrada])
     linhas.extend(_linhas_da_telemetria(registros))
     if estado.propriedades.get(m.CAMPO_INTEGRADO_EM):
         linhas.append(f"Integrado em {estado.propriedades[m.CAMPO_INTEGRADO_EM]}")
+    return linhas
+
+
+def _linhas_das_verificacoes(estado: EstadoDoGoal) -> list[str]:
+    """Cada verificação com o veredito, o commit, os bloqueantes e a conferência dela na ponta da branch do Goal."""
+    if not estado.verificacoes:
+        return []
+    configuracao = estado.configuracao
+    leitura = leitura_do_repositorio(configuracao.repositorio, configuracao.ramo) if configuracao else LeituraDaConferencia(None)
+    linhas = ["Verificacoes:"]
+    for v in estado.verificacoes:
+        conferencia = leitura.conferir(PAPEL_DO_ORQUESTRADOR, v.propriedades)
+        marca = f" [{rotulo_da_conferencia(conferencia)}]" if conferencia else ""
+        linhas.append(f"  {v.id} ({v.marco or '-'}, {v.tipo or '-'}): {v.veredito} em {v.commit[:12]} "
+                      f"({len(v.bloqueantes())} bloqueante(s)){marca}")
     return linhas
 
 

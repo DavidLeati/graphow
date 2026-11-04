@@ -62,9 +62,7 @@ def conferir_evidencia(propriedades: Mapping[str, Any], git: GitDoGoal, ponta: s
     """A Evidence conferida contra a ponta dada, no git dado (a área do Goal ou o repositório do humano)."""
     ancora = ancora_da_evidencia(propriedades)
     if ancora is None:
-        commit = ler_texto(propriedades, CAMPO_COMMIT)
-        motivo = f"'commit' {commit!r} nao e um hash do git" if commit else "a Evidence nao tem o commit em que foi vista"
-        return ConferenciaDaEvidencia(SEM_ANCORA, motivo=motivo)
+        return sem_ancora(propriedades)
     if ancora == ANCORA_SHA256:
         return _conferir_o_conteudo(propriedades, git)
     commit = ler_texto(propriedades, CAMPO_COMMIT)
@@ -77,6 +75,13 @@ def conferir_evidencia(propriedades: Mapping[str, Any], git: GitDoGoal, ponta: s
     fora = "" if git.e_ancestral(commit, ponta) else (f"o commit {commit[:12]} saiu da historia da ponta (rebase): conferido "
                                                       "pela diferenca entre as arvores")
     return ConferenciaDaEvidencia(DESATUALIZADA if mudaram else VIGENTE, mudaram, fora)
+
+
+def sem_ancora(propriedades: Mapping[str, Any]) -> ConferenciaDaEvidencia:
+    """A Evidence sem âncora válida, com o motivo: não precisa de git."""
+    commit = ler_texto(propriedades, CAMPO_COMMIT)
+    motivo = f"'commit' {commit!r} nao e um hash do git" if commit else "a Evidence nao tem o commit em que foi vista"
+    return ConferenciaDaEvidencia(SEM_ANCORA, motivo=motivo)
 
 
 def arquivos_mudados(git: GitDoGoal, antes: str, depois: str) -> tuple[str, ...]:
