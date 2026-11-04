@@ -12,15 +12,16 @@ São quatro camadas, em profundidade:
    `cd x && git add .`, `env git push`, `/usr/bin/git`, `(git commit)`,
    `bash -c "git ..."`.
 1. As regras de ferramenta (`--disallowedTools`) negam o git de escrita e
-   as opções que trocam de repositório. Casam por prefixo do comando (o
-   `Bash(git push:*)` casa `git push` e `git push ...`, depois de o Claude
-   Code separar `&&`, `;`, `|`, tirar `FOO=1` e `timeout` da frente), e o
-   disfarce escapa delas. Por isso ficam fora delas o que o hook decide com
-   detalhe: `branch`, `tag`, `stash`, `remote` e `config` (que só em parte
-   leem) e as opções `-c` e `-C` (`git -C . commit` e `git -c
-   core.hooksPath=<vazia> commit` são do hook). Uma regra para eles negaria,
-   antes do hook, a leitura que ele libera, e a sessão real recusava
-   `git branch --show-current` e `git -C . status`.
+   o `--exec-path`. Casam por prefixo do comando (o `Bash(git push:*)` casa
+   `git push` e `git push ...`, depois de o Claude Code separar `&&`, `;`,
+   `|`, tirar `FOO=1` e `timeout` da frente), e o disfarce escapa delas.
+   Por isso ficam fora delas o que o hook decide com detalhe: `branch`,
+   `tag`, `stash`, `remote` e `config` (que só em parte leem) e as opções
+   `-c`, `-C`, `--git-dir` e `--work-tree` (`git -C . commit`, `git
+   --git-dir .git commit` e `git -c core.hooksPath=<vazia> commit` são do
+   hook). Uma regra para eles negaria, antes do hook, a leitura que ele
+   libera, e a sessão real recusava `git branch --show-current`, `git -C .
+   status` e `git --git-dir .git log`.
 2. O ambiente da sessão aponta `core.hooksPath` para uma pasta com o hook
    `reference-transaction`, que aborta toda atualização de ref, e o
    `pre-push`, que recusa todo push. O `git -c` na linha de comando vence o
@@ -91,7 +92,8 @@ SUBCOMANDOS_DE_ESCRITA: tuple[str, ...] = (
     "tag", "cherry-pick", "revert", "am", "worktree", "update-ref", "symbolic-ref", "notes", "replace", "config",
     "remote", "gc", "prune", "filter-branch", "update-index", "sparse-checkout", "read-tree",
 )
-OPCOES_GLOBAIS_NAS_REGRAS: tuple[str, ...] = ("--git-dir", "--work-tree", "--exec-path")
+# A opção global que o hook recusa sempre; `--git-dir` e `--work-tree` ele decide pelo subcomando, como o `-C`.
+OPCOES_GLOBAIS_NAS_REGRAS: tuple[str, ...] = ("--exec-path",)
 MODULO_DO_HOOK: str = "graphow.orquestrador.hook_do_git"
 ARQUIVO_DO_HOOK: str = "settings-da-trava.json"
 TEMPO_LIMITE_DO_HOOK_S: int = 30
@@ -207,10 +209,12 @@ def instrucoes_do_estado(hook: Path) -> tuple[Path, ...]:
 
 
 def regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]:
-    """As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório.
+    """As regras `--disallowedTools` do git de escrita e do `--exec-path`.
 
-    O subcomando que o hook lê em parte (`LEITURAS_EM_PARTE`) fica de fora: a
-    regra casaria pelo prefixo a leitura que o hook libera.
+    O subcomando que o hook lê em parte (`LEITURAS_EM_PARTE`) e as opções
+    globais que ele decide pelo subcomando (`-c`, `-C`, `--git-dir`,
+    `--work-tree`) ficam de fora: a regra casaria pelo prefixo a leitura que
+    o hook libera.
     """
     subcomandos = [item for item in SUBCOMANDOS_DE_ESCRITA if item not in LEITURAS_EM_PARTE]
     return tuple(f"{ferramenta}(git {item}:*)" for ferramenta in ferramentas for item in (*subcomandos, *OPCOES_GLOBAIS_NAS_REGRAS))

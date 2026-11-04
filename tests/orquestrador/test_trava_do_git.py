@@ -115,15 +115,16 @@ def test_push_do_agente_e_recusado_pelo_hook_nominal(tmp_path: Path) -> None:
 
 
 def test_regras_negam_a_escrita_e_deixam_ao_hook_o_que_ele_le_em_parte_edge_case() -> None:
-    """Caso de borda (T3a3): push e commit estão nas regras; `-c`, `-C`, branch, tag, stash, remote e config são do hook."""
+    """Caso de borda (T3a3, T3a4): push, commit e `--exec-path` estão nas regras; `-c`, `-C`, `--git-dir`,
+    `--work-tree`, branch, tag, stash, remote e config são do hook."""
     regras = set(regras_que_negam_git(("Bash",)))
-    do_hook = {"-c", "-C", "branch", "tag", "stash", "remote", "config"}
+    do_hook = {"-c", "-C", "--git-dir", "--work-tree", "branch", "tag", "stash", "remote", "config"}
 
-    assert {"Bash(git push:*)", "Bash(git commit:*)", "Bash(git --git-dir:*)"} <= regras
+    assert {"Bash(git push:*)", "Bash(git commit:*)", "Bash(git --exec-path:*)"} <= regras
     assert not {f"Bash(git {item}:*)" for item in do_hook} & regras
     assert not [regra for regra in regras if any(leitura in regra for leitura in ("status", "diff", "log", "show"))]
     for disfarce in ("git -c core.hooksPath=x commit", "git -C . commit", "git config user.email x", "git remote add o x",
-                     "git branch novo", "git tag v1", "git stash"):
+                     "git branch novo", "git tag v1", "git stash", "git --git-dir .git commit", "git --work-tree . reset"):
         assert not decidir(disfarce).permitido, disfarce
 
 

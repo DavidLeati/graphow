@@ -202,6 +202,19 @@ RECUSADOS_NA_T3A4: tuple[str, ...] = (
     "$(dirname git/x) commit -qam x",
     '"$PY" -m pytest src/git/soma.py',
 )
+# T3a4: `--git-dir` e `--work-tree` saíram das regras (sonda N2); o hook decide o subcomando, como no `-C`.
+LIBERADOS_NA_T3A4: tuple[str, ...] = (
+    "git --git-dir .git log -1",
+    "git --git-dir=.git status",
+    "git --work-tree . status",
+    "git --work-tree=. diff --stat",
+)
+RECUSADOS_COM_OUTRO_REPOSITORIO: tuple[str, ...] = (
+    "git --git-dir .git commit -qam x",
+    "git --git-dir=../humano/.git update-ref refs/heads/main HEAD",
+    "git --work-tree . checkout -- .",
+    "git --work-tree=../humano reset --hard",
+)
 
 
 @pytest.mark.parametrize("comando", PERMITIDOS)
@@ -263,15 +276,39 @@ def test_git_colado_a_cifrao_chave_ou_virgula_e_recusado_edge_case(comando: str)
     assert "cita git" in decisao.motivo and "quem commita e o orquestrador" in decisao.motivo
 
 
-@pytest.mark.parametrize("comando", (*PERMITIDOS, *LIBERADOS_NA_T3A2, *LIBERADOS_NA_T3A3))
+@pytest.mark.parametrize("comando", (*PERMITIDOS, *LIBERADOS_NA_T3A2, *LIBERADOS_NA_T3A3, *LIBERADOS_NA_T3A4))
 def test_nenhuma_regra_do_disallowed_tools_casa_com_o_que_o_hook_libera_nominal(comando: str) -> None:
-    """T3a3.2 (R1): o que o hook libera não casa, pelo prefixo e como o Claude Code casa, com regra de `--disallowedTools`.
+    """T3a3.2 (R1), T3a4.2 (N2): o que o hook libera não casa, pelo prefixo e como o Claude Code casa, com regra de
+    `--disallowedTools`.
 
     A sessão real aplica as regras antes do hook: uma que casasse recusaria a
-    leitura liberada (`git branch --show-current`, `git -C . status`).
+    leitura liberada (`git branch --show-current`, `git -C . status`, `git
+    --git-dir .git log`).
     """
     assert decidir(comando).permitido
     assert regras_que_casam(comando, regras_que_negam_git(("Bash",))) == []
+
+
+@pytest.mark.parametrize("comando", RECUSADOS_COM_OUTRO_REPOSITORIO)
+def test_escrita_com_git_dir_ou_work_tree_e_recusada_pelo_hook_edge_case(comando: str) -> None:
+    """T3a4.2 (N2): sem a regra de `--git-dir` e `--work-tree`, a escrita com eles segue recusada, agora pelo hook."""
+    decisao = decidir(comando)
+
+    assert not decisao.permitido
+    assert "recusado" in decisao.motivo and "quem commita e o orquestrador" in decisao.motivo
+
+
+@pytest.mark.parametrize("regra", regras_que_negam_git(("Bash",)))
+def test_o_que_cada_regra_nega_o_hook_tambem_recusa_edge_case(regra: str) -> None:
+    """T3a4.2: as camadas concordam no outro sentido; nenhuma regra nega o que o hook liberaria.
+
+    O comando que a regra casa, sozinho ou com argumentos, o hook também
+    recusa: a regra só adianta a recusa, nunca nega sem motivo.
+    """
+    prefixo = regra.removeprefix("Bash(").removesuffix(":*)")
+    for comando in (prefixo, f"{prefixo} x", f"{prefixo} --all -- a.py"):
+        assert regras_que_casam(comando, (regra,)), comando
+        assert not decidir(comando).permitido, comando
 
 
 @pytest.mark.parametrize(("comando", "casa"), [

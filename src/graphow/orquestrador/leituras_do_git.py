@@ -13,8 +13,10 @@ argumentos de um git já achado no comando. Passam:
   `--no-pager`...) e `-c` só com chave inofensiva (`core.quotepath`,
   `color.*`); nunca `core.pager`, `core.fsmonitor`, `core.hooksPath`,
   `alias.*` nem `*.command`, que rodam o programa que o agente escolher.
-Estas cinco (`branch`, `tag`, `stash`, `remote`, `config`), `-c` e `-C` são
-decididas aqui com detalhe e ficam fora das regras `--disallowedTools`
+Estas cinco (`branch`, `tag`, `stash`, `remote`, `config`), `-c`, `-C`,
+`--git-dir` e `--work-tree` são decididas aqui com detalhe (a opção que troca
+de repositório passa, e o subcomando é julgado como sem ela) e ficam fora das
+regras `--disallowedTools`
 (orquestrador/trava_do_git.py), que casam só pelo prefixo e as negariam
 antes do hook. Nas leituras, `--output` (que grava o arquivo que o agente der, até um ref
 dentro de `.git/`, sem transação nenhuma) e o `-O` do `git grep` (que abre os
