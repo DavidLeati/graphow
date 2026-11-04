@@ -4,10 +4,11 @@
 roda ou retoma um Goal que já existe (o do gerente pede `--repo` na primeira
 vez). `--aprovar-plano` é o portão do modo supervisionado: o humano grava a
 aprovação no próprio Goal (o portão é do orquestrador, e não do escopo
-governado) e o laço segue. `--status` só lê. O estado de cada Goal (área de trabalho, streams das sessões, patches e a trava do git)
+governado) e o laço segue. `--status` e `--rastro` (o rastro de cada
+critério, orquestrador/rastro.py) só leem. O estado de cada Goal (área de trabalho, streams das sessões, patches e a trava do git)
 fica em `<pasta do banco>/orquestrar/<goal>/`, com a trava que deixa uma só
-execução conduzir o Goal (`orquestrador/trava_do_goal.py`); o `--status` não a
-pede.
+execução conduzir o Goal (`orquestrador/trava_do_goal.py`); o `--status` e o
+`--rastro` não a pedem.
 
 Sai com 0 quando o Goal fecha (ou no status), com 3 quando o laço para num
 portão que espera o humano ou o orçamento, ou quando outra execução conduz o
@@ -23,11 +24,13 @@ import sqlite3
 
 from graphow.api.console import EscritorConsole
 from graphow.kernel.write_kernel import WriteKernel
+from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal
 from graphow.orquestrador.contexto_do_laco import DependenciasDoLaco, MotivoDaParada, OpcoesDoLaco, Parada
 from graphow.orquestrador.esquemas import PAPEIS
 from graphow.orquestrador.laco import Orquestrador, PedidoInvalido
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.modelo_do_goal import MODOS
+from graphow.orquestrador.rastro import formatar_rastro, ler_rastro
 from graphow.orquestrador.pedidos_do_humano import (
     PEDIDO_CANCELAR,
     PEDIDO_DESCARTAR_ACHADO,
@@ -66,6 +69,8 @@ def registrar_comando_de_orquestrar(
     alvo.add_argument("--goal", help="ID de um Goal que ja existe (do gerente ou de uma chamada anterior): roda ou retoma")
     acao = parser.add_mutually_exclusive_group()
     acao.add_argument("--status", action="store_true", help="So mostra onde o Goal esta e quanto as sessoes custaram")
+    acao.add_argument("--rastro", action="store_true",
+                      help="So mostra, por criterio, os testes, as fatias, a verificacao que o atestou e os achados")
     acao.add_argument("--aprovar-plano", action="store_true", help="Aprova o plano do Goal (portao do humano) e segue")
     _registrar_pedidos_do_humano(acao, parser)
     _registrar_opcoes_do_git(parser)
@@ -119,7 +124,7 @@ class AmbienteDoOrquestrar:
 def executar_orquestrar(argumentos: argparse.Namespace, ambiente: AmbienteDoOrquestrar) -> int:
     """Executa a ação pedida e devolve o código de saída."""
     telemetria = RepositorioTelemetria(ambiente.conexao)
-    if argumentos.status:
+    if argumentos.status or argumentos.rastro:
         return _status(argumentos, ambiente, telemetria)
     orquestrador = Orquestrador(_dependencias(argumentos, ambiente, telemetria))
     opcoes = _opcoes(argumentos)
@@ -207,15 +212,19 @@ def _exigir_goal(argumentos: argparse.Namespace) -> None:
 
 
 def _status(argumentos: argparse.Namespace, ambiente: AmbienteDoOrquestrar, telemetria: RepositorioTelemetria) -> int:
-    """Imprime o status do Goal."""
+    """Imprime o status do Goal, ou o rastro de cada critério com `--rastro`."""
+    acao = "--rastro" if argumentos.rastro else "--status"
     if not argumentos.goal:
-        ambiente.console.escrever_linha("ERRO: --status pede --goal <id>")
+        ambiente.console.escrever_linha(f"ERRO: {acao} pede --goal <id>")
         return CODIGO_FALHA
-    estado = ler_estado(ambiente.kernel.obter_view(), argumentos.goal)
+    view = ambiente.kernel.obter_view()
+    estado = ler_estado(view, argumentos.goal)
     if estado is None:
         ambiente.console.escrever_linha(f"ERRO: Goal '{argumentos.goal}' nao encontrado")
         return CODIGO_FALHA
-    for linha in formatar_status(estado, telemetria.listar(argumentos.goal)):
+    linhas = (formatar_rastro(ler_rastro(view, estado, LeituraPorGoal(view))) if argumentos.rastro
+              else formatar_status(estado, telemetria.listar(argumentos.goal)))
+    for linha in linhas:
         ambiente.console.escrever_linha(linha)
     return CODIGO_FECHADO
 

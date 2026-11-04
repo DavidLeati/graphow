@@ -445,6 +445,9 @@ graphow orquestrar --goal goal-relatorio --repo .
 graphow orquestrar --goal goal-relatorio --aprovar-plano
 graphow orquestrar --goal goal-relatorio --status
 
+# Por criterio: os testes e o commit do aceite, as fatias, a verificacao que o atestou (vigente?) e os achados
+graphow orquestrar --goal goal-relatorio --rastro
+
 # As saídas do humano, cada uma uma Decision dele, sempre com o motivo
 graphow orquestrar --goal goal-relatorio --recusar-plano --motivo "o README fica para outro Goal"
 graphow orquestrar --goal goal-relatorio --refazer-aceite C3 --motivo "o teste exige ponto, a spec aceita virgula"

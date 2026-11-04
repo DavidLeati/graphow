@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-65 módulos · 12428 linhas · 91 classes
+66 módulos · 12662 linhas · 97 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -51,6 +51,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
+| [`orquestrador/rastro.py`](#orquestradorrastro) | 234 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
 | [`orquestrador/rebase_no_clone.py`](#orquestradorrebasenoclone) | 224 | O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/refs_do_humano.py`](#orquestradorrefsdohumano) | 63 | As refs do repositório do humano que o orquestrador move: a base, na integração, e a branch do Goal, depois do rebase. |
@@ -1238,6 +1239,57 @@ O passo do plano: uma sessão do planejador, o documento do Goal commitado e o p
 ### Funções do módulo
 
 - `planejar(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O plano já pago, ou uma sessão do planejador; grava o plano, ou diz por que não deu.
+
+## `orquestrador/rastro.py`
+
+O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere.
+
+### `AchadoDoCriterio`
+
+*DTO imutável* — Um Achado que fere o critério: o título, a gravidade, o estado e a verificação (ou revisão) de onde veio.
+
+**Campos:** `id: str`, `titulo: str`, `gravidade: str`, `estado: str`, `origem: str`
+
+### `AtestadoDoCriterio`
+
+*DTO imutável* — A verificação mais recente que julgou o critério: o veredito, o commit e se ela vale na ponta.
+
+**Campos:** `verificacao: str`, `tipo: str`, `marco: str`, `veredito: str`, `commit: str`, `conferencia: ConferenciaDaEvidencia | None`
+
+- `em_json() -> dict[str, Any]` — O atestado com a conferência como o canvas a manda (com o rótulo).
+
+### `FatiaDoCriterio`
+
+*DTO imutável* — Uma fatia que cobre o critério: o código, o título, a situação, o commit e a verificação que ela corrige.
+
+**Campos:** `codigo: str`, `titulo: str`, `status: str`, `commit: str`, `corrige: str`
+
+### `RastroDoCriterio`
+
+*DTO imutável* — O rastro de um critério: os quatro blocos e, quando o humano o retirou, a retirada.
+
+**Campos:** `codigo: str`, `no: str`, `texto: str`, `testes: tuple[Mapping[str, Any], ...]`, `checagem: tuple[str, ...]`, `ja_atendido: str`, `commit_do_aceite: str`, `fatias: tuple[FatiaDoCriterio, ...]`, `atestado: AtestadoDoCriterio | None`, `achados: tuple[AchadoDoCriterio, ...]`, `retirada: Mapping[str, Any] | None`
+
+- `em_json() -> dict[str, Any]` — O critério como a rota da API o devolve.
+
+### `RastroDoGoal`
+
+*DTO imutável* — O rastro de todos os critérios do plano do Goal, na ordem do plano.
+
+**Campos:** `id_goal: str`, `rotulo: str`, `fechado: bool`, `criterios: tuple[RastroDoCriterio, ...]`
+
+- `em_json() -> dict[str, Any]` — O rastro como a rota da API o devolve.
+
+### `_LeitorDoRastro`
+
+*serviço* — O que a leitura de cada critério consulta: o grafo, o estado do Goal e a conferência.
+
+- `criterio(item: Mapping[str, Any]) -> RastroDoCriterio` — O rastro do critério do plano, lido do Criterio dele, das fatias, das verificações e dos Achados.
+
+### Funções do módulo
+
+- `ler_rastro(view: GrafoView, estado: EstadoDoGoal, leitura: LeituraPorGoal) -> RastroDoGoal` — O rastro do Goal lido (`ler_estado`), um critério do plano por vez; sem plano, sem critério.
+- `formatar_rastro(rastro: RastroDoGoal) -> list[str]` — As linhas do `--rastro`: por critério, os testes, as fatias, a verificação e os achados.
 
 ## `orquestrador/rebase_no_clone.py`
 
