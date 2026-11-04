@@ -10,8 +10,8 @@ usam. Para cada critério do plano:
 - a verificação mais recente que o julgou, com o veredito, o commit e a
   conferência dela na ponta da branch do Goal
   (orquestrador/conferencia_na_leitura.py, a mesma leitura da vista e do
-  canvas), com a marca da vista: o motivo da sem âncora e da não
-  conferida;
+  canvas), com a marca da vista: o motivo da sem âncora e o aviso do commit
+  fora da branch;
 - os Achados do orquestrador que o ferem (`fere`), com o estado.
 
 O critério retirado pelo humano sai como retirado, com o motivo e a Decision

@@ -27,11 +27,14 @@ test("os quatro blocos do criterio: testes com o commit do aceite, fatias, verif
   assert.doesNotMatch(html, /data-rastro="retirado"/);
 });
 
-test("T3f2.1: a marca da conferencia leva o motivo da sem ancora; sem marca, o rotulo", () => {
+test("T3f2.1 e T3f2.2: a marca da conferencia leva o motivo da sem ancora e o aviso do commit fora da branch", () => {
   const conferida = (conferencia) => htmlDoRastro({ goal: "goal-soma", criterios: [{ ...C2, atestado: { ...C2.atestado, conferencia } }] });
   const sem = conferida({ estado: "sem_ancora", arquivos: [], motivo: "a Evidence nao tem o commit em que foi vista", rotulo: "sem ancora",
     marca: "sem ancora: a Evidence nao tem o commit em que foi vista" });
+  const fora = conferida({ estado: "vigente", arquivos: [], motivo: "commit fora da branch: a00d5cb0bde8 nao esta na historia da ponta",
+    rotulo: "vigente", marca: "vigente: commit fora da branch: a00d5cb0bde8 nao esta na historia da ponta" });
   assert.match(sem, /<span data-conferencia="sem_ancora">\[sem ancora: a Evidence nao tem o commit em que foi vista\]<\/span>/);
+  assert.match(fora, /<span data-conferencia="vigente">\[vigente: commit fora da branch: a00d5cb0bde8 nao esta na historia da ponta\]<\/span>/);
   assert.match(conferida({ estado: "vigente", arquivos: [], motivo: "", rotulo: "vigente" }), /\[vigente\]<\/span>/, "sem marca, o rotulo");
 });
 

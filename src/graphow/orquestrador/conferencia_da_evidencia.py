@@ -14,8 +14,9 @@ e a Evidence sai num de três estados:
 O rebase da branch do Goal (orquestrador/registro_do_rebase.py) troca o hash
 dos commits, e o commit da Evidence sai da história da ponta sem sumir do
 clone. A conferência compara as árvores, e não a história: o que a base trouxe
-para um arquivo da Evidence a deixa desatualizada, e o resto não. O motivo diz
-que o commit saiu da história.
+para um arquivo da Evidence a deixa desatualizada, e o resto não. O motivo
+avisa "commit fora da branch", o que vale também para o commit que veio de
+outra branch: o estado diz do conteúdo, o aviso diz da história.
 
 A revisão de risco julga a mudança fora de commit, em cima do HEAD: ela guarda
 também a `arvore` revisada, e a conferência parte dela, para que o próprio
@@ -72,8 +73,8 @@ def conferir_evidencia(propriedades: Mapping[str, Any], git: GitDoGoal, ponta: s
         objeto = f"a arvore revisada {origem[:12]}" if origem == arvore else f"o commit {origem[:12]}"
         return ConferenciaDaEvidencia(SEM_ANCORA, motivo=f"{objeto} nao existe mais no repositorio: a historia foi reescrita ou o clone e outro")
     mudaram = _afirmados_que_mudaram(arquivos_afirmados(propriedades), arquivos_mudados(git, origem, ponta))
-    fora = "" if git.e_ancestral(commit, ponta) else (f"o commit {commit[:12]} saiu da historia da ponta (rebase): conferido "
-                                                      "pela diferenca entre as arvores")
+    fora = "" if git.e_ancestral(commit, ponta) else (f"commit fora da branch: {commit[:12]} nao esta na historia da ponta "
+                                                      "(rebase ou outra branch), conferido pela diferenca entre as arvores")
     return ConferenciaDaEvidencia(DESATUALIZADA if mudaram else VIGENTE, mudaram, fora)
 
 

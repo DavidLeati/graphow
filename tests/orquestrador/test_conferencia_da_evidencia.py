@@ -73,7 +73,7 @@ def test_arquivo_renomeado_ou_apagado_desatualiza_edge_case(tmp_path: Path) -> N
 def test_commit_que_o_rebase_tirou_da_historia_confere_pelas_arvores_edge_case(tmp_path: Path) -> None:
     """Caso de borda: depois do rebase, o commit da Evidence saiu da história da ponta, mas a conferência compara as árvores.
 
-    A base que andou num arquivo dela a desatualiza; noutro, não, e o motivo diz que o commit saiu da história.
+    A base que andou num arquivo dela a desatualiza; noutro, não, e o motivo avisa que o commit está fora da branch.
     """
     repositorio = criar_repositorio(tmp_path / "repo", ARQUIVOS)
     git(repositorio, "switch", "-q", "-c", "goal")
@@ -86,7 +86,7 @@ def test_commit_que_o_rebase_tirou_da_historia_confere_pelas_arvores_edge_case(t
     so_soma = conferir_evidencia({"commit": verificado, "arquivos": ["soma.py"]}, GitDoGoal(repositorio))
     com_readme = conferir_evidencia({"commit": verificado, "arquivos": ["soma.py", "README.md"]}, GitDoGoal(repositorio))
 
-    assert so_soma.estado == VIGENTE and "saiu da historia da ponta" in so_soma.motivo
+    assert so_soma.estado == VIGENTE and so_soma.motivo.startswith(f"commit fora da branch: {verificado[:12]} ")
     assert (com_readme.estado, com_readme.arquivos) == (DESATUALIZADA, ("README.md",))
 
 

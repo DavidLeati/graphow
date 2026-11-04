@@ -85,23 +85,29 @@ def test_criterio_retirado_aparece_como_retirado_com_o_motivo_e_mantem_o_rastro_
     assert "retirado" not in _blocos(linhas, "C1")[0]
 
 
-def test_rastro_diz_por_que_a_verificacao_ficou_sem_ancora_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """T3f2.1: a marca da verificação sem âncora leva o motivo, com o texto da vista.
+def test_rastro_diz_o_commit_fora_da_branch_e_por_que_a_verificacao_ficou_sem_ancora_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T3f2.1 e T3f2.2: a marca da verificação leva o motivo, com o texto da vista.
 
-    A branch do Goal e a main reescritas (um commit novo, com a árvore da
-    ponta) e o commit antigo coletado: a verificação sai sem âncora, e o
-    motivo diz por quê.
+    A branch do Goal reescrita (um commit novo, com a árvore da ponta) tira da
+    história dela o commit da verificação, que segue na main: o conteúdo é o
+    mesmo, e ela segue vigente, com o aviso do commit fora da branch. Coletado
+    o commit antigo, ela sai sem âncora, e o motivo diz por quê.
     """
     bancada, rastro = _goal_fechado_pela_cli(tmp_path, monkeypatch)
     repositorio = bancada.repositorio
     verificado = git(repositorio, "log", "-1", "--format=%h", "--abbrev=12", "--grep=README sem exemplo", "graphow/soma").strip()
     reescrita = git(repositorio, "commit-tree", "graphow/soma^{tree}", "-m", "Reescreve a branch do Goal").strip()
     git(repositorio, "update-ref", "refs/heads/graphow/soma", reescrita)
+    fora = _blocos(rastro()[1], "C1")[3]
     git(repositorio, "update-ref", "refs/heads/main", reescrita)
     git(repositorio, "reflog", "expire", "--expire=now", "--all")
     git(repositorio, "gc", "-q", "--prune=now")
     sem = _blocos(rastro()[1], "C1")[3]
 
     atestado = f"  Verificacao: ver-goal-soma-2 (conferencia, M1): atende em {verificado}"
+    assert fora == (f"{atestado} [vigente: commit fora da branch: {verificado} nao esta na historia da ponta (rebase ou outra "
+                    "branch), conferido pela diferenca entre as arvores]"), fora
     assert sem == (f"{atestado} [sem ancora: o commit {verificado} nao existe mais no repositorio: a historia foi reescrita ou o "
                    "clone e outro]"), sem

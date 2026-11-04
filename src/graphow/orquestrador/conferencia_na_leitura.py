@@ -137,10 +137,15 @@ def rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
 
 
 def marca_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
-    """O rótulo com o motivo, na sem âncora e na não conferida: a vista, o `--rastro` e o inspetor dizem por quê."""
+    """O rótulo com o motivo, quando há: a vista, o `--rastro` e o inspetor dizem por quê, e não só o estado.
+
+    A sem âncora e a não conferida sempre têm motivo. A vigente e a
+    desatualizada têm quando o commit está fora da branch (`vigente: commit
+    fora da branch: ...`): o rótulo é o do conteúdo, que pode seguir igual, e o
+    aviso é o da história.
+    """
     rotulo = rotulo_da_conferencia(conferencia)
-    com_motivo = conferencia.estado in (SEM_ANCORA, NAO_CONFERIDA) and conferencia.motivo
-    return f"{rotulo}: {conferencia.motivo}" if com_motivo else rotulo
+    return f"{rotulo}: {conferencia.motivo}" if conferencia.motivo else rotulo
 
 
 def conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None:

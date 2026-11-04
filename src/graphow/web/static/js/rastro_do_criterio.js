@@ -5,8 +5,9 @@
  * provam com o commit do aceite, as fatias que o cobrem com o commit de cada
  * uma, a verificação que o julgou por último com o commit e a conferência dela
  * na ponta (a `marca`, o mesmo texto da vista e do `--rastro`: o motivo da sem
- * âncora e da não conferida), e os achados que o ferem com o estado. O
- * critério retirado pelo humano vem com a chamada da retirada e o motivo.
+ * âncora e da não conferida, o aviso do commit fora da branch), e os achados
+ * que o ferem com o estado. O critério retirado pelo humano vem com a chamada
+ * da retirada e o motivo.
  * Testado por `node --test` em tests/web/js/rastro_do_criterio.test.mjs.
  */
 import { escapeHtml } from "./dom.js";

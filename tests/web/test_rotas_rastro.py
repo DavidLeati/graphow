@@ -10,6 +10,8 @@ from typing import Any
 import urllib.error
 import urllib.request
 
+import pytest
+
 from graphow.kernel.composicao import montar_kernel_em_memoria
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal
@@ -18,7 +20,9 @@ from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.rastro import ler_rastro
 from graphow.web.server import EnderecoServidor, GraphowWebServer
 
+from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import montar_bancada, roteiro_completo
+from tests.orquestrador.test_leitores_da_evidencia import _contar_o_git
 
 
 def _porta_livre() -> int:
@@ -82,3 +86,32 @@ def test_rota_sem_alvo_volta_400_e_alvo_que_nao_leva_a_goal_volta_404_edge_case(
 
     assert sem_alvo[0] == 400 and sem_alvo[1]["sucesso"] is False
     assert (sem_goal[0], sem_criterio[0]) == (404, 404)
+
+
+def test_rota_marca_o_commit_fora_da_branch_e_guarda_a_conta_entre_pedidos_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T3f2.2: a branch do Goal reescrita tira dela o commit da verificação; o inspetor recebe a marca com o aviso.
+
+    O rótulo segue `vigente` (a árvore é a mesma), e a conta de ancestral fica
+    na memória do canvas: o segundo pedido, sem a ponta andar, só pergunta a
+    ponta.
+    """
+    bancada = montar_bancada(tmp_path, roteiro_completo())
+    assert bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, OpcoesDoLaco(modo="autonomo")).fechou
+    repositorio = bancada.repositorio
+    verificado = git(repositorio, "log", "-1", "--format=%h", "--abbrev=12", "--grep=README sem exemplo", "graphow/soma").strip()
+    git(repositorio, "update-ref", "refs/heads/graphow/soma", git(repositorio, "commit-tree", "graphow/soma^{tree}", "-m", "Reescreve").strip())
+    chamadas = _contar_o_git(monkeypatch)
+
+    with _servidor(bancada.kernel) as base:
+        primeiro = _ler(f"{base}/api/rastro?criterio=crit-soma-c2")
+        do_primeiro = list(chamadas)
+        segundo = _ler(f"{base}/api/rastro?criterio=crit-soma-c2")
+
+    conferencia = primeiro[1]["criterios"][0]["atestado"]["conferencia"]
+    assert (primeiro[0], conferencia["estado"], conferencia["rotulo"]) == (200, "vigente", "vigente")
+    assert conferencia["marca"].startswith(f"vigente: commit fora da branch: {verificado} nao esta na historia da ponta"), conferencia
+    assert segundo == primeiro and ("merge-base", "--is-ancestor") in {chamada[:2] for chamada in do_primeiro}
+    assert chamadas[len(do_primeiro):] == [("rev-parse", "--verify", "--quiet", "refs/heads/graphow/soma^{commit}")]
+
