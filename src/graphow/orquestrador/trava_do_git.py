@@ -44,6 +44,14 @@ O hook não se desliga. O clone é a pasta do projeto da sessão
 volta ao HEAD: o `.claude/` da base, do humano, vale; o que não está
 commitado sai. Depois dela (`trava_mexida`), o sha256 do settings e o
 `.claude/` são conferidos: a sessão que mexeu num deles mexeu na trava.
+
+As instruções do Claude Code seguem a mesma regra. Todo `CLAUDE.md` e
+`CLAUDE.local.md` do clone, em qualquer pasta, iria no commit da fatia e
+mudaria as instruções das sessões seguintes, verificador incluído; e o da
+pasta de estado do Goal (ou da de cima), acima do clone, o Claude Code
+carrega como o de um diretório pai. Antes de cada invocação, os do clone
+voltam ao HEAD (o da base, do humano, fica) e os das pastas de estado saem;
+depois dela, o que foi criado ou mudado em qualquer um deles é trava mexida.
 """
 
 from collections.abc import Mapping, Sequence
@@ -85,6 +93,10 @@ ARQUIVO_DO_HOOK: str = "settings-da-trava.json"
 TEMPO_LIMITE_DO_HOOK_S: int = 30
 # O `.claude/` do clone, em qualquer caixa (o Windows não distingue): as configurações de projeto da sessão.
 PASTA_DO_CLAUDE: str = ":(icase).claude"
+# As instruções que o Claude Code carrega da pasta da sessão, das subpastas e das pastas acima dela.
+INSTRUCOES_DO_CLAUDE: tuple[str, ...] = ("CLAUDE.md", "CLAUDE.local.md")
+# O `.claude/` e as instruções do clone, em qualquer pasta e em qualquer caixa.
+CAMINHOS_DO_CLAUDE: tuple[str, ...] = (PASTA_DO_CLAUDE, *(f":(icase,glob)**/{nome}" for nome in INSTRUCOES_DO_CLAUDE))
 # A pasta `src` (ou site-packages) de onde este graphow foi importado: o hook roda este mesmo código.
 RAIZ_DO_PACOTE: Path = Path(__file__).resolve().parents[2]
 
@@ -141,30 +153,48 @@ class SeloDaSessao:
 
 
 def selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao:
-    """Antes de cada invocação: o settings do hook regravado e o `.claude/` do clone de volta ao HEAD."""
+    """Antes de cada invocação: o settings do hook regravado, o `.claude/` e os CLAUDE.md do clone de volta ao HEAD.
+
+    Os CLAUDE.md das pastas de estado (a do Goal, onde mora o settings do
+    hook, e a de cima), que nenhum HEAD traz, saem.
+    """
     git = GitDoGoal(area)
-    git.tentar("checkout", "HEAD", "--", PASTA_DO_CLAUDE)
-    git.tentar("clean", "-q", "-fdx", "--", PASTA_DO_CLAUDE)
+    for caminho in CAMINHOS_DO_CLAUDE:
+        git.tentar("checkout", "HEAD", "--", caminho)
+    git.tentar("clean", "-q", "-fdx", "--", *CAMINHOS_DO_CLAUDE)
+    for instrucao in instrucoes_do_estado(hook):
+        instrucao.unlink()
     return SeloDaSessao(hook, _regravar(hook), area)
 
 
 def trava_mexida(selo: SeloDaSessao) -> str:
-    """Depois da invocação: o que ela mexeu no settings do hook ou no `.claude/` do clone; vazio quando nada."""
+    """Depois da invocação: o que ela mexeu no settings do hook, no `.claude/` ou nos CLAUDE.md; vazio quando nada."""
     atual = hashlib.sha256(_bytes(selo.hook)).hexdigest() if selo.hook.is_file() else ""
     mexidos = claude_mexido(selo.area)
+    no_claude = [caminho for caminho in mexidos if caminho.lower().startswith(".claude/")]
+    instrucoes = [caminho for caminho in mexidos if caminho not in no_claude] + [str(p) for p in instrucoes_do_estado(selo.hook)]
     motivos = [f"a sessao reescreveu ou apagou o settings do hook da trava ({selo.hook})"] if atual != selo.sha256 else []
-    motivos += [f"a sessao criou ou mudou em .claude/ {', '.join(mexidos)}"] if mexidos else []
+    motivos += [f"a sessao criou ou mudou em .claude/ {', '.join(no_claude)}"] if no_claude else []
+    motivos += [f"a sessao criou ou mudou instrucoes do Claude Code: {', '.join(instrucoes)}"] if instrucoes else []
     if not motivos:
         return ""
-    return ("; ".join(motivos) + ": isso desliga ou troca o hook da trava do git nas sessoes seguintes. O que a sessao "
-            "fez nao vale e vai ao .patch; o .claude/ do clone e o da base, do humano, e o agente nao o muda.")
+    return ("; ".join(motivos) + ": isso desliga ou troca o hook da trava do git, ou as instrucoes, nas sessoes seguintes. "
+            "O que a sessao fez nao vale e vai ao .patch; o .claude/ e os CLAUDE.md do clone sao os da base, do humano, "
+            "e o agente nao os muda.")
 
 
 def claude_mexido(area: Path) -> tuple[str, ...]:
-    """Os arquivos do `.claude/` do clone fora do HEAD: mudados, apagados, novos e ignorados."""
+    """Os arquivos do `.claude/` e os CLAUDE.md do clone fora do HEAD: mudados, apagados, novos e ignorados."""
     linhas = GitDoGoal(area).rodar("-c", "core.quotepath=false", "status", "--porcelain", "--ignored",
-                                   "--untracked-files=all", "--", PASTA_DO_CLAUDE).splitlines()
+                                   "--untracked-files=all", "--", *CAMINHOS_DO_CLAUDE).splitlines()
     return tuple(linha[3:].strip().strip('"') for linha in linhas if len(linha) > 3)
+
+
+def instrucoes_do_estado(hook: Path) -> tuple[Path, ...]:
+    """Os CLAUDE.md e CLAUDE.local.md, em qualquer caixa, da pasta de estado do Goal (a do settings do hook) e da de cima."""
+    nomes = {nome.lower() for nome in INSTRUCOES_DO_CLAUDE}
+    pastas = [pasta for pasta in (hook.parent, hook.parent.parent) if pasta.is_dir()]
+    return tuple(arquivo for pasta in pastas for arquivo in pasta.iterdir() if arquivo.name.lower() in nomes and arquivo.is_file())
 
 
 def regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]:

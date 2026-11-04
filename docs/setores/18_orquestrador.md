@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-61 módulos · 11640 linhas · 85 classes
+61 módulos · 11670 linhas · 85 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -68,7 +68,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 257 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
-| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 258 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
+| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 288 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 217 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -1758,6 +1758,8 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 | `ARQUIVO_DO_HOOK` | `str` | `'settings-da-trava.json'` |
 | `TEMPO_LIMITE_DO_HOOK_S` | `int` | `30` |
 | `PASTA_DO_CLAUDE` | `str` | `':(icase).claude'` |
+| `INSTRUCOES_DO_CLAUDE` | `tuple[str, ...]` | `('CLAUDE.md', 'CLAUDE.local.md')` |
+| `CAMINHOS_DO_CLAUDE` | `tuple[str, ...]` | `(PASTA_DO_CLAUDE, *(f':(icase,glob)**/{nome}' for nome in INSTRUCOES_DO…` |
 | `RAIZ_DO_PACOTE` | `Path` | `Path(__file__).resolve().parents[2]` |
 
 ### `FotoDoClone`
@@ -1779,9 +1781,10 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 - `instalar_trava(pasta: Path) -> dict[str, str]` — Grava os hooks da trava na pasta e devolve o ambiente que a liga numa sessão de agente.
 - `configuracao_do_hook(python: str, raiz: Path) -> dict[str, Any]` — O settings do Claude Code que liga o hook PreToolUse da trava a cada comando Bash.
 - `gravar_hook_da_trava(pasta: Path) -> Path` — Grava o settings do hook na pasta de estado do Goal e devolve o caminho, que vai no `--settings` da sessão.
-- `selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao` — Antes de cada invocação: o settings do hook regravado e o `.claude/` do clone de volta ao HEAD.
-- `trava_mexida(selo: SeloDaSessao) -> str` — Depois da invocação: o que ela mexeu no settings do hook ou no `.claude/` do clone; vazio quando nada.
-- `claude_mexido(area: Path) -> tuple[str, ...]` — Os arquivos do `.claude/` do clone fora do HEAD: mudados, apagados, novos e ignorados.
+- `selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao` — Antes de cada invocação: o settings do hook regravado, o `.claude/` e os CLAUDE.md do clone de volta ao HEAD.
+- `trava_mexida(selo: SeloDaSessao) -> str` — Depois da invocação: o que ela mexeu no settings do hook, no `.claude/` ou nos CLAUDE.md; vazio quando nada.
+- `claude_mexido(area: Path) -> tuple[str, ...]` — Os arquivos do `.claude/` e os CLAUDE.md do clone fora do HEAD: mudados, apagados, novos e ignorados.
+- `instrucoes_do_estado(hook: Path) -> tuple[Path, ...]` — Os CLAUDE.md e CLAUDE.local.md, em qualquer caixa, da pasta de estado do Goal (a do settings do hook) e da de cima.
 - `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório.
 - `fotografar_clone(area: Path) -> FotoDoClone` — A foto do clone, tirada logo antes da sessão.
 - `restaurar_o_clone(foto: FotoDoClone) -> str` — Deixa o clone como a foto: a branch do Goal, as outras refs, a configuração e os hooks; diz o que desfez.
