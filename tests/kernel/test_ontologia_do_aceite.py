@@ -68,7 +68,7 @@ def _kernel_com_goal_do_gerente(**propriedades_do_projeto: object) -> WriteKerne
         _no(SESSAO, TipoNo.SESSAO), _aresta("setor", SESSAO, TipoAresta.CONTEM),
         _propriedade("goal", "spec", "somar"), _propriedade("goal", "orquestracao", {"modo": "autonomo"}),
         *_produzido("ver-1", TipoNo.EVIDENCE, SESSAO, {"acao": "verificacao_do_goal", "numero": 1, "final": False,
-                                                       "veredito": "rejeitado"}),
+                                                       "veredito": "rejeitado", "commit": "c0de" * 10}),
         _aresta("ver-1", "goal", TipoAresta.DERIVA_DE),
     ], PapelAutor.ORQUESTRADOR)
     assert adocao.sucesso, adocao.mensagem

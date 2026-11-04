@@ -102,7 +102,7 @@ def validar_ancora_do_artifact(proposta: PropostaPatch, estado: GrafoEstado, *, 
     Artifact de que o lote cria ou tira um `deriva_de`, pelos `deriva_de` que
     sobram: o lote só de aresta montava a isenção em partes.
     """
-    recriados, nos = _recriados(proposta), projetar_nos_do_lote(proposta, estado)
+    recriados, nos = recriados_pelo_lote(proposta), projetar_nos_do_lote(proposta, estado)
     tocados = {no.id: no for no in nos}
     julgados = {no.id: no for no in nos if not _antigo_sem_ancora(no.id, estado, recriados=recriados)}
     for id_no in _com_deriva_de_mexido(proposta, estado, depois):
@@ -148,7 +148,7 @@ def _segmentos(caminho: str) -> list[str]:
     return [seg for seg in caminho.split("/") if seg]
 
 
-def _recriados(proposta: PropostaPatch) -> frozenset[str]:
+def recriados_pelo_lote(proposta: PropostaPatch) -> frozenset[str]:
     """Os nós que o lote cria ou recria inteiros, por `add` em `/nos/<id>`."""
     adicionados = (_segmentos(item.path) for item in proposta.operacoes if item.op == OperacaoPatch.ADD)
     return frozenset(seg[1] for seg in adicionados if len(seg) == SEGMENTOS_DO_ELEMENTO and seg[0] == "nos")

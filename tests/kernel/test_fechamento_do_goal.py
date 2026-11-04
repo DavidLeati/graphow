@@ -16,6 +16,8 @@ from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
 
 SESSAO: str = sessao_do_goal("goal")
 PONTA: dict[str, str] = {"commit": "doc123", "commit_do_codigo": "cod123"}
+# O commit em que a verificação foi vista (a âncora da Evidence, kernel/ancora_da_evidencia.py); o fechamento olha o do código.
+COMMIT_VERIFICADO: str = "c0de" * 10
 
 
 def _submeter(kernel: WriteKernel, operacoes: Sequence[ItemPatch], papel: PapelAutor = PapelAutor.ORQUESTRADOR) -> ResultadoSubmissao:
@@ -67,7 +69,7 @@ def _verificacao(numero: int, *, final: bool = True, veredito: str = "aprovado",
                  c1: str = "atende") -> list[ItemPatch]:
     """A Evidence de verificação ligada ao Goal."""
     propriedades = {"acao": "verificacao_do_goal", "numero": numero, "final": final, "veredito": veredito,
-                    "commit": commit_do_codigo, "commit_do_codigo": commit_do_codigo,
+                    "commit": COMMIT_VERIFICADO, "commit_do_codigo": commit_do_codigo,
                     "pareceres": [{"id": "C1", "no": "crit-1", "veredito": c1, "prova": "aceite verde"}]}
     id_ver = f"ver-{numero}"
     return [*_no(id_ver, TipoNo.EVIDENCE, propriedades), _aresta(id_ver, "goal", TipoAresta.DERIVA_DE)]

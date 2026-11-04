@@ -40,6 +40,7 @@ class ModoFalhaMAST(str, Enum):
     APRENDIZADO_SEM_ORIGEM = "aprendizado_sem_origem"
     EVIDENCIA_SEM_LOCALIZACAO = "evidencia_sem_localizacao"
     ARTIFACT_SEM_ANCORA = "artifact_sem_ancora"
+    EVIDENCIA_SEM_ANCORA = "evidencia_sem_ancora"
     ELEMENTO_JA_EXISTENTE = "elemento_ja_existente"
     FECHAMENTO_SEM_VEREDITO_APROVADO = "fechamento_sem_veredito_aprovado"
     FECHAMENTO_SEM_VERIFICACAO_LIMPA = "fechamento_sem_verificacao_limpa"
@@ -70,6 +71,8 @@ CATEGORIA_POR_MODO: Mapping[ModoFalhaMAST, CategoriaFalhaMAST] = {
     ModoFalhaMAST.EVIDENCIA_SEM_LOCALIZACAO: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
     # Entrega sem o hash do que entregou: ninguém confere o que ela é. Mesma família.
     ModoFalhaMAST.ARTIFACT_SEM_ANCORA: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
+    # Fato sobre código sem o commit em que foi visto: ninguém sabe se ele ainda vale. Mesma família.
+    ModoFalhaMAST.EVIDENCIA_SEM_ANCORA: CategoriaFalhaMAST.VERIFICACAO_DE_TAREFA,
     # Criar sobre um id que já existe é, quase sempre, o mesmo lote enviado de
     # novo: repetição de passo, que o MAST põe no desenho do sistema.
     ModoFalhaMAST.ELEMENTO_JA_EXISTENTE: CategoriaFalhaMAST.DESIGN_DO_SISTEMA,

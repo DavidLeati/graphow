@@ -45,7 +45,8 @@ EXIGENCIAS_DO_PAPEL: Mapping[PapelAutor, str] = {
         "Sua Evidence diz onde viu: `arquivo`, `linhas` ('120-135') e o `trecho` literal dessas linhas, "
         "ou, quando o fato nao mora num arquivo com linhas, `fonte` (URL, documento, conversa com data), "
         "`local` opcional (pagina, secao) e o `trecho` literal; sem isso o InvariantGate recusa com "
-        "evidencia_sem_localizacao."
+        "evidencia_sem_localizacao. A lida num arquivo leva tambem o `commit` em que voce a leu (`git rev-parse HEAD`) "
+        "ou, fora de repositorio git, o `sha256` do arquivo; sem eles, evidencia_sem_ancora."
     ),
     PapelAutor.EXECUTOR: (
         "Seu Artifact leva a ancora: `commit` (o hash do commit que traz a entrega, 40 ou 64 caracteres) ou, fora "

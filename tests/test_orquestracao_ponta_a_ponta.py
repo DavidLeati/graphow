@@ -21,6 +21,8 @@ from tests.mcp.cenario_governanca import aprovar_plano
 
 SESSAO: str = "sess-orq"
 TRECHO: str = "def taxa_para_fator(taxa, dias):\n    return (1 + taxa) ** (-dias / 252)"
+# O commit em que o trecho foi lido: a Evidence localizada num arquivo nasce ancorada (kernel/ancora_da_evidencia.py).
+COMMIT_LIDO: str = "c0ffee" + "1" * 34
 
 
 def _no(id_no: str, tipo: str, **propriedades: object) -> dict[str, Any]:
@@ -71,7 +73,7 @@ def _montar_goal() -> WriteKernel:
 def _decompor(orquestrador: GraphowMCPServer) -> None:
     """Passo 2: a leitura localizada, a decisão que ela justifica e a Task que a decisão orienta."""
     lote = [
-        *_produzido("evi-fator", "Evidence", arquivo="src/precos/fator.py", linhas="40-41", trecho=TRECHO),
+        *_produzido("evi-fator", "Evidence", arquivo="src/precos/fator.py", linhas="40-41", trecho=TRECHO, commit=COMMIT_LIDO),
         *_produzido("dec-fator", "Decision", motivo="reusar a funcao que ja aplica a base 252"),
         _aresta("evi-fator", "dec-fator", "justifica"),
     ]
@@ -121,7 +123,8 @@ def _revisar(
         id_falha = f"evi-falha-{id_artifact}"
         trecho = "fator = 1 / (1 + taxa)"
         lote += [
-            *_produzido(id_falha, "Evidence", arquivo="src/precos/preco.py", linhas="12", trecho=trecho, gravidade=gravidade),
+            *_produzido(id_falha, "Evidence", arquivo="src/precos/preco.py", linhas="12", trecho=trecho, gravidade=gravidade,
+                        commit=COMMIT_LIDO),
             _aresta(id_falha, id_task, "deriva_de"),
             _aresta(id_falha, f"evi-verif-{id_task}", "contradiz"),
         ]

@@ -72,7 +72,7 @@ Duas tarefas sob a sessão `sess-sprint-01`, com a carga dependendo do parser. O
 
 ## planejador: registrar o trecho lido e a decisão que ele sustenta
 
-O planejador decide em cima do que leu, e o que leu entra como `Evidence` com o ponteiro inteiro. Quando a fonte é um arquivo (código, ata em Markdown, CSV), o ponteiro é `arquivo`, `linhas` e o `trecho` literal dessas linhas; sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai. A outra forma, para o que não mora num arquivo com linhas, está na receita seguinte. A `Decision` diz onde vale por `orienta`, e é por essa aresta que ela chega à vista de quem executa a tarefa, mesmo que a tarefa tenha nascido noutra sessão.
+O planejador decide em cima do que leu, e o que leu entra como `Evidence` com o ponteiro inteiro. Quando a fonte é um arquivo (código, ata em Markdown, CSV), o ponteiro é `arquivo`, `linhas` e o `trecho` literal dessas linhas; sem um dos três o InvariantGate recusa com `evidencia_sem_localizacao`, e um trecho com mais linhas do que a faixa também cai. O `commit` em que o arquivo foi lido (`git rev-parse HEAD`) ancora a leitura, para quem vier depois saber se o arquivo mudou; fora de repositório git, vale o `sha256` do arquivo (`sha256sum`, ou `Get-FileHash` no Windows). Sem âncora, `evidencia_sem_ancora`. A outra forma, para o que não mora num arquivo com linhas, está na receita seguinte. A `Decision` diz onde vale por `orienta`, e é por essa aresta que ela chega à vista de quem executa a tarefa, mesmo que a tarefa tenha nascido noutra sessão.
 
 ```json
 {
@@ -88,6 +88,7 @@ O planejador decide em cima do que leu, e o que leu entra como `Evidence` com o 
         "propriedades": {
           "arquivo": "src/precos/fator.py",
           "linhas": "40-42",
+          "commit": "8d1f0c3a5e7b9d2f4a6c8e0b2d4f6a8c0e2b4d6f",
           "trecho": "def taxa_para_fator(taxa: float, dias: int) -> float:\n    \"\"\"Desconto.\"\"\"\n    return (1 + taxa) ** (-dias / 252)",
           "relevancia": "e onde a taxa de compra vira fator de desconto"
         }

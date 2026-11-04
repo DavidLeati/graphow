@@ -10,7 +10,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-21 módulos · 2764 linhas · 31 classes
+21 módulos · 2765 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -26,7 +26,7 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
 | [`context/politicas.py`](#contextpoliticas) | 307 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/propostas_fora_do_goal.py`](#contextpropostasforadogoal) | 65 | A seção de propostas fora do Goal, só na vista do humano. |
-| [`context/protocolo.py`](#contextprotocolo) | 134 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
+| [`context/protocolo.py`](#contextprotocolo) | 135 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
 | [`context/restricoes_de_escopo.py`](#contextrestricoesdeescopo) | 56 | A restrição como a vista a mostra: com o id, o `tipo` e os critérios de aceite à frente. |
 | [`context/secoes.py`](#contextsecoes) | 280 | Seções que compõem uma vista de contexto e sua ordem de descarte. |

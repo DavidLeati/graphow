@@ -13,7 +13,9 @@ from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoP
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
 
 TRECHO_DE_TRES_LINHAS: str = 'def taxa_para_fator(taxa: float, dias: int) -> float:\n    """Desconto."""\n    return (1 + taxa) ** (-dias / 252)'
-PONTEIRO: dict[str, object] = {"arquivo": "src/precos/fator.py", "linhas": "40-42", "trecho": TRECHO_DE_TRES_LINHAS}
+# O commit em que o trecho foi lido: a Evidence localizada num arquivo é sobre código (kernel/ancora_da_evidencia.py).
+COMMIT: str = "0123456789abcdef" * 2 + "01234567"
+PONTEIRO: dict[str, object] = {"arquivo": "src/precos/fator.py", "linhas": "40-42", "trecho": TRECHO_DE_TRES_LINHAS, "commit": COMMIT}
 
 
 def _no(id_no: str, tipo: TipoNo, propriedades: dict[str, object] | None = None) -> ItemPatch:

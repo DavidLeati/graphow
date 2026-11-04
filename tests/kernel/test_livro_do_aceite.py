@@ -18,6 +18,7 @@ from graphow.kernel.patch_models import ItemPatch, OperacaoPatch, ResultadoValid
 from graphow.kernel.write_kernel import ResultadoSubmissao
 
 from tests.kernel.test_fechamento_do_goal import (
+    COMMIT_VERIFICADO,
     FECHAR,
     _achado,
     _aresta,
@@ -174,7 +175,7 @@ def test_derivadas_do_criterio_e_fere_sao_do_orquestrador_edge_case() -> None:
     assert not humano_fere.sucesso
 
 
-VERIFICACAO_FORJADA: dict[str, object] = {"numero": 7, "final": True, "veredito": "aprovado", "commit": "cod123",
+VERIFICACAO_FORJADA: dict[str, object] = {"numero": 7, "final": True, "veredito": "aprovado", "commit": COMMIT_VERIFICADO,
                                           "commit_do_codigo": "cod123",
                                           "pareceres": [{"id": "C1", "no": "crit-1", "veredito": "atende", "prova": "forjada"}]}
 ACAO: ItemPatch = _propriedade("ver-f", "acao", "verificacao_do_goal")

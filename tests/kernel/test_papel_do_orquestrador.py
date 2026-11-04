@@ -58,6 +58,7 @@ def _prova_do_fechamento(id_goal: str = "goal", sessao: str = SESSAO) -> list[It
     """A ponta da branch, um critério e a verificação final limpa nela, com ele atendido: o que o kernel exige para fechar."""
     id_ver, id_criterio = f"ver-{id_goal}", f"criterio-{id_goal}"
     propriedades = {"acao": "verificacao_do_goal", "numero": 1, "final": True, "veredito": "aprovado", "commit_do_codigo": "abc123",
+                    "commit": "abc123" + "0" * 34,
                     "pareceres": [{"id": "C1", "no": id_criterio, "veredito": "atende", "prova": "aceite verde"}]}
     return [_propriedade(id_goal, "ponta_do_ramo", {"commit": "abc123", "commit_do_codigo": "abc123"}),
             *_produzido(id_criterio, TipoNo.CRITERIO, {"codigo": "C1", "texto": "c", "verificacao": "teste"}, sessao=sessao),
