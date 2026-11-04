@@ -44,7 +44,7 @@ from graphow.orquestrador.registro_do_rebase import equivalentes_da_ponta
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
 
 ACAO_DO_CANCELAMENTO_TARDIO: str = "cancelamento_tardio"
-CAMPO_CANCELAMENTO_TARDIO: str = "cancelamento_tardio"
+CAMPO_CANCELAMENTO_TARDIO: str = a.CAMPO_CANCELAMENTO_TARDIO
 
 
 def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:

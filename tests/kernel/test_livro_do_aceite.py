@@ -128,6 +128,23 @@ def test_humano_cancela_com_motivo_e_nao_conclui_nominal() -> None:
     assert not pelo_orquestrador.sucesso
 
 
+NOTA_TARDIA: dict[str, str] = {"evidencia": "cancelamento-tardio-goal", "integrado": "cod123", "texto": "a base ja tinha o Goal"}
+
+
+@pytest.mark.parametrize(
+    "lote",
+    [[_propriedade("goal", "cancelamento_tardio", {**NOTA_TARDIA, "texto": "nada integrou"})],
+     [_remover("/nos/goal/propriedades/cancelamento_tardio")]],
+    ids=["reescreve", "apaga"],
+)
+@pytest.mark.parametrize("papel", [HUMANO, PapelAutor.ARBITRO, PapelAutor.EXECUTOR])
+def test_nota_do_cancelamento_tardio_e_do_orquestrador_edge_case(lote: list[ItemPatch], papel: PapelAutor) -> None:
+    """T3g5.5: o orquestrador grava a nota do cancelamento tardio no Goal; outro papel não a reescreve nem a apaga."""
+    recibo = _tentar([_propriedade("goal", "cancelamento_tardio", NOTA_TARDIA)], lote, papel)
+
+    assert not recibo.sucesso and "'cancelamento_tardio' do Goal e do orquestrador" in recibo.mensagem, recibo.mensagem
+
+
 @pytest.mark.parametrize(
     ("estado", "extra", "papel", "passa"),
     [

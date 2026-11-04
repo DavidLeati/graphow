@@ -2145,7 +2145,7 @@ O fim de cada marco: a verificação dele, as fatias de correção e, no último
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `ACAO_DO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
-| `CAMPO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
+| `CAMPO_CANCELAMENTO_TARDIO` | `str` | `a.CAMPO_CANCELAMENTO_TARDIO` |
 
 ### Funções do módulo
 

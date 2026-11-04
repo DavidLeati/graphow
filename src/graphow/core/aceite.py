@@ -99,9 +99,11 @@ CAMPO_PEDIDOS_ATENDIDOS: str = "pedidos_atendidos"
 CAMPO_PLANOS_RECUSADOS: str = "planos_recusados"
 # O commit de antes de cada rebase de um commit do aceite, e o que o rebase fez dele (a aprovação e os desacordos seguem).
 CAMPO_ACEITE_ANTES_DO_REBASE: str = "aceite_antes_do_rebase"
+# A nota de que a base já tinha o trabalho do Goal quando o cancelamento dele foi lido (orquestrador/verificacao_do_goal.py).
+CAMPO_CANCELAMENTO_TARDIO: str = "cancelamento_tardio"
 PROPRIEDADES_DO_ORQUESTRADOR_NO_GOAL: frozenset[str] = frozenset(
     {CAMPO_PONTA_DO_RAMO, CAMPO_CONDUCAO, CAMPO_PLANO, CAMPO_ACEITE, CAMPO_PEDIDOS_ATENDIDOS, CAMPO_PLANOS_RECUSADOS,
-     CAMPO_ACEITE_ANTES_DO_REBASE}
+     CAMPO_ACEITE_ANTES_DO_REBASE, CAMPO_CANCELAMENTO_TARDIO}
 )
 # O pedido do humano ao laço (descartar um Achado, mais ciclos, cancelar,
 # recusar o plano, refazer um aceite): uma Decision que só o humano grava.
