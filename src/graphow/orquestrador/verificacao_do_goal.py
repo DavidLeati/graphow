@@ -20,7 +20,8 @@ rebase da branch, a suíte e, se o rebase mudou arquivo de critério, a
 verificação final de novo (orquestrador/base_que_andou.py). Logo antes de
 integrar, o laço relê o Goal: o cancelamento que chegou no meio do passo
 impede a integração; o que chegou depois dessa releitura e antes do
-fast-forward fica numa nota do Goal, que segue cancelado.
+fast-forward fica numa nota do Goal, que segue cancelado
+(orquestrador/cancelamento_tardio.py).
 
 O documento é sincronizado com as pendências a cada passo depois da
 verificação, e por isso a queda entre o lote e o commit do documento não perde
@@ -31,20 +32,16 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from graphow.core import aceite as a
-from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.base_que_andou import base_andou, rebasear_o_goal
+from graphow.orquestrador.cancelamento_tardio import anotar_o_cancelamento_tardio
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, remover_area
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
-from graphow.orquestrador.livro_razao import aresta, propriedade
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
 from graphow.orquestrador.registro_do_rebase import equivalentes_da_ponta
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
-
-ACAO_DO_CANCELAMENTO_TARDIO: str = "cancelamento_tardio"
-CAMPO_CANCELAMENTO_TARDIO: str = a.CAMPO_CANCELAMENTO_TARDIO
 
 
 def verificar_ou_fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:
@@ -185,31 +182,13 @@ def _integrar(contexto: ContextoDoGoal, repositorio: Path) -> Parada | None:
 
 
 def _cancelamento_tardio(contexto: ContextoDoGoal, integrado: str) -> Parada | None:
-    """O cancelamento que chegou depois da releitura e antes do fast-forward: a nota no livro-razão, e o Goal fica cancelado.
-
-    A releitura de logo antes de integrar deixa uma janela até o
-    fast-forward. O cancelamento que cai nela não impede a integração, mas
-    não some: a releitura de logo depois grava, numa Evidence que deriva do
-    Goal (ancorada no commit integrado) e numa nota no Goal, que a base já
-    tinha o Goal quando o cancelamento chegou; o orquestrador não o fecha por
-    cima do cancelamento do humano.
-    """
+    """O cancelamento que chegou depois da releitura e antes do fast-forward: a nota no livro-razão, e o Goal fica cancelado."""
     estado = contexto.estado()
     if not estado.cancelado:
         return None
-    configuracao, motivo = contexto.configuracao, str(estado.propriedades.get(a.CAMPO_MOTIVO_DO_CANCELAMENTO, ""))
-    id_nota, rotulo = f"cancelamento-tardio-{contexto.id_goal}", f"Cancelamento do Goal {contexto.id_goal} depois da integracao"
-    nota = {"acao": ACAO_DO_CANCELAMENTO_TARDIO, "base": configuracao.base, m.CAMPO_COMMIT: integrado, "motivo": motivo,
-            "texto": f"O cancelamento chegou depois da releitura de antes do fast-forward: {configuracao.base} ja estava em "
-                     f"{integrado[:12]}, com o trabalho do Goal, quando ele foi lido."}
-    contexto.livro.gravar([*contexto.livro.produzido(id_nota, TipoNo.EVIDENCE, rotulo, propriedades=nota),
-                           aresta(id_nota, contexto.id_goal, TipoAresta.DERIVA_DE),
-                           propriedade(contexto.id_goal, CAMPO_CANCELAMENTO_TARDIO, {"evidencia": id_nota, "integrado": integrado,
-                                                                                    "texto": nota["texto"]})], rotulo)
-    return Parada(contexto.id_goal, MotivoDaParada.CANCELADO,
-                  f"O Goal {contexto.id_goal} foi cancelado tarde ({motivo}): o cancelamento chegou depois da releitura, e a base "
-                  f"{configuracao.base} ja esta em {integrado[:12]}, com o Goal. O Goal fica cancelado, com a nota ({id_nota}). Para "
-                  f"tirar o trabalho dele da base: `git revert` dos commits do Goal em {configuracao.base}.")
+    texto = (f"O cancelamento chegou depois da releitura de antes do fast-forward: {contexto.configuracao.base} ja estava em "
+             f"{integrado[:12]}, com o trabalho do Goal, quando ele foi lido.")
+    return anotar_o_cancelamento_tardio(contexto.livro, estado, integrado=integrado, texto=texto)
 
 
 def _branch_andou(repositorio: Path, ramo: str, head: str) -> str:

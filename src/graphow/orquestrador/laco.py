@@ -21,6 +21,7 @@ from graphow.kernel.patch_models import DadosPropostaPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.atendimento_dos_pedidos import conferir_pedido
 from graphow.orquestrador.autor_de_aceite import escrever_aceite
+from graphow.orquestrador.cancelamento_tardio import cancelamento_ja_integrado
 from graphow.orquestrador.configuracao_do_aceite import restaurar_a_configuracao_entregue
 from graphow.orquestrador.contexto_do_laco import (
     ContextoDoGoal,
@@ -186,7 +187,7 @@ class Orquestrador:
         if estado.fechado:
             return Parada(id_goal, MotivoDaParada.FECHADO, f"O Goal {id_goal} ja esta fechado.")
         if estado.cancelado:
-            return _parada_do_cancelamento(estado)
+            return self._parada_do_goal_cancelado(estado)
         contexto = self._contexto(estado, opcoes, repositorio)
         retomar_o_rebase(contexto)
         preparar_area(contexto.area_do_goal)
@@ -199,6 +200,16 @@ class Orquestrador:
             if parada is not None:
                 return parada
         return Parada(id_goal, MotivoDaParada.FALHA, f"O laco passou de {LIMITE_DE_PASSOS} passos sem parar.")
+
+    def _parada_do_goal_cancelado(self, estado: EstadoDoGoal) -> Parada:
+        """O Goal cancelado não roda; o que já está na base ganha antes a nota do cancelamento tardio que a queda não deixou gravar.
+
+        O processo que cai logo depois do fast-forward, com o cancelamento
+        chegando nesse intervalo, não anota que a base já tem o Goal
+        (orquestrador/cancelamento_tardio.py): a execução seguinte anota.
+        """
+        livro = LivroRazaoDoGoal(self._dependencias.kernel, estado.id_goal)
+        return cancelamento_ja_integrado(livro, estado) or _parada_do_cancelamento(estado)
 
     def _contexto(self, estado: EstadoDoGoal, opcoes: OpcoesDoLaco, repositorio: Path | None) -> ContextoDoGoal:
         """O contexto do Goal, adotando o Goal do gerente na primeira chamada e aplicando o que a chamada mudou."""

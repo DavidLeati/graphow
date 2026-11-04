@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-71 módulos · 13497 linhas · 104 classes
+72 módulos · 13563 linhas · 104 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -21,6 +21,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 101 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 389 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/cancelamento_tardio.py`](#orquestradorcancelamentotardio) | 76 | O cancelamento tardio: o humano cancela o Goal quando a base já tem o trabalho dele, e o livro-razão guarda isso. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 114 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
@@ -46,7 +47,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 327 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 338 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
@@ -80,7 +81,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 307 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 252 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 231 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 71 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
@@ -232,6 +233,19 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 - `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou.
 - `briefing_da_conferencia(estado: EstadoDoGoal, commit: str) -> str` — O pedido curto da conferência: os critérios, os achados a reproduzir, os pareceres de antes e o diff das correções.
 - `pedido_de_correcao_da_saida(problemas: Sequence[str]) -> str` — O que vai à mesma sessão quando a saída dela não conferiu.
+
+## `orquestrador/cancelamento_tardio.py`
+
+O cancelamento tardio: o humano cancela o Goal quando a base já tem o trabalho dele, e o livro-razão guarda isso.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
+
+### Funções do módulo
+
+- `anotar_o_cancelamento_tardio(livro: LivroRazaoDoGoal, estado: EstadoDoGoal) -> Parada` — A Evidence e a nota no Goal de que a base já tinha o trabalho dele, até `integrado`, quando o cancelamento foi lido.
+- `cancelamento_ja_integrado(livro: LivroRazaoDoGoal, estado: EstadoDoGoal) -> Parada | None` — No Goal cancelado, a nota que a queda logo depois do fast-forward não deixou gravar; None quando não há o que anotar.
 
 ## `orquestrador/comandos_do_stream.py`
 
@@ -2141,11 +2155,6 @@ Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis 
 ## `orquestrador/verificacao_do_goal.py`
 
 O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal.
-
-| Constante | Tipo | Valor |
-| :--- | :--- | :--- |
-| `ACAO_DO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
-| `CAMPO_CANCELAMENTO_TARDIO` | `str` | `a.CAMPO_CANCELAMENTO_TARDIO` |
 
 ### Funções do módulo
 
