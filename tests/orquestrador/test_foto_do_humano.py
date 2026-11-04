@@ -69,8 +69,9 @@ def test_foto_e_salvaguarda_nao_mudam_o_repositorio_do_humano_nominal(tmp_path: 
     assert "preparado.txt" in foto.indice and foto.cabeca.startswith("main ") and ".git/config" in foto.do_git
 
 
-def test_foto_do_repositorio_limpo_roda_seis_processos_do_git_por_sessao_nominal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """T3a6, item 3: sem mudança, a foto de antes e a de depois são o `status --branch`, as refs e o índice, sem salvaguarda."""
+def test_foto_do_repositorio_limpo_roda_sete_processos_do_git_por_sessao_nominal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T3a6, item 3, e T3a7, item 4: sem mudança, a foto de antes é a configuração (`config --list --show-origin`), o
+    `status --branch`, as refs e o índice, e a de depois, os três últimos, sem salvaguarda."""
     repositorio = criar_repositorio(tmp_path / "humano")
     original = subprocess.run
     chamados: list[list[str]] = []
@@ -83,7 +84,7 @@ def test_foto_do_repositorio_limpo_roda_seis_processos_do_git_por_sessao_nominal
     conferir_o_humano(foto_antes_da_sessao(repositorio), "executor", "")
 
     subcomandos = [comando[comando.index("--no-optional-locks") + 1] for comando in chamados]
-    assert subcomandos == ["status", "for-each-ref", "ls-files"] * 2, chamados
+    assert subcomandos == ["config", *["status", "for-each-ref", "ls-files"] * 2], chamados
 
 
 def test_salvaguarda_recupera_o_rastreado_e_o_nao_rastreado_edge_case(tmp_path: Path) -> None:

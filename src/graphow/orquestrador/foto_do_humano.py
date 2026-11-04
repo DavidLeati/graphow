@@ -9,14 +9,17 @@ comando. Antes de cada sessão de papel, o orquestrador fotografa o
 repositório de onde o clone saiu: o HEAD e o status (`status --branch
 --porcelain=v2 -z`, os não rastreados um a um, com o objeto de cada
 rastreado no HEAD e no índice), as refs, as entradas do índice (`ls-files
--s`), o hash do conteúdo de cada arquivo que o status lista e o hash da
-configuração (`.git/config`) e de cada arquivo de `.git/hooks`. Junto, guarda
-a salvaguarda: o commit de `git stash create` com as mudanças rastreadas e
-uma árvore com os não rastreados, cada um como blob (`git hash-object -w`).
-São três processos do git por foto quando o repositório está limpo; a
-salvaguarda só roda quando há o que guardar. Depois da sessão, com a árvore
-de processos dela já morta, a foto é refeita, e a conferência separa a perda
-do avanço (orquestrador/conferencia_do_humano.py).
+-s`), o hash do conteúdo de cada arquivo que o status lista e o hash de
+cada arquivo que muda o que o git roda (orquestrador/arquivos_do_git.py: a
+configuração, os includes, os hooks, o exclude e o reflog do stash), com a
+lista deles tirada do `git config --list --show-origin`. Junto, guarda a
+salvaguarda: o commit de `git stash create` com as mudanças rastreadas e uma
+árvore com os não rastreados, cada um como blob (`git hash-object -w`). São
+quatro processos do git na foto de antes e três na de depois quando o
+repositório está limpo; a salvaguarda só roda quando há o que guardar. Depois
+da sessão, com a árvore de processos dela já morta, a conferência lê de novo
+os arquivos do git, sem processo, e só então refaz a foto e separa a perda do
+avanço (orquestrador/conferencia_do_humano.py).
 
 A foto não escreve no repositório do humano. Todo git dela roda sem
 fsmonitor, sem hooks e sem trava opcional (orquestrador/git_da_foto.py), e o
@@ -30,12 +33,19 @@ entram no repositório, soltos, e o `git gc` os apaga depois do prazo dele
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-import hashlib
-import os
 from pathlib import Path
 import shutil
 import tempfile
 
+from graphow.orquestrador.arquivos_do_git import (
+    AUSENTE,
+    LINK,
+    PASTA,
+    ArquivosDoGit,
+    arquivos_do_git,
+    conteudo_do_arquivo,
+    ler_os_arquivos_do_git,
+)
 from graphow.orquestrador.git_da_foto import git_da_foto
 
 MENSAGEM_DA_SALVAGUARDA: str = "graphow: salvaguarda do repositorio do humano antes da sessao"
@@ -43,9 +53,6 @@ MENSAGEM_DA_SALVAGUARDA: str = "graphow: salvaguarda do repositorio do humano an
 CAMPOS_ANTES_DO_CAMINHO: Mapping[str, int] = {"1": 8, "2": 9, "u": 10, "?": 1}
 CABECALHO_DO_STATUS: str = "# branch."
 NAO_RASTREADO: str = "?"
-AUSENTE: str = "ausente"
-PASTA: str = "pasta"
-LINK: str = "link "
 MODO_DO_SOLTO: str = "100644"
 
 
@@ -80,7 +87,8 @@ class FotoDoHumano:
 
     `cabeca` é a branch e o commit do HEAD; `indice`, as entradas (`modo objeto estágio`) de cada caminho; `listados`, o
     que o status lista; `conteudos`, o sha256 de cada arquivo listado (e dos pedidos, na foto de depois); `do_git`, o
-    da configuração e de cada hook. A `salvaguarda` só vem na foto de antes da sessão.
+    de cada arquivo que muda o git, pelo nome, e `vigia`, a lista deles, que a foto de antes tira da configuração e a
+    conferência de depois relê. A `salvaguarda` só vem na foto de antes da sessão.
     """
 
     repositorio: Path
@@ -90,6 +98,7 @@ class FotoDoHumano:
     listados: Mapping[str, ArquivoListado]
     conteudos: Mapping[str, str]
     do_git: Mapping[str, str]
+    vigia: ArquivosDoGit
     salvaguarda: Salvaguarda = Salvaguarda()
 
 
@@ -101,11 +110,14 @@ def foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None:
     return replace(foto, salvaguarda=Salvaguarda(_salvaguardar_rastreados(foto), _salvaguardar_soltos(foto)))
 
 
-def fotografar_o_humano(repositorio: Path, tambem: Iterable[str] = ()) -> FotoDoHumano:
-    """O HEAD, o status, as refs, o índice e a pasta do git, com o hash do conteúdo de cada arquivo listado e dos dados."""
+def fotografar_o_humano(repositorio: Path, tambem: Iterable[str] = (), *, vigia: ArquivosDoGit | None = None) -> FotoDoHumano:
+    """Os arquivos do git (da lista dada, ou da tirada agora da configuração), o HEAD, o status, as refs e o índice, com o
+    hash do conteúdo de cada arquivo listado e dos pedidos."""
+    vigia = vigia or arquivos_do_git(repositorio, *_pastas_do_git(repositorio))
+    do_git = ler_os_arquivos_do_git(vigia)
     cabeca, listados = _status(repositorio)
-    conteudos = {caminho: _conteudo(repositorio / caminho) for caminho in dict.fromkeys([*listados, *tambem])}
-    return FotoDoHumano(repositorio, cabeca, _refs(repositorio), _indice(repositorio), listados, conteudos, _do_git(repositorio))
+    conteudos = {caminho: conteudo_do_arquivo(repositorio / caminho) for caminho in dict.fromkeys([*listados, *tambem])}
+    return FotoDoHumano(repositorio, cabeca, _refs(repositorio), _indice(repositorio), listados, conteudos, do_git, vigia)
 
 
 def _ler(repositorio: Path, *argumentos: str) -> str:
@@ -166,23 +178,6 @@ def _pastas_do_git(repositorio: Path) -> tuple[Path, Path]:
     return (Path(pastas[0]), Path(pastas[1])) if len(pastas) == 2 else (ponto, ponto)
 
 
-def _do_git(repositorio: Path) -> dict[str, str]:
-    """O hash da configuração e de cada arquivo de hooks da pasta comum: um `core.hooksPath` ou um hook plantado conta."""
-    comum = _pastas_do_git(repositorio)[1]
-    hooks = sorted(arquivo for arquivo in (comum / "hooks").rglob("*") if arquivo.is_file()) if (comum / "hooks").is_dir() else []
-    return {f".git/{arquivo.relative_to(comum).as_posix()}": _conteudo(arquivo) for arquivo in (comum / "config", *hooks)}
-
-
-def _conteudo(caminho: Path) -> str:
-    """O sha256 do conteúdo (do alvo, no link); `ausente` quando o arquivo não existe, `pasta` no submódulo."""
-    if caminho.is_symlink():
-        return LINK + hashlib.sha256(os.readlink(caminho).encode("utf-8")).hexdigest()
-    if caminho.is_file():
-        with caminho.open("rb") as arquivo:
-            return hashlib.file_digest(arquivo, "sha256").hexdigest()
-    return PASTA if caminho.is_dir() else AUSENTE
-
-
 def soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]:
     """Os não rastreados que a árvore da salvaguarda guarda: o arquivo comum (o link e a pasta ficam de fora)."""
     return tuple(caminho for caminho, listado in foto.listados.items() if listado.tipo == NAO_RASTREADO and "\n" not in caminho
@@ -195,7 +190,7 @@ def _salvaguardar_rastreados(foto: FotoDoHumano) -> str:
         return ""
     with tempfile.TemporaryDirectory(prefix="graphow-salvaguarda-") as pasta:
         try:
-            shutil.copyfile(_pastas_do_git(foto.repositorio)[0] / "index", Path(pasta) / "index")
+            shutil.copyfile(foto.vigia.pasta_do_git / "index", Path(pasta) / "index")
         except OSError:
             return ""
         return _git(foto.repositorio, ("stash", "create", MENSAGEM_DA_SALVAGUARDA), indice=Path(pasta) / "index") or ""

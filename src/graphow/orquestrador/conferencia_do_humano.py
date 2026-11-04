@@ -12,8 +12,13 @@ que a recupera:
 - o arquivo rastreado que sumiu sem a remoção ir a um commit;
 - a entrada do índice com mudança preparada que voltou à do HEAD ou saiu;
 - a ref apagada ou que andou fora de fast-forward;
-- a configuração ou um hook da pasta do git mudados: um `core.hooksPath`
-  plantado roda código do agente no próximo commit do humano.
+- um arquivo que muda o que o git roda (orquestrador/arquivos_do_git.py: a
+  configuração, os includes, os hooks, o exclude e o reflog do stash): um
+  `core.hooksPath` plantado roda código do agente no próximo commit do
+  humano, e um `core.fsmonitor`, no próximo `git status`.
+Esses arquivos são lidos primeiro, em bytes, antes de qualquer git no
+repositório do humano; mudou algum, a parada vem dali, sem rodar mais git, e
+diz qual arquivo mudou. Só com eles iguais a foto de depois roda o git.
 É avanço, que segue com uma Note no livro-razão: o arquivo novo ou que mudou
 para um conteúdo novo, a entrada nova no índice, a ref nova ou que andou por
 fast-forward e a troca de HEAD, com as mudanças carregadas. Cada linha tem o
@@ -24,14 +29,14 @@ volta ao HEAD), o `commit --amend`, o rebase, o `git config` e o `mv` de
 arquivo mudado ou solto; de outro Goal, o rebase da branch dele.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
+from graphow.orquestrador.arquivos_do_git import AUSENTE, conteudo_do_arquivo, ler_os_arquivos_do_git
 from graphow.orquestrador.foto_do_humano import (
-    AUSENTE,
     NAO_RASTREADO,
     FotoDoHumano,
     Salvaguarda,
@@ -52,7 +57,8 @@ Mudanca = tuple[bool, str]
 class HumanoMexido:
     """O que mudou no repositório do humano durante a sessão, separado em perda e avanço, e a salvaguarda de antes dela.
 
-    `soltos_perdidos` são os não rastreados que sumiram, os que a árvore da salvaguarda devolve.
+    `soltos_perdidos` são os não rastreados que sumiram, os que a árvore da salvaguarda devolve; `git_mexido` diz que um
+    arquivo que muda o git mudou, e `arvore_conferida`, que a foto de depois rodou (não roda quando aquele mudou).
     """
 
     repositorio: Path
@@ -60,6 +66,8 @@ class HumanoMexido:
     avancos: tuple[str, ...]
     salvaguarda: Salvaguarda
     soltos_perdidos: tuple[str, ...] = ()
+    git_mexido: bool = False
+    arvore_conferida: bool = True
 
     @property
     def recuperar(self) -> tuple[str, ...]:
@@ -88,7 +96,8 @@ def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, reg
     """Depois da sessão, a foto refeita; o que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`)."""
     if antes is None:
         return
-    mexido = conferir_as_fotos(antes, fotografar_o_humano(antes.repositorio, antes.listados))
+    mexido = conferir_os_arquivos_do_git(antes) or conferir_as_fotos(
+        antes, fotografar_o_humano(antes.repositorio, antes.listados, vigia=antes.vigia))
     if not mexido.perdas and not mexido.avancos:
         return
     if registrar is not None:
@@ -100,13 +109,25 @@ def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, reg
         )
 
 
+def conferir_os_arquivos_do_git(antes: FotoDoHumano) -> HumanoMexido | None:
+    """Os arquivos que mudam o git, relidos em bytes, sem processo; None quando nenhum mudou. Mudou algum, a perda são eles,
+    e os não rastreados que sumiram vêm da leitura de cada um, também sem git."""
+    mudancas = _do_git(antes.do_git, ler_os_arquivos_do_git(antes.vigia))
+    if not mudancas:
+        return None
+    soltos = tuple(caminho for caminho in soltos_da_salvaguarda(antes) if conteudo_do_arquivo(antes.repositorio / caminho) == AUSENTE)
+    return HumanoMexido(antes.repositorio, tuple(texto for _, texto in mudancas), (), antes.salvaguarda, soltos, git_mexido=True,
+                        arvore_conferida=False)
+
+
 def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano) -> HumanoMexido:
     """O que mudou de uma foto para a outra, separado em perda e avanço."""
     e_ancestral = partial(e_ancestral_no_humano, antes.repositorio)
-    mudancas = [*_refs(antes, depois, e_ancestral), *_cabeca(antes, depois), *_arquivos(antes, depois), *_do_git(antes, depois)]
+    do_git = _do_git(antes.do_git, depois.do_git)
+    mudancas = [*_refs(antes, depois, e_ancestral), *_cabeca(antes, depois), *_arquivos(antes, depois), *do_git]
     soltos = tuple(caminho for caminho in soltos_da_salvaguarda(antes) if depois.conteudos.get(caminho) == AUSENTE)
     return HumanoMexido(antes.repositorio, tuple(texto for perda, texto in mudancas if perda),
-                        tuple(texto for perda, texto in mudancas if not perda), antes.salvaguarda, soltos)
+                        tuple(texto for perda, texto in mudancas if not perda), antes.salvaguarda, soltos, git_mexido=bool(do_git))
 
 
 def mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str:
@@ -116,11 +137,20 @@ def mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str:
     recuperar = " e ".join(f"`{comando}`" for comando in mexido.recuperar)
     salvaguarda = (f"A salvaguarda de antes da sessao e {' e '.join(partes)}: recupere com {recuperar}." if partes
                    else "Antes da sessao nao havia o que salvaguardar desses arquivos.")
-    do_git = (" Os arquivos da pasta .git que mudaram nao tem salvaguarda: confira-os antes do proximo comando git."
-              if any(perda.startswith(".git/") for perda in mexido.perdas) else "")
-    return (f"{MOTIVO_DA_PARADA}: o repositorio do humano ({mexido.repositorio}) perdeu trabalho durante a sessao do {papel}: "
-            f"{'; '.join(resumo(mexido.perdas))}. {salvaguarda}{do_git} Se foi voce quem mexeu durante a sessao, confira e "
-            "rode o Goal de novo; se nao, a sessao mexeu fora do clone do Goal, e o que ela fez la nao foi desfeito.")
+    return (f"{MOTIVO_DA_PARADA}: o repositorio do humano ({mexido.repositorio}) "
+            f"{'teve mudado o que o git roda' if mexido.git_mexido else 'perdeu trabalho'} durante a sessao do {papel}: "
+            f"{'; '.join(resumo(mexido.perdas))}. {salvaguarda}{_aviso_do_git(mexido)} Se foi voce quem mexeu durante a sessao, "
+            "confira e rode o Goal de novo; se nao, a sessao mexeu fora do clone do Goal, e o que ela fez la nao foi desfeito.")
+
+
+def _aviso_do_git(mexido: HumanoMexido) -> str:
+    """O aviso dos arquivos que mudam o git: sem salvaguarda, e antes de qualquer git no repositório, inclusive a recuperação."""
+    if not mexido.git_mexido:
+        return ""
+    conferida = "" if mexido.arvore_conferida else (" A conferencia parou antes de rodar git nesse repositorio: a arvore e o "
+                                                     "indice nao foram conferidos.")
+    return (f"{conferida} Os arquivos que mudam o que o git roda nao tem salvaguarda: confira-os e desfaca a mudanca antes de "
+            "rodar qualquer git nesse repositorio, inclusive os comandos de recuperacao, que rodariam o que foi plantado.")
 
 
 def _refs(antes: FotoDoHumano, depois: FotoDoHumano, e_ancestral: Callable[[str, str], bool]) -> Iterator[Mudanca]:
@@ -193,8 +223,8 @@ def _no_indice(caminho: str, antes: FotoDoHumano, depois: FotoDoHumano) -> Mudan
     return False, f"indice {caminho}: entrada nova"
 
 
-def _do_git(antes: FotoDoHumano, depois: FotoDoHumano) -> list[Mudanca]:
-    """A configuração ou um hook da pasta do git que apareceu, mudou ou sumiu: sempre perda."""
-    nomes = sorted(set(antes.do_git) | set(depois.do_git))
-    return [(True, f"{nome} mudou ({antes.do_git.get(nome, AUSENTE)} -> {depois.do_git.get(nome, AUSENTE)})")
-            for nome in nomes if antes.do_git.get(nome) != depois.do_git.get(nome)]
+def _do_git(antes: Mapping[str, str], depois: Mapping[str, str]) -> list[Mudanca]:
+    """O arquivo que muda o git e que apareceu, mudou ou sumiu: sempre perda."""
+    nomes = sorted(set(antes) | set(depois))
+    return [(True, f"{nome} mudou ({antes.get(nome, AUSENTE)} -> {depois.get(nome, AUSENTE)})")
+            for nome in nomes if antes.get(nome, AUSENTE) != depois.get(nome, AUSENTE)]
