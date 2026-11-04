@@ -27,6 +27,14 @@ test("os quatro blocos do criterio: testes com o commit do aceite, fatias, verif
   assert.doesNotMatch(html, /data-rastro="retirado"/);
 });
 
+test("T3f2.1: a marca da conferencia leva o motivo da sem ancora; sem marca, o rotulo", () => {
+  const conferida = (conferencia) => htmlDoRastro({ goal: "goal-soma", criterios: [{ ...C2, atestado: { ...C2.atestado, conferencia } }] });
+  const sem = conferida({ estado: "sem_ancora", arquivos: [], motivo: "a Evidence nao tem o commit em que foi vista", rotulo: "sem ancora",
+    marca: "sem ancora: a Evidence nao tem o commit em que foi vista" });
+  assert.match(sem, /<span data-conferencia="sem_ancora">\[sem ancora: a Evidence nao tem o commit em que foi vista\]<\/span>/);
+  assert.match(conferida({ estado: "vigente", arquivos: [], motivo: "", rotulo: "vigente" }), /\[vigente\]<\/span>/, "sem marca, o rotulo");
+});
+
 test("o retirado traz a chamada com a Decision, quem e o motivo; sem verificacao nem achado, as frases vazias", () => {
   const retirado = { ...C2, atestado: null, achados: [], fatias: [], retirada: { decisao: "pedido-1", por: "david", motivo: "fica para depois" } };
   const html = htmlDoRastro({ goal: "goal-soma", criterios: [retirado] });

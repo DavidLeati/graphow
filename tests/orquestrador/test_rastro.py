@@ -1,6 +1,6 @@
 """O `graphow orquestrar --goal X --rastro`: por critério, os testes, as fatias, a verificação que o atestou e os achados."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
@@ -13,7 +13,7 @@ from graphow.orquestrador.rastro import formatar_rastro, ler_rastro
 
 from tests.api.test_cli_orquestrar import _executavel, _rodar
 from tests.orquestrador.apoio_git import git
-from tests.orquestrador.apoio_laco import COMANDO_ACEITE, montar_bancada, roteiro_completo, verificacao
+from tests.orquestrador.apoio_laco import COMANDO_ACEITE, Bancada, montar_bancada, roteiro_completo, verificacao
 
 
 def _blocos(linhas: Sequence[str], codigo: str) -> list[str]:
@@ -21,6 +21,18 @@ def _blocos(linhas: Sequence[str], codigo: str) -> list[str]:
     inicio = next(n for n, linha in enumerate(linhas) if linha.startswith(f"{codigo}: "))
     fim = next((n for n in range(inicio + 1, len(linhas)) if not linhas[n].startswith(" ")), len(linhas))
     return list(linhas[inicio:fim])
+
+
+def _goal_fechado_pela_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Bancada, Callable[[], tuple[int, list[str]]]]:
+    """O Goal da spec fechado pela CLI com o claude falso, num banco SQLite, e o `--rastro` dele, para rodar quando quiser."""
+    bancada = montar_bancada(tmp_path, roteiro_completo())
+    monkeypatch.setenv("GRAPHOW_CLAUDE", str(_executavel(tmp_path / "bin")))
+    monkeypatch.setenv("GRAPHOW_TESTE_ROTEIRO", str(bancada.roteiro))
+    monkeypatch.setenv("GRAPHOW_TESTE_REGISTRO", str(bancada.registro))
+    banco, dados = tmp_path / "dados" / "graphow.db", tmp_path / "dados"
+    corrida = ["--db", str(banco), "orquestrar", "--spec", str(bancada.spec), "--repo", str(bancada.repositorio), "--modo", "autonomo"]
+    assert _rodar(corrida, dados)[0] == 0
+    return bancada, lambda: _rodar(["--db", str(banco), "orquestrar", "--goal", "goal-soma", "--rastro"], dados)
 
 
 def test_rastro_traz_os_quatro_blocos_de_cada_criterio_do_goal_fechado_nominal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,15 +43,9 @@ def test_rastro_traz_os_quatro_blocos_de_cada_criterio_do_goal_fechado_nominal(t
     verificação. A conferência, que julgou os dois, está vigente na ponta; a
     caçada, que a correção desatualizou, não é a que atesta.
     """
-    bancada = montar_bancada(tmp_path, roteiro_completo())
-    monkeypatch.setenv("GRAPHOW_CLAUDE", str(_executavel(tmp_path / "bin")))
-    monkeypatch.setenv("GRAPHOW_TESTE_ROTEIRO", str(bancada.roteiro))
-    monkeypatch.setenv("GRAPHOW_TESTE_REGISTRO", str(bancada.registro))
-    banco, dados = tmp_path / "dados" / "graphow.db", tmp_path / "dados"
-    corrida = ["--db", str(banco), "orquestrar", "--spec", str(bancada.spec), "--repo", str(bancada.repositorio), "--modo", "autonomo"]
-    assert _rodar(corrida, dados)[0] == 0
+    bancada, rastro = _goal_fechado_pela_cli(tmp_path, monkeypatch)
 
-    codigo, linhas = _rodar(["--db", str(banco), "orquestrar", "--goal", "goal-soma", "--rastro"], dados)
+    codigo, linhas = rastro()
 
     assert codigo == 0, linhas
     assert linhas[1] == "Rastro do Goal goal-soma: Soma de dois numeros [fechado]"
@@ -77,3 +83,25 @@ def test_criterio_retirado_aparece_como_retirado_com_o_motivo_e_mantem_o_rastro_
     assert c2[0] == "C2: o README explica como usar somar [retirado pelo humano (pedido-goal-soma-1, por david): o README fica para o proximo Goal]"
     assert c2[2].startswith("  Fatias: F2 em ") and c2[3].startswith("  Verificacao: ver-goal-soma-1 (caca, M1): nao_atende em "), c2
     assert "retirado" not in _blocos(linhas, "C1")[0]
+
+
+def test_rastro_diz_por_que_a_verificacao_ficou_sem_ancora_edge_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T3f2.1: a marca da verificação sem âncora leva o motivo, com o texto da vista.
+
+    A branch do Goal e a main reescritas (um commit novo, com a árvore da
+    ponta) e o commit antigo coletado: a verificação sai sem âncora, e o
+    motivo diz por quê.
+    """
+    bancada, rastro = _goal_fechado_pela_cli(tmp_path, monkeypatch)
+    repositorio = bancada.repositorio
+    verificado = git(repositorio, "log", "-1", "--format=%h", "--abbrev=12", "--grep=README sem exemplo", "graphow/soma").strip()
+    reescrita = git(repositorio, "commit-tree", "graphow/soma^{tree}", "-m", "Reescreve a branch do Goal").strip()
+    git(repositorio, "update-ref", "refs/heads/graphow/soma", reescrita)
+    git(repositorio, "update-ref", "refs/heads/main", reescrita)
+    git(repositorio, "reflog", "expire", "--expire=now", "--all")
+    git(repositorio, "gc", "-q", "--prune=now")
+    sem = _blocos(rastro()[1], "C1")[3]
+
+    atestado = f"  Verificacao: ver-goal-soma-2 (conferencia, M1): atende em {verificado}"
+    assert sem == (f"{atestado} [sem ancora: o commit {verificado} nao existe mais no repositorio: a historia foi reescrita ou o "
+                   "clone e outro]"), sem

@@ -10,7 +10,8 @@ usam. Para cada critério do plano:
 - a verificação mais recente que o julgou, com o veredito, o commit e a
   conferência dela na ponta da branch do Goal
   (orquestrador/conferencia_na_leitura.py, a mesma leitura da vista e do
-  canvas);
+  canvas), com a marca da vista: o motivo da sem âncora e da não
+  conferida;
 - os Achados do orquestrador que o ferem (`fere`), com o estado.
 
 O critério retirado pelo humano sai como retirado, com o motivo e a Decision
@@ -27,7 +28,7 @@ from graphow.core.orquestracao import ler_textos
 from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.conferencia_da_evidencia import ConferenciaDaEvidencia
-from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal, conferencia_em_json, rotulo_da_conferencia
+from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal, conferencia_em_json, marca_da_conferencia
 from graphow.orquestrador.leitura_das_verificacoes import VerificacaoRegistrada, do_orquestrador, retirado_pelo_humano
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.projection.graph_view import GrafoView
@@ -223,8 +224,8 @@ def _texto_da_fatia(fatia: FatiaDoCriterio) -> str:
 
 
 def _texto_do_atestado(atestado: AtestadoDoCriterio) -> str:
-    """`ver-x-2 (conferencia, M1): atende em <commit> [vigente]`."""
-    marca = f" [{rotulo_da_conferencia(atestado.conferencia)}]" if atestado.conferencia else ""
+    """`ver-x-2 (conferencia, M1): atende em <commit> [vigente]`, com o motivo da marca da vista quando há."""
+    marca = f" [{marca_da_conferencia(atestado.conferencia)}]" if atestado.conferencia else ""
     return f"{atestado.verificacao} ({atestado.tipo or '-'}, {atestado.marco or '-'}): {atestado.veredito} em {atestado.commit[:12]}{marca}"
 
 

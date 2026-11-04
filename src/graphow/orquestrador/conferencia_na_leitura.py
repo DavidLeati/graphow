@@ -137,18 +137,18 @@ def rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
 
 
 def marca_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
-    """O rótulo com o motivo, na sem âncora e na não conferida: a vista diz por quê, e não só o estado."""
+    """O rótulo com o motivo, na sem âncora e na não conferida: a vista, o `--rastro` e o inspetor dizem por quê."""
     rotulo = rotulo_da_conferencia(conferencia)
     com_motivo = conferencia.estado in (SEM_ANCORA, NAO_CONFERIDA) and conferencia.motivo
     return f"{rotulo}: {conferencia.motivo}" if com_motivo else rotulo
 
 
 def conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None:
-    """A conferência como o canvas a manda ao inspetor, com o rótulo; None quando não há o que mostrar."""
+    """A conferência como o canvas a manda ao inspetor, com o rótulo curto e a marca com o motivo; None sem conferência."""
     if conferencia is None:
         return None
     return {"estado": conferencia.estado, "arquivos": list(conferencia.arquivos), "motivo": conferencia.motivo,
-            "rotulo": rotulo_da_conferencia(conferencia)}
+            "rotulo": rotulo_da_conferencia(conferencia), "marca": marca_da_conferencia(conferencia)}
 
 
 def aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str:

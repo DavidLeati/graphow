@@ -82,6 +82,7 @@ def test_revisao_rejeitada_vigente_com_o_clone_e_nao_conferida_sem_ele_nominal(t
     assert com_clone is not None and (com_clone.estado, com_clone.arquivos) == ("vigente", ())
     assert sem_clone is not None and sem_clone.estado == "nao_conferida"
     assert f"a arvore revisada {arvore[:12]} so ficou no clone do Goal, que nao existe mais: {clone}" == sem_clone.motivo
-    assert canvas[REJEITADA] == {"estado": "nao_conferida", "arquivos": [], "motivo": sem_clone.motivo, "rotulo": "nao conferida"}
+    assert canvas[REJEITADA] == {"estado": "nao_conferida", "arquivos": [], "motivo": sem_clone.motivo, "rotulo": "nao conferida",
+                                 "marca": f"nao conferida: {sem_clone.motivo}"}
     assert canvas[APROVADA]["estado"] == "vigente", "a arvore da aprovada e a do commit da fatia, no repositorio do humano"
     assert f"- [{REJEITADA}] [nao conferida: a arvore revisada {arvore[:12]} so ficou no clone do Goal" in vista.conteudo_formatado

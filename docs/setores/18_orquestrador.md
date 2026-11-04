@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13927 linhas · 106 classes
+72 módulos · 13928 linhas · 106 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -56,7 +56,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 229 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
-| [`orquestrador/rastro.py`](#orquestradorrastro) | 234 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
+| [`orquestrador/rastro.py`](#orquestradorrastro) | 235 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
 | [`orquestrador/rebase_no_clone.py`](#orquestradorrebasenoclone) | 234 | O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/refs_do_humano.py`](#orquestradorrefsdohumano) | 73 | As refs do repositório do humano que o orquestrador move: a base, na integração, e a branch do Goal, depois do rebase. |
@@ -392,8 +392,8 @@ A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o
 
 - `leitura_do_repositorio(repositorio: object, ramo: object) -> LeituraDaConferencia` — A leitura no repositório, na ponta da branch (o hash); sem git quando a pasta não é repositório ou a branch não existe.
 - `rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str` — O rótulo curto: `vigente`, `desatualizada (mudaram: ...)`, `sem ancora` ou `nao conferida`.
-- `marca_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str` — O rótulo com o motivo, na sem âncora e na não conferida: a vista diz por quê, e não só o estado.
-- `conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None` — A conferência como o canvas a manda ao inspetor, com o rótulo; None quando não há o que mostrar.
+- `marca_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str` — O rótulo com o motivo, na sem âncora e na não conferida: a vista, o `--rastro` e o inspetor dizem por quê.
+- `conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None` — A conferência como o canvas a manda ao inspetor, com o rótulo curto e a marca com o motivo; None sem conferência.
 - `aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str` — O aviso do briefing para a Evidence que não vale na ponta: o estado em maiúsculas e os arquivos, ou o motivo.
 
 ## `orquestrador/configuracao_do_aceite.py`
