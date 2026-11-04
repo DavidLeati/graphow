@@ -13,7 +13,7 @@ roda texto que a trava não lê é opaco: o shell que lê da entrada padrão, de
 `/dev/stdin`, de `/dev/fd/*` ou de `<(...)`, o `source` deles, o PowerShell, o
 `sed` com `e`, o `awk` com `system` ou `|`, o programa ou o argumento de
 executor que só se sabe ao rodar (`"$PY"`, `timeout $T`). O comando com um
-opaco é recusado se cita git em qualquer ponto, aspas à parte. Recusa
+opaco é recusado se cita a palavra git como comando, aspas à parte. Recusa
 também o texto que não fecha, o `bash -c` cujo texto só se sabe ao rodar, o
 shell que lê de um pipe e o `hash -p` que dá outro nome a git, shell ou
 executor. Script em arquivo e interpretador (`python -c`, `node -e`) ficam
@@ -51,6 +51,9 @@ FIM_DO_EXEC_DO_FIND: frozenset[str] = frozenset({";", "+"})
 # O arquivo que é a entrada padrão: o script lido dele é texto que a trava não vê.
 DA_ENTRADA: re.Pattern[str] = re.compile(r"-|/dev/stdin|/dev/fd/\d+|/proc/[^/]+/fd/\d+")
 LIMITE_DE_ANINHAMENTO: int = 8
+# A palavra git como comando: não colada a letra, dígito, `_`, `.` ou `-` antes; depois, espaço, fim, `.exe` ou
+# o que encerra palavra no shell (`$(echo git)`, `git;`, `git|`).
+PALAVRA_GIT: re.Pattern[str] = re.compile(r"(?<![\w.-])git(?=[\s;&|()<>`}]|$|\.exe)")
 
 
 @dataclass(frozen=True)
@@ -101,8 +104,16 @@ def decidir(comando: str) -> Decisao:
 
 
 def cita_git(texto: str) -> bool:
-    """O texto tem `git` em algum ponto, sem contar aspas e barras (`g"i"t` cita)."""
-    return "git" in re.sub(r"[\"'\\]", "", texto).lower()
+    """O texto tem a palavra `git` como comando, sem contar aspas (`g"i"t` cita).
+
+    Início de palavra (ou de nome depois de `/` ou `\\`), seguida de espaço,
+    fim, `.exe` ou do que encerra palavra no shell: `git commit`,
+    `/usr/bin/git`, `C:\\Git\\cmd\\git.exe`, `$(echo git)`. Pedaço
+    de nome de arquivo não cita (`test_git_do_goal.py`, `test_digits.py`,
+    `.gitignore`). A barra invertida conta tirada (`g\\it`) e como pasta.
+    """
+    sem_aspas = re.sub(r"[\"']", "", texto).lower()
+    return any(PALAVRA_GIT.search(variante) for variante in (sem_aspas.replace("\\", ""), sem_aspas.replace("\\", "/")))
 
 
 def nome_do_programa(texto: str) -> str:

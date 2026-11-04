@@ -154,7 +154,7 @@ RECUSADOS_NA_T3A2: tuple[str, ...] = (
     "case x in a) git commit -am x;; esac",
     "echo 'git commit' | bash -s",
 )
-# T3a3: as leituras que seguiam recusadas e o `-C .` da sonda R1.
+# T3a3: as leituras que seguiam recusadas, o `-C .` da sonda R1 e o caminho com "git" no nome atrás de um opaco (R2).
 LIBERADOS_NA_T3A3: tuple[str, ...] = (
     "git --version",
     "git version",
@@ -169,6 +169,9 @@ LIBERADOS_NA_T3A3: tuple[str, ...] = (
     "git show-ref --heads",
     "git check-ignore -v build/",
     "git -C . status",
+    '"$PY" -m pytest -q tests/orquestrador/test_git_do_goal.py',
+    "timeout $T python -m pytest tests/test_digits.py",
+    '"$PY" -m pytest .gitignore src/git/soma.py',
 )
 RECUSADOS_NA_T3A3: tuple[str, ...] = (
     "git tag v1",
@@ -179,6 +182,11 @@ RECUSADOS_NA_T3A3: tuple[str, ...] = (
     "git config --get user.name --add x",
     "git config --unset user.name",
     "git config -e",
+    '"$PY" git commit -am x',
+    '"$PY" /usr/bin/git.exe commit',
+    '"$PY" C:\\Git\\cmd\\git.exe push',
+    '"$PY" g\\it commit',
+    "timeout $T git push",
 )
 
 
@@ -213,14 +221,14 @@ def test_git_disfarcado_por_executor_entrada_ou_opcao_que_grava_e_recusado_edge_
 
 
 @pytest.mark.parametrize("comando", LIBERADOS_NA_T3A3)
-def test_leituras_que_seguiam_recusadas_passam_nominal(comando: str) -> None:
-    """T3a3.5: `--version`, `describe`, `tag -l`, `config --get`, `show-ref`, `check-ignore` e `git -C . status`."""
+def test_leituras_que_seguiam_recusadas_e_caminho_com_git_no_nome_passam_nominal(comando: str) -> None:
+    """T3a3.5: `--version`, `describe`, `tag -l`, `config --get`, `show-ref`, `check-ignore`; `test_git_do_goal.py` atrás de `"$PY"`."""
     assert decidir(comando).permitido, decidir(comando).motivo
 
 
 @pytest.mark.parametrize("comando", RECUSADOS_NA_T3A3)
-def test_tag_e_config_que_gravam_sao_recusados_edge_case(comando: str) -> None:
-    """T3a3.5: a tag criada ou apagada e a configuração gravada seguem recusadas."""
+def test_tag_e_config_que_gravam_e_git_atras_de_opaco_sao_recusados_edge_case(comando: str) -> None:
+    """T3a3.5: a tag criada ou apagada, a configuração gravada e a palavra git atrás de um opaco (`"$PY" git`) seguem recusadas."""
     decisao = decidir(comando)
 
     assert not decisao.permitido

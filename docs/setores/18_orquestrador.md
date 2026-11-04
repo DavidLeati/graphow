@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-61 módulos · 11629 linhas · 85 classes
+61 módulos · 11640 linhas · 85 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -34,7 +34,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 124 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou a suíte vermelha, vira trabalho do executor. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
-| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 379 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
+| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 390 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 127 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
@@ -640,6 +640,7 @@ A decisão da trava do git sobre um comando Bash do agente: só as leituras do g
 | `FIM_DO_EXEC_DO_FIND` | `frozenset[str]` | `frozenset({';', '+'})` |
 | `DA_ENTRADA` | `re.Pattern[str]` | `re.compile('-|/dev/stdin|/dev/fd/\\d+|/proc/[^/]+/fd/\\d+')` |
 | `LIMITE_DE_ANINHAMENTO` | `int` | `8` |
+| `PALAVRA_GIT` | `re.Pattern[str]` | `re.compile('(?<![\\w.-])git(?=[\\s;&|()<>`}]|$|\\.exe)')` |
 | `LIBERADO` | `Decisao` | `Decisao(True)` |
 | `TRATADORES` | `Mapping[str, Callable[[_Chamada], Decisao]]` | `{**{programa: _git for programa in PROGRAMAS_DO_GIT}, **{programa: _she…` |
 
@@ -661,7 +662,7 @@ A decisão da trava do git sobre um comando Bash do agente: só as leituras do g
 ### Funções do módulo
 
 - `decidir(comando: str) -> Decisao` — Se o comando Bash passa pela trava do git: só as leituras do git passam, e o que não se lê é recusado.
-- `cita_git(texto: str) -> bool` — O texto tem `git` em algum ponto, sem contar aspas e barras (`g"i"t` cita).
+- `cita_git(texto: str) -> bool` — O texto tem a palavra `git` como comando, sem contar aspas (`g"i"t` cita).
 - `nome_do_programa(texto: str) -> str` — O nome do programa sem a pasta, em minúsculas e sem `.exe` (o Windows não distingue caixa).
 
 ## `orquestrador/gravacao_da_verificacao.py`
