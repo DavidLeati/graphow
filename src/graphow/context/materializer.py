@@ -5,6 +5,7 @@ from typing import Any
 
 from graphow.context.aprendizados_aplicaveis import IndiceSemantico, IndiceSemanticoNulo
 from graphow.context.escopo_do_goal import montar_secao_de_escopo
+from graphow.context.evidencia_conferida import montar_secao_de_evidencias
 from graphow.context.governanca_vigente import TIPOS_COM_SECAO_DE_GOVERNANCA, montar_secao_de_governanca
 from graphow.context.orientacao import montar_secao_das_decisoes_que_governam
 from graphow.context.politicas import (
@@ -93,10 +94,11 @@ class PoliticaArbitro(PoliticaBase):
         return (
             montar_secao_de_nos("Task Bloqueada Pela Duvida", tarefas, (3, PrioridadeRetencao.BLOQUEIOS)),
             montar_secao_de_nos("Duvidas Abertas Em Julgamento", abertas, (4, PrioridadeRetencao.BLOQUEIOS)),
-            montar_secao_de_nos(
+            montar_secao_de_evidencias(
                 "Evidencias Disponiveis",
                 self._filtrar_por_tipo(vizinhanca, TipoNo.EVIDENCE),
                 (5, PrioridadeRetencao.APOIO),
+                conferir=ambiente.conferir,
             ),
             governam,
         )

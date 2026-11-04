@@ -1,4 +1,4 @@
-"""Os leitores conferem a Evidence na leitura: o `--status` marca a desatualizada e a sem âncora.
+"""Os leitores conferem a Evidence na leitura: o `--status`, a vista e o canvas marcam a desatualizada e a sem âncora.
 
 O banco é montado direto no log, como um banco antigo: o replay não passa
 pelos portões, e assim a verificação sem commit (de antes da regra) convive
@@ -10,14 +10,16 @@ from pathlib import Path
 from typing import Any
 
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
 from graphow.kernel.composicao import abrir_kernel_sqlite
 from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.orquestrador import modelo_do_goal as m
-from graphow.orquestrador.conferencia_na_leitura import LeituraDaConferencia, leitura_do_repositorio
+from graphow.orquestrador.conferencia_na_leitura import LeituraDaConferencia, LeituraPorGoal
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.status import formatar_status
 from graphow.storage.sqlite_store import SQLiteEventStore
+from graphow.web.rest_canvas_controller import CanvasWebController
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
 
@@ -101,20 +103,56 @@ def test_status_sem_o_repositorio_diz_nao_conferida_edge_case(tmp_path: Path) ->
     assert [linha.rsplit("[", 1)[1] for linha in linhas] == ["nao conferida]", "nao conferida]", "sem ancora]"]
 
 
-def test_um_diff_por_par_de_commits_em_cada_leitura_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: duas Evidence do mesmo commit pedem um só `diff --name-only` na leitura; sem git, não conferida."""
-    repositorio = _repositorio(tmp_path)
-    store, kernel = abrir_kernel_sqlite(_banco(tmp_path, repositorio))
+def test_vista_marca_a_desatualizada_com_os_arquivos_a_antiga_sem_ancora_e_a_do_agente_nao_conferida_nominal(tmp_path: Path) -> None:
+    """T3d2.2: na vista, a Evidence do orquestrador confere na branch do Goal; a do agente, sem repositório, não é conferida."""
+    store, kernel = abrir_kernel_sqlite(_banco(tmp_path, _repositorio(tmp_path)))
     try:
-        estado = ler_estado(kernel.obter_view(), GOAL)
+        view = kernel.obter_view()
+        materializador = MaterializadorContexto()
+        vistas = [materializador.materializar(RequisicaoVista(GOAL, papel, orcamento_tokens=20000), view).conteudo_formatado
+                  for papel in (PapelAutor.EXECUTOR, PapelAutor.ARBITRO)]
     finally:
         store.fechar()
 
-    assert estado is not None
-    leitura = leitura_do_repositorio(repositorio, "main")
-    estados = [leitura.conferir(PapelAutor.ORQUESTRADOR.value, v.propriedades) for v in estado.verificacoes[:2]]
+    for vista in vistas:
+        linhas: dict[str, str] = {}
+        for linha in (linha for linha in vista.splitlines() if linha.startswith("- [")):
+            linhas.setdefault(linha.split("]")[0].removeprefix("- ["), linha)  # a secao de Evidence vem antes dos vizinhos
+        assert linhas[f"ver-{GOAL}-1"].startswith(f"- [ver-{GOAL}-1] [desatualizada (mudaram: a.py)] "), vista
+        assert linhas[f"ver-{GOAL}-2"].startswith(f"- [ver-{GOAL}-2] [vigente]")
+        assert linhas[f"ver-{GOAL}-3"].startswith(f"- [ver-{GOAL}-3] [sem ancora]")
+        assert linhas["evi-antiga"].startswith("- [evi-antiga] [sem ancora]")
+        assert linhas["evi-ancorada"].startswith("- [evi-ancorada] [nao conferida]")
+        assert linhas["evi-fonte"].startswith("- [evi-fonte] [nao confiavel"), "a Evidence que nao fala de codigo nao leva marca"
+
+
+def test_canvas_manda_a_conferencia_da_evidence_ao_inspetor_nominal(tmp_path: Path) -> None:
+    """O canvas leva a conferência de cada Evidence sobre código; a livre e os outros nós vêm sem ela."""
+    store, kernel = abrir_kernel_sqlite(_banco(tmp_path, _repositorio(tmp_path)))
+    try:
+        nos = {no.id: no for no in CanvasWebController(kernel).obter_canvas().nos}
+    finally:
+        store.fechar()
+
+    desatualizada = nos[f"ver-{GOAL}-1"].conferencia
+    assert desatualizada is not None and desatualizada["estado"] == "desatualizada" and desatualizada["arquivos"] == ["a.py"]
+    assert (nos[f"ver-{GOAL}-3"].conferencia or {}).get("estado") == "sem_ancora"
+    assert (nos["evi-ancorada"].conferencia or {}).get("rotulo") == "nao conferida"
+    assert nos["evi-fonte"].conferencia is None and nos[GOAL].conferencia is None
+
+
+def test_um_diff_por_par_de_commits_em_cada_leitura_edge_case(tmp_path: Path) -> None:
+    """Caso de borda: duas Evidence do mesmo commit pedem um só `diff --name-only` na leitura."""
+    store, kernel = abrir_kernel_sqlite(_banco(tmp_path, _repositorio(tmp_path)))
+    try:
+        view = kernel.obter_view()
+        leitura = LeituraPorGoal(view)
+        estados = [leitura.conferir(view.obter_no(f"ver-{GOAL}-{n}")) for n in (1, 2)]  # type: ignore[arg-type]
+    finally:
+        store.fechar()
+
     assert [c.estado for c in estados if c] == ["desatualizada", "vigente"]
-    git_da_leitura = leitura._git  # noqa: SLF001 - o cache e o que o caso confere
+    git_da_leitura = leitura._por_goal[GOAL]._git  # noqa: SLF001 - o cache e o que o caso confere
     assert git_da_leitura is not None
     assert sum(1 for chave in git_da_leitura.memoria if chave[0] == "diff") == 1
     assert LeituraDaConferencia(None).conferir(PapelAutor.ORQUESTRADOR.value, {"commit": "f" * 40}).estado == "nao_conferida"  # type: ignore[union-attr]

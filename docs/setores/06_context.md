@@ -10,21 +10,22 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-21 módulos · 2765 linhas · 31 classes
+22 módulos · 2819 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 247 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/corte.py`](#contextcorte) | 106 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/escopo_do_goal.py`](#contextescopodogoal) | 128 | A seção de escopo da vista: o placar do Goal, em versão curta na Task e na Sessão. |
+| [`context/evidencia_conferida.py`](#contextevidenciaconferida) | 43 | A Evidence na vista com a conferência dela na ponta, logo depois do id. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/governanca_vigente.py`](#contextgovernancavigente) | 148 | A governança vigente dita ao agente: o protocolo e as vistas leem a mesma política. |
-| [`context/materializer.py`](#contextmaterializer) | 216 | Motor de materialização de vistas de contexto com orçamento de tokens. |
+| [`context/materializer.py`](#contextmaterializer) | 218 | Motor de materialização de vistas de contexto com orçamento de tokens. |
 | [`context/memoria.py`](#contextmemoria) | 168 | O Aprendizado como o grafo o lê: alcance, origem, substituição e a linha que a vista carrega. |
 | [`context/orientacao.py`](#contextorientacao) | 67 | As decisões que valem para um trabalho: as que o orientam e as que orientam quem o contém. |
 | [`context/panorama.py`](#contextpanorama) | 138 | Seção de panorama: os filhos de um contêiner resumidos, em vez de listados. |
-| [`context/politicas.py`](#contextpoliticas) | 307 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
+| [`context/politicas.py`](#contextpoliticas) | 316 | Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disclosure). |
 | [`context/propostas_fora_do_goal.py`](#contextpropostasforadogoal) | 65 | A seção de propostas fora do Goal, só na vista do humano. |
 | [`context/protocolo.py`](#contextprotocolo) | 135 | O protocolo da memória dito ao agente: o mesmo texto no hook de início e no aperto de mão do MCP. |
 | [`context/renderizacao.py`](#contextrenderizacao) | 153 | Renderização em Markdown de um recorte de contexto sob orçamento de tokens. |
@@ -134,6 +135,15 @@ A seção de escopo da vista: o placar do Goal, em versão curta na Task e na Se
 - `limiares_do_goal(view: GrafoView, id_goal: str) -> LimiaresDeDesvio` — K e M do Goal, como a política do Projeto que o contém os resolve.
 - `placar_do_goal(view: GrafoView, id_goal: str) -> PlacarDeEscopo` — O placar do Goal com os limiares da política.
 - `montar_secao_de_escopo(alvo: NoGrafo, view: GrafoView, papel: PapelAutor) -> SecaoContexto | None` — A seção de escopo que o papel lê no alvo; None quando o papel ou o alvo não a comportam.
+
+## `context/evidencia_conferida.py`
+
+A Evidence na vista com a conferência dela na ponta, logo depois do id.
+
+### Funções do módulo
+
+- `formatar_evidencia_em_linha(no: NoGrafo, conferencia: ConferenciaDaEvidencia | None) -> str` — A linha do nó, com o estado da conferência entre colchetes depois do id.
+- `montar_secao_de_evidencias(titulo: str, nos: Sequence[NoGrafo], ordens: tuple[int, PrioridadeRetencao]) -> SecaoContexto` — A seção de Evidence, cada uma conferida na hora da leitura.
 
 ## `context/exploracao.py`
 
@@ -318,8 +328,9 @@ Políticas de extração de subgrafo por papel (Behavior-Guided Progressive Disc
 
 *DTO imutável* — O que toda seção precisa para se montar, agrupado para caber na assinatura.
 
-**Campos:** `view: GrafoView`, `explorador: ExploradorSubgrafo`, `escopo: EscopoAtivo | None`, `indice_semantico: IndiceSemantico`
+**Campos:** `view: GrafoView`, `explorador: ExploradorSubgrafo`, `escopo: EscopoAtivo | None`, `indice_semantico: IndiceSemantico`, `conferencia: LeituraPorGoal | None`
 
+- `conferir(no: NoGrafo) -> ConferenciaDaEvidencia | None` — A Evidence conferida na ponta pela leitura deste recorte; sem leitura, nenhuma marca.
 - `esta_no_escopo(id_no: str) -> bool` — Sem escopo declarado nada é filtrado; com escopo, vale o recorte ativo.
 
 ### `PoliticaBase` (PoliticaContexto)

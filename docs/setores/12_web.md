@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-31 módulos · 3749 linhas · 60 classes
+31 módulos · 3758 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -19,7 +19,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/composicao.py`](#webcomposicao) | 42 | Raiz de composição do servidor web: quem escuta os commits do kernel. |
 | [`web/conversao_requisicoes.py`](#webconversaorequisicoes) | 233 | Conversão pura de payloads JSON da interface nos DTOs de requisição. |
 | [`web/desconexao_cliente.py`](#webdesconexaocliente) | 12 | Distinção entre o cliente HTTP ter ido embora e o servidor ter falhado. |
-| [`web/dto.py`](#webdto) | 350 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
+| [`web/dto.py`](#webdto) | 355 | Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Graphow. |
 | [`web/guarda_http.py`](#webguardahttp) | 91 | Guarda das requisições do canvas: de onde vêm, e se podem escrever como o humano. |
 | [`web/identidade_web.py`](#webidentidadeweb) | 71 | Identidade da sessão web, fixada no servidor e nunca lida do corpo da requisição. |
 | [`web/manipulador_base.py`](#webmanipuladorbase) | 55 | Base dos manipuladores HTTP do canvas: a guarda na entrada e o JSON de ida e volta. |
@@ -27,7 +27,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
 | [`web/ontologia_publica.py`](#webontologiapublica) | 44 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 119 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 391 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 395 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_escopo_controller.py`](#webrestescopocontroller) | 128 | Controlador REST do escopo de um Goal: o placar e os dois gestos do humano, aprovar o plano e responder o desvio. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |
@@ -168,7 +168,7 @@ Objetos de Transferência de Dados (DTOs) imutáveis para a interface Web do Gra
 
 *DTO imutável* — DTO imutável para representação de um nó no Canvas.
 
-**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`, `resumo: Mapping[str, Any] | None`, `ambito: str`
+**Campos:** `id: str`, `tipo: str`, `rotulo: str`, `propriedades: Mapping[str, Any]`, `esta_bloqueado: bool`, `lock_ativo: str | None`, `sessao_id: str | None`, `criado_em: str`, `atualizado_em: str | None`, `seq_criacao: int`, `seq_atualizacao: int`, `resumo: Mapping[str, Any] | None`, `ambito: str`, `conferencia: Mapping[str, Any] | None`
 
 ### `NoCitadoWeb`
 
@@ -453,7 +453,7 @@ Controlador REST especializado para operações de leitura e mutação visual do
 
 *DTO imutável* — DTO imutável para parâmetros de filtragem e mapeamento visual.
 
-**Campos:** `mapa_sessoes: Mapping[str, str]`, `mapa_projetos: Mapping[str, str]`, `nos_bloqueados: frozenset[str]`, `sessao_id: str | None`, `projeto_id: str | None`, `selecao: SelecaoVisual | None`, `setor_id: str | None`, `mapa_setores: Mapping[str, str]`, `ambito: Ambito | None`, `ambientes_do_hook: frozenset[str]`
+**Campos:** `mapa_sessoes: Mapping[str, str]`, `mapa_projetos: Mapping[str, str]`, `nos_bloqueados: frozenset[str]`, `sessao_id: str | None`, `projeto_id: str | None`, `selecao: SelecaoVisual | None`, `setor_id: str | None`, `mapa_setores: Mapping[str, str]`, `ambito: Ambito | None`, `ambientes_do_hook: frozenset[str]`, `conferencia: LeituraPorGoal | None`
 
 - `foi_recortado(id_no: str) -> bool` — Indica que o recorte visual deixou este nó de fora da tela.
 - `fora_do_setor(id_no: str) -> bool` — Indica que a tela abriu um Setor e este nó não pende dele.

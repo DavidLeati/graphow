@@ -16,6 +16,7 @@ from graphow.context.aprendizados_aplicaveis import (
     PedidoDeMemoria,
     montar_secao_de_aprendizados,
 )
+from graphow.context.evidencia_conferida import montar_secao_de_evidencias
 from graphow.context.exploracao import DirecaoTravessia, ExploradorSubgrafo, PedidoExploracao
 from graphow.context.fechamento import esta_encerrada, montar_secao_de_fechamento
 from graphow.context.orientacao import montar_secao_das_decisoes_que_governam
@@ -29,6 +30,8 @@ from graphow.context.secoes import (
 )
 from graphow.context.restricoes_de_escopo import formatar_restricao, formatar_restricao_curta, ordenar_restricoes
 from graphow.context.vizinhanca import montar_secao_de_vizinhos
+from graphow.orquestrador.conferencia_da_evidencia import ConferenciaDaEvidencia
+from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal
 from graphow.projection.graph_view import GrafoView
 from graphow.projection.working_set import EscopoAtivo
 
@@ -54,6 +57,11 @@ class AmbienteDoRecorte:
     explorador: ExploradorSubgrafo
     escopo: EscopoAtivo | None = None
     indice_semantico: IndiceSemantico = field(default_factory=IndiceSemanticoNulo)
+    conferencia: LeituraPorGoal | None = None
+
+    def conferir(self, no: NoGrafo) -> ConferenciaDaEvidencia | None:
+        """A Evidence conferida na ponta pela leitura deste recorte; sem leitura, nenhuma marca."""
+        return self.conferencia.conferir(no) if self.conferencia is not None else None
 
     def esta_no_escopo(self, id_no: str) -> bool:
         """Sem escopo declarado nada é filtrado; com escopo, vale o recorte ativo."""
@@ -98,6 +106,7 @@ class PoliticaBase(PoliticaContexto):
             explorador=ExploradorSubgrafo(view),
             escopo=escopo,
             indice_semantico=indice_semantico or IndiceSemanticoNulo(),
+            conferencia=LeituraPorGoal(view),
         )
         return RecorteContexto(
             alvo=alvo,
@@ -265,7 +274,7 @@ class PoliticaExecutor(PoliticaBase):
         evidencias = self._filtrar_por_tipo(self._coletar(alvo, ambiente, ARESTAS_DO_TRABALHO), TipoNo.EVIDENCE)
         return (
             montar_secao_das_decisoes_que_governam(alvo, ambiente.view, ordem=3),
-            montar_secao_de_nos("Evidencias Relacionadas", evidencias, (4, PrioridadeRetencao.APOIO)),
+            montar_secao_de_evidencias("Evidencias Relacionadas", evidencias, (4, PrioridadeRetencao.APOIO), conferir=ambiente.conferir),
         )
 
 

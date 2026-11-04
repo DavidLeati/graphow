@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-64 módulos · 12134 linhas · 89 classes
+64 módulos · 12184 linhas · 90 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -23,7 +23,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 114 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
-| [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 97 | A conferência da Evidence na hora da leitura: o briefing e o `--status` perguntam aqui. |
+| [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 147 | A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 197 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
@@ -259,7 +259,7 @@ A conferência da Evidence sobre código na leitura: os arquivos que ela afirma 
 
 ## `orquestrador/conferencia_na_leitura.py`
 
-A conferência da Evidence na hora da leitura: o briefing e o `--status` perguntam aqui.
+A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
@@ -282,10 +282,17 @@ A conferência da Evidence na hora da leitura: o briefing e o `--status` pergunt
 
 - `conferir(papel: str, propriedades: Mapping[str, Any]) -> ConferenciaDaEvidencia | None` — A conferência da Evidence gravada pelo papel; None quando ela não é sobre código nem tem âncora.
 
+### `LeituraPorGoal`
+
+*serviço* — A leitura da vista e do canvas: a Evidence do orquestrador confere na branch do Goal dela; as outras, sem git.
+
+- `conferir(no: NoGrafo) -> ConferenciaDaEvidencia | None` — A conferência do nó Evidence; None para os outros tipos e para a Evidence livre.
+
 ### Funções do módulo
 
 - `leitura_do_repositorio(repositorio: object, ramo: object) -> LeituraDaConferencia` — A leitura no repositório, na ponta da branch; sem git quando a pasta não é repositório ou a branch não existe.
 - `rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str` — O rótulo curto: `vigente`, `desatualizada (mudaram: ...)`, `sem ancora` ou `nao conferida`.
+- `conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None` — A conferência como o canvas a manda ao inspetor, com o rótulo; None quando não há o que mostrar.
 - `aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str` — O aviso do briefing para a Evidence que não vale na ponta: o estado em maiúsculas e os arquivos, ou o motivo.
 
 ## `orquestrador/configuracao_do_aceite.py`

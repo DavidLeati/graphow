@@ -9,6 +9,7 @@
  */
 import { api } from "./api.js";
 import { TIPOS_DE_ORIGEM_DE_APRENDIZADO } from "./dialogos_memoria.js";
+import { htmlDaConferencia } from "./conferencia_da_evidencia.js";
 import { copiarTexto, escapeHtml } from "./dom.js";
 import { icone } from "./icones.js";
 import { foiAlterado, formatarDataCompleta, formatarIdadeRelativa } from "./idade.js";
@@ -207,6 +208,7 @@ export class InspectorView {
         : "";
       alertas.push(`<div class="chamada mod-aviso">${icone("lock", { tamanho: 14 })}<span>Em posse de <strong>${escapeHtml(no.lock_ativo)}</strong>: só esse agente move o status.</span><span class="espacador"></span>${liberar}</div>`);
     }
+    alertas.push(htmlDaConferencia(no.conferencia));
     return alertas.join("");
   }
 

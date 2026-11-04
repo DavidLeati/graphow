@@ -1,4 +1,4 @@
-"""A conferência da Evidence na hora da leitura: o briefing e o `--status` perguntam aqui.
+"""A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui.
 
 A conferência em si mora em orquestrador/conferencia_da_evidencia.py. Aqui
 fica o que cada leitor precisa em volta dela:
@@ -10,9 +10,11 @@ fica o que cada leitor precisa em volta dela:
 - a ancorada é conferida no git da leitura; sem repositório à mão, sai
   `nao_conferida`, e o leitor não adivinha.
 
-O `--status` confere no repositório do humano, na branch do Goal, que a
-configuração gravada no Goal diz (a branch existe enquanto o Goal vive e
-depois do fecho, quando a área já foi removida).
+A vista e o canvas não têm área nem repositório: a Evidence do orquestrador
+confere no repositório do humano, na branch do Goal dela, que a configuração
+gravada no Goal diz (a branch existe enquanto o Goal vive e depois do fecho,
+quando a área já foi removida). A de outro papel não tem repositório gravado e
+sai `nao_conferida`.
 
 Cada leitura tem o seu cache (`GitDaLeitura`): cada consulta ao git, o
 `diff --name-only` por par de commits inclusive, roda uma vez por leitura.
@@ -23,8 +25,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from graphow.core.types import PapelAutor
+from graphow.core.models import NoGrafo
+from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.ancora_da_evidencia import ancora_da_evidencia, sobre_codigo
+from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.conferencia_da_evidencia import (
     DESATUALIZADA,
     SEM_ANCORA,
@@ -34,6 +38,7 @@ from graphow.orquestrador.conferencia_da_evidencia import (
     sem_ancora,
 )
 from graphow.orquestrador.git_do_goal import GitDoGoal, SaidaDoGit
+from graphow.projection.graph_view import GrafoView
 
 NAO_CONFERIDA: str = "nao_conferida"
 PAPEL_DO_ORQUESTRADOR: str = PapelAutor.ORQUESTRADOR.value
@@ -89,9 +94,54 @@ def rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
     return "desatualizada (mudaram: " + ", ".join(arquivos) + (f" e mais {resto}" if resto > 0 else "") + ")"
 
 
+def conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None:
+    """A conferência como o canvas a manda ao inspetor, com o rótulo; None quando não há o que mostrar."""
+    if conferencia is None:
+        return None
+    return {"estado": conferencia.estado, "arquivos": list(conferencia.arquivos), "motivo": conferencia.motivo,
+            "rotulo": rotulo_da_conferencia(conferencia)}
+
+
 def aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str:
     """O aviso do briefing para a Evidence que não vale na ponta: o estado em maiúsculas e os arquivos, ou o motivo."""
     if conferencia.estado == DESATUALIZADA:
         return f"DESATUALIZADA: {', '.join(conferencia.arquivos)} mudaram desde o commit dela"
     estado = rotulo_da_conferencia(conferencia).upper()
     return f"{estado} ({conferencia.motivo})" if conferencia.motivo else estado
+
+
+class LeituraPorGoal:
+    """A leitura da vista e do canvas: a Evidence do orquestrador confere na branch do Goal dela; as outras, sem git."""
+
+    def __init__(self, view: GrafoView) -> None:
+        self._view: GrafoView = view
+        self._sem_git: LeituraDaConferencia = LeituraDaConferencia(None)
+        self._por_goal: dict[str, LeituraDaConferencia] = {}
+
+    def conferir(self, no: NoGrafo) -> ConferenciaDaEvidencia | None:
+        """A conferência do nó Evidence; None para os outros tipos e para a Evidence livre."""
+        if no.tipo != TipoNo.EVIDENCE:
+            return None
+        return self._leitura(no).conferir(no.proveniencia.papel, no.propriedades)
+
+    def _leitura(self, no: NoGrafo) -> LeituraDaConferencia:
+        """A leitura do Goal configurado da Evidence do orquestrador, guardada por Goal."""
+        goal = self._goal_configurado(no) if no.proveniencia.papel == PAPEL_DO_ORQUESTRADOR else None
+        if goal is None:
+            return self._sem_git
+        if goal.id not in self._por_goal:
+            configuracao = goal.obter_propriedade(m.CAMPO_ORQUESTRACAO)
+            self._por_goal[goal.id] = leitura_do_repositorio(configuracao.get("repositorio"), configuracao.get("ramo"))
+        return self._por_goal[goal.id]
+
+    def _goal_configurado(self, no: NoGrafo) -> NoGrafo | None:
+        """O Goal de onde a Evidence deriva, direto (a verificação, o rebase) ou pela fatia (a revisão de risco)."""
+        derivados = [self._view.obter_no(a.destino_id) for a in self._view.obter_arestas_saida(no.id, TipoAresta.DERIVA_DE)]
+        pais = [self._view.obter_no(a.origem_id) for d in derivados if d is not None and d.tipo == TipoNo.TASK
+                for a in self._view.obter_arestas_entrada(d.id, TipoAresta.DECOMPOE)]
+        return next((g for g in (*derivados, *pais) if g is not None and _configurado(g)), None)
+
+
+def _configurado(no: NoGrafo) -> bool:
+    """O Goal que o orquestrador conduz, com a configuração gravada."""
+    return no.tipo == TipoNo.GOAL and isinstance(no.obter_propriedade(m.CAMPO_ORQUESTRACAO), Mapping)

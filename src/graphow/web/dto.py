@@ -19,6 +19,10 @@ class DadosNoVisual:
 
     `ambito` diz se o nó mora entre os projetos de trabalho (`projetos`) ou nas
     sessões que o hook abre (`hook`): é por ele que a árvore separa as duas raízes.
+
+    `conferencia` é a da Evidence sobre código na hora da leitura (estado,
+    arquivos que mudaram, motivo e rótulo; orquestrador/conferencia_na_leitura.py),
+    que o inspetor mostra; None nos outros nós e na Evidence que não fala de código.
     """
 
     id: str
@@ -34,6 +38,7 @@ class DadosNoVisual:
     seq_atualizacao: int = 0
     resumo: Mapping[str, Any] | None = None
     ambito: str = Ambito.PROJETOS.value
+    conferencia: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)

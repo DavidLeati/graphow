@@ -8,6 +8,7 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
+from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal, conferencia_em_json
 from graphow.projection.ambito import Ambito, ambientes_do_hook, ambito_do_no, contar_por_ambito, ler_ambito
 from graphow.projection.graph_view import GrafoView
 from graphow.web.colapso_visual import OpcoesDeRecorteVisual, RecortadorVisual, SelecaoVisual
@@ -60,6 +61,7 @@ class ContextoFiltroVisual:
     mapa_setores: Mapping[str, str] = field(default_factory=dict)
     ambito: Ambito | None = None
     ambientes_do_hook: frozenset[str] = frozenset()
+    conferencia: LeituraPorGoal | None = None
 
     def foi_recortado(self, id_no: str) -> bool:
         """Indica que o recorte visual deixou este nó de fora da tela."""
@@ -161,6 +163,7 @@ class CanvasWebController:
             mapa_setores=self._mapeador.mapear_setores(view) if escopo.setor_id else {},
             ambito=escopo.ambito,
             ambientes_do_hook=ambientes_do_hook(view),
+            conferencia=LeituraPorGoal(view),
         )
 
     def _extrair_nos_visuais(self, view: GrafoView, ctx: ContextoFiltroVisual) -> list[DadosNoVisual]:
@@ -211,6 +214,7 @@ class CanvasWebController:
             seq_atualizacao=no.ordem.seq_atualizacao,
             resumo=None if resumo is None else dict(resumo.em_dicionario()),
             ambito=ctx.ambito_de(no.id).value,
+            conferencia=conferencia_em_json(ctx.conferencia.conferir(no)) if ctx.conferencia else None,
         )
 
     def _extrair_arestas_visuais(self, view: GrafoView, nos_visuais: list[DadosNoVisual]) -> list[DadosArestaVisual]:
