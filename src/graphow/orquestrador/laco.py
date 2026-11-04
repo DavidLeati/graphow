@@ -57,6 +57,7 @@ from graphow.orquestrador.refazer_aceite import refazer_aceite
 from graphow.orquestrador.registro_do_rebase import retomar_o_rebase
 from graphow.orquestrador.replanejamento import replanejar
 from graphow.orquestrador.retirada_de_criterio import retirar_criterio
+from graphow.orquestrador.salvaguarda_do_humano import PASTA_DA_SALVAGUARDA
 from graphow.orquestrador.sessoes_de_papel import ConfiguracaoDasSessoes, SessoesDePapel, recuperar_sessoes_em_andamento
 from graphow.orquestrador.suite import AMBIENTE_SEM_CACHE
 from graphow.orquestrador.trava_do_git import gravar_hook_da_trava, instalar_trava
@@ -219,6 +220,7 @@ class Orquestrador:
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
                 esperar=self._dependencias.esperar, registrar_trava_mexida=livro.registrar_trava_mexida,
                 repositorio_do_humano=Path(configuracao.repositorio), registrar_humano_mexido=livro.registrar_humano_mexido,
+                salvaguarda_do_humano=pasta / PASTA_DA_SALVAGUARDA,
             ),
         )
         return ContextoDoGoal(livro, configuracao, sessoes, self._dependencias.telemetria, pasta, opcoes)

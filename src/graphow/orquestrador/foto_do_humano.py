@@ -13,8 +13,9 @@ rastreado no HEAD e no índice), as refs, as entradas do índice (`ls-files
 cada arquivo que muda o que o git roda (orquestrador/arquivos_do_git.py: a
 configuração, os includes, os hooks, o exclude e o reflog do stash), com a
 lista deles tirada do `git config --list --show-origin`. Junto, guarda a
-salvaguarda: o commit de `git stash create` com as mudanças rastreadas e uma
-árvore com os não rastreados, cada um como blob (`git hash-object -w`). São
+salvaguarda (orquestrador/salvaguarda_do_humano.py), numa pasta do estado do
+Goal: o commit de `git stash create` com as mudanças rastreadas e uma árvore
+com os não rastreados, cada um como blob (`git hash-object -w`). São
 quatro processos do git na foto de antes e três na de depois quando o
 repositório está limpo; a salvaguarda só roda quando há o que guardar. Depois
 da sessão, com a árvore de processos dela já morta, a conferência lê de novo
@@ -23,19 +24,15 @@ avanço (orquestrador/conferencia_do_humano.py).
 
 A foto não escreve no repositório do humano. Todo git dela roda sem
 fsmonitor, sem hooks e sem trava opcional (orquestrador/git_da_foto.py), e o
-`status` não regrava o índice. O `stash create`
-regrava o índice ao atualizar os dados de cada arquivo, e por isso roda
-sobre uma cópia dele (`GIT_INDEX_FILE`); a árvore dos não rastreados nasce
-num índice vazio, também fora do do humano. Só os objetos da salvaguarda
-entram no repositório, soltos, e o `git gc` os apaga depois do prazo dele
-(duas semanas, por padrão).
+`status` não regrava o índice. O `stash create` regrava o índice ao
+atualizar os dados de cada arquivo, e por isso roda sobre uma cópia dele
+(`GIT_INDEX_FILE`); a árvore dos não rastreados nasce num índice vazio,
+também fora do do humano; e os objetos da salvaguarda vão para a pasta dela.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-import shutil
-import tempfile
 
 from graphow.orquestrador.arquivos_do_git import (
     AUSENTE,
@@ -47,13 +44,12 @@ from graphow.orquestrador.arquivos_do_git import (
     ler_os_arquivos_do_git,
 )
 from graphow.orquestrador.git_da_foto import git_da_foto
+from graphow.orquestrador.salvaguarda_do_humano import PedidoDeSalvaguarda, Salvaguarda, salvaguardar
 
-MENSAGEM_DA_SALVAGUARDA: str = "graphow: salvaguarda do repositorio do humano antes da sessao"
 # Quantos campos o registro do `status --porcelain=v2` tem antes do caminho, por tipo (mudado, renomeado, em conflito, solto).
 CAMPOS_ANTES_DO_CAMINHO: Mapping[str, int] = {"1": 8, "2": 9, "u": 10, "?": 1}
 CABECALHO_DO_STATUS: str = "# branch."
 NAO_RASTREADO: str = "?"
-MODO_DO_SOLTO: str = "100644"
 
 
 @dataclass(frozen=True)
@@ -71,14 +67,6 @@ class ArquivoListado:
     def entrada_do_head(self) -> str:
         """A entrada do índice igual à do HEAD (`modo objeto 0`), a que o `reset` ou o `checkout HEAD` devolvem."""
         return f"{self.modo_no_head} {self.no_head} 0"
-
-
-@dataclass(frozen=True)
-class Salvaguarda:
-    """O commit de `git stash create` com as mudanças rastreadas e a árvore com os blobs dos não rastreados; vazios sem eles."""
-
-    stash: str = ""
-    soltos: str = ""
 
 
 @dataclass(frozen=True)
@@ -102,12 +90,17 @@ class FotoDoHumano:
     salvaguarda: Salvaguarda = Salvaguarda()
 
 
-def foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None:
-    """A foto e a salvaguarda de antes da sessão; None sem repositório do humano a guardar."""
+def foto_antes_da_sessao(repositorio: Path | None, *, salvaguarda: Path | None = None) -> FotoDoHumano | None:
+    """A foto de antes da sessão e, com a pasta dada, a salvaguarda nela; None sem repositório do humano a guardar."""
     if repositorio is None:
         return None
     foto = fotografar_o_humano(repositorio)
-    return replace(foto, salvaguarda=Salvaguarda(_salvaguardar_rastreados(foto), _salvaguardar_soltos(foto)))
+    if salvaguarda is None:
+        return foto
+    rastreado = any(listado.tipo != NAO_RASTREADO for listado in foto.listados.values())
+    pedido = PedidoDeSalvaguarda(repositorio, foto.vigia.pasta_do_git / "index", foto.vigia.comum / "objects",
+                                 foto.cabeca.rpartition(" ")[2], rastreado, soltos_da_salvaguarda(foto))
+    return replace(foto, salvaguarda=salvaguardar(pedido, salvaguarda))
 
 
 def fotografar_o_humano(repositorio: Path, tambem: Iterable[str] = (), *, vigia: ArquivosDoGit | None = None) -> FotoDoHumano:
@@ -183,35 +176,3 @@ def soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]:
     return tuple(caminho for caminho, listado in foto.listados.items() if listado.tipo == NAO_RASTREADO and "\n" not in caminho
                  and foto.conteudos.get(caminho, AUSENTE) not in (AUSENTE, PASTA) and not foto.conteudos[caminho].startswith(LINK))
 
-
-def _salvaguardar_rastreados(foto: FotoDoHumano) -> str:
-    """O commit de `git stash create`, sobre uma cópia do índice; vazio sem mudança rastreada (sem processo) ou sem commit."""
-    if all(listado.tipo == NAO_RASTREADO for listado in foto.listados.values()):
-        return ""
-    with tempfile.TemporaryDirectory(prefix="graphow-salvaguarda-") as pasta:
-        try:
-            shutil.copyfile(foto.vigia.pasta_do_git / "index", Path(pasta) / "index")
-        except OSError:
-            return ""
-        return _git(foto.repositorio, ("stash", "create", MENSAGEM_DA_SALVAGUARDA), indice=Path(pasta) / "index") or ""
-
-
-def _salvaguardar_soltos(foto: FotoDoHumano) -> str:
-    """A árvore com cada não rastreado como blob (`hash-object -w`, os bytes como estão), montada num índice vazio."""
-    soltos = soltos_da_salvaguarda(foto)
-    entrada = "".join(f"{caminho}\n" for caminho in soltos)
-    blobs = (_git(foto.repositorio, ("hash-object", "-w", "--no-filters", "--stdin-paths"), entrada=entrada) or "").split() if soltos else []
-    if not soltos or len(blobs) != len(soltos):
-        return ""
-    entradas = "".join(f"{MODO_DO_SOLTO} {blob}\t{caminho}\x00" for blob, caminho in zip(blobs, soltos, strict=True))
-    with tempfile.TemporaryDirectory(prefix="graphow-salvaguarda-") as pasta:
-        if _git(foto.repositorio, ("update-index", "-z", "--index-info"), entrada=entradas, indice=Path(pasta) / "index") is None:
-            return ""
-        return _git(foto.repositorio, ("write-tree",), indice=Path(pasta) / "index") or ""
-
-
-def _git(repositorio: Path, argumentos: Sequence[str], *, entrada: str = "", indice: Path | None = None) -> str | None:
-    """O git da salvaguarda no repositório do humano, com a entrada e o índice dados; a saída, ou None quando ele falha."""
-    ambiente = {"GIT_INDEX_FILE": str(indice)} if indice is not None else {}
-    saida = git_da_foto(repositorio, argumentos, entrada=entrada.encode("utf-8"), ambiente=ambiente)
-    return None if saida is None else saida.strip()

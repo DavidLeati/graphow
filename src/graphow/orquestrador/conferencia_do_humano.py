@@ -25,8 +25,9 @@ fast-forward e a troca de HEAD, com as mudanças carregadas. Cada linha tem o
 seu caso em tests/orquestrador/test_conferencia_do_humano.py.
 
 O lado seguro tem custo: do humano, também param o `git stash` (o arquivo
-volta ao HEAD), o `commit --amend`, o rebase, o `git config` e o `mv` de
-arquivo mudado ou solto; de outro Goal, o rebase da branch dele.
+volta ao HEAD), o `commit --amend`, o rebase, o `git config`, a edição da
+configuração global ou de um hook versionado (husky, `.githooks/`) e o `mv`
+de arquivo mudado ou solto; de outro Goal, o rebase da branch dele.
 """
 
 from collections.abc import Callable, Iterator, Mapping
@@ -36,14 +37,9 @@ from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
 from graphow.orquestrador.arquivos_do_git import AUSENTE, conteudo_do_arquivo, ler_os_arquivos_do_git
-from graphow.orquestrador.foto_do_humano import (
-    NAO_RASTREADO,
-    FotoDoHumano,
-    Salvaguarda,
-    fotografar_o_humano,
-    soltos_da_salvaguarda,
-)
+from graphow.orquestrador.foto_do_humano import NAO_RASTREADO, FotoDoHumano, fotografar_o_humano, soltos_da_salvaguarda
 from graphow.orquestrador.git_da_foto import e_ancestral_no_humano
+from graphow.orquestrador.salvaguarda_do_humano import Salvaguarda, comandos_de_recuperacao
 
 MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
 LIMITE_DE_MUDANCAS_NA_PARADA: int = 20
@@ -71,11 +67,9 @@ class HumanoMexido:
 
     @property
     def recuperar(self) -> tuple[str, ...]:
-        """Os comandos que devolvem o de antes da sessão: o `stash apply` do rastreado e o `restore` do não rastreado."""
-        rastreados = (f'git -C "{self.repositorio}" stash apply {self.salvaguarda.stash}',) if self.salvaguarda.stash else ()
-        caminhos = " ".join(f'"{caminho}"' for caminho in self.soltos_perdidos)
-        soltos = (f'git -C "{self.repositorio}" restore --source={self.salvaguarda.soltos} -- {caminhos}',)
-        return (*rastreados, *(soltos if self.salvaguarda.soltos and caminhos else ()))
+        """Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
+        `restore` do não rastreado."""
+        return comandos_de_recuperacao(self.repositorio, self.salvaguarda, self.soltos_perdidos)
 
 
 def resumo(mudancas: tuple[str, ...]) -> tuple[str, ...]:
@@ -105,7 +99,8 @@ def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, reg
     if mexido.perdas:
         raise RepositorioDoHumanoMexido(
             mensagem_da_parada(mexido, papel), {"repositorio": str(mexido.repositorio), "salvaguarda": mexido.salvaguarda.stash or "nenhuma",
-                                                "soltos": mexido.salvaguarda.soltos or "nenhuma"}
+                                                "soltos": mexido.salvaguarda.soltos or "nenhuma",
+                                                "guardada_em": mexido.salvaguarda.pasta or "nenhuma"}
         )
 
 
@@ -134,8 +129,9 @@ def mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str:
     """O motivo, a perda, a salvaguarda e os comandos que a recuperam."""
     partes = ([f"o commit {mexido.salvaguarda.stash} (as mudancas rastreadas)"] if mexido.salvaguarda.stash else []) + (
         [f"a arvore {mexido.salvaguarda.soltos} (os nao rastreados)"] if mexido.salvaguarda.soltos and mexido.soltos_perdidos else [])
-    recuperar = " e ".join(f"`{comando}`" for comando in mexido.recuperar)
-    salvaguarda = (f"A salvaguarda de antes da sessao e {' e '.join(partes)}: recupere com {recuperar}." if partes
+    recuperar = ", depois ".join(f"`{comando}`" for comando in mexido.recuperar)
+    salvaguarda = (f"A salvaguarda de antes da sessao e {' e '.join(partes)}, guardada fora do repositorio, em "
+                   f"{mexido.salvaguarda.pasta}: recupere com {recuperar}." if partes
                    else "Antes da sessao nao havia o que salvaguardar desses arquivos.")
     return (f"{MOTIVO_DA_PARADA}: o repositorio do humano ({mexido.repositorio}) "
             f"{'teve mudado o que o git roda' if mexido.git_mexido else 'perdeu trabalho'} durante a sessao do {papel}: "

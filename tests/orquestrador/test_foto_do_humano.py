@@ -59,7 +59,7 @@ def test_foto_e_salvaguarda_nao_mudam_o_repositorio_do_humano_nominal(tmp_path: 
     repositorio = _sujo(tmp_path / "humano")
     antes = _estado(repositorio)
 
-    foto = foto_antes_da_sessao(repositorio)
+    foto = foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda")
 
     assert foto is not None and foto.salvaguarda.stash and foto.salvaguarda.soltos
     assert _estado(repositorio) == antes
@@ -88,14 +88,15 @@ def test_foto_do_repositorio_limpo_roda_sete_processos_do_git_por_sessao_nominal
 
 
 def test_salvaguarda_recupera_o_rastreado_e_o_nao_rastreado_edge_case(tmp_path: Path) -> None:
-    """T3a6, item 2: depois do `reset --hard` e do não rastreado apagado, os comandos de recuperação devolvem os dois."""
+    """T3a6, item 2: depois do `reset --hard` e do não rastreado apagado, os comandos de recuperação (o `fetch` da pasta
+    da salvaguarda, o `stash apply` e o `restore`) devolvem os dois."""
     repositorio = _sujo(tmp_path / "humano")
-    foto = foto_antes_da_sessao(repositorio)
+    foto = foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda")
     assert foto is not None
     git(repositorio, "reset", "-q", "--hard")
     (repositorio / "rascunho.txt").unlink()
     mexido = conferir_as_fotos(foto, fotografar_o_humano(repositorio, foto.listados))
-    assert mexido.soltos_perdidos == ("rascunho.txt",) and len(mexido.recuperar) == 2
+    assert mexido.soltos_perdidos == ("rascunho.txt",) and len(mexido.recuperar) == 3
 
     for comando in mexido.recuperar:
         _rodar(comando)
@@ -141,7 +142,8 @@ def test_sessao_que_apaga_o_trabalho_do_humano_para_o_laco_com_a_salvaguarda_edg
     assert salvaguarda and salvaguarda in parada.mensagem and f"stash apply {salvaguarda}" in parada.mensagem
     assert nota.obter_propriedade("papel") == "executor"
     assert nota.obter_propriedade("perdas") == ["README.md voltou ao conteudo do HEAD ou do indice de antes da sessao"]
-    git(bancada.repositorio, "stash", "apply", "-q", salvaguarda)
+    for comando in nota.obter_propriedade("recuperar"):
+        _rodar(comando)
     assert (bancada.repositorio / "README.md").read_text(encoding="utf-8") == TRABALHO
 
 
@@ -162,8 +164,10 @@ def test_sessao_que_apaga_um_nao_rastreado_do_humano_para_e_o_blob_o_recupera_ed
     (nota,) = _notas_do_humano(bancada)
     arvore = str(nota.obter_propriedade("soltos"))
     assert arvore and nota.obter_propriedade("salvaguarda") == "", "nao havia mudanca rastreada: sem stash"
-    (recuperar,) = nota.obter_propriedade("recuperar")
+    trazer, recuperar = nota.obter_propriedade("recuperar")
+    assert f"fetch --no-tags \"{Path(str(nota.obter_propriedade('guardada_em'))).as_posix()}\" {arvore}" in trazer
     assert f"restore --source={arvore} -- \"rascunho.txt\"" in recuperar and f"`{recuperar}`" in parada.mensagem
+    _rodar(trazer)
     _rodar(recuperar)
     assert rascunho.read_bytes() == RASCUNHO
 

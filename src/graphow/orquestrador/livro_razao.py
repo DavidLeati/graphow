@@ -250,6 +250,7 @@ class LivroRazaoDoGoal:
         propriedades = {"acao": m.ACAO_DO_HUMANO_MEXIDO if perdeu else m.ACAO_DO_HUMANO_QUE_AVANCOU, "papel": papel, "fatia": fatia,
                         "perdas": list(resumo(mexido.perdas)), "avancos": list(resumo(mexido.avancos)),
                         "salvaguarda": mexido.salvaguarda.stash, "soltos": mexido.salvaguarda.soltos,
+                        "guardada_em": mexido.salvaguarda.pasta,
                         "recuperar": list(mexido.recuperar), "repositorio": str(mexido.repositorio)}
         rotulo = f"O repositorio do humano {'perdeu trabalho' if perdeu else 'avancou'} durante a sessao do {papel}"
         da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []

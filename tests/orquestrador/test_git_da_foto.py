@@ -38,7 +38,7 @@ def test_foto_nao_roda_o_fsmonitor_nem_o_hook_que_o_humano_ja_tem_edge_case(tmp_
     hook = repositorio / ".git" / "hooks" / "post-index-change"
     hook.write_text(f"#!/bin/sh\necho rodou >> '{marca_do_hook.as_posix()}'\n", encoding="utf-8", newline="\n")
 
-    foto = foto_antes_da_sessao(repositorio)
+    foto = foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda")
     conferir_o_humano(foto, "executor", "")
 
     assert foto is not None and foto.salvaguarda.stash and foto.salvaguarda.soltos
@@ -59,7 +59,7 @@ def test_o_menos_c_da_foto_chega_ao_git_do_submodulo_edge_case(tmp_path: Path) -
     marca = tmp_path / "fsmonitor.txt"
     git(repositorio / "sub", "config", "core.fsmonitor", f"sh '{_script_que_marca(tmp_path, marca).as_posix()}'")
 
-    foto = foto_antes_da_sessao(repositorio)
+    foto = foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda")
     conferir_o_humano(foto, "executor", "")
 
     assert foto is not None and "sub" in foto.listados, "o status olhou dentro do submodulo"
@@ -84,8 +84,8 @@ def test_todo_git_da_foto_e_da_salvaguarda_vai_sem_fsmonitor_e_com_hooks_numa_pa
         return original(comando, *args, **kwargs)
 
     monkeypatch.setattr(subprocess, "run", conferir)
-    conferir_o_humano(foto_antes_da_sessao(repositorio), "executor", "")
+    conferir_o_humano(foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda"), "executor", "")
 
-    assert len(chamados) >= 8 and all(vazias), chamados
+    assert len(chamados) >= 12 and all(vazias), chamados
     assert all(comando[3:6:2] == ["-c", "-c"] and comando[4] == "core.fsmonitor=false" and "--no-optional-locks" in comando
                for comando in chamados), chamados

@@ -103,6 +103,7 @@ class ConfiguracaoDasSessoes:
     registrar_trava_mexida: RegistroDaTravaMexida | None = None
     repositorio_do_humano: Path | None = None
     registrar_humano_mexido: RegistroDoHumanoMexido | None = None
+    salvaguarda_do_humano: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -164,7 +165,8 @@ class SessoesDePapel:
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido."""
-        foto, humano = fotografar_clone(pedido.pasta), foto_antes_da_sessao(self._configuracao.repositorio_do_humano)
+        foto = fotografar_clone(pedido.pasta)
+        humano = foto_antes_da_sessao(self._configuracao.repositorio_do_humano, salvaguarda=self._configuracao.salvaguarda_do_humano)
         try:
             resposta = self._rodar_e_conferir(pedido)
         finally:
