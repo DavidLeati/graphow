@@ -8,6 +8,14 @@ recebe a árvore da ponta do Goal com a base nova mesclada (`merge-tree`, com
 os marcadores no conflito), fora de commit, e o HEAD fica onde estava: a
 tentativa que falha volta a área ao commit, como toda fatia, e nada se perde.
 
+Nessa fatia, a referência da tentativa é a árvore mesclada, e não o HEAD
+antigo do Goal (`referencia_da_fatia`). O selo do `.claude/` e dos CLAUDE.md
+volta a ela, que traz o da base nova (orquestrador/trava_do_git.py); as
+recusas comparam contra ela, e o que a base trouxe (o aceite de outro Goal, o
+conftest do humano) não é da fatia. Depois da sessão, todo arquivo que a base
+mudou e o Goal não precisa estar como na base nova: a fatia que desfaz o
+trabalho do humano é recusada (`desfaz_a_base`).
+
 O commit da fatia tem a base nova como pai e leva o trabalho do Goal inteiro:
 a história da branch passa a ser a base nova e esse commit, verde pela suíte
 da fatia. O livro-razão registra esse rebase como o limpo, antes de as refs
@@ -45,7 +53,7 @@ COMO_RESOLVER: str = (
     "Nesta fatia, a area traz o trabalho do Goal com a base nova mesclada, fora de commit: os arquivos em conflito tem os "
     "marcadores <<<<<<< (o lado do Goal), ======= e >>>>>>> (o lado da base). Resolva cada conflito mantendo o que o Goal "
     "entregou e o que a base trouxe, sem regredir criterio nenhum, tire os marcadores e deixe a suite verde. Nao desfaca a "
-    "base: o orquestrador commita a area sobre ela."
+    "base: o arquivo que a base mudou e o Goal nao fica como na base, e o orquestrador commita a area sobre ela."
 )
 
 
@@ -97,14 +105,40 @@ def _conflito_da(fatia: FatiaRegistrada) -> Mapping[str, object] | None:
     return conflito if isinstance(conflito, Mapping) else None
 
 
-def preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> None:
-    """Na fatia de conflito, a área recebe a ponta do Goal com a base nova mesclada, fora de commit; nas outras, nada."""
+def referencia_da_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
+    """Contra o que a tentativa se compara: o HEAD; na fatia de conflito, a árvore da ponta do Goal com a base nova mesclada."""
+    conflito, head = _conflito_da(fatia), contexto.git.head()
+    return head if conflito is None else arvore_mesclada(contexto.area, head, str(conflito.get("base", "")))[0]
+
+
+def preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
+    """A referência da tentativa; na fatia de conflito, a área a recebe, fora de commit, com o HEAD onde estava."""
+    referencia = referencia_da_fatia(contexto, fatia)
+    if _conflito_da(fatia) is not None:
+        contexto.git.rodar("read-tree", "--reset", "-u", referencia)
+        contexto.git.rodar("reset", "-q")
+    return referencia
+
+
+def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str:
+    """Na fatia de conflito, o erro da área que mudou, desde a árvore mesclada, arquivo que só a base mudou; vazio sem ele.
+
+    Esse arquivo vem da base nova na árvore mesclada: o que difere dela
+    desfaz o que o humano, ou outro Goal, commitou na base.
+    """
     conflito = _conflito_da(fatia)
     if conflito is None:
-        return
-    arvore, _ = arvore_mesclada(contexto.area, contexto.git.head(), str(conflito.get("base", "")))
-    contexto.git.rodar("read-tree", "--reset", "-u", arvore)
-    contexto.git.rodar("reset", "-q")
+        return ""
+    git, base = contexto.git, str(conflito.get("base", ""))
+    head = git.head()
+    antes = git.rodar("merge-base", head, base).strip()
+    so_da_base = set(arquivos_entre(git, antes, base)) - set(arquivos_entre(git, antes, head))
+    desfeitos = [caminho for caminho in mudados if caminho in so_da_base]
+    if not desfeitos:
+        return ""
+    return (f"a fatia de conflito desfez o que a base nova ({base[:12]}) trouxe em {', '.join(desfeitos)}: a base mudou esses "
+            "arquivos e o Goal nao, e eles ficam como na base, porque sao trabalho do humano ou de outro Goal. O orquestrador "
+            "recusa a tentativa: resolva so o conflito, sem tocar no que a base mudou fora dele.")
 
 
 def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str:

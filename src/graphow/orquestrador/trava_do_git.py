@@ -41,16 +41,20 @@ O hook não se desliga. O clone é a pasta do projeto da sessão
 `disableAllHooks: true` desligava o hook; o settings do hook leva
 `disableAllHooks: false`, que vence o do projeto. Antes de cada invocação
 (`selar_a_sessao`), o settings do hook é regravado e o `.claude/` do clone
-volta ao HEAD: o `.claude/` da base, do humano, vale; o que não está
-commitado sai. Depois dela (`trava_mexida`), o sha256 do settings e o
-`.claude/` são conferidos: a sessão que mexeu num deles mexeu na trava.
+volta à referência, o HEAD: o `.claude/` da base, do humano, vale; o que não
+está commitado sai. Na fatia de conflito, a referência é a árvore da ponta do
+Goal com a base nova mesclada (orquestrador/fatia_de_conflito.py): o
+`.claude/` que a base nova trouxe fica, e vai no commit da fatia. Depois da
+invocação (`trava_mexida`), o sha256 do settings e o `.claude/` são
+conferidos contra a mesma referência: a sessão que mexeu num deles mexeu na
+trava.
 
 As instruções do Claude Code seguem a mesma regra. Todo `CLAUDE.md` e
 `CLAUDE.local.md` do clone, em qualquer pasta, iria no commit da fatia e
 mudaria as instruções das sessões seguintes, verificador incluído; e o da
 pasta de estado do Goal (ou da de cima), acima do clone, o Claude Code
 carrega como o de um diretório pai. Antes de cada invocação, os do clone
-voltam ao HEAD (o da base, do humano, fica) e os das pastas de estado saem;
+voltam à referência (o da base, do humano, fica) e os das pastas de estado saem;
 depois dela, o que foi criado ou mudado em qualquer um deles é trava mexida.
 """
 
@@ -145,32 +149,36 @@ def _regravar(caminho: Path) -> str:
 
 @dataclass(frozen=True)
 class SeloDaSessao:
-    """O settings do hook como foi gravado antes da invocação e o clone onde ela roda."""
+    """O settings do hook como foi gravado antes da invocação, o clone onde ela roda e a referência do `.claude/`."""
 
     hook: Path
     sha256: str
     area: Path
+    referencia: str = "HEAD"
 
 
-def selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao:
-    """Antes de cada invocação: o settings do hook regravado, o `.claude/` e os CLAUDE.md do clone de volta ao HEAD.
+def selar_a_sessao(hook: Path, area: Path, referencia: str = "HEAD") -> SeloDaSessao:
+    """Antes de cada invocação: o settings do hook regravado, o `.claude/` e os CLAUDE.md do clone como na referência.
 
-    Os CLAUDE.md das pastas de estado (a do Goal, onde mora o settings do
-    hook, e a de cima), que nenhum HEAD traz, saem.
+    A referência é o HEAD, ou a árvore mesclada da fatia de conflito. O que
+    ela não tem sai, o versionado inclusive (`restore --source`, um caminho
+    por vez: o que não casa com nada faz o comando falhar inteiro). Os
+    CLAUDE.md das pastas de estado (a do Goal, onde mora o settings do hook, e
+    a de cima), que nenhum commit traz, saem.
     """
     git = GitDoGoal(area)
     for caminho in CAMINHOS_DO_CLAUDE:
-        git.tentar("checkout", "HEAD", "--", caminho)
+        git.tentar("restore", f"--source={referencia}", "--staged", "--worktree", "--", caminho)
     git.tentar("clean", "-q", "-fdx", "--", *CAMINHOS_DO_CLAUDE)
     for instrucao in instrucoes_do_estado(hook):
         instrucao.unlink()
-    return SeloDaSessao(hook, _regravar(hook), area)
+    return SeloDaSessao(hook, _regravar(hook), area, referencia)
 
 
 def trava_mexida(selo: SeloDaSessao) -> str:
     """Depois da invocação: o que ela mexeu no settings do hook, no `.claude/` ou nos CLAUDE.md; vazio quando nada."""
     atual = hashlib.sha256(_bytes(selo.hook)).hexdigest() if selo.hook.is_file() else ""
-    mexidos = claude_mexido(selo.area)
+    mexidos = claude_mexido(selo.area, selo.referencia)
     no_claude = [caminho for caminho in mexidos if caminho.lower().startswith(".claude/")]
     instrucoes = [caminho for caminho in mexidos if caminho not in no_claude] + [str(p) for p in instrucoes_do_estado(selo.hook)]
     motivos = [f"a sessao reescreveu ou apagou o settings do hook da trava ({selo.hook})"] if atual != selo.sha256 else []
@@ -183,11 +191,12 @@ def trava_mexida(selo: SeloDaSessao) -> str:
             "e o agente nao os muda.")
 
 
-def claude_mexido(area: Path) -> tuple[str, ...]:
-    """Os arquivos do `.claude/` e os CLAUDE.md do clone fora do HEAD: mudados, apagados, novos e ignorados."""
-    linhas = GitDoGoal(area).rodar("-c", "core.quotepath=false", "status", "--porcelain", "--ignored",
-                                   "--untracked-files=all", "--", *CAMINHOS_DO_CLAUDE).splitlines()
-    return tuple(linha[3:].strip().strip('"') for linha in linhas if len(linha) > 3)
+def claude_mexido(area: Path, referencia: str = "HEAD") -> tuple[str, ...]:
+    """Os arquivos do `.claude/` e os CLAUDE.md do clone fora da referência: mudados, apagados, novos e ignorados."""
+    git = GitDoGoal(area)
+    mudados = git.rodar("diff", "--no-renames", "--name-only", "-z", referencia, "--", *CAMINHOS_DO_CLAUDE)
+    soltos = git.rodar("ls-files", "-z", "--others", "--", *CAMINHOS_DO_CLAUDE)
+    return tuple(dict.fromkeys(caminho for caminho in f"{mudados}\x00{soltos}".split("\x00") if caminho))
 
 
 def instrucoes_do_estado(hook: Path) -> tuple[Path, ...]:

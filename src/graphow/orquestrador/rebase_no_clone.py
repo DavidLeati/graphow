@@ -18,10 +18,12 @@ a área, desfaz o primeiro (`recuperar_o_clone`) e termina o segundo
 (`mover_as_refs`).
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 from graphow.orquestrador.git_do_goal import IDENTIDADE_DE_RESERVA, AreaDoGoal, FalhaDoGitDoGoal, GitDoGoal, commits_entre
+from graphow.orquestrador.suite_sem_rastro import guardar_a_arvore
 
 OPCOES_DO_REBASE: tuple[str, ...] = (
     "--no-autosquash", "--keep-empty", "--empty=keep", "--reapply-cherry-picks", "--no-update-refs",
@@ -80,9 +82,20 @@ def rebasear(area: Path, ramo: str, base: str) -> RebaseNoClone | ConflitoNoReba
 
 
 def arquivos_entre(git: GitDoGoal, antes: str, depois: str) -> tuple[str, ...]:
-    """Os arquivos que mudaram de um commit ao outro, sem aspas nem escape no nome."""
-    saida = git.rodar(*SEM_ASPAS, "diff", "--name-only", "-z", antes, depois)
+    """Os arquivos que mudaram de um commit (ou árvore) ao outro, as duas pontas do renomeado, sem aspas nem escape no nome."""
+    saida = git.rodar(*SEM_ASPAS, "diff", "--no-renames", "--name-only", "-z", antes, depois)
     return tuple(caminho for caminho in saida.split("\x00") if caminho)
+
+
+def mudados_desde(area: Path, referencia: str) -> tuple[str, ...]:
+    """Os arquivos em que a área (os novos inclusive, sem os ignorados) difere da referência; o índice volta ao HEAD."""
+    return arquivos_entre(GitDoGoal(area), referencia, guardar_a_arvore(area))
+
+
+def fora_da_referencia(area: Path, referencia: str, caminhos: Iterable[str]) -> tuple[str, ...]:
+    """Dos caminhos, os que a referência (um commit ou uma árvore) não tem."""
+    git = GitDoGoal(area)
+    return tuple(caminho for caminho in caminhos if git.tentar("cat-file", "-e", f"{referencia}:{caminho}").codigo != 0)
 
 
 def _em_conflito(git: GitDoGoal) -> tuple[str, ...]:

@@ -17,8 +17,9 @@ dúvida vira Question que pausa só aquela fatia. A falha, ou a suíte vermelha,
 ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
 pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
 e sai da área, para não vazar para a fatia seguinte. A fatia de conflito com
-a base que andou começa com a base nova mesclada na área e commita sobre ela
-(orquestrador/fatia_de_conflito.py). A fatia que caiu no
+a base que andou começa com a base nova mesclada na área, que é a referência
+das recusas e do selo, recusa a área que desfaz a base e commita sobre a base
+nova (orquestrador/fatia_de_conflito.py). A fatia que caiu no
 meio da sessão passa por isso na retomada, e antes do pedido do humano que
 chega primeiro (`guardar_a_fatia_interrompida`).
 """
@@ -50,7 +51,12 @@ from graphow.orquestrador.decisoes_do_agente import (
 )
 from graphow.orquestrador.esquemas import ESQUEMA_DA_EXECUCAO_AUTONOMA, PAPEL_EXECUTOR
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
-from graphow.orquestrador.fatia_de_conflito import commitar_a_fatia, preparar_a_fatia
+from graphow.orquestrador.fatia_de_conflito import (
+    commitar_a_fatia,
+    desfaz_a_base,
+    preparar_a_fatia,
+    referencia_da_fatia,
+)
 from graphow.orquestrador.git_do_goal import (
     arquivos_do_commit,
     commit_da_fatia,
@@ -61,6 +67,7 @@ from graphow.orquestrador.git_do_goal import (
 from graphow.orquestrador.historico_da_correcao import tentativas_anteriores
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import propriedade
+from graphow.orquestrador.rebase_no_clone import fora_da_referencia, mudados_desde
 from graphow.orquestrador.revisao_da_fatia import PedidoDeRevisao, RejeicaoDaRevisao, de_risco, revisar_fatia
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite, e_cache
 from graphow.orquestrador.saidas import SaidaDoExecutor
@@ -77,11 +84,11 @@ MODELO_DA_CORRECAO: str = "opus"
 
 @dataclass(frozen=True)
 class Tentativa:
-    """Uma tentativa em curso: a fatia, o número e o commit de onde ela partiu."""
+    """Uma tentativa em curso: a fatia, o número e a referência (o commit de onde partiu; na de conflito, a árvore mesclada)."""
 
     fatia: FatiaRegistrada
     numero: int
-    head: str
+    referencia: str
 
 
 def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> Parada | None:
@@ -99,9 +106,8 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
-    tentativa = Tentativa(fatia, numero, contexto.git.head())
     contexto.livro.iniciar_tentativa(fatia.id, numero)
-    preparar_a_fatia(contexto, fatia)
+    tentativa = Tentativa(fatia, numero, preparar_a_fatia(contexto, fatia))
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_EXECUTOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=fatia.id, tentativa=numero,
@@ -109,6 +115,7 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
             conferir=lambda dados: SaidaDoExecutor.de_json(dados).conferir(),
             modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(),
             esquema=ESQUEMA_DA_EXECUCAO_AUTONOMA if contexto.configuracao.modo == m.MODO_AUTONOMO else None,
+            referencia_do_selo=tentativa.referencia,
         )
     )
     if resposta.dados is None:
@@ -192,7 +199,7 @@ def _retomar_a_revisao(contexto: ContextoDoGoal, fatia: FatiaRegistrada, entrega
     """A tentativa que esperava a revisão quando a API a recusou: sem outro executor, confere e revisa de novo a mesma entrega."""
     numero = int(entrega.get("tentativa") or fatia.tentativas)
     saida = SaidaDoExecutor.de_json(entrega.get("saida") or {"status": STATUS_PRONTO, "resumo": ""})
-    tentativa = Tentativa(fatia, numero, contexto.git.head())
+    tentativa = Tentativa(fatia, numero, referencia_da_fatia(contexto, fatia))
     return _depois_da_sessao(contexto, tentativa, saida, desfeito="retomada: a entrega esperava a revisao de risco quando a API a recusou")
 
 
@@ -217,7 +224,7 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
 
 
 def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentativa: Tentativa) -> tuple[str, tuple[str, ...]]:
-    """O problema do que a fatia mudou (flags, sombra do runner, hook que decide, aceite/) e a configuração de teste mudada, que é só sinal.
+    """O problema do que mudou desde a referência (flags, sombra do runner, hook que decide, base desfeita, aceite/) e a configuração de teste.
 
     A mudança de configuração de teste não é recusada: o aceite roda com ela
     e com a do commit do aceite, e a diferença vai ao verificador
@@ -228,19 +235,22 @@ def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentat
         limpar_flags(contexto.area, sinalizados)
         return (f"a fatia escondeu do git os arquivos {', '.join(sinalizados)} com skip-worktree ou assume-unchanged: o "
                 "orquestrador tirou as flags, e a tentativa nao vale (git update-index nao e do executor)"), ()
-    mudados = contexto.git.caminhos_mudados()
-    sombras = tirar_sombras_do_runner(contexto.area, mudados, antes=tentativa.head)
+    mudados, referencia = mudados_desde(contexto.area, tentativa.referencia), tentativa.referencia
+    sombras = tirar_sombras_do_runner(contexto.area, mudados, antes=referencia)
     if sombras:
         return _sombreou_o_runner(sombras), ()
-    decidem = conftests_que_decidem_o_resultado(contexto.area, mudados, antes=tentativa.head)
+    decidem = conftests_que_decidem_o_resultado(contexto.area, mudados, antes=referencia)
     if decidem:
         return _decide_o_resultado(decidem), ()
-    soltos = soltos_que_mudam_os_testes(contexto.area)
+    base_desfeita = desfaz_a_base(contexto, tentativa.fatia, mudados)
+    if base_desfeita:
+        return base_desfeita, ()
+    soltos = fora_da_referencia(contexto.area, referencia, soltos_que_mudam_os_testes(contexto.area))
     no_aceite = sorted({c for c in (*mudados, *soltos) if dentro_do_aceite(c) and not e_cache(c)}
                        | (set(mudados) & set(estado.arquivos_protegidos())))
     if no_aceite:
         return _mexeu_no_aceite(no_aceite), ()
-    configuracao = (*configuracoes_mudadas(contexto.area, mudados, antes=tentativa.head), *sorted(set(soltos) - set(mudados)))
+    configuracao = (*configuracoes_mudadas(contexto.area, mudados, antes=referencia), *sorted(set(soltos) - set(mudados)))
     return "", configuracao
 
 

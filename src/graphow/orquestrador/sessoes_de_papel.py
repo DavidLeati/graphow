@@ -7,13 +7,12 @@ hooks, as skills e os subagentes do usuário (`--setting-sources project`), só
 com as ferramentas do papel (`--tools`), com o git de escrita negado (o hook
 PreToolUse da trava por `--settings`, `--disallowedTools` e a trava no
 ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
-Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o
-que era: o que o agente mexeu no git do clone é desfeito e vai na resposta
-como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
-Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook
-é regravado e o `.claude/` do clone volta ao HEAD; a invocação que mexeu num
-deles mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o
-motivo (`RespostaDePapel.trava_mexida`), que vai também ao livro-razão.
+Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o que era: o que o agente mexeu no git
+do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
+Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook é regravado e o `.claude/` do clone
+volta à referência do pedido (o HEAD; na fatia de conflito, a base nova mesclada); a invocação que mexeu num deles
+mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o motivo (`RespostaDePapel.trava_mexida`), que
+vai também ao livro-razão.
 
 A saída é conferida contra o schema e contra o sentido e, no papel que declara
 os comandos que rodou (o verificador), contra as chamadas Bash do stream da
@@ -129,6 +128,7 @@ class PedidoDePapel:
     retomadas: int = 1
     esquema: Mapping[str, Any] | None = None
     exige_bash: bool = False
+    referencia_do_selo: str = "HEAD"
 
     @property
     def schema(self) -> Mapping[str, Any]:
@@ -221,7 +221,7 @@ class SessoesDePapel:
         nome = "-".join(parte for parte in (pedido.papel, pedido.fatia, f"t{pedido.tentativa}") if parte) + sufixo
         arquivo = self._configuracao.pasta_das_sessoes / f"{nome}-{_marca_da_invocacao()}.jsonl"
         modelo = pedido.modelo or self.modelo_do_papel(pedido.papel)
-        selo = selar_a_sessao(self._configuracao.hook_da_trava, pedido.pasta)
+        selo = selar_a_sessao(self._configuracao.hook_da_trava, pedido.pasta, pedido.referencia_do_selo)
         aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
         id_linha = self._telemetria.registrar(aberta)
         resultado = self._executor.rodar(self._pedido_de_sessao(pedido, prompt, retomar, arquivo=arquivo, modelo=modelo))

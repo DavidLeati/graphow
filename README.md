@@ -1155,7 +1155,10 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    `conflito_com_a_base`, com os arquivos. O autônomo abre uma fatia de
    conflito no marco final: a área recebe o Goal com a base nova mesclada,
    com os marcadores, e o commit da fatia vai sobre a base nova com o
-   trabalho do Goal inteiro. A base é conferida de novo a cada passo que
+   trabalho do Goal inteiro. Nessa fatia, a árvore mesclada é a referência:
+   o `.claude/` e os `CLAUDE.md` voltam a ela antes de cada sessão, as
+   recusas comparam contra ela, e a tentativa que desfaz um arquivo que só a
+   base mudou é recusada. A base é conferida de novo a cada passo que
    chega a integrar. Logo antes do fast-forward o Goal é relido, e o
    cancelamento que chegou no meio do passo impede a integração.
 
