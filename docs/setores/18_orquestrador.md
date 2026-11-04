@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13563 linhas · 104 classes
+72 módulos · 13582 linhas · 104 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -59,7 +59,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/rastro.py`](#orquestradorrastro) | 234 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
 | [`orquestrador/rebase_no_clone.py`](#orquestradorrebasenoclone) | 234 | O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal. |
 | [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
-| [`orquestrador/refs_do_humano.py`](#orquestradorrefsdohumano) | 63 | As refs do repositório do humano que o orquestrador move: a base, na integração, e a branch do Goal, depois do rebase. |
+| [`orquestrador/refs_do_humano.py`](#orquestradorrefsdohumano) | 73 | As refs do repositório do humano que o orquestrador move: a base, na integração, e a branch do Goal, depois do rebase. |
 | [`orquestrador/registro_do_rebase.py`](#orquestradorregistrodorebase) | 168 | O rebase no livro-razão: a Evidence dele, a ponta nova, os commits novos das fatias e dos Artifact, e a retomada depois da queda. |
 | [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 192 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 91 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
@@ -81,7 +81,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 307 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 231 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 240 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 71 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
@@ -1487,7 +1487,7 @@ As refs do repositório do humano que o orquestrador move: a base, na integraç�
 ### Funções do módulo
 
 - `worktree_do_ramo(repositorio: Path, ramo: str) -> str` — A pasta do worktree do repositório (o principal inclusive) em que a branch está aberta; vazio quando em nenhum.
-- `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até a branch do Goal, só por fast-forward e só se ela não andou desde a conferência; devolve o integrado.
+- `integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str` — Avança a base até o commit verificado, só por fast-forward e só se a base e a branch do Goal estão onde a conferência
 - `recusar_se_aberta(repositorio: Path, ramo: str) -> None` — Recusa mover a branch do Goal quando ela está aberta num worktree do repositório do humano, o checkout dele inclusive.
 
 ## `orquestrador/registro_do_rebase.py`

@@ -154,7 +154,7 @@ def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistra
     cancelado = _cancelado_depois_da_leitura(contexto)
     if cancelado is not None or configuracao.modo != m.MODO_AUTONOMO:
         return cancelado or _pronto_para_integrar(contexto, head)
-    return _integrar(contexto, repositorio)
+    return _integrar(contexto, repositorio, head)
 
 
 def _pronto_para_integrar(contexto: ContextoDoGoal, head: str) -> Parada:
@@ -169,12 +169,21 @@ def _pronto_para_integrar(contexto: ContextoDoGoal, head: str) -> Parada:
     )
 
 
-def _integrar(contexto: ContextoDoGoal, repositorio: Path) -> Parada | None:
-    """O fast-forward da base até a branch do Goal, e o fechamento; a base que andou no meio volta ao rebase."""
+def _integrar(contexto: ContextoDoGoal, repositorio: Path, head: str) -> Parada | None:
+    """O fast-forward da base até o commit verificado, e o fechamento; a base que andou no meio volta ao rebase.
+
+    A branch do Goal que andou no repositório do humano depois de
+    `_branch_andou` (no fetch da base, na releitura do cancelamento) recusa a
+    integração (orquestrador/refs_do_humano.py), e o laço para com o mesmo
+    motivo da conferência de antes: o commit novo não foi verificado.
+    """
     configuracao = contexto.configuracao
     try:
-        integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base)
+        integrado = integrar_por_fast_forward(repositorio, configuracao.ramo, configuracao.base, verificado=head)
     except FalhaDoGitDoGoal as erro:
+        andou = _branch_andou(repositorio, configuracao.ramo, head)
+        if andou:
+            return Parada(contexto.id_goal, MotivoDaParada.FALHA, andou)
         if base_andou(contexto):
             return None
         return Parada(contexto.id_goal, MotivoDaParada.FALHA, f"A integracao nao foi possivel: {erro.formatar_para_llm()}")

@@ -134,7 +134,7 @@ def test_integracao_avanca_a_base_no_checkout_do_humano_nominal(tmp_path: Path) 
     commit = commitar(area, "Fatia F1")
     sincronizar_ramo(_do_goal(repositorio, area))
 
-    integrado = integrar_por_fast_forward(repositorio, "graphow/teste", "main")
+    integrado = integrar_por_fast_forward(repositorio, "graphow/teste", "main", verificado=commit)
 
     assert integrado == commit
     assert (repositorio / "soma.py").is_file()
@@ -151,7 +151,7 @@ def test_integracao_recusa_quando_a_base_andou_edge_case(tmp_path: Path) -> None
     commitar(repositorio, "Trabalho do humano")
 
     with pytest.raises(FalhaDoGitDoGoal):
-        integrar_por_fast_forward(repositorio, "graphow/teste", "main")
+        integrar_por_fast_forward(repositorio, "graphow/teste", "main", verificado=GitDoGoal(area).head())
     assert not (repositorio / "a.py").exists()
 
 

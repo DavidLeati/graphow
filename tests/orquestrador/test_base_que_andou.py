@@ -296,9 +296,9 @@ def test_cancelamento_entre_a_releitura_e_o_fast_forward_fica_numa_nota_do_goal_
     orquestrador = bancada.orquestrador()
     original = verificacao_do_goal.integrar_por_fast_forward
 
-    def cancelar_e_integrar(repositorio: Path, ramo: str, base: str) -> str:
+    def cancelar_e_integrar(repositorio: Path, ramo: str, base: str, *, verificado: str) -> str:
         orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_CANCELAR, "tarde demais", "david"))
-        return original(repositorio, ramo, base)
+        return original(repositorio, ramo, base, verificado=verificado)
 
     monkeypatch.setattr(verificacao_do_goal, "integrar_por_fast_forward", cancelar_e_integrar)
 

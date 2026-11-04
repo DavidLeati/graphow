@@ -1,12 +1,15 @@
-"""A integração do Goal (revisão da T3g3 e da T3g4): o cancelamento que chega com a queda logo depois do fast-forward."""
+"""A integração do Goal (revisão da T3g3 e da T3g4): só o commit verificado chega à base, e o cancelamento que chega com a
+queda logo depois do fast-forward fica anotado."""
 
+import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
 from graphow.core.types import TipoNo
 from graphow.orquestrador import laco, verificacao_do_goal
-from graphow.orquestrador.contexto_do_laco import MotivoDaParada
+from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_CANCELAR, NovoPedido
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
@@ -16,6 +19,50 @@ from tests.orquestrador.apoio_laco import Queda, ate_o_portao_aprovado, montar_b
 from tests.orquestrador.test_base_que_andou import AUTONOMO, RAMO, _roteiro_limpo
 
 CANCELAR: NovoPedido = NovoPedido(PEDIDO_CANCELAR, "desisti tarde", "david")
+
+
+def _commit_no_ramo(repositorio: Path, ramo: str, arquivo: str, conteudo: bytes) -> str:
+    """O commit na branch dada sem abrir checkout (índice temporário, commit-tree e update-ref); devolve o hash."""
+    ambiente = {**os.environ, "GIT_INDEX_FILE": str(repositorio / ".git" / "indice-do-teste")}
+
+    def rodar(*argumentos: str, entrada: bytes | None = None) -> str:
+        feito = subprocess.run(["git", "-C", str(repositorio), *argumentos], input=entrada, capture_output=True, env=ambiente,
+                               check=True)
+        return feito.stdout.decode().strip()
+
+    rodar("read-tree", ramo)
+    blob = rodar("hash-object", "-w", "--stdin", entrada=conteudo)
+    rodar("update-index", "--add", "--cacheinfo", f"100644,{blob},{arquivo}")
+    novo = rodar("commit-tree", rodar("write-tree"), "-p", ramo, "-m", f"Commit fora do orquestrador em {arquivo}")
+    rodar("update-ref", f"refs/heads/{ramo}", novo)
+    return novo
+
+
+def test_branch_do_goal_que_anda_depois_da_conferencia_nao_chega_a_main_e_o_laco_para_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T3g5.1 (R3 da sonda): alguém commita na branch do Goal depois de `_branch_andou`, na releitura do cancelamento; a
+    integração recusa o commit que ninguém verificou, a main fica onde estava e o laço para dizendo por quê."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    base = git(bancada.repositorio, "rev-parse", "main").strip()
+    original, feitos = verificacao_do_goal._cancelado_depois_da_leitura, []
+
+    def humano_na_branch_do_goal(contexto: ContextoDoGoal) -> Parada | None:
+        if not feitos:
+            feitos.append(_commit_no_ramo(bancada.repositorio, RAMO, "NAO_VERIFICADO.txt", b"ninguem verificou\n"))
+        return original(contexto)
+
+    monkeypatch.setattr(verificacao_do_goal, "_cancelado_depois_da_leitura", humano_na_branch_do_goal)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and not estado.fechado and feitos
+    verificado = git(bancada.repositorio, "rev-parse", f"{feitos[0]}^").strip()
+    assert parada.motivo == MotivoDaParada.FALHA and "mudou fora do orquestrador depois da verificacao" in parada.mensagem
+    assert feitos[0][:12] in parada.mensagem and verificado[:12] in parada.mensagem, parada.mensagem
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == base, "a main nao anda"
+    assert git(bancada.repositorio, "ls-tree", "--name-only", "main", "--", "NAO_VERIFICADO.txt").strip() == ""
 
 
 def test_queda_logo_depois_do_fast_forward_com_o_cancelamento_no_meio_anota_na_retomada_edge_case(

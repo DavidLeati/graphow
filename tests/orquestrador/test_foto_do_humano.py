@@ -235,7 +235,8 @@ def test_outro_goal_que_integra_na_base_durante_a_sessao_nao_para_o_laco_nominal
         git(repositorio, "rm", "-q", "--cached", "OUTRO.txt")
         (repositorio / "OUTRO.txt").unlink()
         git(repositorio, "branch", "graphow/outro", git(repositorio, "commit-tree", arvore, "-p", "main", "-m", "Outro Goal").strip())
-        integrado.append(integrar_por_fast_forward(repositorio, "graphow/outro", "main"))
+        outro = git(repositorio, "rev-parse", "graphow/outro").strip()
+        integrado.append(integrar_por_fast_forward(repositorio, "graphow/outro", "main", verificado=outro))
 
     parada = bancada.orquestrador(executor=ExecutorComHumano(bancada.executor, outro_goal, na=3)).iniciar_da_spec(
         bancada.spec, repositorio, AUTONOMO)
