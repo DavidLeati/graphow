@@ -16,6 +16,13 @@ gravada no Goal diz (a branch existe enquanto o Goal vive e depois do fecho,
 quando a área já foi removida). A de outro papel não tem repositório gravado e
 sai `nao_conferida`.
 
+A revisão de risco confere no clone do Goal (a `area` da configuração),
+enquanto ele existe: a árvore da revisão rejeitada só fica lá, porque a
+tentativa não vira commit e o repositório do humano só recebe o que a branch
+alcança. Sem o clone, ela confere no repositório do humano, onde a árvore da
+aprovada está (é a do commit da fatia); a que não está lá sai `nao_conferida`,
+com o motivo, e não `sem_ancora`: o objeto não sumiu, só não está à mão.
+
 Cada leitura tem o seu cache (`GitDaLeitura`): cada consulta ao git, o
 `diff --name-only` por par de commits inclusive, roda uma vez por leitura.
 """
@@ -26,10 +33,12 @@ from pathlib import Path
 from typing import Any
 
 from graphow.core.models import NoGrafo
+from graphow.core.orquestracao import ler_texto
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.kernel.ancora_da_evidencia import ancora_da_evidencia, sobre_codigo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.conferencia_da_evidencia import (
+    CAMPO_ARVORE,
     DESATUALIZADA,
     SEM_ANCORA,
     VIGENTE,
@@ -66,6 +75,11 @@ class LeituraDaConferencia:
         self._git: GitDaLeitura | None = None if git is None else GitDaLeitura(git.pasta)
         self._ponta: str = ponta
 
+    @property
+    def com_git(self) -> bool:
+        """A leitura tem um repositório à mão para conferir a ancorada."""
+        return self._git is not None
+
     def conferir(self, papel: str, propriedades: Mapping[str, Any]) -> ConferenciaDaEvidencia | None:
         """A conferência da Evidence gravada pelo papel; None quando ela não é sobre código nem tem âncora."""
         if ancora_da_evidencia(propriedades) is None:
@@ -94,6 +108,13 @@ def rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
     return "desatualizada (mudaram: " + ", ".join(arquivos) + (f" e mais {resto}" if resto > 0 else "") + ")"
 
 
+def marca_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
+    """O rótulo com o motivo, na sem âncora e na não conferida: a vista diz por quê, e não só o estado."""
+    rotulo = rotulo_da_conferencia(conferencia)
+    com_motivo = conferencia.estado in (SEM_ANCORA, NAO_CONFERIDA) and conferencia.motivo
+    return f"{rotulo}: {conferencia.motivo}" if com_motivo else rotulo
+
+
 def conferencia_em_json(conferencia: ConferenciaDaEvidencia | None) -> dict[str, Any] | None:
     """A conferência como o canvas a manda ao inspetor, com o rótulo; None quando não há o que mostrar."""
     if conferencia is None:
@@ -116,23 +137,44 @@ class LeituraPorGoal:
     def __init__(self, view: GrafoView) -> None:
         self._view: GrafoView = view
         self._sem_git: LeituraDaConferencia = LeituraDaConferencia(None)
-        self._por_goal: dict[str, LeituraDaConferencia] = {}
+        self._por_pasta: dict[tuple[str, str], LeituraDaConferencia] = {}
 
     def conferir(self, no: NoGrafo) -> ConferenciaDaEvidencia | None:
         """A conferência do nó Evidence; None para os outros tipos e para a Evidence livre."""
         if no.tipo != TipoNo.EVIDENCE:
             return None
-        return self._leitura(no).conferir(no.proveniencia.papel, no.propriedades)
+        papel, propriedades = no.proveniencia.papel, no.propriedades
+        configuracao = self._configuracao(no) if papel == PAPEL_DO_ORQUESTRADOR else None
+        if configuracao is None:
+            return self._sem_git.conferir(papel, propriedades)
+        if ler_texto(propriedades, CAMPO_ARVORE):
+            return self._conferir_a_revisao(configuracao, no)
+        return self._leitura(configuracao, "repositorio").conferir(papel, propriedades)
 
-    def _leitura(self, no: NoGrafo) -> LeituraDaConferencia:
-        """A leitura do Goal configurado da Evidence do orquestrador, guardada por Goal."""
-        goal = self._goal_configurado(no) if no.proveniencia.papel == PAPEL_DO_ORQUESTRADOR else None
-        if goal is None:
-            return self._sem_git
-        if goal.id not in self._por_goal:
-            configuracao = goal.obter_propriedade(m.CAMPO_ORQUESTRACAO)
-            self._por_goal[goal.id] = leitura_do_repositorio(configuracao.get("repositorio"), configuracao.get("ramo"))
-        return self._por_goal[goal.id]
+    def _conferir_a_revisao(self, configuracao: Mapping[str, Any], no: NoGrafo) -> ConferenciaDaEvidencia | None:
+        """A revisão de risco no clone do Goal; sem ele, no repositório do humano, onde a árvore da rejeitada não está."""
+        papel, propriedades = no.proveniencia.papel, no.propriedades
+        no_clone = self._leitura(configuracao, "area")
+        if no_clone.com_git:
+            return no_clone.conferir(papel, propriedades)
+        conferencia = self._leitura(configuracao, "repositorio").conferir(papel, propriedades)
+        if conferencia is None or conferencia.estado != SEM_ANCORA or ancora_da_evidencia(propriedades) is None:
+            return conferencia
+        arvore = ler_texto(propriedades, CAMPO_ARVORE)[:12]
+        motivo = f"a arvore revisada {arvore} so ficou no clone do Goal, que nao existe mais: {configuracao.get('area')}"
+        return ConferenciaDaEvidencia(NAO_CONFERIDA, motivo=motivo)
+
+    def _leitura(self, configuracao: Mapping[str, Any], campo: str) -> LeituraDaConferencia:
+        """A leitura na pasta do campo (o repositório do humano ou o clone), na branch do Goal, guardada por pasta."""
+        chave = (str(configuracao.get(campo) or ""), str(configuracao.get("ramo") or ""))
+        if chave not in self._por_pasta:
+            self._por_pasta[chave] = leitura_do_repositorio(*chave)
+        return self._por_pasta[chave]
+
+    def _configuracao(self, no: NoGrafo) -> Mapping[str, Any] | None:
+        """A configuração gravada no Goal de onde a Evidence deriva."""
+        goal = self._goal_configurado(no)
+        return None if goal is None else goal.obter_propriedade(m.CAMPO_ORQUESTRACAO)
 
     def _goal_configurado(self, no: NoGrafo) -> NoGrafo | None:
         """O Goal de onde a Evidence deriva, direto (a verificação, o rebase) ou pela fatia (a revisão de risco)."""

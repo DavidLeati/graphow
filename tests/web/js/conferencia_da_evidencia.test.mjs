@@ -23,10 +23,18 @@ test("a desatualizada vem em alerta com os arquivos que mudaram, escapados", () 
 
 test("sem ancora e nao conferida trazem o rotulo e o motivo; sem conferencia, nada", () => {
   assert.match(htmlDaConferencia({ estado: "sem_ancora", arquivos: [], motivo: "a Evidence nao tem o commit em que foi vista" }),
-    /Sem âncora: gravada sem o commit em que foi vista\. a Evidence nao tem o commit/);
+    /<span>Sem âncora: a Evidence nao tem o commit em que foi vista\.<\/span>/);
   assert.match(htmlDaConferencia({ estado: "nao_conferida", arquivos: [], motivo: "" }), /data-conferencia="nao_conferida"/);
   assert.equal(htmlDaConferencia(null), "");
   assert.equal(htmlDaConferencia({ estado: "outro" }), "");
+});
+
+test("T3d3.2: o objeto que sumiu e o clone removido dizem o motivo, sem o texto fixo da gravada sem commit", () => {
+  const sumiu = htmlDaConferencia({ estado: "sem_ancora", arquivos: [], motivo: "o commit ffffffffffff nao existe mais no repositorio" });
+  const semClone = htmlDaConferencia({ estado: "nao_conferida", arquivos: [], motivo: "a arvore revisada abc so ficou no clone do Goal" });
+  assert.match(sumiu, /<span>Sem âncora: o commit ffffffffffff nao existe mais no repositorio\.<\/span>/);
+  assert.match(semClone, /<span>Não conferida: a arvore revisada abc so ficou no clone do Goal\.<\/span>/);
+  assert.doesNotMatch(sumiu + semClone, /gravada sem o commit|sem repositório git à mão/);
 });
 
 test("o inspetor da Evidence desatualizada mostra a chamada da conferencia", () => {

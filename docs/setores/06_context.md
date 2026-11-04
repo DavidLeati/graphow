@@ -10,14 +10,14 @@ Recorta o subgrafo relevante ao alvo por papel e o renderiza sob orçamento estr
 
 ## Inventário
 
-22 módulos · 2819 linhas · 31 classes
+22 módulos · 2821 linhas · 31 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`context/aprendizados_aplicaveis.py`](#contextaprendizadosaplicaveis) | 247 | A seção Aprendizados Aplicaveis: os aprendizados que alcançam o alvo, por herança, por léxico ou por índice. |
 | [`context/corte.py`](#contextcorte) | 106 | Escada de degradação da vista sob pressão de orçamento, em uma tabela só. |
 | [`context/escopo_do_goal.py`](#contextescopodogoal) | 128 | A seção de escopo da vista: o placar do Goal, em versão curta na Task e na Sessão. |
-| [`context/evidencia_conferida.py`](#contextevidenciaconferida) | 43 | A Evidence na vista com a conferência dela na ponta, logo depois do id. |
+| [`context/evidencia_conferida.py`](#contextevidenciaconferida) | 45 | A Evidence na vista com a conferência dela na ponta, logo depois do id. |
 | [`context/exploracao.py`](#contextexploracao) | 111 | Exploração limitada do subgrafo a partir de um nó alvo. |
 | [`context/fechamento.py`](#contextfechamento) | 134 | Seção de fechamento: como uma sessão encerrada se apresenta a quem a retoma. |
 | [`context/governanca_vigente.py`](#contextgovernancavigente) | 148 | A governança vigente dita ao agente: o protocolo e as vistas leem a mesma política. |
@@ -142,7 +142,7 @@ A Evidence na vista com a conferência dela na ponta, logo depois do id.
 
 ### Funções do módulo
 
-- `formatar_evidencia_em_linha(no: NoGrafo, conferencia: ConferenciaDaEvidencia | None) -> str` — A linha do nó, com o estado da conferência entre colchetes depois do id.
+- `formatar_evidencia_em_linha(no: NoGrafo, conferencia: ConferenciaDaEvidencia | None) -> str` — A linha do nó, com o estado da conferência (e o motivo, quando há) entre colchetes depois do id.
 - `montar_secao_de_evidencias(titulo: str, nos: Sequence[NoGrafo], ordens: tuple[int, PrioridadeRetencao]) -> SecaoContexto` — A seção de Evidence, cada uma conferida na hora da leitura.
 
 ## `context/exploracao.py`

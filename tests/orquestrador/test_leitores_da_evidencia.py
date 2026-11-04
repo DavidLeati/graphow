@@ -120,9 +120,9 @@ def test_vista_marca_a_desatualizada_com_os_arquivos_a_antiga_sem_ancora_e_a_do_
             linhas.setdefault(linha.split("]")[0].removeprefix("- ["), linha)  # a secao de Evidence vem antes dos vizinhos
         assert linhas[f"ver-{GOAL}-1"].startswith(f"- [ver-{GOAL}-1] [desatualizada (mudaram: a.py)] "), vista
         assert linhas[f"ver-{GOAL}-2"].startswith(f"- [ver-{GOAL}-2] [vigente]")
-        assert linhas[f"ver-{GOAL}-3"].startswith(f"- [ver-{GOAL}-3] [sem ancora]")
-        assert linhas["evi-antiga"].startswith("- [evi-antiga] [sem ancora]")
-        assert linhas["evi-ancorada"].startswith("- [evi-ancorada] [nao conferida]")
+        assert linhas[f"ver-{GOAL}-3"].startswith(f"- [ver-{GOAL}-3] [sem ancora: 'commit' 'abc1234' nao e um hash do git] ")
+        assert linhas["evi-antiga"].startswith("- [evi-antiga] [sem ancora: a Evidence nao tem o commit em que foi vista] ")
+        assert linhas["evi-ancorada"].startswith("- [evi-ancorada] [nao conferida: sem repositorio git a mao nesta leitura] ")
         assert linhas["evi-fonte"].startswith("- [evi-fonte] [nao confiavel"), "a Evidence que nao fala de codigo nao leva marca"
 
 
@@ -152,7 +152,7 @@ def test_um_diff_por_par_de_commits_em_cada_leitura_edge_case(tmp_path: Path) ->
         store.fechar()
 
     assert [c.estado for c in estados if c] == ["desatualizada", "vigente"]
-    git_da_leitura = leitura._por_goal[GOAL]._git  # noqa: SLF001 - o cache e o que o caso confere
+    git_da_leitura = next(iter(leitura._por_pasta.values()))._git  # noqa: SLF001 - o cache e o que o caso confere
     assert git_da_leitura is not None
     assert sum(1 for chave in git_da_leitura.memoria if chave[0] == "diff") == 1
     assert LeituraDaConferencia(None).conferir(PapelAutor.ORQUESTRADOR.value, {"commit": "f" * 40}).estado == "nao_conferida"  # type: ignore[union-attr]
