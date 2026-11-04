@@ -82,7 +82,8 @@ def test_foto_do_repositorio_limpo_roda_seis_processos_do_git_por_sessao_nominal
     monkeypatch.setattr(subprocess, "run", contar)
     conferir_o_humano(foto_antes_da_sessao(repositorio), "executor", "")
 
-    assert [comando[4] for comando in chamados] == ["status", "for-each-ref", "ls-files"] * 2, chamados
+    subcomandos = [comando[comando.index("--no-optional-locks") + 1] for comando in chamados]
+    assert subcomandos == ["status", "for-each-ref", "ls-files"] * 2, chamados
 
 
 def test_salvaguarda_recupera_o_rastreado_e_o_nao_rastreado_edge_case(tmp_path: Path) -> None:

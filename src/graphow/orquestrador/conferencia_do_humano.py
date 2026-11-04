@@ -26,6 +26,7 @@ arquivo mudado ou solto; de outro Goal, o rebase da branch dele.
 
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
@@ -37,7 +38,7 @@ from graphow.orquestrador.foto_do_humano import (
     fotografar_o_humano,
     soltos_da_salvaguarda,
 )
-from graphow.orquestrador.git_do_goal import GitDoGoal
+from graphow.orquestrador.git_da_foto import e_ancestral_no_humano
 
 MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
 LIMITE_DE_MUDANCAS_NA_PARADA: int = 20
@@ -101,7 +102,7 @@ def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, reg
 
 def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano) -> HumanoMexido:
     """O que mudou de uma foto para a outra, separado em perda e avanço."""
-    e_ancestral = GitDoGoal(antes.repositorio).e_ancestral
+    e_ancestral = partial(e_ancestral_no_humano, antes.repositorio)
     mudancas = [*_refs(antes, depois, e_ancestral), *_cabeca(antes, depois), *_arquivos(antes, depois), *_do_git(antes, depois)]
     soltos = tuple(caminho for caminho in soltos_da_salvaguarda(antes) if depois.conteudos.get(caminho) == AUSENTE)
     return HumanoMexido(antes.repositorio, tuple(texto for perda, texto in mudancas if perda),

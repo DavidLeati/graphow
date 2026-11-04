@@ -18,8 +18,9 @@ salvaguarda só roda quando há o que guardar. Depois da sessão, com a árvore
 de processos dela já morta, a foto é refeita, e a conferência separa a perda
 do avanço (orquestrador/conferencia_do_humano.py).
 
-A foto não escreve no repositório do humano. As leituras levam
-`--no-optional-locks`, e o `status` não regrava o índice. O `stash create`
+A foto não escreve no repositório do humano. Todo git dela roda sem
+fsmonitor, sem hooks e sem trava opcional (orquestrador/git_da_foto.py), e o
+`status` não regrava o índice. O `stash create`
 regrava o índice ao atualizar os dados de cada arquivo, e por isso roda
 sobre uma cópia dele (`GIT_INDEX_FILE`); a árvore dos não rastreados nasce
 num índice vazio, também fora do do humano. Só os objetos da salvaguarda
@@ -33,12 +34,10 @@ import hashlib
 import os
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 
-from graphow.orquestrador.git_do_goal import EXECUTAVEL_DO_GIT, VARIAVEIS_DE_OUTRO_REPOSITORIO, GitDoGoal
+from graphow.orquestrador.git_da_foto import git_da_foto
 
-SEM_TRAVA_OPCIONAL: str = "--no-optional-locks"
 MENSAGEM_DA_SALVAGUARDA: str = "graphow: salvaguarda do repositorio do humano antes da sessao"
 # Quantos campos o registro do `status --porcelain=v2` tem antes do caminho, por tipo (mudado, renomeado, em conflito, solto).
 CAMPOS_ANTES_DO_CAMINHO: Mapping[str, int] = {"1": 8, "2": 9, "u": 10, "?": 1}
@@ -104,22 +103,20 @@ def foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None:
 
 def fotografar_o_humano(repositorio: Path, tambem: Iterable[str] = ()) -> FotoDoHumano:
     """O HEAD, o status, as refs, o índice e a pasta do git, com o hash do conteúdo de cada arquivo listado e dos dados."""
-    git = GitDoGoal(repositorio)
-    cabeca, listados = _status(git)
+    cabeca, listados = _status(repositorio)
     conteudos = {caminho: _conteudo(repositorio / caminho) for caminho in dict.fromkeys([*listados, *tambem])}
-    return FotoDoHumano(repositorio, cabeca, _refs(git), _indice(git), listados, conteudos, _do_git(repositorio))
+    return FotoDoHumano(repositorio, cabeca, _refs(repositorio), _indice(repositorio), listados, conteudos, _do_git(repositorio))
 
 
-def _ler(git: GitDoGoal, *argumentos: str) -> str:
-    """A saída da leitura, sem trava opcional (o `status` não regrava o índice); vazia quando o git falha."""
-    feito = git.tentar(SEM_TRAVA_OPCIONAL, *argumentos)
-    return feito.saida if feito.codigo == 0 else ""
+def _ler(repositorio: Path, *argumentos: str) -> str:
+    """A saída da leitura pelo git da foto; vazia quando o git falha."""
+    return git_da_foto(repositorio, argumentos) or ""
 
 
-def _status(git: GitDoGoal) -> tuple[str, dict[str, ArquivoListado]]:
+def _status(repositorio: Path) -> tuple[str, dict[str, ArquivoListado]]:
     """A branch e o commit do HEAD (dos cabeçalhos do `--branch`) e cada arquivo listado (mudado, renomeado, em conflito,
     não rastreado), pelo caminho."""
-    registros = iter(_ler(git, "status", "--branch", "--porcelain=v2", "-z", "--untracked-files=all").split("\x00"))
+    registros = iter(_ler(repositorio, "status", "--branch", "--porcelain=v2", "-z", "--untracked-files=all").split("\x00"))
     cabecalhos: dict[str, str] = {}
     listados: dict[str, ArquivoListado] = {}
     for registro in registros:
@@ -144,16 +141,16 @@ def _listado(campos: Sequence[str]) -> ArquivoListado:
     return ArquivoListado(campos[0], campos[1], campos[3], campos[6], campos[7])
 
 
-def _refs(git: GitDoGoal) -> dict[str, str]:
+def _refs(repositorio: Path) -> dict[str, str]:
     """Cada ref e o objeto dela."""
-    linhas = _ler(git, "for-each-ref", "--format=%(refname) %(objectname)").splitlines()
+    linhas = _ler(repositorio, "for-each-ref", "--format=%(refname) %(objectname)").splitlines()
     return {nome: objeto for nome, _, objeto in (linha.rpartition(" ") for linha in linhas) if nome}
 
 
-def _indice(git: GitDoGoal) -> dict[str, tuple[str, ...]]:
+def _indice(repositorio: Path) -> dict[str, tuple[str, ...]]:
     """As entradas do índice (`modo objeto estágio`) de cada caminho; o caminho em conflito tem uma por estágio."""
     entradas: dict[str, tuple[str, ...]] = {}
-    for registro in _ler(git, "ls-files", "-s", "-z").split("\x00"):
+    for registro in _ler(repositorio, "ls-files", "-s", "-z").split("\x00"):
         entrada, separador, caminho = registro.partition("\t")
         if separador:
             entradas[caminho] = (*entradas.get(caminho, ()), entrada)
@@ -165,7 +162,7 @@ def _pastas_do_git(repositorio: Path) -> tuple[Path, Path]:
     ponto = repositorio / ".git"
     if ponto.is_dir():
         return ponto, ponto
-    pastas = _ler(GitDoGoal(repositorio), "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").splitlines()
+    pastas = _ler(repositorio, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").splitlines()
     return (Path(pastas[0]), Path(pastas[1])) if len(pastas) == 2 else (ponto, ponto)
 
 
@@ -220,12 +217,6 @@ def _salvaguardar_soltos(foto: FotoDoHumano) -> str:
 
 def _git(repositorio: Path, argumentos: Sequence[str], *, entrada: str = "", indice: Path | None = None) -> str | None:
     """O git da salvaguarda no repositório do humano, com a entrada e o índice dados; a saída, ou None quando ele falha."""
-    ambiente = {nome: valor for nome, valor in os.environ.items() if nome.upper() not in VARIAVEIS_DE_OUTRO_REPOSITORIO}
-    if indice is not None:
-        ambiente["GIT_INDEX_FILE"] = str(indice)
-    try:
-        feito = subprocess.run([EXECUTAVEL_DO_GIT, "-C", str(repositorio), SEM_TRAVA_OPCIONAL, *argumentos],
-                               input=entrada.encode("utf-8"), env=ambiente, capture_output=True, check=False)
-    except OSError:
-        return None
-    return feito.stdout.decode("utf-8", errors="replace").strip() if feito.returncode == 0 else None
+    ambiente = {"GIT_INDEX_FILE": str(indice)} if indice is not None else {}
+    saida = git_da_foto(repositorio, argumentos, entrada=entrada.encode("utf-8"), ambiente=ambiente)
+    return None if saida is None else saida.strip()
