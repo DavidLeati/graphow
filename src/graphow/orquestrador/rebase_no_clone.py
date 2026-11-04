@@ -97,8 +97,20 @@ def arquivos_entre(git: GitDoGoal, antes: str, depois: str) -> tuple[str, ...]:
 
 
 def mudados_desde(area: Path, referencia: str) -> tuple[str, ...]:
-    """Os arquivos em que a área (os novos inclusive, sem os ignorados) difere da referência; o índice volta ao HEAD."""
-    return arquivos_entre(GitDoGoal(area), referencia, guardar_a_arvore(area))
+    """Os arquivos em que a área (os novos inclusive, sem os ignorados) difere da referência; o índice fica nela."""
+    return arquivos_entre(GitDoGoal(area), referencia, arvore_da_area(area, referencia))
+
+
+def arvore_da_area(area: Path, referencia: str) -> str:
+    """A árvore da área sobre o índice da referência, que fica nela: o que a referência rastreia segue rastreado.
+
+    É a árvore que a conferência da fatia julga e a que o commit dela leva.
+    O arquivo que o .gitignore ignora e a referência tem (forçado com `git add
+    -f`) só entra no `git add -A` se estiver no índice; sobre o índice do HEAD
+    antigo do Goal, a fatia de conflito perdia o que a base nova trouxe assim.
+    """
+    GitDoGoal(area).rodar("read-tree", "--reset", referencia)
+    return guardar_a_arvore(area)
 
 
 def fora_da_referencia(area: Path, referencia: str, caminhos: Iterable[str]) -> tuple[str, ...]:
@@ -186,11 +198,9 @@ def _ate_o_vazio(partes: list[str]) -> list[str]:
     return partes[:partes.index("")] if "" in partes else partes
 
 
-def commit_sobre(area: Path, mensagem: str, *, pai: str) -> str:
-    """O commit da área inteira (o que está fora de commit inclusive) com o pai dado, sem mover ref nenhuma; devolve o hash."""
-    git = GitDoGoal(area)
-    git.rodar("add", "-A")
-    arvore = git.rodar("write-tree").strip()
+def commit_sobre(area: Path, mensagem: str, *, pai: str, referencia: str) -> str:
+    """O commit da área inteira sobre o índice da referência (`arvore_da_area`) com o pai dado, sem mover ref; devolve o hash."""
+    git, arvore = GitDoGoal(area), arvore_da_area(area, referencia)
     identidade = () if git.tentar("config", "user.email").saida.strip() else IDENTIDADE_DE_RESERVA
     return git.rodar(*identidade, "commit-tree", arvore, "-p", pai, "-m", mensagem).strip()
 

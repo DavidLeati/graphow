@@ -147,7 +147,7 @@ def _depois_da_sessao(contexto: ContextoDoGoal, tentativa: Tentativa, saida: Sai
     if problema:
         return _falhou(contexto, tentativa, problema)
     documentar_decisoes(contexto, fatia, saida.decisoes)
-    commit = commitar_a_fatia(contexto, fatia, _mensagem(contexto, fatia, saida))
+    commit = commitar_a_fatia(contexto, fatia, _mensagem(contexto, fatia, saida), referencia=tentativa.referencia)
     contexto.livro.concluir_fatia(fatia.id, tentativa.numero, commit=commit, arquivos=arquivos_do_commit(contexto.area, commit),
                                   saida=saida, observacao=desfeito, achados=m.achados_da_correcao(fatia.propriedades),
                                   extra=operacoes_das_decisoes(contexto.livro, fatia.id, tentativa.numero, decisoes=saida.decisoes))

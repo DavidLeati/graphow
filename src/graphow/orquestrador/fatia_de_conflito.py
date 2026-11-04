@@ -4,9 +4,12 @@ No supervisionado, o laço para (orquestrador/base_que_andou.py). No autônomo
 não há quem resolva, e o orquestrador abre uma fatia no marco final,
 `<marco>.R<n>`, com os arquivos em conflito e o diff do conflito no objetivo
 (que o briefing do executor mostra inteiro). Antes de cada tentativa, a área
-recebe a árvore da ponta do Goal com a base nova mesclada (`merge-tree`, com
-os marcadores no conflito), fora de commit, e o HEAD fica onde estava: a
-tentativa que falha volta a área ao commit, como toda fatia, e nada se perde.
+e o índice recebem a árvore da ponta do Goal com a base nova mesclada
+(`merge-tree`, com os marcadores no conflito), fora de commit, e o HEAD fica
+onde estava: a tentativa que falha volta a área ao commit, como toda fatia, e
+nada se perde. O índice fica na árvore mesclada até o commit, que sai dele
+como a conferência (`arvore_da_area`): o arquivo que a base nova rastreia e o
+.gitignore ignora chega à branch (revisão da T3g2, G1 e G3).
 
 Nessa fatia, a referência da tentativa é a árvore mesclada, e não o HEAD
 antigo do Goal (`referencia_da_fatia`). O selo do `.claude/` e dos CLAUDE.md
@@ -118,11 +121,10 @@ def referencia_da_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str
 
 
 def preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
-    """A referência da tentativa; na fatia de conflito, a área a recebe, fora de commit, com o HEAD onde estava."""
+    """A referência da tentativa; na fatia de conflito, a área e o índice a recebem, fora de commit, com o HEAD onde estava."""
     referencia = referencia_da_fatia(contexto, fatia)
     if _conflito_da(fatia) is not None:
         contexto.git.rodar("read-tree", "--reset", "-u", referencia)
-        contexto.git.rodar("reset", "-q")
     return referencia
 
 
@@ -155,8 +157,9 @@ def aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: Fatia
     return "" if vermelho is None else f"a area resolvida {vermelho.resumo}. {vermelho.detalhe}"
 
 
-def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str:
-    """O commit da fatia; o da fatia de conflito vai sobre a base nova, registrado como rebase antes de as refs andarem."""
+def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str, *, referencia: str) -> str:
+    """O commit da fatia; o da de conflito, da árvore que a conferência julgou sobre a referência, vai sobre a base nova e é
+    registrado como rebase antes de as refs andarem."""
     conflito = _conflito_da(fatia)
     if conflito is None:
         return contexto.commitar(mensagem, vazio_permitido=True)
@@ -164,7 +167,7 @@ def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem:
     antes = git.head()
     antigos = tuple(reversed(commits_entre(contexto.area, base, antes)))
     pai, refeitos = antes_das_fatias_sobre(contexto.area, base, antigos)
-    novo = commit_sobre(contexto.area, mensagem, pai=pai)
+    novo = commit_sobre(contexto.area, mensagem, pai=pai, referencia=referencia)
     feito = RebaseNoClone(git.rodar("merge-base", antes, base).strip(), base, antes, novo,
                           tuple((commit.hash, refeitos.get(commit.hash, novo)) for commit in antigos), arquivos_entre(git, antes, novo))
     registrar_o_rebase(contexto, contexto.estado(), feito, conflito=fatia.id)

@@ -39,9 +39,10 @@ from graphow.orquestrador.esquemas import PAPEL_REVISOR
 from graphow.orquestrador.git_do_goal import GitDoGoal, descartar_mudancas
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
-from graphow.orquestrador.rebase_no_clone import mudados_desde
+from graphow.orquestrador.rebase_no_clone import arvore_da_area, mudados_desde
 from graphow.orquestrador.saida_do_verificador import ORIGEM_DA_REVISAO, Achado
 from graphow.orquestrador.sessoes_de_papel import PedidoDePapel
+from graphow.orquestrador.suite_sem_rastro import guardar_a_arvore
 from graphow.orquestrador.verificacao_do_marco import nos_do_plano
 
 VEREDITO_APROVADO: str = "aprovado"
@@ -82,7 +83,8 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     if resposta.dados is None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA,
                       f"A revisao da fatia de risco {pedido.fatia.codigo} nao conferiu: " + "; ".join(resposta.problemas))
-    dados = {**resposta.dados, "motivo": pedido.motivo, "observacao": desfeito, **_ancora_da_revisao(contexto.area, mudados)}
+    dados = {**resposta.dados, "motivo": pedido.motivo, "observacao": desfeito,
+             **_ancora_da_revisao(contexto.area, mudados, referencia=pedido.referencia)}
     contexto.livro.registrar_revisao(pedido.fatia.id, pedido.tentativa, dados=dados,
                                      achados=operacoes_dos_achados(contexto.livro, estado, pedido, dados=dados))
     return "" if resposta.dados.get("veredito") == VEREDITO_APROVADO else RejeicaoDaRevisao(_problemas(resposta.dados))
@@ -140,25 +142,17 @@ def _conferir(dados: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def _fotografar(area: Path) -> str:
-    """A mudança fora de commit inteira, arquivos novos inclusive, como patch; a área fica como estava."""
-    git = GitDoGoal(area)
-    git.rodar("add", "-A")
-    foto = git.rodar("diff", "--cached", "--binary", "HEAD")
-    git.rodar("reset", "-q")
-    return foto
+    """A mudança fora de commit inteira, arquivos novos inclusive, como patch; a área e o índice ficam como estavam."""
+    return GitDoGoal(area).rodar("diff", "--binary", "HEAD", guardar_a_arvore(area))
 
 
-def _ancora_da_revisao(area: Path, mudados: tuple[str, ...]) -> dict[str, Any]:
-    """O commit em que a mudança revisada está, a árvore dela (o HEAD mais a mudança) e os arquivos que ela muda.
+def _ancora_da_revisao(area: Path, mudados: tuple[str, ...], *, referencia: str) -> dict[str, Any]:
+    """O commit em que a mudança revisada está, a árvore dela (a da área sobre a referência) e os arquivos que ela muda.
 
     A conferência na leitura parte da árvore: o commit da fatia aprovada tem os
     mesmos arquivos, e a revisão não nasce desatualizada por ele.
     """
-    git = GitDoGoal(area)
-    git.rodar("add", "-A")
-    arvore = git.rodar("write-tree").strip()
-    git.rodar("reset", "-q")
-    return {m.CAMPO_COMMIT: git.head(), CAMPO_ARVORE: arvore, CAMPO_ARQUIVOS: list(mudados)}
+    return {m.CAMPO_COMMIT: GitDoGoal(area).head(), CAMPO_ARVORE: arvore_da_area(area, referencia), CAMPO_ARQUIVOS: list(mudados)}
 
 
 def _restaurar(contexto: ContextoDoGoal, foto: str, pedido: PedidoDeRevisao) -> str:
