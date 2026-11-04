@@ -10,7 +10,9 @@ import pytest
 
 from graphow.orquestrador.git_no_comando import decidir
 from graphow.orquestrador.hook_do_git import CODIGO_DE_RECUSA, decisao_da_entrada, responder
-from graphow.orquestrador.trava_do_git import gravar_hook_da_trava
+from graphow.orquestrador.trava_do_git import gravar_hook_da_trava, regras_que_negam_git
+
+from tests.orquestrador.regras_do_claude_code import regras_que_casam
 
 PERMITIDOS: tuple[str, ...] = (
     "git status",
@@ -152,6 +154,32 @@ RECUSADOS_NA_T3A2: tuple[str, ...] = (
     "case x in a) git commit -am x;; esac",
     "echo 'git commit' | bash -s",
 )
+# T3a3: as leituras que seguiam recusadas e o `-C .` da sonda R1.
+LIBERADOS_NA_T3A3: tuple[str, ...] = (
+    "git --version",
+    "git version",
+    "git describe --tags --always",
+    "git tag -l",
+    "git tag --list 'v*' --sort=-creatordate",
+    "git tag",
+    "git tag --contains HEAD",
+    "git config --get user.name",
+    "git config --get-all remote.origin.url",
+    "git config --list --show-origin",
+    "git show-ref --heads",
+    "git check-ignore -v build/",
+    "git -C . status",
+)
+RECUSADOS_NA_T3A3: tuple[str, ...] = (
+    "git tag v1",
+    "git tag -d v1",
+    "git tag -l -d v1",
+    "git tag -a v1 -m x",
+    "git config user.name x",
+    "git config --get user.name --add x",
+    "git config --unset user.name",
+    "git config -e",
+)
 
 
 @pytest.mark.parametrize("comando", PERMITIDOS)
@@ -182,6 +210,44 @@ def test_git_disfarcado_por_executor_entrada_ou_opcao_que_grava_e_recusado_edge_
 
     assert not decisao.permitido
     assert "quem commita e o orquestrador" in decisao.motivo
+
+
+@pytest.mark.parametrize("comando", LIBERADOS_NA_T3A3)
+def test_leituras_que_seguiam_recusadas_passam_nominal(comando: str) -> None:
+    """T3a3.5: `--version`, `describe`, `tag -l`, `config --get`, `show-ref`, `check-ignore` e `git -C . status`."""
+    assert decidir(comando).permitido, decidir(comando).motivo
+
+
+@pytest.mark.parametrize("comando", RECUSADOS_NA_T3A3)
+def test_tag_e_config_que_gravam_sao_recusados_edge_case(comando: str) -> None:
+    """T3a3.5: a tag criada ou apagada e a configuração gravada seguem recusadas."""
+    decisao = decidir(comando)
+
+    assert not decisao.permitido
+    assert "quem commita e o orquestrador" in decisao.motivo
+
+
+@pytest.mark.parametrize("comando", (*PERMITIDOS, *LIBERADOS_NA_T3A2, *LIBERADOS_NA_T3A3))
+def test_nenhuma_regra_do_disallowed_tools_casa_com_o_que_o_hook_libera_nominal(comando: str) -> None:
+    """T3a3.2 (R1): o que o hook libera não casa, pelo prefixo e como o Claude Code casa, com regra de `--disallowedTools`.
+
+    A sessão real aplica as regras antes do hook: uma que casasse recusaria a
+    leitura liberada (`git branch --show-current`, `git -C . status`).
+    """
+    assert decidir(comando).permitido
+    assert regras_que_casam(comando, regras_que_negam_git(("Bash",))) == []
+
+
+@pytest.mark.parametrize(("comando", "casa"), [
+    ("git push origin main", True), ("git push", True), ("FOO=1 git push", True), ("timeout 30 git push", True),
+    ("nice -n 5 nohup git push", True), ("cd x && git push", True), ('echo "$(git push)"', True),
+    ("for f in a; do git push; done", True), ("xargs git push", True), ("command git push", True),
+    ("git -C . push origin main", False), ("/usr/bin/git push", False), ("sh -c 'git push'", False),
+    ("git pushx", False), ("xargs -n1 git push", False), ("echo git push", False),
+])
+def test_leitura_das_regras_casa_como_a_documentacao_do_claude_code_edge_case(comando: str, casa: bool) -> None:
+    """Caso de borda: a leitura que o teste usa casa `Bash(git push:*)` nos exemplos da documentação de permissões."""
+    assert bool(regras_que_casam(comando, ("Bash(git push:*)",))) is casa
 
 
 def test_tabela_tem_ao_menos_trinta_comandos_nominal() -> None:

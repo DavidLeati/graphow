@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-61 módulos · 11568 linhas · 85 classes
+61 módulos · 11629 linhas · 85 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -44,7 +44,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 393 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 396 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
-| [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 133 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
+| [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 182 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 344 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
@@ -68,7 +68,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 257 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
-| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 246 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
+| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 258 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 217 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -934,12 +934,16 @@ Quais invocações do git a trava deixa o agente rodar: só as leituras, com as 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `LEITURAS_DO_GIT` | `tuple[str, ...]` | `('status', 'diff', 'log', 'show', 'blame', 'ls-files', 'rev-parse', 'gr…` |
-| `LEITURAS_EM_TEXTO` | `str` | `', '.join(LEITURAS_DO_GIT) + ', branch que lista, stash list/show e rem…` |
+| `LEITURAS_EM_TEXTO` | `str` | `', '.join(LEITURAS_DO_GIT) + ', branch e tag que listam, stash list/sho…` |
 | `OPCOES_GLOBAIS_COM_VALOR` | `frozenset[str]` | `frozenset({'-C', '--git-dir', '--work-tree', '--namespace', '--super-pr…` |
 | `OPCOES_GLOBAIS_SEM_VALOR` | `frozenset[str]` | `frozenset({'--no-pager', '-p', '--paginate', '-P', '--bare', '--no-repl…` |
 | `OPCOES_DE_LISTAR_BRANCH` | `frozenset[str]` | `frozenset({'--show-current', '-a', '--all', '-r', '--remotes', '-v', '-…` |
+| `OPCOES_DE_LISTAR_TAG` | `frozenset[str]` | `frozenset({'-l', '--list', '-n', '--contains', '--no-contains', '--merg…` |
+| `OPCOES_QUE_LISTAM_TAG` | `frozenset[str]` | `frozenset({'-l', '--list', '-n', '--contains', '--no-contains', '--merg…` |
+| `ACOES_QUE_LEEM_CONFIG` | `frozenset[str]` | `frozenset({'--get', '--get-all', '--get-regexp', '--get-urlmatch', '--l…` |
+| `OPCOES_DE_LER_CONFIG` | `frozenset[str]` | `ACOES_QUE_LEEM_CONFIG | frozenset({'--global', '--system', '--local', '…` |
 | `OPCOES_QUE_GRAVAM` | `tuple[tuple[str, int], ...]` | `(('--output', 4), ('--open-files-in-pager', 4))` |
-| `LEITURAS_EM_PARTE` | `Mapping[str, Callable[[tuple[Palavra, ...]], bool]]` | `{'branch': _branch_que_lista, 'stash': _stash_que_lista, 'remote': _rem…` |
+| `LEITURAS_EM_PARTE` | `Mapping[str, Callable[[tuple[Palavra, ...]], bool]]` | `{'branch': _branch_que_lista, 'tag': _tag_que_lista, 'stash': _stash_qu…` |
 
 ### `_Subcomando`
 
@@ -1748,7 +1752,7 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 | :--- | :--- | :--- |
 | `HOOKS_DA_TRAVA` | `Mapping[str, str]` | `{'reference-transaction': '#!/bin/sh\n# Trava do graphow orquestrar: a …` |
 | `SUBCOMANDOS_DE_ESCRITA` | `tuple[str, ...]` | `('commit', 'push', 'pull', 'fetch', 'reset', 'checkout', 'switch', 'res…` |
-| `OPCOES_GLOBAIS_NEGADAS` | `tuple[str, ...]` | `('-c', '-C', '--git-dir', '--work-tree', '--exec-path')` |
+| `OPCOES_GLOBAIS_NAS_REGRAS` | `tuple[str, ...]` | `('--git-dir', '--work-tree', '--exec-path')` |
 | `MODULO_DO_HOOK` | `str` | `'graphow.orquestrador.hook_do_git'` |
 | `ARQUIVO_DO_HOOK` | `str` | `'settings-da-trava.json'` |
 | `TEMPO_LIMITE_DO_HOOK_S` | `int` | `30` |
@@ -1777,7 +1781,7 @@ A trava do git nas sessões de agente: as regras, o ambiente e a restauração d
 - `selar_a_sessao(hook: Path, area: Path) -> SeloDaSessao` — Antes de cada invocação: o settings do hook regravado e o `.claude/` do clone de volta ao HEAD.
 - `trava_mexida(selo: SeloDaSessao) -> str` — Depois da invocação: o que ela mexeu no settings do hook ou no `.claude/` do clone; vazio quando nada.
 - `claude_mexido(area: Path) -> tuple[str, ...]` — Os arquivos do `.claude/` do clone fora do HEAD: mudados, apagados, novos e ignorados.
-- `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório ou de configuração.
+- `regras_que_negam_git(ferramentas: Sequence[str]) -> tuple[str, ...]` — As regras `--disallowedTools` do git de escrita e das opções que trocam de repositório.
 - `fotografar_clone(area: Path) -> FotoDoClone` — A foto do clone, tirada logo antes da sessão.
 - `restaurar_o_clone(foto: FotoDoClone) -> str` — Deixa o clone como a foto: a branch do Goal, as outras refs, a configuração e os hooks; diz o que desfez.
 

@@ -8,6 +8,7 @@ from typing import Any
 
 from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
 from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, preparar_area
+from graphow.orquestrador.git_no_comando import decidir
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.trava_do_git import fotografar_clone, instalar_trava, regras_que_negam_git, restaurar_o_clone
 from graphow.sessoes.pedido import PedidoDeSessao
@@ -113,12 +114,17 @@ def test_push_do_agente_e_recusado_pelo_hook_nominal(tmp_path: Path) -> None:
     assert "refs/heads/do-agente" not in _refs(repositorio)
 
 
-def test_regras_negam_as_opcoes_que_furavam_a_trava_edge_case() -> None:
-    """Caso de borda: `git -c`, `git -C`, push, config e remote estão nas regras; leitura não está."""
-    regras = regras_que_negam_git(("Bash",))
+def test_regras_negam_a_escrita_e_deixam_ao_hook_o_que_ele_le_em_parte_edge_case() -> None:
+    """Caso de borda (T3a3): push e commit estão nas regras; `-c`, `-C`, branch, tag, stash, remote e config são do hook."""
+    regras = set(regras_que_negam_git(("Bash",)))
+    do_hook = {"-c", "-C", "branch", "tag", "stash", "remote", "config"}
 
-    assert {"Bash(git -c:*)", "Bash(git -C:*)", "Bash(git push:*)", "Bash(git config:*)", "Bash(git remote:*)"} <= set(regras)
+    assert {"Bash(git push:*)", "Bash(git commit:*)", "Bash(git --git-dir:*)"} <= regras
+    assert not {f"Bash(git {item}:*)" for item in do_hook} & regras
     assert not [regra for regra in regras if any(leitura in regra for leitura in ("status", "diff", "log", "show"))]
+    for disfarce in ("git -c core.hooksPath=x commit", "git -C . commit", "git config user.email x", "git remote add o x",
+                     "git branch novo", "git tag v1", "git stash"):
+        assert not decidir(disfarce).permitido, disfarce
 
 
 def test_executor_disfarcado_que_mexe_nas_refs_nao_alcanca_o_humano_nem_gasta_tentativa_nominal(tmp_path: Path) -> None:
