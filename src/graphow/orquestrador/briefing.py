@@ -143,8 +143,10 @@ def _suite_e_aceite(estado: EstadoDoGoal) -> list[str]:
     return linhas
 
 
-def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, motivo: str = "", mesclada: str = "") -> str:
-    """O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões e o que mudou."""
+def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, motivo: str = "", mesclada: str = "",
+                        da_base: str = "") -> str:
+    """O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões, o que mudou e,
+    na fatia aberta pelo rebase, o que a base nova trouxe."""
     plano = estado.plano or {}
     onde = (f"A mudanca da fatia esta na pasta atual, fora de commit, sobre a ponta do Goal com a base nova mesclada: veja com "
             f"`git diff {mesclada}` (o `git diff HEAD` mostra tambem o que a base trouxe, que nao e da fatia)." if mesclada else
@@ -156,6 +158,7 @@ def briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: S
         _bloco("Criterios que a fatia cobre, com os testes de aceite que os provam", _criterios_com_aceite(estado, fatia.lista(m.CAMPO_CRITERIOS))),
         _bloco("Decisoes que o trabalho segue", _decisoes(plano)),
         _bloco("Arquivos mudados", [f"- {caminho}" for caminho in mudados]),
+        da_base,
         _bloco("Suite e aceite", [f"Suite: `{plano.get('comando_suite', '')}` (ja passou, rodada pelo orquestrador). "
                                   f"Testes de aceite: `{(estado.aceite or {}).get('comando', '')}`."]),
         "## Spec completa do Goal\n" + str(estado.propriedades.get(m.CAMPO_SPEC, "")).strip(),

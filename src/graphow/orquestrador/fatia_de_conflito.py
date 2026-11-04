@@ -25,9 +25,13 @@ trabalho do humano é recusada (`desfaz_a_base`). Nos arquivos que os dois
 mudaram, a mudança da base precisa continuar no resultado: `git merge-tree
 --merge-base=<base antiga> <base nova> <resultado>` devolve o próprio
 resultado, e a fatia que tira dali a linha que a base pôs é recusada com o
-arquivo e o que a base poria de volta (revisão da T3g3 e da T3g4, V1). A
-suíte e os testes de aceite rodam na área resolvida; o aceite vermelho também
-recusa a tentativa (orquestrador/vermelho_do_rebase.py).
+arquivo e o que a base poria de volta (revisão da T3g3 e da T3g4, V1). O
+que anula a base em tempo de execução mantém o texto dela, e não tem
+conferência mecânica: a fatia vai à revisão de risco já na primeira
+tentativa, com o diff da base no briefing e a pergunta se o resultado o anula
+(`base_para_o_revisor`, orquestrador/revisao_da_fatia.py). A suíte e os
+testes de aceite rodam na área resolvida; o aceite vermelho também recusa a
+tentativa (orquestrador/vermelho_do_rebase.py).
 
 O commit da fatia leva o trabalho do Goal inteiro sobre a base nova e os
 commits de antes da primeira fatia (o plano e os testes de aceite), refeitos
@@ -79,6 +83,13 @@ COMO_MANTER_A_BASE: str = (
     "O orquestrador recusa a tentativa: mantenha cada linha que a base pos ou tirou, tambem nos arquivos que o Goal e a base "
     "mudaram, e mude so o que e do Goal. A mudanca colada a uma linha da base o git le como conflito com ela: deixe uma "
     "linha intacta entre as duas."
+)
+PERGUNTA_DA_BASE: str = (
+    "Pergunta desta revisao: o resultado anula o que a base trouxe? O orquestrador ja conferiu o texto (cada linha que a "
+    "base pos ou tirou continua no resultado); confira o comportamento. Por exemplo: um arquivo do Goal que, ao rodar, "
+    "sobrescreve um valor, uma funcao ou uma configuracao que a base mudou; um modulo ou pacote novo que o import prefere "
+    "ao arquivo da base (um pacote `x/` ao lado do `x.py` dela); um teste, conftest ou configuracao que desliga o que a "
+    "base mudou. Se anula, rejeite, com o arquivo e a prova."
 )
 
 
@@ -255,6 +266,27 @@ def _mescla_da_base(git: GitDoGoal, resultado: str, *, antiga: str, base: str, o
     if feito.codigo not in (0, 1) or not arvore:
         raise FalhaDoGitDoGoal("o git nao mesclou a base nova no resultado da fatia", {"base": base[:12], "erro": feito.erro.strip()})
     return arvore
+
+
+def base_para_o_revisor(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
+    """Na fatia aberta pelo rebase, a seção do briefing do revisor com o diff da base nova e a pergunta se o resultado o
+    anula; vazio nas outras fatias.
+
+    Não há conferência mecânica do comportamento: a fatia que anula em tempo
+    de execução o que a base trouxe, de dentro de um arquivo do Goal ou com um
+    pacote novo que o import prefere ao arquivo da base, passa no texto e na
+    suíte (revisão da T3g3 e da T3g4, V1 e V2). Quem julga é o revisor.
+    """
+    conflito = _conflito_da(fatia)
+    if conflito is None:
+        return ""
+    git, base = contexto.git, str(conflito.get("base", ""))
+    antiga = git.rodar("merge-base", git.head(), base).strip()
+    diff = git.tentar(*SEM_ASPAS, "diff", antiga, base).saida
+    cortado = f" (cortado em {LIMITE_DO_DIFF} caracteres)" if len(diff) > LIMITE_DO_DIFF else ""
+    return (f"## O que a base nova trouxe\nA fatia foi aberta pelo rebase da branch do Goal sobre a base nova ({base[:12]}). "
+            f"O diff da base desde que a branch do Goal saiu dela, `git diff {antiga[:12]} {base[:12]}`{cortado}:\n"
+            f"```\n{diff[:LIMITE_DO_DIFF]}\n```\n{PERGUNTA_DA_BASE}")
 
 
 def aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada, *, numero: int) -> str:

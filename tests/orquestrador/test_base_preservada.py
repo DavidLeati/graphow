@@ -13,8 +13,8 @@ from pathlib import Path
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 
 from tests.orquestrador.apoio_git import git
-from tests.orquestrador.apoio_laco import executor_pronto, montar_bancada, verificacao
-from tests.orquestrador.test_base_que_andou import SOMA_COM_CABECALHO
+from tests.orquestrador.apoio_laco import executor_pronto, montar_bancada, revisao, verificacao
+from tests.orquestrador.test_base_que_andou import SOMA_COM_CABECALHO, SOMA_DA_BASE_QUE_CONFLITA, SOMA_RESOLVIDA
 from tests.orquestrador.test_fatia_de_conflito import (
     _commit,
     _fatia_de_conflito,
@@ -72,3 +72,41 @@ def test_fatia_de_conflito_que_tira_a_base_fora_do_trecho_em_conflito_e_recusada
     assert len(executores) == 4 and RECUSA in executores[3]["stdin"], "a primeira tentativa da fatia foi recusada"
     assert parada.fechou and conflito.falhas == 1, parada.mensagem
     assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_COM_OS_DOIS
+
+
+def test_fatia_aberta_pelo_rebase_vai_a_revisao_de_risco_na_primeira_tentativa_com_o_diff_da_base_nominal(tmp_path: Path) -> None:
+    """T3g5.3: a fatia de conflito que passa de primeira vai à revisão de risco nessa mesma tentativa, e o briefing do
+    revisor traz o diff da base nova (o conflito e o arquivo que só ela mudou) e pergunta se o resultado o anula."""
+    bancada = montar_bancada(tmp_path, _roteiro_com_a_fatia(executor_pronto({"soma.py": SOMA_RESOLVIDA})))
+    executor = _humano_depois_do_verificador(bancada, {"soma.py": SOMA_DA_BASE_QUE_CONFLITA, "NOTAS.txt": "do humano\n"})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    conflito = _fatia_de_conflito(bancada)
+    assert conflito.falhas == 0
+    (revisor,) = bancada.chamadas("revisor")
+    briefing = revisor["stdin"]
+    assert "Por que ela e revisada: foi aberta pelo rebase" in briefing
+    da_base = briefing.split("## O que a base nova trouxe", 1)[1]
+    assert "+    # so inteiros" in da_base and "+do humano" in da_base and "anula o que a base trouxe" in da_base
+    revisao = bancada.kernel.obter_view().obter_no(f"rev-{conflito.id}-t1")
+    assert revisao is not None and revisao.obter_propriedade("veredito") == "aprovado"
+
+
+def test_pacote_novo_que_sombreia_o_arquivo_da_base_fica_com_a_revisao_da_primeira_tentativa_edge_case(tmp_path: Path) -> None:
+    """T3g5.3 (V2 da sonda): fator/__init__.py, que o import prefere ao fator.py da base, passa no texto, na suíte e no
+    aceite; a revisão da 1ª tentativa, com o diff de fator.py no briefing, é quem o recusa, e o Goal não chega à main."""
+    roteiro = _roteiro_do_fator(executor_pronto({"fator/__init__.py": "FATOR = 1\n"}), executor_pronto({}))
+    roteiro["revisor"] = [revisao("rejeitado")]
+    bancada = montar_bancada(tmp_path, roteiro)
+    _commit(bancada.repositorio, {"fator.py": "FATOR = 1\n"}, "Fator")
+    executor = _humano_depois_do_verificador(bancada, {"fator.py": "FATOR = 2\n"})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    (revisor,) = bancada.chamadas("revisor")
+    assert "-FATOR = 1\n+FATOR = 2" in revisor["stdin"].split("## O que a base nova trouxe", 1)[1]
+    assert "fator/__init__.py" in revisor["stdin"].split("Arquivos mudados", 1)[1]
+    assert parada.motivo == MotivoDaParada.PENDENCIA and "M1.R1" in parada.mensagem, parada.mensagem
+    assert git(bancada.repositorio, "ls-tree", "-r", "--name-only", "main", "--", "fator", "fator.py").split() == ["fator.py"]

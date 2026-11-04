@@ -4,8 +4,10 @@ Na auditoria, as 20 revisões por Task aprovaram de primeira: conferiam o que o
 condutor escreveu, com os testes do executor. A prova passou a ser o aceite,
 escrito antes por outra sessão, e o verificador de cada marco. A revisão por
 fatia sobra onde o erro não seria pego por eles: a fatia que o planejador
-marcou como risco (julgamento de domínio, mudança que atravessa partes) e a
-que já falhou uma vez. Nas outras, não há revisão.
+marcou como risco (julgamento de domínio, mudança que atravessa partes), a
+que já falhou uma vez e a que o rebase abriu sobre a base nova, que vai já na
+primeira tentativa, com o diff da base no briefing. Nas outras, não há
+revisão.
 
 Com a suíte verde, antes do commit, uma sessão nova do revisor lê a mudança,
 que está na área fora de commit, e devolve `aprovado` ou `rejeitado` com os
@@ -36,6 +38,7 @@ from graphow.orquestrador.briefing import briefing_do_revisor
 from graphow.orquestrador.conferencia_da_evidencia import CAMPO_ARVORE
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_REVISOR
+from graphow.orquestrador.fatia_de_conflito import CAMPO_CONFLITO, base_para_o_revisor
 from graphow.orquestrador.git_do_goal import GitDoGoal, descartar_mudancas
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
@@ -49,9 +52,17 @@ VEREDITO_APROVADO: str = "aprovado"
 
 
 def de_risco(fatia: FatiaRegistrada) -> str:
-    """Por que a fatia é de risco; vazio quando não é e não tem revisão."""
+    """Por que a fatia é de risco; vazio quando não é e não tem revisão.
+
+    A fatia aberta pelo rebase (conflito ou vermelho) é revisada já na
+    primeira tentativa: o que anula em tempo de execução o que a base trouxe
+    passa no texto e na suíte, e só a revisão o vê (revisão da T3g3 e da
+    T3g4, V1 e V2; orquestrador/fatia_de_conflito.py).
+    """
     if fatia.propriedades.get(m.CAMPO_RISCO) is True:
         return "o planejador a marcou como risco: " + (fatia.texto(m.CAMPO_MOTIVO_DO_RISCO) or "sem motivo dito")
+    if isinstance(fatia.propriedades.get(CAMPO_CONFLITO), Mapping):
+        return "foi aberta pelo rebase sobre a base nova, e o resultado nao pode anular o que a base trouxe"
     return "uma tentativa anterior dela falhou" if fatia.falhas else ""
 
 
@@ -75,7 +86,8 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_REVISOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=pedido.fatia.id, tentativa=pedido.tentativa,
-            briefing=briefing_do_revisor(estado, pedido.fatia, mudados, motivo=pedido.motivo, mesclada=mesclada),
+            briefing=briefing_do_revisor(estado, pedido.fatia, mudados, motivo=pedido.motivo, mesclada=mesclada,
+                                         da_base=base_para_o_revisor(contexto, pedido.fatia)),
             conferir=_conferir, orcamento_restante_usd=contexto.restante(), referencia_do_selo=pedido.referencia,
         )
     )

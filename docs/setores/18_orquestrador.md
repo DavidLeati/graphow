@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13644 linhas · 104 classes
+72 módulos · 13691 linhas · 104 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -20,7 +20,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 101 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
-| [`orquestrador/briefing.py`](#orquestradorbriefing) | 389 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
+| [`orquestrador/briefing.py`](#orquestradorbriefing) | 392 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/cancelamento_tardio.py`](#orquestradorcancelamentotardio) | 76 | O cancelamento tardio: o humano cancela o Goal quando a base já tem o trabalho dele, e o livro-razão guarda isso. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
@@ -37,7 +37,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 284 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 316 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 178 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
@@ -65,7 +65,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/replanejamento.py`](#orquestradorreplanejamento) | 91 | Recusar o plano: o humano recusa, com o motivo, e o planejador o refaz com o recusado e o motivo no briefing. |
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 107 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
-| [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 180 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
+| [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 192 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
@@ -228,7 +228,7 @@ O briefing de cada sessão, montado por código a partir do livro-razão e do gi
 
 - `briefing_do_planejador(estado: EstadoDoGoal, spec: str, tem_fixados: bool) -> str` — O pedido ao planejador: a spec inteira e onde está o repositório.
 - `briefing_do_executor(estado: EstadoDoGoal, fatia: FatiaRegistrada, contexto: ContextoDaFatia) -> str` — O pedido ao executor da fatia, com tudo o que a governa por extenso.
-- `briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões e o que mudou.
+- `briefing_do_revisor(estado: EstadoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — O pedido ao revisor da fatia de risco: a fatia, os critérios dela com os testes de aceite, as decisões, o que mudou e,
 - `briefing_do_autor_de_aceite(estado: EstadoDoGoal) -> str` — O pedido ao autor de aceite: a spec, os critérios com o tipo de verificação, as decisões e a suíte.
 - `briefing_do_verificador(estado: EstadoDoGoal, commit: str, entregues: Sequence[str]) -> str` — O pedido ao verificador do marco: spec, critérios que ele julga, decisões, suíte e o commit, sem nada de quem implementou.
 - `briefing_da_conferencia(estado: EstadoDoGoal, commit: str) -> str` — O pedido curto da conferência: os critérios, os achados a reproduzir, os pareceres de antes e o diff das correções.
@@ -691,6 +691,7 @@ A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou ver
 | `MODELO_DO_CONFLITO` | `str` | `'opus'` |
 | `COMO_RESOLVER` | `str` | `'Nesta fatia, a area traz o trabalho do Goal com a base nova mesclada, …` |
 | `COMO_MANTER_A_BASE` | `str` | `'O orquestrador recusa a tentativa: mantenha cada linha que a base pos …` |
+| `PERGUNTA_DA_BASE` | `str` | `'Pergunta desta revisao: o resultado anula o que a base trouxe? O orque…` |
 
 ### Funções do módulo
 
@@ -698,6 +699,7 @@ A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou ver
 - `referencia_da_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — Contra o que a tentativa se compara: o HEAD; na fatia de conflito, a árvore da ponta do Goal com a base nova mesclada.
 - `preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — A referência da tentativa; na fatia de conflito, a área e o índice a recebem, fora de commit, com o HEAD onde estava.
 - `desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — Na fatia de conflito, o erro da área que desfaz o que a base nova trouxe; vazio quando a mudança da base continua nela.
+- `base_para_o_revisor(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — Na fatia aberta pelo rebase, a seção do briefing do revisor com o diff da base nova e a pergunta se o resultado o
 - `aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str` — Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio.
 - `commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str` — O commit da fatia; o da de conflito, da árvore que a conferência julgou sobre a referência, vai sobre a base nova e é
 
