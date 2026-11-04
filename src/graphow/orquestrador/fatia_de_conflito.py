@@ -3,7 +3,11 @@
 No supervisionado, o laço para (orquestrador/base_que_andou.py). No autônomo
 não há quem resolva, e o orquestrador abre uma fatia no marco final,
 `<marco>.R<n>`, com os arquivos em conflito e o diff do conflito no objetivo
-(que o briefing do executor mostra inteiro). Antes de cada tentativa, a área
+(que o briefing do executor mostra inteiro). Sem conflito, quando o vermelho
+é o que impede, o alvo são os arquivos do Goal que os testes vermelhos cobrem,
+e o que só a base mudou vai no objetivo como contexto: a tentativa que o muda
+é recusada, e o executor que só resolve mexendo nele diz isso com `falhou`, e
+a fatia vira pendência (revisão da T3g2, G2). Antes de cada tentativa, a área
 e o índice recebem a árvore da ponta do Goal com a base nova mesclada
 (`merge-tree`, com os marcadores no conflito), fora de commit, e o HEAD fica
 onde estava: a tentativa que falha volta a área ao commit, como toda fatia, e
@@ -38,7 +42,8 @@ from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal
 from graphow.orquestrador.correcoes import normalizar_caminho
-from graphow.orquestrador.git_do_goal import SEM_ASPAS, commits_entre
+from graphow.orquestrador.documento_do_goal import caminho_do_documento
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal, commits_entre
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import aresta
 from graphow.orquestrador.rebase_no_clone import (
@@ -51,6 +56,7 @@ from graphow.orquestrador.rebase_no_clone import (
     mover_as_refs,
 )
 from graphow.orquestrador.registro_do_rebase import registrar_o_rebase
+from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
 from graphow.orquestrador.tipo_da_verificacao import arquivos_por_criterio
 from graphow.orquestrador.vermelho_do_rebase import Vermelho, aceite_vermelho
 
@@ -73,7 +79,7 @@ def abrir_fatia_de_conflito(
     marco = estado.marcos()[-1]
     codigo = f"{marco.id}.R{1 + sum(1 for fatia in estado.fatias if _conflito_da(fatia))}"
     arvore, em_conflito = arvore_mesclada(contexto.area, conflito.antes, conflito.base_depois)
-    arquivos = conflito.arquivos or em_conflito or arquivos_entre(contexto.git, conflito.base_antes, conflito.base_depois)
+    arquivos = conflito.arquivos or em_conflito or _alvo_sem_conflito(contexto, estado, conflito, vermelho=vermelho)
     propriedades = {
         m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo, m.CAMPO_MARCO: marco.id, m.CAMPO_TENTATIVAS: 0,
         m.CAMPO_ORDEM: max((fatia.ordem for fatia in estado.fatias), default=0) + 1,
@@ -93,12 +99,54 @@ def abrir_fatia_de_conflito(
 def _objetivo(
     contexto: ContextoDoGoal, conflito: ConflitoNoRebase, *, arvore: str, arquivos: Sequence[str], vermelho: Vermelho | None
 ) -> str:
-    """O objetivo da fatia: o que o rebase encontrou, como resolver e o diff da ponta do Goal à área mesclada."""
-    diff = contexto.git.tentar(*SEM_ASPAS, "diff", conflito.antes, arvore, "--", *arquivos).saida[:LIMITE_DO_DIFF]
+    """O objetivo da fatia: o que o rebase encontrou, como resolver, o diff da ponta do Goal à área mesclada e, no vermelho, o que
+    só a base mudou, como contexto."""
     problema = f"{vermelho.resumo}:\n{vermelho.detalhe}" if vermelho is not None else f"deu conflito em {', '.join(arquivos)}."
+    da_base = _contexto_da_base(contexto.git, conflito, arvore) if vermelho is not None else ""
     return (f"A base {contexto.configuracao.base} andou para {conflito.base_depois[:12]} desde que a branch do Goal saiu dela, "
-            f"e o rebase da branch sobre ela {problema}\n\n{COMO_RESOLVER}\n\nO diff do conflito, da ponta do Goal a area "
-            f"mesclada:\n```\n{diff}\n```")
+            f"e o rebase da branch sobre ela {problema}\n\n{COMO_RESOLVER}{da_base}\n\nO diff do conflito, da ponta do Goal a "
+            f"area mesclada:\n```\n{_diff(contexto.git, conflito.antes, arvore, arquivos=arquivos)}\n```")
+
+
+def _alvo_sem_conflito(
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase, *, vermelho: Vermelho | None
+) -> tuple[str, ...]:
+    """Sem arquivo em conflito, o alvo: os arquivos do Goal que os testes vermelhos cobrem; sem eles, os do Goal inteiro.
+
+    O que só a base mudou não é alvo: `desfaz_a_base` recusa a tentativa que
+    o muda. O documento do Goal e os testes de aceite também não, porque
+    nenhuma fatia os escreve.
+    """
+    documento = caminho_do_documento(contexto.configuracao.slug)
+    do_goal = [caminho for caminho in arquivos_entre(contexto.git, conflito.base_antes, conflito.antes)
+               if caminho != documento and not dentro_do_aceite(caminho)]
+    por_criterio = arquivos_por_criterio(estado, contexto.git)
+    criterios = vermelho.criterios if vermelho is not None else ()
+    cobertos = {normalizar_caminho(caminho) for criterio in criterios for caminho in por_criterio.get(criterio, ())}
+    return tuple(caminho for caminho in do_goal if normalizar_caminho(caminho) in cobertos) or tuple(do_goal)
+
+
+def _contexto_da_base(git: GitDoGoal, conflito: ConflitoNoRebase, arvore: str) -> str:
+    """No vermelho, o que só a base mudou: não é alvo, e o executor que só resolve mexendo nele devolve `falhou`."""
+    so_da_base = _so_da_base(git, conflito.base_depois, conflito.antes)
+    if not so_da_base:
+        return ""
+    return (f"\n\nA base mudou, e o Goal nao, {', '.join(so_da_base)}: e contexto, e nao alvo. Esses arquivos ficam como na "
+            "base (a tentativa que os muda e recusada); resolva o vermelho nos arquivos do Goal. Se ele so se resolve mexendo "
+            "num deles, nao mexa: devolva `falhou` e diga isso no resumo; a fatia que falha assim vira pendencia, com esse motivo, "
+            f"para o humano. O que a base mudou neles:\n```\n{_diff(git, conflito.antes, arvore, arquivos=so_da_base)}\n```")
+
+
+def _diff(git: GitDoGoal, antes: str, depois: str, *, arquivos: Sequence[str]) -> str:
+    """O diff dos arquivos dados, cortado no limite; vazio sem arquivo (sem caminho, o diff seria o da base inteira)."""
+    return git.tentar(*SEM_ASPAS, "diff", antes, depois, "--", *arquivos).saida[:LIMITE_DO_DIFF] if arquivos else ""
+
+
+def _so_da_base(git: GitDoGoal, base: str, ponta: str) -> tuple[str, ...]:
+    """Os arquivos que a base mudou desde que a branch do Goal saiu dela e o Goal não mudou."""
+    antes = git.rodar("merge-base", ponta, base).strip()
+    do_goal = set(arquivos_entre(git, antes, ponta))
+    return tuple(caminho for caminho in arquivos_entre(git, antes, base) if caminho not in do_goal)
 
 
 def _criterios_dos_arquivos(contexto: ContextoDoGoal, estado: EstadoDoGoal, arquivos: Sequence[str]) -> list[str]:
@@ -138,9 +186,7 @@ def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Seq
     if conflito is None:
         return ""
     git, base = contexto.git, str(conflito.get("base", ""))
-    head = git.head()
-    antes = git.rodar("merge-base", head, base).strip()
-    so_da_base = set(arquivos_entre(git, antes, base)) - set(arquivos_entre(git, antes, head))
+    so_da_base = set(_so_da_base(git, base, git.head()))
     desfeitos = [caminho for caminho in mudados if caminho in so_da_base]
     if not desfeitos:
         return ""

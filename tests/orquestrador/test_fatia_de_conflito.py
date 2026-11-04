@@ -141,11 +141,32 @@ def test_aceite_vermelho_depois_do_rebase_limpo_vira_fatia_de_conflito_e_nao_che
     assert git(bancada.repositorio, "show", "main:fator.py") == "FATOR = 2\n"
     conflito = _fatia_de_conflito(bancada)
     assert conflito.propriedades["conflito_com_a_base"]["motivo"] == "aceite_vermelho"
-    assert conflito.propriedades["conflito_com_a_base"]["arquivos"] == ["fator.py"]
+    assert conflito.propriedades["conflito_com_a_base"]["arquivos"] == ["soma.py", "verificar.py"]
     primeira, segunda = (chamada["stdin"] for chamada in bancada.chamadas("executor")[2:])
     assert "deixou vermelho o teste de aceite test_c1_soma de C1" in primeira and "fator.py" in primeira
     assert "a area resolvida deixou vermelho o teste de aceite test_c1_soma de C1" in segunda
     assert _rebases(bancada) == [] and _verificacoes(bancada) == ["verificador"]
+
+
+def test_fatia_do_aceite_vermelho_mira_os_arquivos_do_goal_e_leva_a_base_como_contexto_edge_case(tmp_path: Path) -> None:
+    """T3g4.3 (G2): a base muda fator.py, de que o aceite de C1 depende; o alvo da fatia são os arquivos do Goal que o teste
+    cobre, sem fator.py, que vai no objetivo como contexto; o executor diz que o vermelho só se resolve nele, e o laço para
+    em pendência com esse motivo."""
+    motivo = "o vermelho de C1 so se resolve mudando fator.py, que a base mudou"
+    falhou = {**executor_pronto({}), "saida": {**executor_pronto({})["saida"], "status": "falhou", "resumo": motivo}}
+    bancada = montar_bancada(tmp_path, _roteiro_do_fator(falhou, falhou))
+    _commit(bancada.repositorio, {"fator.py": "FATOR = 1\n"}, "Fator")
+    executor = _humano_depois_do_verificador(bancada, {"fator.py": "FATOR = 2\n"})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    conflito = _fatia_de_conflito(bancada)
+    assert conflito.lista("arquivos_alvo") == ("soma.py", "verificar.py") and conflito.lista("criterios") == ("C1",)
+    contexto = conflito.texto("objetivo").split("A base mudou, e o Goal nao, ", 1)[1]
+    assert contexto.startswith("fator.py: e contexto, e nao alvo") and "-FATOR = 1\n+FATOR = 2" in contexto
+    assert parada.motivo == MotivoDaParada.PENDENCIA and motivo in parada.mensagem, parada.mensagem
+    assert "desfez o que a base nova" not in parada.mensagem
+    assert git(bancada.repositorio, "show", "main:fator.py") == "FATOR = 2\n"
 
 
 def test_aceite_vermelho_depois_do_rebase_limpo_no_supervisionado_para_e_a_branch_fica_edge_case(tmp_path: Path) -> None:

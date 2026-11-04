@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-68 módulos · 13136 linhas · 102 classes
+68 módulos · 13188 linhas · 102 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -35,7 +35,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 176 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 222 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 231 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
@@ -79,7 +79,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 252 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
-| [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 65 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
+| [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 71 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
 ## `orquestrador/aceite_intocado.py`
@@ -2113,9 +2113,9 @@ O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, n
 
 ### `Vermelho`
 
-*DTO imutável* — O que ficou vermelho depois do rebase: o motivo que a fatia de conflito grava, a frase e o fim da saída.
+*DTO imutável* — O que ficou vermelho depois do rebase: o motivo que a fatia de conflito grava, a frase, o fim da saída e os critérios.
 
-**Campos:** `motivo: str`, `resumo: str`, `detalhe: str`
+**Campos:** `motivo: str`, `resumo: str`, `detalhe: str`, `criterios: tuple[str, ...]`
 
 ### Funções do módulo
 

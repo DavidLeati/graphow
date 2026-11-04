@@ -30,11 +30,16 @@ LIMITE_DA_SAIDA: int = 1500
 
 @dataclass(frozen=True)
 class Vermelho:
-    """O que ficou vermelho depois do rebase: o motivo que a fatia de conflito grava, a frase e o fim da saída."""
+    """O que ficou vermelho depois do rebase: o motivo que a fatia de conflito grava, a frase, o fim da saída e os critérios.
+
+    Os critérios são os dos testes de aceite vermelhos (vazio na suíte): o alvo
+    da fatia de conflito são os arquivos do Goal que eles cobrem.
+    """
 
     motivo: str
     resumo: str
     detalhe: str
+    criterios: tuple[str, ...] = ()
 
 
 def da_suite(suite: ResultadoDaSuite) -> Vermelho:
@@ -56,7 +61,8 @@ def aceite_vermelho(contexto: ContextoDoGoal, estado: EstadoDoGoal, rastro: Path
     if not vermelhos:
         return None
     nomes = ", ".join(f"{execucao.teste} de {execucao.criterio}" for execucao in vermelhos)
-    return Vermelho(MOTIVO_DO_ACEITE, f"deixou vermelho o teste de aceite {nomes}", "\n".join(map(_descrever, vermelhos)))
+    return Vermelho(MOTIVO_DO_ACEITE, f"deixou vermelho o teste de aceite {nomes}", "\n".join(map(_descrever, vermelhos)),
+                    tuple(dict.fromkeys(execucao.criterio for execucao in vermelhos)))
 
 
 def _descrever(execucao: ExecucaoDeAceite) -> str:
