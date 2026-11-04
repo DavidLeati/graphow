@@ -20,9 +20,11 @@ from typing import Any
 from graphow.core import aceite as a
 from graphow.core.exceptions import GraphowError
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
+from graphow.kernel.ancora_da_evidencia import CAMPO_ARQUIVOS
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador.conferencia_da_evidencia import CAMPO_ARVORE
 from graphow.orquestrador.correcoes import agrupar_o_ciclo, propriedades_da_correcao, titulo_da_correcao
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
@@ -30,6 +32,7 @@ from graphow.projection.graph_view import GrafoView
 
 RAMO_PADRAO: str = "main"
 ACAO_DA_REVISAO_DE_RISCO: str = "revisao_de_risco"
+CAMPOS_DA_ANCORA_DA_REVISAO: tuple[str, ...] = (m.CAMPO_COMMIT, CAMPO_ARVORE, CAMPO_ARQUIVOS)
 ROTULO_DO_SETOR: str = "Goals orquestrados"
 LIMITE_DO_ROTULO: int = 120
 
@@ -239,12 +242,17 @@ class LivroRazaoDoGoal:
         self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
 
     def registrar_revisao(self, id_task: str, tentativa: int, *, dados: Mapping[str, Any], achados: Sequence[ItemPatch] = ()) -> None:
-        """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote."""
+        """O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote.
+
+        A âncora vem nos dados: o `commit` em que a mudança revisada está, a
+        `arvore` dela e os `arquivos` que ela muda (orquestrador/revisao_da_fatia.py).
+        """
         id_evidencia = m.id_da_revisao(id_task, tentativa)
         veredito = str(dados.get("veredito", ""))
         propriedades = {"acao": ACAO_DA_REVISAO_DE_RISCO, m.CAMPO_VEREDITO: veredito, "resumo": str(dados.get("resumo", "")),
                         "problemas": [dict(item) for item in dados.get("problemas", [])], "motivo": str(dados.get("motivo", "")),
-                        "observacao": str(dados.get("observacao", "")), m.CAMPO_TENTATIVAS: tentativa}
+                        "observacao": str(dados.get("observacao", "")), m.CAMPO_TENTATIVAS: tentativa,
+                        **{chave: dados[chave] for chave in CAMPOS_DA_ANCORA_DA_REVISAO if chave in dados}}
         self.gravar(
             [*self.produzido(id_evidencia, TipoNo.EVIDENCE, f"Revisao de risco de {id_task}: {veredito}", propriedades=propriedades),
              aresta(id_evidencia, id_task, TipoAresta.DERIVA_DE), *achados],

@@ -45,6 +45,7 @@ from graphow.core import aceite as a
 from graphow.orquestrador.aceite_intocado import preparar_o_aceite
 from graphow.orquestrador.aceite_no_commit import AceiteNoCommit, rodar_o_aceite
 from graphow.orquestrador.briefing import PedidoDaConferencia, briefing_da_conferencia, briefing_do_verificador
+from graphow.orquestrador.conferencia_da_evidencia import arquivos_mudados
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.diff_das_correcoes import diff_das_correcoes
 from graphow.orquestrador.documento_do_goal import caminho_do_documento, com_pendencias, gravar_se_mudou
@@ -114,8 +115,20 @@ def _registro(
         tirado_antes_do_aceite=tuple(dict.fromkeys(tirado)), configuracao_do_aceite=aceite.trocados,
         aceite_com_a_configuracao_do_aceite=[execucao.em_json() for execucao in aceite.com_a_do_aceite],
         diferencas_de_configuracao=aceite.diferencas_em_json(verificacao.diferencas), tipo=tipo.tipo,
+        arquivos=arquivos_da_entrega(contexto, head),
     )
     return replace(registro, pendencias=_pendencias_depois(estado, registro, marco, id_goal=contexto.id_goal))
+
+
+def arquivos_da_entrega(contexto: ContextoDoGoal, commit: str) -> tuple[str, ...]:
+    """Os arquivos que a entrega do Goal mudou da base ao commit verificado: o que a Evidence da verificação afirma.
+
+    O documento do Goal fica de fora: o commit das pendências o muda logo
+    depois de cada verificação, e ela nasceria desatualizada.
+    """
+    git, documento = contexto.git, caminho_do_documento(contexto.configuracao.slug)
+    inicio = git.rodar("merge-base", contexto.configuracao.base, commit).strip()
+    return tuple(caminho for caminho in arquivos_mudados(git, inicio, commit) if caminho != documento)
 
 
 def _com_o_aceite(verificacao: Verificacao, execucoes: Sequence[ExecucaoDeAceite]) -> Verificacao:

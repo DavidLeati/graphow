@@ -9,7 +9,8 @@ que já falhou uma vez. Nas outras, não há revisão.
 
 Com a suíte verde, antes do commit, uma sessão nova do revisor lê a mudança,
 que está na área fora de commit, e devolve `aprovado` ou `rejeitado` com os
-problemas. O veredito vira Evidence que deriva da fatia, e cada problema da
+problemas. O veredito vira Evidence que deriva da fatia, ancorada no HEAD,
+na árvore revisada e nos arquivos da mudança, e cada problema da
 rejeição, um nó Achado que deriva dela, com a gravidade que o código decide
 (o que toca critério ou decisão é bloqueante), e não uma Note. A rejeição é
 uma falha da tentativa, com os problemas no briefing da seguinte; a revisão
@@ -25,9 +26,11 @@ from typing import Any
 
 from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
+from graphow.kernel.ancora_da_evidencia import CAMPO_ARQUIVOS
 from graphow.kernel.patch_models import ItemPatch
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.briefing import briefing_do_revisor
+from graphow.orquestrador.conferencia_da_evidencia import CAMPO_ARVORE
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
 from graphow.orquestrador.esquemas import PAPEL_REVISOR
 from graphow.orquestrador.git_do_goal import GitDoGoal, descartar_mudancas
@@ -61,11 +64,11 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
-    foto = _fotografar(contexto.area)
+    foto, mudados = _fotografar(contexto.area), contexto.git.caminhos_mudados()
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_REVISOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=pedido.fatia.id, tentativa=pedido.tentativa,
-            briefing=briefing_do_revisor(estado, pedido.fatia, contexto.git.caminhos_mudados(), motivo=pedido.motivo),
+            briefing=briefing_do_revisor(estado, pedido.fatia, mudados, motivo=pedido.motivo),
             conferir=_conferir, orcamento_restante_usd=contexto.restante(),
         )
     )
@@ -73,7 +76,7 @@ def revisar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: Pedido
     if resposta.dados is None:
         return Parada(contexto.id_goal, MotivoDaParada.FALHA,
                       f"A revisao da fatia de risco {pedido.fatia.codigo} nao conferiu: " + "; ".join(resposta.problemas))
-    dados = {**resposta.dados, "motivo": pedido.motivo, "observacao": desfeito}
+    dados = {**resposta.dados, "motivo": pedido.motivo, "observacao": desfeito, **_ancora_da_revisao(contexto.area, mudados)}
     contexto.livro.registrar_revisao(pedido.fatia.id, pedido.tentativa, dados=dados,
                                      achados=operacoes_dos_achados(contexto.livro, estado, pedido, dados=dados))
     return "" if resposta.dados.get("veredito") == VEREDITO_APROVADO else RejeicaoDaRevisao(_problemas(resposta.dados))
@@ -137,6 +140,19 @@ def _fotografar(area: Path) -> str:
     foto = git.rodar("diff", "--cached", "--binary", "HEAD")
     git.rodar("reset", "-q")
     return foto
+
+
+def _ancora_da_revisao(area: Path, mudados: tuple[str, ...]) -> dict[str, Any]:
+    """O commit em que a mudança revisada está, a árvore dela (o HEAD mais a mudança) e os arquivos que ela muda.
+
+    A conferência na leitura parte da árvore: o commit da fatia aprovada tem os
+    mesmos arquivos, e a revisão não nasce desatualizada por ele.
+    """
+    git = GitDoGoal(area)
+    git.rodar("add", "-A")
+    arvore = git.rodar("write-tree").strip()
+    git.rodar("reset", "-q")
+    return {m.CAMPO_COMMIT: git.head(), CAMPO_ARVORE: arvore, CAMPO_ARQUIVOS: list(mudados)}
 
 
 def _restaurar(contexto: ContextoDoGoal, foto: str, pedido: PedidoDeRevisao) -> str:

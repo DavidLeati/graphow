@@ -2,7 +2,9 @@
 
 A Evidence de verificação deriva do Goal e guarda o número, o tipo (`caca`,
 `marco` ou `conferencia`), o marco, se é a final, o commit e o commit do
-código verificados, os comandos do verificador, a suíte e os testes de aceite
+código verificados, os `arquivos` que a entrega mudou da base a esse commit
+(a âncora que a leitura confere, orquestrador/conferencia_da_evidencia.py),
+os comandos do verificador, a suíte e os testes de aceite
 que o orquestrador rodou, um parecer por critério e decisão com o nó de cada
 um e, na conferência, o parecer de cada achado conferido. Cada achado vira um nó Achado que
 deriva da Evidence e fere (`fere`) os critérios e as decisões que toca, com a
@@ -20,6 +22,7 @@ from typing import Any
 
 from graphow.core import aceite as a
 from graphow.core.types import TipoAresta, TipoNo
+from graphow.kernel.ancora_da_evidencia import CAMPO_ARQUIVOS
 from graphow.kernel.patch_models import ItemPatch
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal, aresta, propriedade
@@ -48,6 +51,7 @@ class RegistroDaVerificacao:
     aceite_com_a_configuracao_do_aceite: Sequence[Mapping[str, Any]] = ()
     diferencas_de_configuracao: Sequence[Mapping[str, Any]] = ()
     tipo: str = ""
+    arquivos: Sequence[str] = ()
 
     @property
     def limpa(self) -> bool:
@@ -61,6 +65,7 @@ class RegistroDaVerificacao:
             "acao": m.ACAO_DA_VERIFICACAO, m.CAMPO_VEREDITO: m.VEREDITO_LIMPO if self.limpa else m.VEREDITO_COM_BLOQUEANTE,
             m.CAMPO_NUMERO: self.numero, m.CAMPO_TIPO_DA_VERIFICACAO: self.tipo, m.CAMPO_FINAL: self.final, a.CAMPO_MARCO: self.marco,
             m.CAMPO_COMMIT: self.commit, m.CAMPO_COMMIT_DO_CODIGO: self.commit_do_codigo, m.CAMPO_CICLO: self.ciclo,
+            CAMPO_ARQUIVOS: list(self.arquivos),
             "fonte": f"graphow orquestrar: sessao do verificador ({self.tipo or 'caca'})",
             "resumo": verificacao.resumo,
             "comandos": [comando.em_json() for comando in verificacao.comandos],
