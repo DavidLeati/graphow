@@ -8,7 +8,7 @@ from graphow.core.models import NoGrafo
 from graphow.core.types import PapelAutor, StatusQuestion, StatusTask, TipoAresta, TipoNo
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
 from graphow.kernel.write_kernel import ResultadoSubmissao, WriteKernel
-from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal, conferencia_em_json
+from graphow.orquestrador.conferencia_na_leitura import LeituraPorGoal, MemoriaDasPontas, conferencia_em_json
 from graphow.projection.ambito import Ambito, ambientes_do_hook, ambito_do_no, contar_por_ambito, ler_ambito
 from graphow.projection.graph_view import GrafoView
 from graphow.web.colapso_visual import OpcoesDeRecorteVisual, RecortadorVisual, SelecaoVisual
@@ -102,6 +102,8 @@ class CanvasWebController:
         self._kernel: WriteKernel = kernel
         self._identidade: IdentidadeSessaoWeb = identidade or IdentidadeSessaoWeb()
         self._mapeador: MapeadorEscopo = mapeador or MapeadorEscopo()
+        # A conferência da Evidence entre pedidos: a tela recarrega a cada evento, e a ponta quase nunca andou.
+        self._memoria_da_conferencia: MemoriaDasPontas = MemoriaDasPontas()
 
     def _metadados(self, ramo_id: str, justificativa: str) -> "MetadadosSubmissao":
         """Metadados de autoria vindos sempre da identidade fixada no servidor."""
@@ -163,7 +165,7 @@ class CanvasWebController:
             mapa_setores=self._mapeador.mapear_setores(view) if escopo.setor_id else {},
             ambito=escopo.ambito,
             ambientes_do_hook=ambientes_do_hook(view),
-            conferencia=LeituraPorGoal(view),
+            conferencia=LeituraPorGoal(view, self._memoria_da_conferencia),
         )
 
     def _extrair_nos_visuais(self, view: GrafoView, ctx: ContextoFiltroVisual) -> list[DadosNoVisual]:

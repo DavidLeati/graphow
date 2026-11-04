@@ -24,12 +24,19 @@ aprovada está (é a do commit da fatia); a que não está lá sai `nao_conferid
 com o motivo, e não `sem_ancora`: o objeto não sumiu, só não está à mão.
 
 Cada leitura tem o seu cache (`GitDaLeitura`): cada consulta ao git, o
-`diff --name-only` por par de commits inclusive, roda uma vez por leitura.
+`diff --name-only` por par de commits inclusive, roda uma vez por leitura. O
+canvas guarda as consultas também entre pedidos (`MemoriaDasPontas`): a tela
+recarrega a cada evento do grafo, e cada pedido conferia de novo todas as
+Evidence do orquestrador (na revisão da T3d2, 4 Evidence custavam 13 processos
+git). A leitura resolve a ponta da branch num hash, com um `rev-parse` por
+pedido, e as consultas guardadas valem enquanto a ponta for a mesma: a chave é
+o commit da Evidence (está nos argumentos) e a ponta.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+import threading
 from typing import Any
 
 from graphow.core.models import NoGrafo
@@ -71,8 +78,8 @@ class GitDaLeitura(GitDoGoal):
 class LeituraDaConferencia:
     """Uma leitura: o git em que a Evidence ancorada confere (ou nenhum) e a ponta."""
 
-    def __init__(self, git: GitDoGoal | None, ponta: str = "HEAD") -> None:
-        self._git: GitDaLeitura | None = None if git is None else GitDaLeitura(git.pasta)
+    def __init__(self, git: GitDoGoal | None, ponta: str = "HEAD", *, memoria: dict[tuple[str, ...], SaidaDoGit] | None = None) -> None:
+        self._git: GitDaLeitura | None = None if git is None else GitDaLeitura(git.pasta, {} if memoria is None else memoria)
         self._ponta: str = ponta
 
     @property
@@ -89,14 +96,35 @@ class LeituraDaConferencia:
         return conferir_evidencia(propriedades, self._git, self._ponta)
 
 
-def leitura_do_repositorio(repositorio: object, ramo: object) -> LeituraDaConferencia:
-    """A leitura no repositório, na ponta da branch; sem git quando a pasta não é repositório ou a branch não existe."""
-    pasta, ponta = Path(str(repositorio or "")), str(ramo or "")
-    if not str(repositorio or "") or not ponta or not pasta.is_dir():
+class MemoriaDasPontas:
+    """O que o canvas guarda entre pedidos: por repositório e branch, a ponta conferida e as consultas ao git feitas nela."""
+
+    def __init__(self) -> None:
+        self._por_ramo: dict[tuple[str, str], tuple[str, dict[tuple[str, ...], SaidaDoGit]]] = {}
+        self._trava: threading.Lock = threading.Lock()
+
+    def da_ponta(self, pasta: str, ramo: str, ponta: str) -> dict[tuple[str, ...], SaidaDoGit]:
+        """As consultas guardadas na ponta dada; vazias, e as da ponta anterior esquecidas, quando ela andou."""
+        with self._trava:
+            guardada = self._por_ramo.get((pasta, ramo))
+            if guardada is None or guardada[0] != ponta:
+                guardada = (ponta, {})
+                self._por_ramo[(pasta, ramo)] = guardada
+            return guardada[1]
+
+
+def leitura_do_repositorio(repositorio: object, ramo: object, *, memoria: MemoriaDasPontas | None = None) -> LeituraDaConferencia:
+    """A leitura no repositório, na ponta da branch (o hash); sem git quando a pasta não é repositório ou a branch não existe."""
+    pasta, nome = Path(str(repositorio or "")), str(ramo or "")
+    if not str(repositorio or "") or not nome or not pasta.is_dir():
         return LeituraDaConferencia(None)
     git = GitDoGoal(pasta)
-    existe = git.tentar("rev-parse", "--verify", "--quiet", f"refs/heads/{ponta}^{{commit}}").codigo == 0
-    return LeituraDaConferencia(git if existe else None, ponta)
+    feito = git.tentar("rev-parse", "--verify", "--quiet", f"refs/heads/{nome}^{{commit}}")
+    if feito.codigo != 0 or not feito.saida.strip():
+        return LeituraDaConferencia(None)
+    ponta = feito.saida.strip()
+    guardadas = None if memoria is None else memoria.da_ponta(str(pasta), nome, ponta)
+    return LeituraDaConferencia(git, ponta, memoria=guardadas)
 
 
 def rotulo_da_conferencia(conferencia: ConferenciaDaEvidencia) -> str:
@@ -132,10 +160,14 @@ def aviso_de_historico(conferencia: ConferenciaDaEvidencia) -> str:
 
 
 class LeituraPorGoal:
-    """A leitura da vista e do canvas: a Evidence do orquestrador confere na branch do Goal dela; as outras, sem git."""
+    """A leitura da vista e do canvas: a Evidence do orquestrador confere na branch do Goal dela; as outras, sem git.
 
-    def __init__(self, view: GrafoView) -> None:
+    Com a memória (a do canvas), as consultas ao git ficam guardadas entre leituras enquanto a ponta não anda.
+    """
+
+    def __init__(self, view: GrafoView, memoria: MemoriaDasPontas | None = None) -> None:
         self._view: GrafoView = view
+        self._memoria: MemoriaDasPontas | None = memoria
         self._sem_git: LeituraDaConferencia = LeituraDaConferencia(None)
         self._por_pasta: dict[tuple[str, str], LeituraDaConferencia] = {}
 
@@ -168,7 +200,7 @@ class LeituraPorGoal:
         """A leitura na pasta do campo (o repositório do humano ou o clone), na branch do Goal, guardada por pasta."""
         chave = (str(configuracao.get(campo) or ""), str(configuracao.get("ramo") or ""))
         if chave not in self._por_pasta:
-            self._por_pasta[chave] = leitura_do_repositorio(*chave)
+            self._por_pasta[chave] = leitura_do_repositorio(*chave, memoria=self._memoria)
         return self._por_pasta[chave]
 
     def _configuracao(self, no: NoGrafo) -> Mapping[str, Any] | None:

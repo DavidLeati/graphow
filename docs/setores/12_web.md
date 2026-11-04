@@ -10,7 +10,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 
 ## Inventário
 
-31 módulos · 3758 linhas · 60 classes
+31 módulos · 3760 linhas · 60 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -27,7 +27,7 @@ Servidor HTTP, controladores REST por área e o canal de tempo real que leva cad
 | [`web/observador_sse.py`](#webobservadorsse) | 24 | Adaptador que publica no canal SSE os eventos aceitos pelo kernel. |
 | [`web/ontologia_publica.py`](#webontologiapublica) | 44 | Vocabulário da ontologia publicado para a interface, lido das tabelas do kernel. |
 | [`web/rest_busca_controller.py`](#webrestbuscacontroller) | 119 | Controlador REST da busca textual da interface, na mesma ordem que o agente vê. |
-| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 395 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
+| [`web/rest_canvas_controller.py`](#webrestcanvascontroller) | 397 | Controlador REST especializado para operações de leitura e mutação visual do Canvas. |
 | [`web/rest_escopo_controller.py`](#webrestescopocontroller) | 128 | Controlador REST do escopo de um Goal: o placar e os dois gestos do humano, aprovar o plano e responder o desvio. |
 | [`web/rest_fork_controller.py`](#webrestforkcontroller) | 80 | Controlador REST especializado na gestão de ramos, criação de Forks e Diff estrutural. |
 | [`web/rest_governanca_controller.py`](#webrestgovernancacontroller) | 217 | Controlador REST da governança: o que a tela de configurações lê e o que o humano grava nela. |

@@ -8,7 +8,7 @@ Este índice é o mapa: pilares, roteamento por intenção, regras de engenharia
 e o inventário das alas. O catálogo detalhado de cada ala vive em
 [`docs/setores/`](setores/), um dossiê por pacote.
 
-**18 alas · 328 módulos · 48927 linhas · 561 classes**
+**18 alas · 328 módulos · 48961 linhas · 562 classes**
 
 ---
 
@@ -72,13 +72,13 @@ Verificadas por AST em `tests/qualidade/`. Uma violação quebra a suíte.
 | 09 | [Observabilidade e Taxonomia MAST](setores/09_observability.md) | `graphow.observability` | 4 | 262 | 8 |
 | 10 | [Superfície MCP](setores/10_mcp.md) | `graphow.mcp` | 18 | 2781 | 28 |
 | 11 | [Linha de Comando e Transporte](setores/11_api.md) | `graphow.api` | 10 | 1821 | 12 |
-| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3758 | 60 |
+| 12 | [Canvas e API REST](setores/12_web.md) | `graphow.web` | 31 | 3760 | 60 |
 | 13 | [Harness de Avaliação](setores/13_avaliacao.md) | `graphow.avaliacao` | 28 | 4583 | 56 |
 | 14 | [Geração deste Catálogo](setores/14_documentacao.md) | `graphow.documentacao` | 13 | 1749 | 38 |
 | 15 | [Acervo de Notas como Projeção](setores/15_notas.md) | `graphow.notas` | 5 | 403 | 9 |
 | 16 | [Sessões claude -p](setores/16_sessoes.md) | `graphow.sessoes` | 6 | 733 | 11 |
 | 17 | [Bancada de Medição](setores/17_bancada.md) | `graphow.bancada` | 14 | 1933 | 28 |
-| 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 64 | 12226 | 90 |
+| 18 | [Orquestrador em Código](setores/18_orquestrador.md) | `graphow.orquestrador` | 64 | 12258 | 91 |
 
 ### Missão de cada ala
 

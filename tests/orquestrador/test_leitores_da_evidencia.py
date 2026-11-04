@@ -9,12 +9,14 @@ main, em que `a.py` mudou depois do commit das verificações.
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from graphow.core.types import PapelAutor, TipoAresta, TipoNo
 from graphow.context.materializer import MaterializadorContexto, RequisicaoVista
 from graphow.kernel.composicao import abrir_kernel_sqlite
 from graphow.kernel.conversao_eventos import ConversorPatchParaEventos
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch
-from graphow.orquestrador import modelo_do_goal as m
+from graphow.orquestrador import git_do_goal, modelo_do_goal as m
 from graphow.orquestrador.conferencia_na_leitura import LeituraDaConferencia, LeituraPorGoal
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.status import formatar_status
@@ -156,3 +158,41 @@ def test_um_diff_por_par_de_commits_em_cada_leitura_edge_case(tmp_path: Path) ->
     assert git_da_leitura is not None
     assert sum(1 for chave in git_da_leitura.memoria if chave[0] == "diff") == 1
     assert LeituraDaConferencia(None).conferir(PapelAutor.ORQUESTRADOR.value, {"commit": "f" * 40}).estado == "nao_conferida"  # type: ignore[union-attr]
+
+
+def _contar_o_git(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
+    """Cada comando git que roda daqui em diante, na ordem."""
+    chamadas: list[tuple[str, ...]] = []
+    original = git_do_goal.GitDoGoal._executar  # noqa: SLF001 - o processo e o que o caso conta
+
+    def contar(self: git_do_goal.GitDoGoal, argumentos: tuple[str, ...]) -> tuple[int, bytes, bytes]:
+        chamadas.append(argumentos)
+        return original(self, argumentos)
+
+    monkeypatch.setattr(git_do_goal.GitDoGoal, "_executar", contar)
+    return chamadas
+
+
+def test_canvas_guarda_a_conferencia_entre_pedidos_ate_a_ponta_andar_nominal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T3d3.3: o segundo pedido, sem a ponta andar, só pergunta a ponta; o commit novo na branch confere de novo."""
+    repositorio = _repositorio(tmp_path)
+    store, kernel = abrir_kernel_sqlite(_banco(tmp_path, repositorio))
+    chamadas = _contar_o_git(monkeypatch)
+    try:
+        canvas = CanvasWebController(kernel)
+        primeiro = {no.id: no.conferencia for no in canvas.obter_canvas().nos}
+        do_primeiro = list(chamadas)
+        segundo = {no.id: no.conferencia for no in canvas.obter_canvas().nos}
+        do_segundo = chamadas[len(do_primeiro):]
+        (repositorio / "b.py").write_text("B = 2\n", encoding="utf-8", newline="\n")
+        git(repositorio, "commit", "-q", "-am", "muda b.py")
+        del chamadas[:]
+        terceiro = {no.id: no.conferencia for no in canvas.obter_canvas().nos}
+    finally:
+        store.fechar()
+
+    assert segundo == primeiro
+    assert {chamada[0] for chamada in do_primeiro} == {"rev-parse", "cat-file", "diff", "merge-base"}
+    assert do_segundo == [("rev-parse", "--verify", "--quiet", "refs/heads/main^{commit}")], "so a ponta, que nao andou"
+    assert (terceiro[f"ver-{GOAL}-2"] or {}).get("arquivos") == ["b.py"], "a ponta andou: a vigente de b.py desatualizou"
+    assert "diff" in {chamada[0] for chamada in chamadas}
