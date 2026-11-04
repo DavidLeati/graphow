@@ -4,7 +4,7 @@ O agente trabalha no clone do Goal (orquestrador/git_do_goal.py), que não
 divide ref, configuração nem hook com o repositório do humano: o que ele fizer
 no git fica no clone, e o repositório do humano só muda pelo orquestrador.
 Dentro do clone, o agente não escreve no git; quem commita é o orquestrador.
-São quatro camadas, em profundidade:
+São cinco camadas, em profundidade:
 
 0. O hook PreToolUse (orquestrador/hook_do_git.py), que a sessão recebe por
    `--settings`, lê cada comando Bash inteiro e recusa o git de escrita
@@ -34,8 +34,14 @@ São quatro camadas, em profundidade:
    hooks somem. Não há quem adivinhar: no clone, só o agente mexe durante a
    sessão. O que foi desfeito vira observação, e a sessão não é reprovada.
 
-Nada fora do clone é conferido nem desfeito: o que o humano fizer no
-repositório dele durante a sessão fica como ele deixou.
+4. O repositório do humano é fotografado antes de cada sessão e conferido
+   depois dela (orquestrador/foto_do_humano.py), sem ler comando nenhum: a
+   sessão em que ele mudou para o laço em FALHA, com a salvaguarda das
+   mudanças rastreadas. É a camada que pega o script que não cita git e o
+   `-C <repositório do humano>`, que escapam das outras.
+
+Nada fora do clone é desfeito: o que o humano fizer no repositório dele
+durante a sessão fica como ele deixou (e para o laço, pela camada 4).
 
 O hook não se desliga. O clone é a pasta do projeto da sessão
 (`--setting-sources project`), e um `.claude/settings.json` com

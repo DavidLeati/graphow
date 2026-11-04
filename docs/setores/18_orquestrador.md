@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-66 módulos · 12669 linhas · 97 classes
+67 módulos · 12894 linhas · 100 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -35,6 +35,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 173 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 206 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 132 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
@@ -42,13 +43,13 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 324 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 325 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 184 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 352 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
-| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 362 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 227 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/rastro.py`](#orquestradorrastro) | 234 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
@@ -72,7 +73,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
 | [`orquestrador/suite_sem_rastro.py`](#orquestradorsuitesemrastro) | 55 | A suíte que o orquestrador roda não deixa rastro na área: o que ela escreve nunca entra num commit do laço. |
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 257 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
-| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 301 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
+| [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 307 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 252 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
@@ -624,6 +625,46 @@ A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou ver
 - `aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str` — Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio.
 - `commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str` — O commit da fatia; o da fatia de conflito vai sobre a base nova, registrado como rebase antes de as refs andarem.
 
+## `orquestrador/foto_do_humano.py`
+
+A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MOTIVO_DA_PARADA` | `str` | `'repositorio_do_humano_mexido'` |
+| `SEM_TRAVA_OPCIONAL` | `str` | `'--no-optional-locks'` |
+| `MENSAGEM_DA_SALVAGUARDA` | `str` | `'graphow: salvaguarda do repositorio do humano antes da sessao'` |
+| `CAMPOS_ANTES_DO_CAMINHO` | `Mapping[str, int]` | `{'1': 8, '2': 9, 'u': 10, '?': 1}` |
+| `LIMITE_DE_MUDANCAS_NA_PARADA` | `int` | `20` |
+
+### `FotoDoHumano`
+
+*DTO imutável* — O repositório do humano num instante: cada item (o HEAD, cada ref, entrada do índice e arquivo do status) e o valor.
+
+**Campos:** `repositorio: Path`, `itens: Mapping[str, str]`, `salvaguarda: str`
+
+### `HumanoMexido`
+
+*DTO imutável* — O que mudou no repositório do humano durante a sessão e a salvaguarda de antes dela.
+
+**Campos:** `repositorio: Path`, `mudancas: tuple[str, ...]`, `salvaguarda: str`
+
+- `recuperar() -> str` `[property]` — O comando que devolve as mudanças rastreadas de antes da sessão; vazio sem salvaguarda.
+- `resumo() -> tuple[str, ...]` `[property]` — As primeiras mudanças e quantas sobram.
+
+### `RepositorioDoHumanoMexido` (GraphowError)
+
+*serviço* — A sessão de papel mexeu no repositório do humano, ou ele mexeu durante ela: o laço para em FALHA.
+
+### Funções do módulo
+
+- `foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None` — A foto e a salvaguarda de antes da sessão; None sem repositório do humano a guardar.
+- `conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str) -> None` — Depois da sessão, a foto refeita; a que mudou vai ao livro-razão e para o laço (`RepositorioDoHumanoMexido`).
+- `mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str` — O motivo, o que mudou, a salvaguarda e o comando que a recupera.
+- `fotografar_o_humano(repositorio: Path) -> FotoDoHumano` — O HEAD, as refs, as entradas do índice e o status, com o hash do conteúdo de cada arquivo listado; sem escrever.
+- `diferencas(antes: FotoDoHumano, depois: FotoDoHumano) -> tuple[str, ...]` — O que mudou de uma foto para a outra, item a item.
+- `salvaguardar(repositorio: Path) -> str` — O commit de `git stash create` com as mudanças rastreadas, sobre uma cópia do índice; vazio sem mudança ou sem commit.
+
 ## `orquestrador/git_do_goal.py`
 
 O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia.
@@ -1072,6 +1113,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, com os `arquivos` lidos dele, e a fatia fecha.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
 - `registrar_trava_mexida(papel: str, fatia: str, motivo: str) -> None` — A sessão de papel que mexeu na trava do git vira Note da Sessao do Goal (e da fatia, quando há), com o papel e o motivo.
+- `registrar_humano_mexido(papel: str, fatia: str, mexido: HumanoMexido) -> None` — A sessão em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia), com a salvaguarda.
 - `registrar_revisao(id_task: str, tentativa: int) -> None` — O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
@@ -1152,6 +1194,7 @@ Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a config
 | `ACAO_DA_VERIFICACAO` | `str` | `a.ACAO_DA_VERIFICACAO` |
 | `ACAO_DA_TENTATIVA` | `str` | `'tentativa_que_falhou'` |
 | `ACAO_DA_TRAVA_MEXIDA` | `str` | `'trava_mexida'` |
+| `ACAO_DO_HUMANO_MEXIDO` | `str` | `'repositorio_do_humano_mexido'` |
 | `VEREDITO_LIMPO` | `str` | `a.VEREDITO_LIMPO` |
 | `VEREDITO_COM_BLOQUEANTE` | `str` | `a.VEREDITO_COM_BLOQUEANTE` |
 | `STATUS_PENDENTE` | `str` | `'pendente'` |
@@ -1756,7 +1799,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 *DTO imutável* — O que vale para toda sessão de agente do Goal.
 
-**Campos:** `pasta_das_sessoes: Path`, `ambiente_da_trava: Mapping[str, str]`, `hook_da_trava: Path`, `modelos: Mapping[str, str]`, `modo_de_permissao: str`, `tempo_limite_s: float`, `banco_dos_hooks: Path | None`, `esperar: Callable[[float], None]`, `recuos_s: tuple[float, ...]`, `registrar_trava_mexida: RegistroDaTravaMexida | None`
+**Campos:** `pasta_das_sessoes: Path`, `ambiente_da_trava: Mapping[str, str]`, `hook_da_trava: Path`, `modelos: Mapping[str, str]`, `modo_de_permissao: str`, `tempo_limite_s: float`, `banco_dos_hooks: Path | None`, `esperar: Callable[[float], None]`, `recuos_s: tuple[float, ...]`, `registrar_trava_mexida: RegistroDaTravaMexida | None`, `repositorio_do_humano: Path | None`, `registrar_humano_mexido: RegistroDoHumanoMexido | None`
 
 ### `PedidoDePapel`
 
@@ -1777,7 +1820,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 *serviço* — Roda as sessões dos papéis e registra cada invocação na telemetria.
 
 - `modelo_do_papel(papel: str) -> str` — O modelo configurado para o papel; Opus quando a configuração não diz.
-- `rodar(pedido: PedidoDePapel) -> RespostaDePapel` — A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa.
+- `rodar(pedido: PedidoDePapel) -> RespostaDePapel` — A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido.
 
 ### `_TravaMexida` (RuntimeError)
 

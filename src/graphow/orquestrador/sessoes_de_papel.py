@@ -1,28 +1,24 @@
 """A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria.
 
-Cada papel roda numa sessão `claude -p` nova, pela peça da fase 0
-(graphow.sessoes): o prompt de papel do pacote por `--append-system-prompt-file`,
-o schema por `--json-schema`, sem servidor MCP (`--strict-mcp-config`), sem os
-hooks, as skills e os subagentes do usuário (`--setting-sources project`), só
-com as ferramentas do papel (`--tools`), com o git de escrita negado (o hook
-PreToolUse da trava por `--settings`, `--disallowedTools` e a trava no
-ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
+Cada papel roda numa sessão `claude -p` nova, pela peça da fase 0 (graphow.sessoes): o prompt de papel do pacote
+por `--append-system-prompt-file`, o schema por `--json-schema`, sem servidor MCP (`--strict-mcp-config`), sem os
+hooks, as skills e os subagentes do usuário (`--setting-sources project`), só com as ferramentas do papel
+(`--tools`), com o git de escrita negado (o hook PreToolUse da trava por `--settings`, `--disallowedTools` e a trava
+no ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o que era: o que o agente mexeu no git
-do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). Nada fora do clone é tocado.
+do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). O repositório do humano também
+é fotografado, e a sessão em que ele mudou para o laço em FALHA (orquestrador/foto_do_humano.py).
 Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook é regravado e o `.claude/` do clone
 volta à referência do pedido (o HEAD; na fatia de conflito, a base nova mesclada); a invocação que mexeu num deles
 mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o motivo (`RespostaDePapel.trava_mexida`), que
 vai também ao livro-razão.
 
-A saída é conferida contra o schema e contra o sentido e, no papel que declara
-os comandos que rodou (o verificador), contra as chamadas Bash do stream da
-sessão (orquestrador/comandos_do_stream.py). A que não confere volta à mesma
-sessão (`--resume`) com a lista de problemas, uma vez (o autor de aceite, duas); falhando de novo, o
-papel falhou. Cada invocação vira uma linha de telemetria, fora do
-grafo, que nasce `em_andamento` antes de a sessão abrir e fecha com o
-resultado; o stream de cada invocação tem nome próprio, e a refeita não
-apaga o da anterior. A linha que ficou em andamento porque o orquestrador
-caiu é recuperada do stream na chamada seguinte.
+A saída é conferida contra o schema e contra o sentido e, no papel que declara os comandos que rodou (o verificador),
+contra as chamadas Bash do stream da sessão (orquestrador/comandos_do_stream.py). A que não confere volta à mesma
+sessão (`--resume`) com a lista de problemas, uma vez (o autor de aceite, duas); falhando de novo, o papel falhou.
+Cada invocação vira uma linha de telemetria, fora do grafo, que nasce `em_andamento` antes de a sessão abrir e fecha
+com o resultado; o stream de cada invocação tem nome próprio, e a refeita não apaga o da anterior. A linha que ficou
+em andamento porque o orquestrador caiu é recuperada do stream na chamada seguinte.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -49,6 +45,7 @@ from graphow.orquestrador.esquemas import (
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
+from graphow.orquestrador.foto_do_humano import RegistroDoHumanoMexido, conferir_o_humano, foto_antes_da_sessao
 from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone, selar_a_sessao, trava_mexida
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
@@ -109,6 +106,8 @@ class ConfiguracaoDasSessoes:
     esperar: Callable[[float], None] = time.sleep
     recuos_s: tuple[float, ...] = RECUOS_DO_ERRO_DA_API_S
     registrar_trava_mexida: RegistroDaTravaMexida | None = None
+    repositorio_do_humano: Path | None = None
+    registrar_humano_mexido: RegistroDoHumanoMexido | None = None
 
 
 @dataclass(frozen=True)
@@ -169,12 +168,13 @@ class SessoesDePapel:
         return self._configuracao.modelos.get(papel) or modelo_padrao(papel)
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
-        """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa."""
-        foto = fotografar_clone(pedido.pasta)
+        """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido."""
+        foto, humano = fotografar_clone(pedido.pasta), foto_antes_da_sessao(self._configuracao.repositorio_do_humano)
         try:
             resposta = self._rodar_e_conferir(pedido)
         finally:
             desfeito = restaurar_o_clone(foto)
+            conferir_o_humano(humano, pedido.papel, pedido.fatia, registrar=self._configuracao.registrar_humano_mexido)
         return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:

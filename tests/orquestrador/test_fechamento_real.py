@@ -1,6 +1,7 @@
 """O fechamento confere a ponta real da branch no git, e o Goal cancelado pelo humano não é mais conduzido."""
 
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -10,6 +11,7 @@ from graphow.kernel import invariant_gate
 from graphow.kernel.patch_models import DadosPropostaPatch, ItemPatch, OperacaoPatch, PropostaPatch, ResultadoValidacao
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
+from graphow.orquestrador.sessoes_de_papel import PedidoDePapel, RespostaDePapel, SessoesDePapel
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import montar_bancada, roteiro_completo, verificacao
@@ -29,8 +31,37 @@ def _commit_do_humano_na_branch(repositorio: Path) -> list[str]:
     return [sys.executable, "-c", script]
 
 
-def test_commit_do_humano_na_branch_depois_da_verificacao_impede_o_fechamento_edge_case(tmp_path: Path) -> None:
-    """Caso de borda: a verificação final saiu limpa, mas a branch andou no repositório; o Goal não fecha nem integra."""
+def test_commit_do_humano_na_branch_depois_da_verificacao_impede_o_fechamento_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Caso de borda: a verificação final saiu limpa, mas a branch andou no repositório quando a sessão dela já tinha
+    voltado (fora da foto do humano); o Goal não fecha nem integra."""
+    roteiro = roteiro_completo()
+    roteiro["executor"] = roteiro["executor"][:2]
+    roteiro["verificador"] = [verificacao("atende")]
+    bancada = montar_bancada(tmp_path, roteiro)
+    original = SessoesDePapel.rodar
+
+    def rodar_e_commitar(sessoes: SessoesDePapel, pedido: PedidoDePapel) -> RespostaDePapel:
+        resposta = original(sessoes, pedido)
+        if pedido.papel == "verificador":
+            subprocess.run(_commit_do_humano_na_branch(bancada.repositorio), check=True)
+        return resposta
+
+    monkeypatch.setattr(SessoesDePapel, "rodar", rodar_e_commitar)
+    base_antes = git(bancada.repositorio, "rev-parse", "main").strip()
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FALHA, parada.mensagem
+    assert "alguem a mudou fora do orquestrador" in parada.mensagem
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == base_antes
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and not estado.fechado
+
+
+def test_commit_na_branch_do_goal_durante_a_verificacao_para_pela_foto_do_humano_edge_case(tmp_path: Path) -> None:
+    """T3a5: o mesmo commit, rodado pela sessão do verificador, muda a foto do repositório do humano; o laço para ali."""
     roteiro = roteiro_completo()
     roteiro["executor"] = roteiro["executor"][:2]
     bancada = montar_bancada(tmp_path, roteiro)
@@ -40,8 +71,8 @@ def test_commit_do_humano_na_branch_depois_da_verificacao_impede_o_fechamento_ed
 
     parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
 
-    assert parada.motivo == MotivoDaParada.FALHA, parada.mensagem
-    assert "alguem a mudou fora do orquestrador" in parada.mensagem
+    assert parada.motivo == MotivoDaParada.FALHA and "repositorio_do_humano_mexido" in parada.mensagem, parada.mensagem
+    assert "ref refs/heads/graphow/soma:" in parada.mensagem and "sessao do verificador" in parada.mensagem
     assert git(bancada.repositorio, "rev-parse", "main").strip() == base_antes
     estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
     assert estado is not None and not estado.fechado

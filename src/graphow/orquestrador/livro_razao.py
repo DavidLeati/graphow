@@ -26,6 +26,7 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.conferencia_da_evidencia import CAMPO_ARVORE
 from graphow.orquestrador.correcoes import agrupar_o_ciclo, propriedades_da_correcao, titulo_da_correcao
+from graphow.orquestrador.foto_do_humano import HumanoMexido
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
@@ -238,6 +239,15 @@ class LivroRazaoDoGoal:
         id_nota = f"nota-trava-mexida-{papel}-{secrets.token_hex(4)}"
         propriedades = {"acao": m.ACAO_DA_TRAVA_MEXIDA, "papel": papel, "fatia": fatia, "motivo": motivo}
         rotulo = f"A sessao do {papel} mexeu na trava do git"
+        da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []
+        self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
+
+    def registrar_humano_mexido(self, papel: str, fatia: str, mexido: HumanoMexido) -> None:
+        """A sessão em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia), com a salvaguarda."""
+        id_nota = f"nota-humano-mexido-{papel}-{secrets.token_hex(4)}"
+        propriedades = {"acao": m.ACAO_DO_HUMANO_MEXIDO, "papel": papel, "fatia": fatia, "mudancas": list(mexido.resumo),
+                        "salvaguarda": mexido.salvaguarda, "recuperar": mexido.recuperar, "repositorio": str(mexido.repositorio)}
+        rotulo = f"O repositorio do humano mudou durante a sessao do {papel}"
         da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []
         self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
 

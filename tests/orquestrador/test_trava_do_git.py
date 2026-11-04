@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import Any
 
-from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, preparar_area
 from graphow.orquestrador.git_no_comando import decidir
 from graphow.orquestrador.leitura_do_goal import ler_estado
@@ -171,8 +171,9 @@ class ExecutorComHumano(ExecutorDeSessao):
         return super().rodar(pedido)
 
 
-def test_commit_e_tag_do_humano_durante_a_sessao_sobrevivem_ao_laco_nominal(tmp_path: Path) -> None:
-    """Durante a sessão do executor o humano commita noutra branch e cria uma tag; o Goal fecha e os dois ficam."""
+def test_commit_e_tag_do_humano_durante_a_sessao_param_o_laco_e_sobrevivem_edge_case(tmp_path: Path) -> None:
+    """T3a5: durante uma sessão o humano commita noutra branch e cria uma tag; a foto do repositório dele muda, e o laço
+    para em FALHA (o lado seguro: não há como saber quem mexeu). Nada dele é desfeito, e rodar de novo fecha o Goal."""
     bancada = montar_bancada(tmp_path, roteiro_farto())
     repositorio = bancada.repositorio
     git(repositorio, "branch", "feature")
@@ -189,6 +190,11 @@ def test_commit_e_tag_do_humano_durante_a_sessao_sobrevivem_ao_laco_nominal(tmp_
 
     executor = ExecutorComHumano(bancada.executor, humano, na=2)
     parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, repositorio, OpcoesDoLaco(modo="autonomo"))
+
+    assert parada.motivo == MotivoDaParada.FALHA and "repositorio_do_humano_mexido" in parada.mensagem, parada.mensagem
+    assert "ref refs/heads/feature:" in parada.mensagem and "ref refs/tags/v1-humano apareceu" in parada.mensagem
+    assert git(repositorio, "rev-parse", "feature").strip() == feito["sha"] and "v1-humano" in git(repositorio, "tag").split()
+    parada = bancada.orquestrador().rodar("goal-soma", OpcoesDoLaco(modo="autonomo"))
 
     assert parada.fechou, parada.mensagem
     assert git(repositorio, "rev-parse", "feature").strip() == feito["sha"]
