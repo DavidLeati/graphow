@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-65 módulos · 12303 linhas · 91 classes
+65 módulos · 12337 linhas · 91 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -74,7 +74,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 301 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 218 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 252 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 65 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
@@ -1942,6 +1942,11 @@ Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis 
 ## `orquestrador/verificacao_do_goal.py`
 
 O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ACAO_DO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
+| `CAMPO_CANCELAMENTO_TARDIO` | `str` | `'cancelamento_tardio'` |
 
 ### Funções do módulo
 

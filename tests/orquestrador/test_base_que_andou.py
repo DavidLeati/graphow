@@ -8,7 +8,7 @@ import pytest
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
-from graphow.orquestrador import base_que_andou, refs_do_humano
+from graphow.orquestrador import base_que_andou, refs_do_humano, verificacao_do_goal
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
@@ -282,3 +282,33 @@ def test_base_que_anda_no_meio_do_fast_forward_volta_ao_rebase_e_integra_edge_ca
     assert _na_historia(bancada.repositorio, andou[0]), "o commit do humano no meio do fast-forward fica na base"
     assert git(bancada.repositorio, "rev-parse", "main").strip() == git(bancada.repositorio, "rev-parse", RAMO).strip()
     assert len(_rebases(bancada)) == 1 and _verificacoes(bancada) == ["verificador"]
+
+
+def test_cancelamento_entre_a_releitura_e_o_fast_forward_fica_numa_nota_do_goal_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T3g3.4: o `--cancelar` cai depois da releitura e antes do fast-forward; a base integra, e a releitura de depois o anota."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    orquestrador = bancada.orquestrador()
+    original = verificacao_do_goal.integrar_por_fast_forward
+
+    def cancelar_e_integrar(repositorio: Path, ramo: str, base: str) -> str:
+        orquestrador.pedir("goal-soma", NovoPedido(PEDIDO_CANCELAR, "tarde demais", "david"))
+        return original(repositorio, ramo, base)
+
+    monkeypatch.setattr(verificacao_do_goal, "integrar_por_fast_forward", cancelar_e_integrar)
+
+    parada = orquestrador.iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    integrado = git(bancada.repositorio, "rev-parse", "main").strip()
+    assert integrado == git(bancada.repositorio, "rev-parse", RAMO).strip(), "a janela ja tinha passado: a base integrou"
+    assert parada.motivo == MotivoDaParada.CANCELADO, parada.mensagem
+    assert "cancelado tarde" in parada.mensagem and integrado[:12] in parada.mensagem and "tarde demais" in parada.mensagem
+    estado = ler_estado(bancada.kernel.obter_view(), "goal-soma")
+    assert estado is not None and estado.cancelado, "o orquestrador nao fecha o Goal por cima do cancelamento"
+    tardio = estado.propriedades["cancelamento_tardio"]
+    assert tardio["integrado"] == integrado and "chegou depois da releitura" in tardio["texto"]
+    nota = bancada.kernel.obter_view().obter_no(tardio["evidencia"])
+    assert nota is not None and nota.tipo == TipoNo.EVIDENCE and nota.obter_propriedade("acao") == "cancelamento_tardio"
+    assert nota.obter_propriedade("commit") == integrado and nota.obter_propriedade("motivo") == "tarde demais"
+    assert orquestrador.rodar("goal-soma", AUTONOMO).motivo == MotivoDaParada.CANCELADO
