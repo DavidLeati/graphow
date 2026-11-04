@@ -219,6 +219,25 @@ def test_verificacao_refeita_depois_do_rebase_roda_o_aceite_do_commit_novo_sem_a
     assert "conftest.py" in diff_da_configuracao(bancada.repositorio, antigo), "com o commit antigo, a base pareceria do Goal"
 
 
+def test_conferencia_depois_do_rebase_ve_so_o_diff_do_goal_sem_o_que_a_base_mudou_edge_case(tmp_path: Path) -> None:
+    """T3g4.4: a base muda soma.py (de C1) sem conflito e traz NOTAS_DO_HUMANO.txt; o diff do briefing da conferência
+    refeita parte da base nova, com o trabalho do Goal, e não traz o arquivo que só a base mudou."""
+    roteiro = _roteiro_limpo()
+    roteiro["verificador"].append(verificacao("atende"))
+    bancada = montar_bancada(tmp_path, roteiro)
+    executor = _humano_depois_do_verificador(bancada, {"soma.py": SOMA_COM_CABECALHO, "NOTAS_DO_HUMANO.txt": "do humano\n"})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert _verificacoes(bancada) == ["verificador", "conferencia"]
+    (rebase,) = _rebases(bancada)
+    briefing = bancada.chamadas("conferencia")[0]["stdin"]
+    assert f"git diff --stat {rebase.obter_propriedade('base_depois')[:12]}..HEAD" in briefing
+    assert "+    return a + b" in briefing, "o diff traz o trabalho do Goal"
+    assert "NOTAS_DO_HUMANO.txt" not in briefing and "+# soma de inteiros" not in briefing, "o que a base mudou fica de fora"
+
+
 def test_aprovacao_do_humano_vale_para_o_aceite_que_o_rebase_refez_edge_case(tmp_path: Path) -> None:
     """Caso de borda: no supervisionado, o rebase limpo troca o commit do aceite; a aprovação do de antes segue, e o laço não volta ao portão."""
     bancada = montar_bancada(tmp_path, _roteiro_limpo())

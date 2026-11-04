@@ -128,9 +128,10 @@ def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal
     if not verificacoes:
         return TipoDaVerificacao(TIPO_CACA if marco.final else TIPO_MARCO)
     ultima = verificacoes[-1]
+    antes = _inicio_do_diff(git, ultima.commit, estado)
     todos = tuple(achado for v in estado.verificacoes for achado in v.achados)
     excedentes = _excedentes(estado, marco, todos)
-    diff = _arquivos_do_diff(git, ultima.commit, fora=_fora_do_diff(estado))
+    diff = _arquivos_do_diff(git, antes, fora=_fora_do_diff(estado))
     regra = RegraDaConferencia(
         conferidos=_conferidos(estado, ultima.id), excedentes=excedentes,
         repeticoes={e.id: repeticoes_de(todos, e.id) for e in excedentes},
@@ -138,7 +139,20 @@ def escolher_o_tipo(estado: EstadoDoGoal, marco: MarcoRegistrado, git: GitDoGoal
         arquivos=_arquivos_do_plano(estado, git) if git is not None and diff is not None else {},
         em_desacordo=criterios_em_desacordo(estado),
     )
-    return TipoDaVerificacao(TIPO_CONFERENCIA, ultima.commit, regra)
+    return TipoDaVerificacao(TIPO_CONFERENCIA, antes, regra)
+
+
+def _inicio_do_diff(git: GitDoGoal | None, commit: str, estado: EstadoDoGoal) -> str:
+    """De onde parte o diff das correções: o commit da verificação anterior; fora da história do HEAD, a base nova.
+
+    O rebase tira da branch o commit verificado, e o diff dele até a ponta
+    trazia o que a base mudou (revisão da T3g3): depois do rebase, a
+    conferência vê só o do Goal, da base em que ele está à ponta.
+    """
+    if git is None or not commit or estado.configuracao is None or git.e_ancestral(commit, "HEAD"):
+        return commit
+    base = git.tentar("merge-base", "HEAD", estado.configuracao.base)
+    return base.saida.strip() if base.codigo == 0 and base.saida.strip() else commit
 
 
 def pareceres_gravados(itens: object) -> tuple[Parecer, ...]:
