@@ -33,9 +33,10 @@ from graphow.core import aceite as a
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.base_que_andou import base_andou, rebasear_o_goal
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
-from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, integrar_por_fast_forward, remover_area
+from graphow.orquestrador.git_do_goal import FalhaDoGitDoGoal, GitDoGoal, remover_area
 from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
+from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
 from graphow.orquestrador.registro_do_rebase import equivalentes_da_ponta
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
 

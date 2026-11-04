@@ -8,7 +8,7 @@ import pytest
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
-from graphow.orquestrador import base_que_andou
+from graphow.orquestrador import base_que_andou, refs_do_humano
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
@@ -26,6 +26,7 @@ from tests.orquestrador.apoio_laco import (
     roteiro_completo,
     verificacao,
 )
+from tests.orquestrador.test_refs_do_humano import _humano_commita_na_main
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 RAMO: str = "graphow/soma"
@@ -257,3 +258,27 @@ def test_conflito_com_a_base_no_autonomo_abre_a_fatia_de_conflito_e_o_goal_fecha
     assert rebase.obter_propriedade("fatia_de_conflito") == conflito.id and rebase.obter_propriedade("verificacao_vale") is False
     plano = [fatia for fatia in estado.fatias if fatia.codigo in ("F1", "F2")]
     assert {fatia.texto("commit") for fatia in plano} == {conflito.texto("commit")}
+
+
+def test_base_que_anda_no_meio_do_fast_forward_volta_ao_rebase_e_integra_edge_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T3g3.1: com a main fora do checkout, o humano commita nela entre a conferência e o fast-forward; o laço refaz o rebase."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    executor = ExecutorQueAndaABase(bancada.executor, "verificador", lambda: git(bancada.repositorio, "checkout", "-q", "--detach"))
+    original = refs_do_humano.worktree_do_ramo
+    andou: list[str] = []
+
+    def andar_uma_vez(repositorio: Path, ramo: str) -> str:
+        if ramo == "main" and not andou:
+            andou.append(_humano_commita_na_main(bancada.repositorio, "NOTAS.txt"))
+        return original(repositorio, ramo)
+
+    monkeypatch.setattr(refs_do_humano, "worktree_do_ramo", andar_uma_vez)
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert _na_historia(bancada.repositorio, andou[0]), "o commit do humano no meio do fast-forward fica na base"
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == git(bancada.repositorio, "rev-parse", RAMO).strip()
+    assert len(_rebases(bancada)) == 1 and _verificacoes(bancada) == ["verificador"]

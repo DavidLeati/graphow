@@ -1,4 +1,4 @@
-"""O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração.
+"""O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia.
 
 O trabalho do Goal acontece num clone local só dele, na branch do Goal: um
 `git clone --local` do repositório do humano, sem remoto, só com a branch do
@@ -14,8 +14,8 @@ não escreve no git. A branch do Goal no repositório do humano é só do
 orquestrador: ele a cria e a avança puxando do clone (`git fetch <clone>`,
 rodado no repositório do humano), sem forçar, depois de cada commit dele e no
 começo de cada chamada. A integração na base continua por fast-forward no
-repositório do humano. A trava que impede o agente de escrever no git e a
-restauração do clone depois de cada sessão moram em orquestrador/trava_do_git.py;
+repositório do humano (orquestrador/refs_do_humano.py). A trava que impede o
+agente de escrever no git e a restauração do clone depois de cada sessão moram em orquestrador/trava_do_git.py;
 aqui fica o git do próprio orquestrador, que roda sem a trava.
 """
 
@@ -354,25 +354,6 @@ def restaurar_head(area: Path, ramo: str, esperado: str) -> str:
         git.rodar("reset", "-q", "--soft", esperado)
         feito.append(f"o agente commitou ({atual[:12]}); o commit foi desfeito com reset --soft")
     return "; ".join(feito)
-
-
-def integrar_por_fast_forward(repositorio: Path, ramo: str, base: str) -> str:
-    """Avança a base até a branch do Goal, só por fast-forward; devolve o commit integrado.
-
-    Com a base no checkout do humano, é o `merge --ff-only` ali (o git recusa
-    se isso apagar mudança dele). Fora dele, `branch -f`, que o git recusa se
-    a base estiver aberta em outro worktree.
-    """
-    git = GitDoGoal(repositorio)
-    if not git.e_ancestral(base, ramo):
-        raise FalhaDoGitDoGoal(
-            "a base andou desde que a branch do Goal saiu dela: nao ha fast-forward", {"base": base, "ramo": ramo}
-        )
-    if git.ramo_atual() == base:
-        git.rodar("merge", "-q", "--ff-only", ramo)
-    else:
-        git.rodar("branch", "-f", base, ramo)
-    return git.rodar("rev-parse", base).strip()
 
 
 def remover_area(area: Path) -> bool:

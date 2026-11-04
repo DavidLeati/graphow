@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from graphow.orquestrador.git_do_goal import IDENTIDADE_DE_RESERVA, AreaDoGoal, FalhaDoGitDoGoal, GitDoGoal, commits_entre
+from graphow.orquestrador.refs_do_humano import recusar_se_aberta
 from graphow.orquestrador.suite_sem_rastro import guardar_a_arvore
 
 OPCOES_DO_REBASE: tuple[str, ...] = (
@@ -139,8 +140,9 @@ def mover_as_refs(area: AreaDoGoal, antes: str, depois: str) -> None:
 
     O clone fica na branch, com a árvore do commit novo (o `reset --hard` só
     quando a ref ou o HEAD andaram aqui: a chamada que só confere não apaga
-    nada da área). No repositório do humano, a branch aberta no checkout dele
-    não é movida por baixo dele: a chamada para dizendo isso.
+    nada da área). No repositório do humano, a branch aberta no checkout dele,
+    ou em qualquer worktree ligado do repositório, não é movida por baixo
+    dele: a chamada para dizendo isso.
     """
     ref = f"refs/heads/{area.ramo}"
     clone = GitDoGoal(area.pasta)
@@ -155,9 +157,7 @@ def mover_as_refs(area: AreaDoGoal, antes: str, depois: str) -> None:
     humano = GitDoGoal(area.repositorio)
     if _ref(humano, ref) != antes or _ref(clone, ref) != depois:
         return
-    if humano.ramo_atual() == area.ramo:
-        raise FalhaDoGitDoGoal("a branch do Goal esta aberta no checkout do humano: o rebase nao a move por baixo dele",
-                               {"ramo": area.ramo, "antes": antes[:12], "depois": depois[:12]})
+    recusar_se_aberta(area.repositorio, area.ramo, antes=antes, depois=depois)
     humano.rodar("fetch", "-q", "--no-tags", str(area.pasta), ref)
     humano.rodar("update-ref", ref, depois, antes)
 

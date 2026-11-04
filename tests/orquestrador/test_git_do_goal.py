@@ -16,12 +16,12 @@ from graphow.orquestrador.git_do_goal import (
     commitar,
     descartar_mudancas,
     mensagem_do_orquestrador,
-    integrar_por_fast_forward,
     preparar_area,
     remover_area,
     restaurar_head,
     sincronizar_ramo,
 )
+from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
 from graphow.orquestrador.trava_do_git import instalar_trava, regras_que_negam_git
 
 from tests.orquestrador.apoio_git import criar_repositorio, git, git_bytes
