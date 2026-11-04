@@ -1,23 +1,21 @@
 """A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam.
 
-É função pura sobre o texto do comando (orquestrador/leitura_do_shell.py o
-quebra em comandos simples). Cada invocação de git é achada onde estiver:
-- depois de `&&`, `||`, `;`, `|`, num subshell, num `case`, numa substituição
-  (`$(...)`, crase), dentro de `bash -c`/`sh -c`, de `cmd /c`, de `eval`,
-  `alias`, `trap`, do heredoc que um shell lê e do `find -exec`;
-- com prefixo de variável, chamada por `env`, `command`, `exec`, `xargs`,
-  `timeout`, `coproc`, `wsl`, `npx -c`/`npm exec` e afins, por caminho
-  absoluto, como `git.exe`, em maiúsculas ou como `git-<sub>`.
-Quais argumentos do git passam é de orquestrador/leituras_do_git.py. O que
-roda texto que a trava não lê é opaco: o shell que lê da entrada padrão, de
-`/dev/stdin`, de `/dev/fd/*` ou de `<(...)`, o `source` deles, o PowerShell, o
-`sed` com `e`, o `awk` com `system` ou `|`, o programa ou o argumento de
-executor que só se sabe ao rodar (`"$PY"`, `timeout $T`). O comando com um
-opaco é recusado se cita a palavra git como comando, aspas à parte. Recusa
-também o texto que não fecha, o `bash -c` cujo texto só se sabe ao rodar, o
-shell que lê de um pipe e o `hash -p` que dá outro nome a git, shell ou
-executor. Script em arquivo e interpretador (`python -c`, `node -e`) ficam
-fora: para eles valem as outras camadas da trava.
+É função pura sobre o texto do comando (orquestrador/leitura_do_shell.py o quebra em comandos simples). Cada
+invocação de git é achada onde estiver:
+- depois de `&&`, `||`, `;`, `|`, num subshell, num `case`, numa substituição (`$(...)`, crase), dentro de
+  `bash -c`/`sh -c`, de `cmd /c`, de `eval`, `alias`, `trap`, do heredoc que um shell lê e do `find -exec`;
+- com prefixo de variável, chamada por `env`, `command`, `exec`, `xargs`, `timeout`, `coproc`, `wsl`,
+  `npx -c`/`npm exec` e afins, por caminho absoluto, como `git.exe`, em maiúsculas ou como `git-<sub>`.
+Quais argumentos do git passam é de orquestrador/leituras_do_git.py. O que roda texto que a trava não lê é
+opaco: o shell que lê da entrada padrão, de `/dev/stdin`, de `/dev/fd/*` ou de `<(...)`, o `source` deles, o
+PowerShell, o `sed` com `e`, o `awk` com `system` ou `|`, o programa ou o argumento de executor que só se sabe
+ao rodar (`"$PY"`, `timeout $T`). O comando com um opaco é recusado se cita a palavra git como comando, aspas à
+parte. O nome de programa (na frente, num executor ou no `hash -p`) com expansão além de `$NOME`, `"$NOME"` e
+`${NOME}` (substituição, `${...}` com operador, `$@`, `$'...'`, chaves, glob) é recusado sempre: vira git sem
+citar a palavra (`gi$()t`, `${v%.py}`, `g?t.exe`). Recusa também o texto que não fecha, o `bash -c` cujo texto
+só se sabe ao rodar, o shell que lê de um pipe e o `hash -p` que dá outro nome a git, shell ou executor. Script
+em arquivo e interpretador (`python -c`, `node -e`) ficam fora: para eles valem as outras camadas da trava, e a
+foto do repositório do humano (orquestrador/foto_do_humano.py).
 """
 
 from collections.abc import Callable, Iterable, Mapping
@@ -171,21 +169,26 @@ def _decidir_chamada(chamada: _Chamada) -> Decisao:
     """Tira as palavras reservadas e as atribuições da frente e decide pelo programa que sobra."""
     inicio = 0
     while inicio < len(chamada.palavras) and _vai_na_frente(chamada.palavras[inicio]):
-        inicio += 1
+        inicio += 2 if chamada.palavras[inicio].texto == "function" else 1
     na_frente, resto = chamada.palavras[:inicio], chamada.palavras[inicio:]
     chamada = replace(chamada, palavras=resto, atribuicoes=(*chamada.atribuicoes, *(p for p in na_frente if p.atribuicao)))
     if not resto:
         return LIBERADO
     if resto[0].dinamica:
-        return _opaco(f"o nome do programa so se sabe ao rodar ({resto[0].texto or '$(...)'})")
+        return _nome_montado(resto[0]) if resto[0].composta else _opaco(f"o nome do programa so se sabe ao rodar ({resto[0].texto or '${...}'})")
     if chamada.programa.startswith("git-"):
         return _git(replace(chamada, palavras=(Palavra("git"), Palavra(chamada.programa[4:]), *resto[1:])))
     tratador = TRATADORES.get(chamada.programa)
     return tratador(chamada) if tratador else LIBERADO
 
 
+def _nome_montado(palavra: Palavra) -> Decisao:
+    """A recusa do nome de programa montado na hora, que vira git sem citar a palavra (`gi$()t`, `g?t.exe`)."""
+    return _recusa(f"o nome do programa ({palavra.texto or '...'}) tem expansao alem de $NOME e so se sabe ao rodar")
+
+
 def _vai_na_frente(palavra: Palavra) -> bool:
-    """A atribuição `NOME=valor` e a palavra reservada (`if`, `then`, `!`, `{`...) vêm antes do programa."""
+    """A atribuição `NOME=valor` e a palavra reservada (`if`, `then`, `!`, `{`, `function` e o nome) vêm antes do programa."""
     return palavra.atribuicao or (palavra.texto in PALAVRAS_RESERVADAS and not palavra.dinamica)
 
 
@@ -284,7 +287,7 @@ def _argumento_do_executor(chamada: _Chamada, indice: int) -> tuple[Decisao, boo
     if palavra.atribuicao:
         return LIBERADO, False
     if palavra.dinamica:
-        return _opaco(f"{chamada.programa} com argumento que so se sabe ao rodar"), False
+        return (_nome_montado(palavra) if palavra.composta else _opaco(f"{chamada.programa} com argumento que so se sabe ao rodar")), False
     nome = nome_do_programa(palavra.texto)
     if nome in PROGRAMAS_COMUNS or nome in TRATADORES or nome.startswith("git-"):
         antes = tuple(p for p in argumentos[:indice] if p.atribuicao)
@@ -328,8 +331,9 @@ def _hash(chamada: _Chamada) -> Decisao:
     """`hash -p caminho nome` dá ao programa outro nome: recusado quando ele é git, shell ou executor."""
     argumentos = chamada.argumentos
     alvos = [argumentos[i + 1] for i, p in enumerate(argumentos[:-1]) if p.texto == "-p"]
-    if any(alvo.dinamica for alvo in alvos):
-        return _opaco("hash -p de um programa que so se sabe ao rodar")
+    montados = [alvo for alvo in alvos if alvo.dinamica and alvo.composta]
+    if montados or any(alvo.dinamica for alvo in alvos):
+        return _nome_montado(montados[0]) if montados else _opaco("hash -p de um programa que so se sabe ao rodar")
     decididos = [alvo.texto for alvo in alvos if nome_do_programa(alvo.texto) in TRATADORES or
                  nome_do_programa(alvo.texto).startswith("git-")]
     return _recusa(f"hash -p da outro nome a {decididos[0]}, que a trava decide pelo nome") if decididos else LIBERADO

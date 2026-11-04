@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-66 módulos · 12662 linhas · 97 classes
+66 módulos · 12669 linhas · 97 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -36,7 +36,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 173 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
-| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 395 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
+| [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 132 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
@@ -45,7 +45,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/laco.py`](#orquestradorlaco) | 324 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
-| [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 396 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
+| [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 184 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
 | [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 352 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 225 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
@@ -968,6 +968,7 @@ A leitura de um comando Bash em comandos simples, para a trava do git decidir so
 | `INICIO_DE_OPERADOR` | `str` | `';&|()<>'` |
 | `ESCAPAVEIS_NAS_ASPAS` | `str` | `'$`"\\\n'` |
 | `NOME_DE_VARIAVEL` | `re.Pattern[str]` | `re.compile('[A-Za-z_][A-Za-z0-9_]*')` |
+| `VARIAVEL_PURA` | `re.Pattern[str]` | `re.compile('\\$(?:[A-Za-z_][A-Za-z0-9_]*|\\{[A-Za-z_][A-Za-z0-9_]*\\})')` |
 | `PARES` | `dict[str, str]` | `{'(': ')', '{': '}'}` |
 
 ### `ComandoIlegivel` (ValueError)
@@ -988,9 +989,9 @@ A leitura de um comando Bash em comandos simples, para a trava do git decidir so
 
 ### `Palavra`
 
-*DTO imutável* — Uma palavra do comando, sem aspas; dinâmica quando o valor só se sabe ao rodar.
+*DTO imutável* — Uma palavra sem aspas; dinâmica quando o valor só se sabe ao rodar; composta com expansão além de `$NOME`.
 
-**Campos:** `texto: str`, `dinamica: bool`, `atribuicao: bool`
+**Campos:** `texto: str`, `dinamica: bool`, `atribuicao: bool`, `composta: bool`
 
 - `nome_atribuido() -> str` `[property]` — O nome da variável de `NOME=valor`; vazio quando a palavra não é atribuição.
 

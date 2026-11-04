@@ -9,8 +9,8 @@ ao Bash, cada comando simples e as palavras dele já sem aspas:
   como texto, para ser lido de novo como comando;
 - o heredoc e o here-string viram a entrada do comando que os recebe, e o
   alvo de redirecionamento sai das palavras.
-A palavra cujo valor só o shell sabe (variável, substituição, glob, chaves com
-vírgula, `$'...'`) fica marcada como dinâmica. O que esta leitura não fecha
+A palavra cujo valor só o shell sabe (variável, substituição, glob, chaves com vírgula ou `..`, `$'...'`) fica
+dinâmica, e composta quando a expansão vai além de `$NOME` e `${NOME}`. O que esta leitura não fecha
 (aspas, parêntese, substituição ou heredoc sem fim) é `ComandoIlegivel`, e
 quem decide recusa o que não leu. Só usa a biblioteca padrão: roda no hook.
 """
@@ -27,6 +27,7 @@ REDIRECIONAMENTOS: tuple[str, ...] = ("<<<", "<<-", "&>>", "<<", ">>", "<&", ">&
 INICIO_DE_OPERADOR: str = ";&|()<>"
 ESCAPAVEIS_NAS_ASPAS: str = '$`"\\\n'
 NOME_DE_VARIAVEL: re.Pattern[str] = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+VARIAVEL_PURA: re.Pattern[str] = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})")
 PARES: dict[str, str] = {"(": ")", "{": "}"}
 
 
@@ -36,11 +37,12 @@ class ComandoIlegivel(ValueError):
 
 @dataclass(frozen=True)
 class Palavra:
-    """Uma palavra do comando, sem aspas; dinâmica quando o valor só se sabe ao rodar."""
+    """Uma palavra sem aspas; dinâmica quando o valor só se sabe ao rodar; composta com expansão além de `$NOME`."""
 
     texto: str
     dinamica: bool = False
     atribuicao: bool = False
+    composta: bool = False
 
     @property
     def nome_atribuido(self) -> str:
@@ -168,7 +170,7 @@ class _Leitor:
     def _nova_palavra(self) -> None:
         """Zera a palavra em obra."""
         self.letras: list[str] = []
-        self.iniciada, self.dinamica, self.citada = False, False, False
+        self.iniciada, self.dinamica, self.citada, self.composta = False, False, False, False
         self.atribuicao, self.viu_igual, self.colchete, self.chave = False, False, False, False
 
     def ler(self) -> LeituraDoShell:
@@ -225,14 +227,15 @@ class _Leitor:
         self.i = fim + 1
 
     def _letra(self, caractere: str) -> None:
-        """Uma letra fora de aspas: glob, chaves com vírgula e o `=` da atribuição contam aqui."""
+        """Uma letra fora de aspas: glob, chaves (com vírgula ou `..`) e o `=` da atribuição contam aqui."""
         if caractere == "=" and not self.viu_igual:
             self.viu_igual = True
             self.atribuicao = not self.citada and bool(NOME_DE_VARIAVEL.fullmatch("".join(self.letras)))
+        sequencia = caractere == "." and self.letras[-1:] == ["."]
+        glob = caractere in "*?" or (caractere == "]" and self.colchete) or (self.chave and (caractere == "," or sequencia))
+        self.dinamica, self.composta = self.dinamica or glob, self.composta or glob
         self.colchete = self.colchete or caractere == "["
         self.chave = self.chave or caractere == "{"
-        glob = caractere in "*?" or (caractere == "]" and self.colchete) or (caractere == "," and self.chave)
-        self.dinamica = self.dinamica or glob
         self.letras.append(caractere)
 
     def _citado(self, trecho: str) -> None:
@@ -275,12 +278,12 @@ class _Leitor:
         self.i += 1
 
     def _cifrao(self, *, nas_aspas: bool = False) -> None:
-        """`$(...)`, `$((...))`, `${...}`, `$'...'` ou variável: a palavra fica dinâmica.
+        """`$(...)`, `$((...))`, `${...}`, `$'...'` ou variável: a palavra fica dinâmica; composta, fora de `$NOME`.
 
         `$((` só é conta quando o parêntese de dentro fecha logo antes do de
         fora; senão é `$(` com um subshell dentro, que roda comando.
         """
-        self.dinamica = True
+        self.dinamica, self.composta = True, self.composta or not VARIAVEL_PURA.match(self.texto, self.i)
         seguinte = self.texto[self.i + 1:self.i + 2]
         if seguinte in ("(", "{"):
             fim = fechamento(self.texto, self.i + 1)
@@ -298,7 +301,7 @@ class _Leitor:
         """A substituição por crase: o texto de dentro é lido de novo como comando."""
         fim = _fim_da_crase(self.texto, self.i)
         self.substituicoes.append(_texto_da_crase(self.texto[self.i + 1:fim]))
-        self.dinamica = True
+        self.dinamica, self.composta = True, True
         self.i = fim + 1
 
     def _operador(self) -> None:
@@ -309,7 +312,7 @@ class _Leitor:
         if self.texto.startswith(("<(", ">("), self.i):
             fim = fechamento(self.texto, self.i + 1)
             self.substituicoes.append(self.texto[self.i + 2:fim])
-            self.iniciada, self.dinamica, self.i = True, True, fim + 1
+            self.iniciada, self.dinamica, self.composta, self.i = True, True, True, fim + 1
             return
         redirecionamento = next((op for op in REDIRECIONAMENTOS if self.texto.startswith(op, self.i)), "")
         if redirecionamento:
@@ -352,7 +355,7 @@ class _Leitor:
         """Fecha a palavra em obra: vai às palavras do comando, ou é o alvo do redirecionamento."""
         if not self.iniciada:
             return
-        palavra = Palavra("".join(self.letras), self.dinamica, self.atribuicao)
+        palavra = Palavra("".join(self.letras), self.dinamica, self.atribuicao, self.composta)
         citada = self.citada
         self._nova_palavra()
         alvo, self.alvo = self.alvo, ""

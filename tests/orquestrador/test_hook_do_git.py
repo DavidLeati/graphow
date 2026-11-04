@@ -269,11 +269,14 @@ def test_git_colado_a_cifrao_chave_ou_virgula_e_recusado_edge_case(comando: str)
     O programa só se sabe ao rodar (opaco) e nenhuma regra de prefixo os
     casa: a recusa é do hook. Os nomes com git dentro seguem liberados
     (`LIBERADOS_NA_T3A3`: `test_git_do_goal.py`, `.gitignore`, `git.py`).
+    Desde a T3a5, o nome com expansão além de `$NOME` (`git$@`, `{git,}`) é
+    recusado antes, pelo nome montado (tests/orquestrador/test_nome_montado.py).
     """
     decisao = decidir(comando)
 
     assert not decisao.permitido
-    assert "cita git" in decisao.motivo and "quem commita e o orquestrador" in decisao.motivo
+    assert "cita git" in decisao.motivo or "nome do programa" in decisao.motivo
+    assert "quem commita e o orquestrador" in decisao.motivo
 
 
 @pytest.mark.parametrize("comando", (*PERMITIDOS, *LIBERADOS_NA_T3A2, *LIBERADOS_NA_T3A3, *LIBERADOS_NA_T3A4))
