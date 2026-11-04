@@ -10,12 +10,12 @@ Os quatro portões de governança, a conversão de JSON Patch em eventos e o com
 
 ## Inventário
 
-36 módulos · 6026 linhas · 35 classes
+36 módulos · 6032 linhas · 35 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`kernel/aceite_pelo_teto.py`](#kernelaceitepeloteto) | 41 | O aceite pelo teto de correções, que libera o fechamento sem veredito aprovado. |
-| [`kernel/ancora_da_evidencia.py`](#kernelancoradaevidencia) | 122 | A âncora da Evidence sobre código: o commit em que o fato foi visto e os arquivos que ela afirma. |
+| [`kernel/ancora_da_evidencia.py`](#kernelancoradaevidencia) | 128 | A âncora da Evidence sobre código: o commit em que o fato foi visto e os arquivos que ela afirma. |
 | [`kernel/ancora_do_artifact.py`](#kernelancoradoartifact) | 192 | A âncora do Artifact: o hash que liga a entrega registrada ao conteúdo que ela entregou. |
 | [`kernel/composicao.py`](#kernelcomposicao) | 49 | Raiz de composição do kernel: monta repositórios e portões numa peça só. |
 | [`kernel/conversao_eventos.py`](#kernelconversaoeventos) | 151 | Conversão de operações JSON Patch RFC 6902 em eventos formais do log. |

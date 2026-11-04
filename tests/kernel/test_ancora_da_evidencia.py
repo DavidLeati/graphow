@@ -121,6 +121,34 @@ def test_evidence_ancorada_nao_perde_o_commit_edge_case(kernel: WriteKernel) -> 
     assert recibo.modo_de_falha == SEM_ANCORA
 
 
+def test_evidence_que_vira_sobre_codigo_no_segundo_lote_precisa_de_commit_nominal(kernel: WriteKernel) -> None:
+    """T3d3.1: o executor cria o log (`arquivo` sozinho) e põe `linhas` e `trecho` depois: o segundo lote é recusado."""
+    log = {"arquivo": "src/x.py", "resultado": "lido"}
+    assert _submeter(kernel, PapelAutor.EXECUTOR, _evidencia(PapelAutor.EXECUTOR, "evi", log)).sucesso
+
+    recibo = _submeter(kernel, PapelAutor.EXECUTOR, [ItemPatch(OperacaoPatch.ADD, "/nos/evi/propriedades/linhas", "1-2"),
+                                                     ItemPatch(OperacaoPatch.ADD, "/nos/evi/propriedades/trecho", "a = 1")])
+    ancorado = _submeter(kernel, PapelAutor.EXECUTOR, [ItemPatch(OperacaoPatch.ADD, "/nos/evi/propriedades/linhas", "1-2"),
+                                                       ItemPatch(OperacaoPatch.ADD, "/nos/evi/propriedades/trecho", "a = 1"),
+                                                       ItemPatch(OperacaoPatch.ADD, "/nos/evi/propriedades/commit", COMMIT)])
+
+    assert recibo.modo_de_falha == SEM_ANCORA and "Evidence 'evi' sem ancora" in recibo.mensagem
+    assert ancorado.sucesso, ancorado.mensagem
+
+
+def test_planejador_que_troca_a_fonte_por_arquivo_e_linhas_precisa_de_commit_nominal(kernel: WriteKernel) -> None:
+    """T3d3.1: a Evidence que nasce com `fonte` e `trecho` e vira leitura de arquivo no lote seguinte é recusada."""
+    fonte = {"fonte": "conversa", "trecho": "a = 1"}
+    assert _submeter(kernel, PapelAutor.PLANEJADOR, _evidencia(PapelAutor.PLANEJADOR, "evi-p", fonte)).sucesso
+
+    recibo = _submeter(kernel, PapelAutor.PLANEJADOR, [ItemPatch(OperacaoPatch.REMOVE, "/nos/evi-p/propriedades/fonte"),
+                                                       ItemPatch(OperacaoPatch.ADD, "/nos/evi-p/propriedades/arquivo", "src/x.py"),
+                                                       ItemPatch(OperacaoPatch.ADD, "/nos/evi-p/propriedades/linhas", "1")])
+
+    assert recibo.modo_de_falha == SEM_ANCORA
+    assert kernel.obter_view().obter_no("evi-p").obter_propriedade("fonte") == "conversa"  # type: ignore[union-attr]
+
+
 def test_arquivos_afirmados_e_sobre_codigo_nominal() -> None:
     """A lista gravada vale primeiro; sem ela, o arquivo da localizada; sem nenhum, a Evidence fala do commit inteiro."""
     assert arquivos_afirmados({"arquivos": ["a.py", "b.py"], "arquivo": "c.py"}) == ("a.py", "b.py")
@@ -143,14 +171,15 @@ def _banco_com_evidence_antiga(caminho: Path) -> None:
 
 
 def test_banco_com_evidence_antiga_sem_commit_faz_replay_e_segue_editavel_nominal(tmp_path: Path) -> None:
-    """O replay do log antigo não passa pela regra; a Evidence antiga se edita, e a nova sem commit segue recusada."""
+    """O replay do log antigo não passa pela regra; a antiga, já sobre código, se edita (T3d3.1), e a nova sem commit não."""
     banco = tmp_path / "antigo.db"
     _banco_com_evidence_antiga(banco)
 
     store, kernel = abrir_kernel_sqlite(banco)
     try:
         antiga = kernel.obter_view().obter_no("evi-antiga")
-        edicao = _submeter(kernel, PapelAutor.HUMANO, [ItemPatch(OperacaoPatch.REPLACE, "/nos/evi-antiga/propriedades/resumo", "revisto")])
+        edicao = _submeter(kernel, PapelAutor.HUMANO, [ItemPatch(OperacaoPatch.ADD, "/nos/evi-antiga/propriedades/resumo", "revisto"),
+                                                       ItemPatch(OperacaoPatch.REPLACE, "/nos/evi-antiga/propriedades/linhas", "40-41")])
         nova = _submeter(kernel, PapelAutor.PLANEJADOR, _evidencia(PapelAutor.PLANEJADOR, "evi-nova", dict(LIDA)))
     finally:
         store.fechar()

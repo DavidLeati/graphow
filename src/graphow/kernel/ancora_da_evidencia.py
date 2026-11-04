@@ -24,8 +24,14 @@ o orquestrador grava ou, na localizada, o `arquivo` dela
 Como a âncora do Artifact (kernel/ancora_do_artifact.py), o portão não lê o
 git: garante a forma que torna a conferência possível e julga a Evidence como
 ela vai ficar depois do lote. A regra vale para a Evidence que o lote cria (ou
-recria por `add`) e para a que já tinha âncora, que não a perde; a Evidence
-antiga, sem âncora, segue editável, e o replay do log não passa pelos portões.
+recria por `add`) e para a que já tinha âncora, que não a perde; o replay do
+log não passa pelos portões.
+
+A isenção da antiga, sem âncora, vale só para a que já era sobre código antes
+do lote: a gravada antes da regra segue editável. Na revisão da T3d1, o agente
+contornava a regra em dois lotes: criava a Evidence só com o `arquivo` (livre,
+como o log anexado) ou com a `fonte`, e no lote seguinte punha as `linhas`. A
+Evidence que o lote faz virar sobre código é julgada como nova.
 """
 
 from collections.abc import Mapping
@@ -115,8 +121,8 @@ def validar_ancora_da_evidencia(proposta: PropostaPatch, estado: GrafoEstado) ->
 
 
 def _antiga_sem_ancora(id_no: str, estado: GrafoEstado, *, recriados: frozenset[str]) -> bool:
-    """A Evidence gravada antes da regra, sem âncora, que o lote edita sem recriar: segue livre."""
+    """A Evidence que já era sobre código e sem âncora antes do lote, editada sem recriar: segue livre."""
     anterior = estado.nos.get(id_no)
     if anterior is None or anterior.tipo != TipoNo.EVIDENCE or id_no in recriados:
         return False
-    return ancora_da_evidencia(anterior.propriedades) is None
+    return ancora_da_evidencia(anterior.propriedades) is None and sobre_codigo(anterior.proveniencia.papel, anterior.propriedades)
