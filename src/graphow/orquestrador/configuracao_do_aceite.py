@@ -107,7 +107,7 @@ def diff_da_configuracao(area: Path, commit_do_aceite: str) -> str:
     caminhos = [caminho for caminho in mudados if caminho and not dentro_do_aceite(caminho) and _de_teste(caminho)]
     if not caminhos:
         return ""
-    diff = git.rodar("diff", "--no-color", "--no-ext-diff", "--no-renames", commit_do_aceite, "HEAD", "--",
+    diff = git.rodar("-c", "core.quotepath=false", "diff", "--no-color", "--no-ext-diff", "--no-renames", commit_do_aceite, "HEAD", "--",
                      *(f":(literal){caminho}" for caminho in caminhos)).strip()
     if len(diff) <= LIMITE_DO_DIFF_DA_CONFIGURACAO:
         return diff

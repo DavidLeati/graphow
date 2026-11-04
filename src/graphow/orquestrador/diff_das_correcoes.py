@@ -64,7 +64,7 @@ def _corpo(git: GitDoGoal, antes: str, arquivos: Sequence[str]) -> CorpoDoDiff:
     partes: list[str] = []
     restante = LIMITE_DO_CORPO
     for indice, caminho in enumerate(arquivos):
-        diff = git.tentar("diff", f"{antes}..HEAD", "--", f":(literal){caminho}").saida
+        diff = git.tentar(*SEM_ASPAS, "diff", f"{antes}..HEAD", "--", f":(literal){caminho}").saida
         if len(diff) > restante:
             return CorpoDoDiff("".join((*partes, diff[:restante])), caminho, tuple(arquivos[indice + 1:]))
         partes.append(diff)

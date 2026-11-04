@@ -23,7 +23,7 @@ from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal
 from graphow.orquestrador.correcoes import normalizar_caminho
-from graphow.orquestrador.git_do_goal import commits_entre
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, commits_entre
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import aresta
 from graphow.orquestrador.rebase_no_clone import (
@@ -77,7 +77,7 @@ def _objetivo(
     contexto: ContextoDoGoal, conflito: ConflitoNoRebase, *, arvore: str, arquivos: Sequence[str], suite: ResultadoDaSuite | None
 ) -> str:
     """O objetivo da fatia: o que o rebase encontrou, como resolver e o diff da ponta do Goal à área mesclada."""
-    diff = contexto.git.tentar("diff", conflito.antes, arvore, "--", *arquivos).saida[:LIMITE_DO_DIFF]
+    diff = contexto.git.tentar(*SEM_ASPAS, "diff", conflito.antes, arvore, "--", *arquivos).saida[:LIMITE_DO_DIFF]
     problema = f"deixou a suite vermelha:\n{suite.descrever()}" if suite is not None else f"deu conflito em {', '.join(arquivos)}."
     return (f"A base {contexto.configuracao.base} andou para {conflito.base_depois[:12]} desde que a branch do Goal saiu dela, "
             f"e o rebase da branch sobre ela {problema}\n\n{COMO_RESOLVER}\n\nO diff do conflito, da ponta do Goal a area "
