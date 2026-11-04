@@ -26,7 +26,6 @@ from tests.orquestrador.test_base_que_andou import (
     _rebases,
     _roteiro_limpo,
     _verificacoes,
-    humano_entre_as_sessoes,  # noqa: F401 -- o commit do humano fora da sessao, tambem aqui
 )
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")

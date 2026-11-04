@@ -7,7 +7,7 @@ hooks, as skills e os subagentes do usuário (`--setting-sources project`), só 
 no ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o que era: o que o agente mexeu no git
 do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). O repositório do humano também
-é fotografado, e a sessão em que ele mudou para o laço em FALHA (orquestrador/foto_do_humano.py).
+é fotografado: a perda de trabalho nele para o laço em FALHA, e o avanço vira Note (orquestrador/conferencia_do_humano.py).
 Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook é regravado e o `.claude/` do clone
 volta à referência do pedido (o HEAD; na fatia de conflito, a base nova mesclada); a invocação que mexeu num deles
 mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o motivo (`RespostaDePapel.trava_mexida`), que
@@ -32,6 +32,7 @@ from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
 from graphow.orquestrador.comandos_do_stream import comandos_bash, comandos_nao_rodados, problema_dos_comandos
+from graphow.orquestrador.conferencia_do_humano import RegistroDoHumanoMexido, conferir_o_humano
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_AUTOR_DE_ACEITE,
@@ -45,19 +46,13 @@ from graphow.orquestrador.esquemas import (
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
-from graphow.orquestrador.foto_do_humano import RegistroDoHumanoMexido, conferir_o_humano, foto_antes_da_sessao
+from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao
 from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone, selar_a_sessao, trava_mexida
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao, em_iso
-from graphow.storage.telemetria_de_sessoes import (
-    ESTADO_CONCLUIDA,
-    ESTADO_EM_ANDAMENTO,
-    ESTADO_RECUPERADA,
-    RepositorioTelemetria,
-    SessaoRegistrada,
-)
+from graphow.storage.telemetria_de_sessoes import ESTADO_CONCLUIDA, ESTADO_EM_ANDAMENTO, ESTADO_RECUPERADA, RepositorioTelemetria, SessaoRegistrada
 
 FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
     PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"),

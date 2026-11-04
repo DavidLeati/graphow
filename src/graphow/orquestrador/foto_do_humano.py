@@ -6,36 +6,29 @@ cita git, e o `git -C <repositório do humano> checkout -- .` dele apaga o
 trabalho não commitado do humano por fora do clone, que é o que a
 restauração (orquestrador/trava_do_git.py) cobre. Esta camada não depende do
 comando. Antes de cada sessão de papel, o orquestrador fotografa o
-repositório de onde o clone saiu: o HEAD, as refs, as entradas do índice
-(`ls-files -s`) e o status (`status --porcelain=v2 -z`, os não rastreados um
-a um), com o hash do conteúdo de cada arquivo que o status lista. Junto,
-guarda uma salvaguarda das mudanças rastreadas, o commit de `git stash
-create`, que só grava objetos. Depois da sessão, com a árvore de processos
-dela já morta, refaz a foto. Se ela mudou, a parada vai ao livro-razão e o
-laço para em FALHA com o motivo `repositorio_do_humano_mexido`, o que mudou,
-o hash da salvaguarda e o `git stash apply` que a recupera.
-
-Não há como saber quem mexeu: a mudança que o próprio humano faz no
-repositório durante a sessão (um commit, uma edição, outro Goal que avança a
-branch dele) também para o laço. É o lado seguro; o humano confere e roda o
-Goal de novo.
+repositório de onde o clone saiu: o HEAD e o status (`status --branch
+--porcelain=v2 -z`, os não rastreados um a um, com o objeto de cada
+rastreado no HEAD e no índice), as refs, as entradas do índice (`ls-files
+-s`), o hash do conteúdo de cada arquivo que o status lista e o hash da
+configuração (`.git/config`) e de cada arquivo de `.git/hooks`. Junto, guarda
+a salvaguarda: o commit de `git stash create` com as mudanças rastreadas e
+uma árvore com os não rastreados, cada um como blob (`git hash-object -w`).
+São três processos do git por foto quando o repositório está limpo; a
+salvaguarda só roda quando há o que guardar. Depois da sessão, com a árvore
+de processos dela já morta, a foto é refeita, e a conferência separa a perda
+do avanço (orquestrador/conferencia_do_humano.py).
 
 A foto não escreve no repositório do humano. As leituras levam
 `--no-optional-locks`, e o `status` não regrava o índice. O `stash create`
 regrava o índice ao atualizar os dados de cada arquivo, e por isso roda
-sobre uma cópia dele (`GIT_INDEX_FILE`); a foto compara as entradas do
-índice, e não os bytes do arquivo. Só os objetos da salvaguarda entram no
-repositório, soltos, e o `git gc` os apaga depois do prazo dele (duas
-semanas, por padrão).
-
-Limites: o arquivo não rastreado que a sessão apagou não tem salvaguarda (o
-`stash create` só leva o rastreado; o git aceita `stash create -u`, mas lê o
-`-u` como a mensagem do stash e deixa o não rastreado de fora); o ignorado
-não entra na foto, nem a configuração e os hooks de `.git/`.
+sobre uma cópia dele (`GIT_INDEX_FILE`); a árvore dos não rastreados nasce
+num índice vazio, também fora do do humano. Só os objetos da salvaguarda
+entram no repositório, soltos, e o `git gc` os apaga depois do prazo dele
+(duas semanas, por padrão).
 """
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, replace
 import hashlib
 import os
 from pathlib import Path
@@ -43,110 +36,78 @@ import shutil
 import subprocess
 import tempfile
 
-from graphow.core.exceptions import GraphowError
 from graphow.orquestrador.git_do_goal import EXECUTAVEL_DO_GIT, VARIAVEIS_DE_OUTRO_REPOSITORIO, GitDoGoal
 
-MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
 SEM_TRAVA_OPCIONAL: str = "--no-optional-locks"
 MENSAGEM_DA_SALVAGUARDA: str = "graphow: salvaguarda do repositorio do humano antes da sessao"
 # Quantos campos o registro do `status --porcelain=v2` tem antes do caminho, por tipo (mudado, renomeado, em conflito, solto).
 CAMPOS_ANTES_DO_CAMINHO: Mapping[str, int] = {"1": 8, "2": 9, "u": 10, "?": 1}
-LIMITE_DE_MUDANCAS_NA_PARADA: int = 20
+CABECALHO_DO_STATUS: str = "# branch."
+NAO_RASTREADO: str = "?"
+AUSENTE: str = "ausente"
+PASTA: str = "pasta"
+LINK: str = "link "
+MODO_DO_SOLTO: str = "100644"
+
+
+@dataclass(frozen=True)
+class ArquivoListado:
+    """Um arquivo que o status lista: o tipo do registro (1, 2, u ou ?), o XY e, no rastreado, o modo e o objeto no HEAD
+    e o objeto no índice (vazio no caminho em conflito, que tem um por estágio)."""
+
+    tipo: str
+    xy: str = ""
+    modo_no_head: str = ""
+    no_head: str = ""
+    no_indice: str = ""
+
+    @property
+    def entrada_do_head(self) -> str:
+        """A entrada do índice igual à do HEAD (`modo objeto 0`), a que o `reset` ou o `checkout HEAD` devolvem."""
+        return f"{self.modo_no_head} {self.no_head} 0"
+
+
+@dataclass(frozen=True)
+class Salvaguarda:
+    """O commit de `git stash create` com as mudanças rastreadas e a árvore com os blobs dos não rastreados; vazios sem eles."""
+
+    stash: str = ""
+    soltos: str = ""
 
 
 @dataclass(frozen=True)
 class FotoDoHumano:
-    """O repositório do humano num instante: cada item (o HEAD, cada ref, entrada do índice e arquivo do status) e o valor.
+    """O repositório do humano num instante.
 
-    `salvaguarda` é o commit de `git stash create` da foto de antes da sessão; vazio sem mudança rastreada.
+    `cabeca` é a branch e o commit do HEAD; `indice`, as entradas (`modo objeto estágio`) de cada caminho; `listados`, o
+    que o status lista; `conteudos`, o sha256 de cada arquivo listado (e dos pedidos, na foto de depois); `do_git`, o
+    da configuração e de cada hook. A `salvaguarda` só vem na foto de antes da sessão.
     """
 
     repositorio: Path
-    itens: Mapping[str, str]
-    salvaguarda: str = ""
-
-
-@dataclass(frozen=True)
-class HumanoMexido:
-    """O que mudou no repositório do humano durante a sessão e a salvaguarda de antes dela."""
-
-    repositorio: Path
-    mudancas: tuple[str, ...]
-    salvaguarda: str
-
-    @property
-    def recuperar(self) -> str:
-        """O comando que devolve as mudanças rastreadas de antes da sessão; vazio sem salvaguarda."""
-        return f'git -C "{self.repositorio}" stash apply {self.salvaguarda}' if self.salvaguarda else ""
-
-    @property
-    def resumo(self) -> tuple[str, ...]:
-        """As primeiras mudanças e quantas sobram."""
-        sobra = len(self.mudancas) - LIMITE_DE_MUDANCAS_NA_PARADA
-        return (*self.mudancas[:LIMITE_DE_MUDANCAS_NA_PARADA], *([f"e mais {sobra}"] if sobra > 0 else []))
-
-
-# Quem guarda no livro-razão o repositório do humano mexido: o papel, a fatia (vazia fora delas) e o que mudou.
-RegistroDoHumanoMexido = Callable[[str, str, HumanoMexido], None]
-
-
-class RepositorioDoHumanoMexido(GraphowError):
-    """A sessão de papel mexeu no repositório do humano, ou ele mexeu durante ela: o laço para em FALHA."""
+    cabeca: str
+    refs: Mapping[str, str]
+    indice: Mapping[str, tuple[str, ...]]
+    listados: Mapping[str, ArquivoListado]
+    conteudos: Mapping[str, str]
+    do_git: Mapping[str, str]
+    salvaguarda: Salvaguarda = Salvaguarda()
 
 
 def foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None:
     """A foto e a salvaguarda de antes da sessão; None sem repositório do humano a guardar."""
     if repositorio is None:
         return None
-    return FotoDoHumano(repositorio, fotografar_o_humano(repositorio).itens, salvaguardar(repositorio))
+    foto = fotografar_o_humano(repositorio)
+    return replace(foto, salvaguarda=Salvaguarda(_salvaguardar_rastreados(foto), _salvaguardar_soltos(foto)))
 
 
-def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None) -> None:
-    """Depois da sessão, a foto refeita; a que mudou vai ao livro-razão e para o laço (`RepositorioDoHumanoMexido`)."""
-    if antes is None:
-        return
-    mudancas = diferencas(antes, fotografar_o_humano(antes.repositorio))
-    if not mudancas:
-        return
-    mexido = HumanoMexido(antes.repositorio, mudancas, antes.salvaguarda)
-    if registrar is not None:
-        registrar(papel, fatia, mexido)
-    raise RepositorioDoHumanoMexido(
-        mensagem_da_parada(mexido, papel), {"repositorio": str(mexido.repositorio), "salvaguarda": mexido.salvaguarda or "nenhuma"}
-    )
-
-
-def mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str:
-    """O motivo, o que mudou, a salvaguarda e o comando que a recupera."""
-    salvaguarda = (f"A salvaguarda das mudancas rastreadas de antes da sessao e o commit {mexido.salvaguarda}: recupere com "
-                   f"`{mexido.recuperar}`." if mexido.salvaguarda else "Antes da sessao nao havia mudanca rastreada a salvaguardar.")
-    return (f"{MOTIVO_DA_PARADA}: o repositorio do humano ({mexido.repositorio}) mudou durante a sessao do {papel}: "
-            f"{'; '.join(mexido.resumo)}. {salvaguarda} Arquivo nao rastreado apagado nao tem salvaguarda. Se foi voce quem "
-            "mexeu durante a sessao, confira e rode o Goal de novo; se nao, a sessao mexeu fora do clone do Goal, e o que ela "
-            "fez la nao foi desfeito.")
-
-
-def fotografar_o_humano(repositorio: Path) -> FotoDoHumano:
-    """O HEAD, as refs, as entradas do índice e o status, com o hash do conteúdo de cada arquivo listado; sem escrever."""
+def fotografar_o_humano(repositorio: Path, tambem: Iterable[str] = ()) -> FotoDoHumano:
+    """O HEAD, o status, as refs, o índice e a pasta do git, com o hash do conteúdo de cada arquivo listado e dos dados."""
     git = GitDoGoal(repositorio)
-    cabeca = f"{_ler(git, 'symbolic-ref', '-q', 'HEAD').strip()} {_ler(git, 'rev-parse', '-q', '--verify', 'HEAD').strip()}"
-    return FotoDoHumano(repositorio, {"HEAD": cabeca, **_refs(git), **_indice(git), **_status(git)})
-
-
-def diferencas(antes: FotoDoHumano, depois: FotoDoHumano) -> tuple[str, ...]:
-    """O que mudou de uma foto para a outra, item a item."""
-    chaves = sorted(set(antes.itens) | set(depois.itens))
-    return tuple(_diferenca(chave, antes.itens.get(chave), depois.itens.get(chave)) for chave in chaves
-                 if antes.itens.get(chave) != depois.itens.get(chave))
-
-
-def _diferenca(chave: str, antes: str | None, depois: str | None) -> str:
-    """Um item que apareceu, sumiu ou mudou."""
-    if antes is None:
-        return f"{chave} apareceu ({depois})"
-    if depois is None:
-        return f"{chave} sumiu (era {antes})"
-    return f"{chave}: {antes} -> {depois}"
+    cabeca, listados = _status(git)
+    conteudos = {caminho: _conteudo(repositorio / caminho) for caminho in dict.fromkeys([*listados, *tambem])}
+    return FotoDoHumano(repositorio, cabeca, _refs(git), _indice(git), listados, conteudos, _do_git(repositorio))
 
 
 def _ler(git: GitDoGoal, *argumentos: str) -> str:
@@ -155,52 +116,116 @@ def _ler(git: GitDoGoal, *argumentos: str) -> str:
     return feito.saida if feito.codigo == 0 else ""
 
 
+def _status(git: GitDoGoal) -> tuple[str, dict[str, ArquivoListado]]:
+    """A branch e o commit do HEAD (dos cabeçalhos do `--branch`) e cada arquivo listado (mudado, renomeado, em conflito,
+    não rastreado), pelo caminho."""
+    registros = iter(_ler(git, "status", "--branch", "--porcelain=v2", "-z", "--untracked-files=all").split("\x00"))
+    cabecalhos: dict[str, str] = {}
+    listados: dict[str, ArquivoListado] = {}
+    for registro in registros:
+        if registro.startswith(CABECALHO_DO_STATUS):
+            chave, _, valor = registro.removeprefix(CABECALHO_DO_STATUS).partition(" ")
+            cabecalhos[chave] = valor
+            continue
+        campos = registro.split(" ", CAMPOS_ANTES_DO_CAMINHO.get(registro[:1], 0))
+        if registro.startswith("2 "):
+            next(registros, "")
+        if len(campos) > 1 and registro[:1] in CAMPOS_ANTES_DO_CAMINHO:
+            listados[campos[-1]] = _listado(campos)
+    return f"{cabecalhos.get('head', '')} {cabecalhos.get('oid', '')}", listados
+
+
+def _listado(campos: Sequence[str]) -> ArquivoListado:
+    """O registro do status já separado: no conflito, o HEAD é o estágio 2 (o nosso)."""
+    if campos[0] == "u":
+        return ArquivoListado(campos[0], campos[1], campos[4], campos[8])
+    if campos[0] == NAO_RASTREADO:
+        return ArquivoListado(NAO_RASTREADO)
+    return ArquivoListado(campos[0], campos[1], campos[3], campos[6], campos[7])
+
+
 def _refs(git: GitDoGoal) -> dict[str, str]:
     """Cada ref e o objeto dela."""
     linhas = _ler(git, "for-each-ref", "--format=%(refname) %(objectname)").splitlines()
-    return {f"ref {nome}": objeto for nome, _, objeto in (linha.rpartition(" ") for linha in linhas) if nome}
+    return {nome: objeto for nome, _, objeto in (linha.rpartition(" ") for linha in linhas) if nome}
 
 
-def _indice(git: GitDoGoal) -> dict[str, str]:
-    """Cada entrada do índice (`modo objeto estágio`), pelo caminho; o caminho em conflito tem uma por estágio."""
-    registros = [registro.split("\t", 1) for registro in _ler(git, "ls-files", "-s", "-z").split("\x00") if "\t" in registro]
-    return {f"indice {caminho}" + ("" if entrada.endswith(" 0") else f" [{entrada[-1]}]"): entrada for entrada, caminho in registros}
+def _indice(git: GitDoGoal) -> dict[str, tuple[str, ...]]:
+    """As entradas do índice (`modo objeto estágio`) de cada caminho; o caminho em conflito tem uma por estágio."""
+    entradas: dict[str, tuple[str, ...]] = {}
+    for registro in _ler(git, "ls-files", "-s", "-z").split("\x00"):
+        entrada, separador, caminho = registro.partition("\t")
+        if separador:
+            entradas[caminho] = (*entradas.get(caminho, ()), entrada)
+    return entradas
 
 
-def _status(git: GitDoGoal) -> dict[str, str]:
-    """Cada arquivo que o status lista (mudado, renomeado, em conflito, não rastreado): o tipo, o XY e o hash do conteúdo."""
-    campos = iter(_ler(git, "status", "--porcelain=v2", "-z", "--untracked-files=all").split("\x00"))
-    itens: dict[str, str] = {}
-    for registro in campos:
-        separados = registro.split(" ", CAMPOS_ANTES_DO_CAMINHO.get(registro[:1], 0))
-        if registro.startswith("2 "):
-            next(campos, "")
-        if len(separados) > 1:
-            itens[f"status {separados[-1]}"] = f"{' '.join(separados[:-1][:2])} {_conteudo(git.pasta / separados[-1])}"
-    return itens
+def _pastas_do_git(repositorio: Path) -> tuple[Path, Path]:
+    """A pasta do git e a comum, iguais fora de worktree ligado: pelo `.git` do repositório, sem processo, ou pelo `rev-parse`."""
+    ponto = repositorio / ".git"
+    if ponto.is_dir():
+        return ponto, ponto
+    pastas = _ler(GitDoGoal(repositorio), "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").splitlines()
+    return (Path(pastas[0]), Path(pastas[1])) if len(pastas) == 2 else (ponto, ponto)
+
+
+def _do_git(repositorio: Path) -> dict[str, str]:
+    """O hash da configuração e de cada arquivo de hooks da pasta comum: um `core.hooksPath` ou um hook plantado conta."""
+    comum = _pastas_do_git(repositorio)[1]
+    hooks = sorted(arquivo for arquivo in (comum / "hooks").rglob("*") if arquivo.is_file()) if (comum / "hooks").is_dir() else []
+    return {f".git/{arquivo.relative_to(comum).as_posix()}": _conteudo(arquivo) for arquivo in (comum / "config", *hooks)}
 
 
 def _conteudo(caminho: Path) -> str:
     """O sha256 do conteúdo (do alvo, no link); `ausente` quando o arquivo não existe, `pasta` no submódulo."""
     if caminho.is_symlink():
-        return "link " + hashlib.sha256(os.readlink(caminho).encode("utf-8")).hexdigest()
+        return LINK + hashlib.sha256(os.readlink(caminho).encode("utf-8")).hexdigest()
     if caminho.is_file():
         with caminho.open("rb") as arquivo:
             return hashlib.file_digest(arquivo, "sha256").hexdigest()
-    return "pasta" if caminho.is_dir() else "ausente"
+    return PASTA if caminho.is_dir() else AUSENTE
 
 
-def salvaguardar(repositorio: Path) -> str:
-    """O commit de `git stash create` com as mudanças rastreadas, sobre uma cópia do índice; vazio sem mudança ou sem commit."""
-    indice = repositorio / GitDoGoal(repositorio).tentar("rev-parse", "--git-path", "index").saida.strip()
-    if not indice.is_file():
+def soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]:
+    """Os não rastreados que a árvore da salvaguarda guarda: o arquivo comum (o link e a pasta ficam de fora)."""
+    return tuple(caminho for caminho, listado in foto.listados.items() if listado.tipo == NAO_RASTREADO and "\n" not in caminho
+                 and foto.conteudos.get(caminho, AUSENTE) not in (AUSENTE, PASTA) and not foto.conteudos[caminho].startswith(LINK))
+
+
+def _salvaguardar_rastreados(foto: FotoDoHumano) -> str:
+    """O commit de `git stash create`, sobre uma cópia do índice; vazio sem mudança rastreada (sem processo) ou sem commit."""
+    if all(listado.tipo == NAO_RASTREADO for listado in foto.listados.values()):
         return ""
-    ambiente = {nome: valor for nome, valor in os.environ.items() if nome.upper() not in VARIAVEIS_DE_OUTRO_REPOSITORIO}
     with tempfile.TemporaryDirectory(prefix="graphow-salvaguarda-") as pasta:
         try:
-            shutil.copyfile(indice, Path(pasta) / "index")
-            feito = subprocess.run([EXECUTAVEL_DO_GIT, "-C", str(repositorio), SEM_TRAVA_OPCIONAL, "stash", "create", MENSAGEM_DA_SALVAGUARDA],
-                                   env={**ambiente, "GIT_INDEX_FILE": str(Path(pasta) / "index")}, capture_output=True, check=False)
+            shutil.copyfile(_pastas_do_git(foto.repositorio)[0] / "index", Path(pasta) / "index")
         except OSError:
             return ""
-    return feito.stdout.decode("utf-8", errors="replace").strip() if feito.returncode == 0 else ""
+        return _git(foto.repositorio, ("stash", "create", MENSAGEM_DA_SALVAGUARDA), indice=Path(pasta) / "index") or ""
+
+
+def _salvaguardar_soltos(foto: FotoDoHumano) -> str:
+    """A árvore com cada não rastreado como blob (`hash-object -w`, os bytes como estão), montada num índice vazio."""
+    soltos = soltos_da_salvaguarda(foto)
+    entrada = "".join(f"{caminho}\n" for caminho in soltos)
+    blobs = (_git(foto.repositorio, ("hash-object", "-w", "--no-filters", "--stdin-paths"), entrada=entrada) or "").split() if soltos else []
+    if not soltos or len(blobs) != len(soltos):
+        return ""
+    entradas = "".join(f"{MODO_DO_SOLTO} {blob}\t{caminho}\x00" for blob, caminho in zip(blobs, soltos, strict=True))
+    with tempfile.TemporaryDirectory(prefix="graphow-salvaguarda-") as pasta:
+        if _git(foto.repositorio, ("update-index", "-z", "--index-info"), entrada=entradas, indice=Path(pasta) / "index") is None:
+            return ""
+        return _git(foto.repositorio, ("write-tree",), indice=Path(pasta) / "index") or ""
+
+
+def _git(repositorio: Path, argumentos: Sequence[str], *, entrada: str = "", indice: Path | None = None) -> str | None:
+    """O git da salvaguarda no repositório do humano, com a entrada e o índice dados; a saída, ou None quando ele falha."""
+    ambiente = {nome: valor for nome, valor in os.environ.items() if nome.upper() not in VARIAVEIS_DE_OUTRO_REPOSITORIO}
+    if indice is not None:
+        ambiente["GIT_INDEX_FILE"] = str(indice)
+    try:
+        feito = subprocess.run([EXECUTAVEL_DO_GIT, "-C", str(repositorio), SEM_TRAVA_OPCIONAL, *argumentos],
+                               input=entrada.encode("utf-8"), env=ambiente, capture_output=True, check=False)
+    except OSError:
+        return None
+    return feito.stdout.decode("utf-8", errors="replace").strip() if feito.returncode == 0 else None

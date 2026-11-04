@@ -13,7 +13,6 @@ from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_CANCELAR, NovoPedido
-from graphow.orquestrador.sessoes_de_papel import PedidoDePapel, RespostaDePapel, SessoesDePapel
 from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao
 
@@ -39,10 +38,10 @@ OPCAO_DO_PROMPT: str = "--append-system-prompt-file"
 
 
 class ExecutorQueAndaABase(ExecutorDeSessao):
-    """Roda a sessão e, quando a primeira do papel dado acaba, faz o commit do humano na base do repositório dele.
+    """Roda a sessão e, no fim da primeira do papel dado, faz o commit do humano na base do repositório dele.
 
-    O commit vem fora da sessão, depois da conferência do repositório do humano (`humano_entre_as_sessoes`): o
-    commit do humano no meio dela para o laço (orquestrador/foto_do_humano.py, T3a5).
+    O commit cai dentro da sessão, antes da conferência do repositório do humano: é avanço, e o laço segue
+    (orquestrador/conferencia_do_humano.py, T3a6).
     """
 
     def __init__(self, base: ExecutorDeSessao, papel: str, andar: Callable[[], None]) -> None:
@@ -50,36 +49,16 @@ class ExecutorQueAndaABase(ExecutorDeSessao):
         self._papel: str = papel
         self._andar: Callable[[], None] = andar
         self._andou: bool = False
-        self._pendente: bool = False
 
     def rodar(self, pedido: PedidoDeSessao) -> ResultadoDeSessao:
-        """A sessão roda; a primeira do papel deixa o commit do humano pendente."""
+        """A sessão roda; no fim da primeira do papel, a base anda."""
         resultado = super().rodar(pedido)
         argumentos = list(pedido.argumentos_extras)
         prompt = argumentos[argumentos.index(OPCAO_DO_PROMPT) + 1] if OPCAO_DO_PROMPT in argumentos else ""
         if not self._andou and Path(prompt).stem == self._papel:
-            self._andou = self._pendente = True
-        return resultado
-
-    def depois_da_sessao(self) -> None:
-        """Fora da sessão, o commit do humano que a primeira do papel deixou pendente."""
-        if self._pendente:
-            self._pendente = False
+            self._andou = True
             self._andar()
-
-
-@pytest.fixture(autouse=True)
-def humano_entre_as_sessoes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """O `ExecutorQueAndaABase` anda a base quando `SessoesDePapel.rodar` volta, fora da janela da foto do humano."""
-    original = SessoesDePapel.rodar
-
-    def rodar(sessoes: SessoesDePapel, pedido: PedidoDePapel) -> RespostaDePapel:
-        resposta = original(sessoes, pedido)
-        if isinstance(sessoes._executor, ExecutorQueAndaABase):
-            sessoes._executor.depois_da_sessao()
-        return resposta
-
-    monkeypatch.setattr(SessoesDePapel, "rodar", rodar)
+        return resultado
 
 
 def _roteiro_limpo() -> dict[str, list[dict[str, object]]]:

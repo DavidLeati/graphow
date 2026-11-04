@@ -117,8 +117,10 @@ ACAO_DA_VERIFICACAO: str = a.ACAO_DA_VERIFICACAO
 ACAO_DA_TENTATIVA: str = "tentativa_que_falhou"
 # A Note da sessão de papel que mexeu no settings do hook da trava ou no `.claude/` do clone.
 ACAO_DA_TRAVA_MEXIDA: str = "trava_mexida"
-# A Note da sessão de papel em que o repositório do humano mudou (orquestrador/foto_do_humano.py).
+# A Note da sessão de papel em que o repositório do humano perdeu trabalho, e a da que só o viu avançar
+# (orquestrador/conferencia_do_humano.py).
 ACAO_DO_HUMANO_MEXIDO: str = "repositorio_do_humano_mexido"
+ACAO_DO_HUMANO_QUE_AVANCOU: str = "repositorio_do_humano_avancou"
 
 VEREDITO_LIMPO: str = a.VEREDITO_LIMPO
 VEREDITO_COM_BLOQUEANTE: str = a.VEREDITO_COM_BLOQUEANTE

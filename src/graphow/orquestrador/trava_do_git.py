@@ -36,12 +36,12 @@ São cinco camadas, em profundidade:
 
 4. O repositório do humano é fotografado antes de cada sessão e conferido
    depois dela (orquestrador/foto_do_humano.py), sem ler comando nenhum: a
-   sessão em que ele mudou para o laço em FALHA, com a salvaguarda das
-   mudanças rastreadas. É a camada que pega o script que não cita git e o
+   sessão em que ele perdeu trabalho para o laço em FALHA, com a
+   salvaguarda (orquestrador/conferencia_do_humano.py); o avanço segue. É a camada que pega o script que não cita git e o
    `-C <repositório do humano>`, que escapam das outras.
 
 Nada fora do clone é desfeito: o que o humano fizer no repositório dele
-durante a sessão fica como ele deixou (e para o laço, pela camada 4).
+durante a sessão fica como ele deixou (e a perda para o laço, pela camada 4).
 
 O hook não se desliga. O clone é a pasta do projeto da sessão
 (`--setting-sources project`), e um `.claude/settings.json` com
