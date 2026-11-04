@@ -9,8 +9,11 @@ isso, ao fim de toda sessão, antes da conferência, a árvore dela morre:
 - no Windows, o processo nasce suspenso, entra num Job Object e só então
   roda: todo descendente nasce dentro do job, inclusive o que fica órfão
   quando o pai sai (o `taskkill /T` não acha o órfão, porque segue o PID do
-  pai, que já morreu). No fim, `TerminateJobObject` mata o job inteiro. Sem
-  o job (o Windows não o criou), vale o `taskkill /PID <pid> /T /F`;
+  pai, que já morreu). No fim, `TerminateJobObject` mata o job inteiro. O
+  job leva `KILL_ON_JOB_CLOSE`: se o orquestrador morre antes do fim, o
+  Windows fecha a alça dele, e a árvore morre junto. Sem o job (o Windows
+  não o criou), vale o `taskkill /PID <pid> /T /F`. O processo que o WMI
+  cria (`Win32_Process.Create`) nasce fora do job e escapa: limite conhecido;
 - no POSIX, a sessão nasce num grupo de processos só dela, e o grupo morre
   inteiro (`killpg`), o órfão inclusive; quem chama `setsid` sai do grupo.
 
@@ -35,6 +38,9 @@ CRIACAO_DA_SESSAO: int = 0x00000004 if NO_WINDOWS else 0
 ACESSO_AO_PROCESSO: int = 0x0100 | 0x0001 | 0x0800
 # JobObjectBasicAccountingInformation: quantos processos do job seguem ativos.
 CONTABILIDADE_DO_JOB: int = 1
+# JobObjectExtendedLimitInformation e JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: a árvore morre quando a alça do job fecha.
+LIMITES_DO_JOB: int = 9
+MATAR_AO_FECHAR_O_JOB: int = 0x2000
 CODIGO_DA_ARVORE_MORTA: int = 1
 
 
@@ -43,6 +49,15 @@ class _ContabilidadeDoJob(ctypes.Structure):
 
     _fields_ = (("tempos", ctypes.c_int64 * 4), ("faltas_de_pagina", ctypes.c_uint32), ("total", ctypes.c_uint32),
                 ("ativos", ctypes.c_uint32), ("terminados", ctypes.c_uint32))
+
+
+class _LimitesDoJob(ctypes.Structure):
+    """JOBOBJECT_EXTENDED_LIMIT_INFORMATION: os limites básicos (as flags entre eles), a E/S e a memória do job."""
+
+    _fields_ = (("tempos", ctypes.c_int64 * 2), ("flags", ctypes.c_uint32), ("conjunto", ctypes.c_size_t * 2),
+                ("processos", ctypes.c_uint32), ("afinidade", ctypes.c_size_t), ("prioridade", ctypes.c_uint32),
+                ("escalonamento", ctypes.c_uint32), ("entrada_e_saida", ctypes.c_uint64 * 6),
+                ("memoria", ctypes.c_size_t * 4))
 
 
 @dataclass(frozen=True)
@@ -91,13 +106,26 @@ def matar_arvore(processo: subprocess.Popen[bytes]) -> None:
 
 
 def _job_com(kernel32: Any, alca: int | None) -> int | None:
-    """Um Job Object com o processo dentro; None quando o Windows não o cria ou não aceita o processo."""
+    """Um Job Object que mata a árvore ao fechar, com o processo dentro; None quando o Windows não o cria ou não
+    aceita o processo."""
     job = kernel32.CreateJobObjectW(None, None) if alca else None
+    if job:
+        _matar_ao_fechar(kernel32, job)
     if job and kernel32.AssignProcessToJobObject(job, alca):
         return int(job)
     if job:
         kernel32.CloseHandle(job)
     return None
+
+
+def _matar_ao_fechar(kernel32: Any, job: int) -> bool:
+    """Liga no job o `KILL_ON_JOB_CLOSE`: quando a última alça fecha, até na morte do orquestrador, a árvore morre.
+
+    Sem ele (o Windows recusou), o job ainda mata a árvore no fim da sessão;
+    só a queda do orquestrador escapa.
+    """
+    limites = _LimitesDoJob(flags=MATAR_AO_FECHAR_O_JOB)
+    return bool(kernel32.SetInformationJobObject(job, LIMITES_DO_JOB, ctypes.byref(limites), ctypes.sizeof(limites)))
 
 
 def _esperar_o_job_esvaziar(kernel32: Any, job: int) -> None:
@@ -140,6 +168,7 @@ def _kernel32() -> Any:
     kernel32.CreateJobObjectW.restype = wintypes.HANDLE
     kernel32.CreateJobObjectW.argtypes = (wintypes.LPVOID, wintypes.LPCWSTR)
     kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+    kernel32.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD)
     kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
     kernel32.QueryInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD,
                                                    wintypes.LPVOID)

@@ -1,10 +1,18 @@
 """A sessão roda o executável certo, na pasta certa, com o ambiente limpo, e lê o resultado do stream."""
 
+from collections.abc import Callable
+import contextlib
+import ctypes
 from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
+import subprocess
+import time
+from typing import Any
 
 import pytest
 
+from graphow.sessoes.arvore_da_sessao import CRIACAO_DA_SESSAO, prender_a_arvore
 from graphow.sessoes.pedido import PedidoDeSessao
 from graphow.sessoes.sessao_claude import ExecutorDeSessao, FalhaAoAbrirSessao
 
@@ -140,6 +148,84 @@ def test_fim_normal_mata_o_filho_que_a_sessao_deixou_vivo_edge_case(tmp_path: Pa
     chamada = chamadas_registradas(registro)[0]
     assert (resultado.tempo_esgotado, resultado.codigo_saida) == (False, 0)
     assert not processo_vivo(int(str(chamada["pid_do_filho"]))), "o filho que a sessao deixou sobreviveu ao fim dela"
+
+
+class _QuedaNoMeio(RuntimeError):
+    """A exceção que o teste injeta no meio da espera de `_lancar`, com a sessão e o filho dela vivos."""
+
+
+def _registro_completo(registro: Path) -> bool:
+    """O falso já abriu o filho e gravou o registro inteiro (o JSON lê)."""
+    try:
+        return bool(chamadas_registradas(registro))
+    except (ValueError, OSError):
+        return False
+
+
+def _esperar_registro(registro: Path) -> None:
+    """Até o falso gravar o registro, que ele grava depois de abrir o filho."""
+    limite = time.monotonic() + 30
+    while not _registro_completo(registro) and time.monotonic() < limite:
+        time.sleep(0.05)
+
+
+def _espera_que_cai(original: Callable[..., Any], registro: Path) -> Callable[..., Any]:
+    """O `communicate` que entrega o prompt, espera o falso abrir o filho e levanta no meio da espera."""
+    def communicate(entrada: bytes | None = None, timeout: float | None = None) -> Any:
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            original(entrada, timeout=0.1)
+        _esperar_registro(registro)
+        raise _QuedaNoMeio("o orquestrador caiu no meio da sessao")
+
+    return communicate
+
+
+def test_excecao_no_meio_da_sessao_nao_deixa_processo_vivo_edge_case(tmp_path: Path,
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    """Caso de borda (T3a4.3): a espera de `_lancar` levanta com o `.cmd`, o claude falso e o filho dele vivos.
+
+    A exceção sobe a quem chamou, e nenhum dos três fica vivo: a árvore
+    morre no `finally`, também no caminho de erro.
+    """
+    falso, registro = criar_executavel_falso(tmp_path / "bin"), tmp_path / "registro"
+    ambiente = ambiente_de_teste(registro, GRAPHOW_TESTE_DORMIR="60", GRAPHOW_TESTE_FILHO="1")
+    executor, abertos = ExecutorDeSessao((str(falso),), ambiente), []
+    abrir = ExecutorDeSessao._abrir
+
+    def abrir_com_espera_que_cai(self: ExecutorDeSessao, *argumentos: Any) -> Any:
+        processo, arvore = abrir(self, *argumentos)
+        abertos.append(processo)
+        monkeypatch.setattr(processo, "communicate", _espera_que_cai(processo.communicate, registro))
+        return processo, arvore
+
+    monkeypatch.setattr(ExecutorDeSessao, "_abrir", abrir_com_espera_que_cai)
+    with pytest.raises(_QuedaNoMeio):
+        executor.rodar(_pedido(tmp_path))
+
+    chamada = chamadas_registradas(registro)[0]
+    assert esperar_fim(abertos[0].pid), "o .cmd da sessao sobreviveu a excecao"
+    assert esperar_fim(int(str(chamada["pid"]))), "o claude aberto pelo .cmd sobreviveu a excecao"
+    assert esperar_fim(int(str(chamada["pid_do_filho"]))), "o filho que a sessao abriu sobreviveu a excecao"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Job Object do Windows")
+def test_alca_do_job_fechada_sem_terminate_mata_a_arvore_edge_case(tmp_path: Path) -> None:
+    """Caso de borda (T3a4): o job leva `KILL_ON_JOB_CLOSE`. Se o orquestrador morre no meio, o Windows fecha a alça
+    do job sem `TerminateJobObject`, e o claude aberto pelo `.cmd` e o filho dele morrem com ela."""
+    falso, registro = criar_executavel_falso(tmp_path / "bin"), tmp_path / "registro"
+    ambiente = ambiente_de_teste(registro, GRAPHOW_TESTE_DORMIR="60", GRAPHOW_TESTE_FILHO="1")
+    processo = subprocess.Popen([str(falso)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, env=ambiente,
+                                creationflags=CRIACAO_DA_SESSAO)
+    try:
+        arvore = prender_a_arvore(processo)
+        _esperar_registro(registro)
+        assert arvore.job is not None
+        ctypes.windll.kernel32.CloseHandle(ctypes.c_void_p(arvore.job))
+        chamada = chamadas_registradas(registro)[0]
+        assert esperar_fim(int(str(chamada["pid"]))), "o claude sobreviveu a alca do job fechada"
+        assert esperar_fim(int(str(chamada["pid_do_filho"]))), "o filho sobreviveu a alca do job fechada"
+    finally:
+        processo.kill()
 
 
 def test_codigo_de_saida_diferente_de_zero_e_erro_edge_case(tmp_path: Path) -> None:

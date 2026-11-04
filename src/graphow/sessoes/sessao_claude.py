@@ -5,12 +5,12 @@ minutos escreve megabytes, e o arquivo é o registro que a medição relê depoi
 inclusive quando o processo morre no meio. A saída de erro vai para outro
 arquivo ao lado.
 
-No tempo esgotado e também no fim normal, a árvore da sessão morre
-(sessoes/arvore_da_sessao.py): o executável costuma ser um `.cmd` que abre o
-claude de verdade como filho, e o agente deixa processos vivos (um servidor,
-por exemplo), que mexeriam no clone depois que a sessão foi conferida. Nunca
-por nome (`taskkill /IM`, `pkill`): isso mataria os processos de outros
-trabalhos da máquina.
+No tempo esgotado, no fim normal e na exceção no meio da espera, a árvore da
+sessão morre (sessoes/arvore_da_sessao.py): o executável costuma ser um
+`.cmd` que abre o claude de verdade como filho, e o agente deixa processos
+vivos (um servidor, por exemplo), que mexeriam no clone depois que a sessão
+foi conferida. Nunca por nome (`taskkill /IM`, `pkill`): isso mataria os
+processos de outros trabalhos da máquina.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -161,7 +161,11 @@ class ExecutorDeSessao:
         )
 
     def _lancar(self, comando: tuple[str, ...], pedido: PedidoDeSessao) -> tuple[int | None, bool]:
-        """O código de saída e se o tempo esgotou; o prompt vai pela entrada padrão. No fim, a árvore da sessão morre."""
+        """O código de saída e se o tempo esgotou; o prompt vai pela entrada padrão.
+
+        No fim, a árvore da sessão morre, também quando a espera levanta (a
+        exceção sobe depois): nada da sessão fica vivo mexendo no clone.
+        """
         with pedido.arquivo_stream.open("wb") as saida, pedido.arquivo_erro.open("wb") as erros:
             processo, arvore = self._abrir(comando, pedido, (saida, erros))
             esgotado = False
@@ -169,7 +173,8 @@ class ExecutorDeSessao:
                 processo.communicate(pedido.prompt.encode("utf-8"), timeout=pedido.tempo_limite_s)
             except subprocess.TimeoutExpired:
                 esgotado = True
-            matar_a_arvore(processo, arvore)
+            finally:
+                matar_a_arvore(processo, arvore)
             if esgotado:
                 processo.communicate()
         return processo.returncode, esgotado

@@ -10,15 +10,15 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-6 módulos · 699 linhas · 10 classes
+6 módulos · 733 linhas · 11 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`sessoes/arvore_da_sessao.py`](#sessoesarvoredasessao) | 157 | A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo esgotado e no fim normal. |
+| [`sessoes/arvore_da_sessao.py`](#sessoesarvoredasessao) | 186 | A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo esgotado e no fim normal. |
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
 | [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 197 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 79 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 211 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 216 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
 ## `sessoes/arvore_da_sessao.py`
 
@@ -32,6 +32,8 @@ A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo
 | `CRIACAO_DA_SESSAO` | `int` | `4 if NO_WINDOWS else 0` |
 | `ACESSO_AO_PROCESSO` | `int` | `256 | 1 | 2048` |
 | `CONTABILIDADE_DO_JOB` | `int` | `1` |
+| `LIMITES_DO_JOB` | `int` | `9` |
+| `MATAR_AO_FECHAR_O_JOB` | `int` | `8192` |
 | `CODIGO_DA_ARVORE_MORTA` | `int` | `1` |
 
 ### `ArvoreDaSessao`
@@ -43,6 +45,10 @@ A árvore de processos de uma sessão: o que nasceu dela morre com ela, no tempo
 ### `_ContabilidadeDoJob` (ctypes.Structure)
 
 *serviço* — JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: os quatro tempos e as contagens de processos do job.
+
+### `_LimitesDoJob` (ctypes.Structure)
+
+*serviço* — JOBOBJECT_EXTENDED_LIMIT_INFORMATION: os limites básicos (as flags entre eles), a E/S e a memória do job.
 
 ### Funções do módulo
 
