@@ -21,9 +21,13 @@ volta a ela, que traz o da base nova (orquestrador/trava_do_git.py); as
 recusas comparam contra ela, e o que a base trouxe (o aceite de outro Goal, o
 conftest do humano) não é da fatia. Depois da sessão, todo arquivo que a base
 mudou e o Goal não precisa estar como na base nova: a fatia que desfaz o
-trabalho do humano é recusada (`desfaz_a_base`). A suíte e os testes de
-aceite rodam na área resolvida; o aceite vermelho também recusa a tentativa
-(orquestrador/vermelho_do_rebase.py).
+trabalho do humano é recusada (`desfaz_a_base`). Nos arquivos que os dois
+mudaram, a mudança da base precisa continuar no resultado: `git merge-tree
+--merge-base=<base antiga> <base nova> <resultado>` devolve o próprio
+resultado, e a fatia que tira dali a linha que a base pôs é recusada com o
+arquivo e o que a base poria de volta (revisão da T3g3 e da T3g4, V1). A
+suíte e os testes de aceite rodam na área resolvida; o aceite vermelho também
+recusa a tentativa (orquestrador/vermelho_do_rebase.py).
 
 O commit da fatia leva o trabalho do Goal inteiro sobre a base nova e os
 commits de antes da primeira fatia (o plano e os testes de aceite), refeitos
@@ -43,13 +47,14 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.contexto_do_laco import ContextoDoGoal
 from graphow.orquestrador.correcoes import normalizar_caminho
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
-from graphow.orquestrador.git_do_goal import SEM_ASPAS, GitDoGoal, commits_entre
+from graphow.orquestrador.git_do_goal import SEM_ASPAS, FalhaDoGitDoGoal, GitDoGoal, commits_entre
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, FatiaRegistrada
 from graphow.orquestrador.livro_razao import aresta
 from graphow.orquestrador.rebase_no_clone import (
     ConflitoNoRebase,
     RebaseNoClone,
     arquivos_entre,
+    arvore_da_area,
     arvore_mesclada,
     antes_das_fatias_sobre,
     commit_sobre,
@@ -69,6 +74,11 @@ COMO_RESOLVER: str = (
     "entregou e o que a base trouxe, sem regredir criterio nenhum, tire os marcadores e deixe a suite e os testes de aceite "
     "verdes. Nao desfaca a base: o arquivo que a base mudou e o Goal nao fica como na base, e o orquestrador commita a area "
     "sobre ela."
+)
+COMO_MANTER_A_BASE: str = (
+    "O orquestrador recusa a tentativa: mantenha cada linha que a base pos ou tirou, tambem nos arquivos que o Goal e a base "
+    "mudaram, e mude so o que e do Goal. A mudanca colada a uma linha da base o git le como conflito com ela: deixe uma "
+    "linha intacta entre as duas."
 )
 
 
@@ -176,11 +186,12 @@ def preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str:
     return referencia
 
 
-def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str:
-    """Na fatia de conflito, o erro da área que mudou, desde a árvore mesclada, arquivo que só a base mudou; vazio sem ele.
+def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str], *, referencia: str) -> str:
+    """Na fatia de conflito, o erro da área que desfaz o que a base nova trouxe; vazio quando a mudança da base continua nela.
 
-    Esse arquivo vem da base nova na árvore mesclada: o que difere dela
-    desfaz o que o humano, ou outro Goal, commitou na base.
+    O arquivo que só a base mudou vem dela na árvore mesclada: o que difere
+    dela desfaz o que o humano, ou outro Goal, commitou na base. Nos arquivos
+    que os dois mudaram, a conferência é a do texto (`_base_fora_do_resultado`).
     """
     conflito = _conflito_da(fatia)
     if conflito is None:
@@ -189,10 +200,61 @@ def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Seq
     so_da_base = set(_so_da_base(git, base, git.head()))
     desfeitos = [caminho for caminho in mudados if caminho in so_da_base]
     if not desfeitos:
-        return ""
+        return _base_fora_do_resultado(contexto, base, referencia=referencia)
     return (f"a fatia de conflito desfez o que a base nova ({base[:12]}) trouxe em {', '.join(desfeitos)}: a base mudou esses "
             "arquivos e o Goal nao, e eles ficam como na base, porque sao trabalho do humano ou de outro Goal. O orquestrador "
             "recusa a tentativa: resolva so o conflito, sem tocar no que a base mudou fora dele.")
+
+
+def _base_fora_do_resultado(contexto: ContextoDoGoal, base: str, *, referencia: str) -> str:
+    """O erro do resultado de onde saiu parte da mudança da base nova, com os arquivos e o que ela poria de volta; vazio sem.
+
+    `git merge-tree --merge-base=<base antiga> <base nova> <resultado>`
+    devolve a própria árvore do resultado quando a mudança da base continua
+    nele; o arquivo em que a mescla difere é o de onde a fatia a tirou, como a
+    linha que a base pôs num arquivo que os dois mudaram (revisão da T3g3 e
+    da T3g4, V1). A base antiga é a de onde a branch do Goal saiu.
+    """
+    git, head = contexto.git, contexto.git.head()
+    antiga = git.rodar("merge-base", head, base).strip()
+    em_conflito = frozenset(arvore_mesclada(contexto.area, head, base)[1])
+    resultado = arvore_da_area(contexto.area, referencia)
+    tirados, diff = _fora_do_resultado(git, resultado, antiga=antiga, base=base, em_conflito=em_conflito)
+    if not tirados:
+        return ""
+    return (f"a fatia aberta pelo rebase tirou do resultado parte do que a base nova ({base[:12]}) trouxe em "
+            f"{', '.join(tirados)}: `git merge-tree --merge-base={antiga[:12]} {base[:12]} <resultado>` nao devolve o "
+            f"resultado, porque a mudanca da base nesses arquivos nao esta mais nele. {COMO_MANTER_A_BASE} O que a base poria "
+            f"de volta no resultado:\n```\n{diff[:LIMITE_DO_DIFF]}\n```")
+
+
+def _fora_do_resultado(
+    git: GitDoGoal, resultado: str, *, antiga: str, base: str, em_conflito: frozenset[str]
+) -> tuple[tuple[str, ...], str]:
+    """Os arquivos em que a mescla da base nova no resultado difere dele, e o diff do que ela muda.
+
+    Nos arquivos que o rebase deixou em conflito, a resolução difere da base
+    por definição: neles a mescla favorece o resultado (`-Xtheirs`) e confere
+    só o que a base mudou fora do trecho em conflito.
+    """
+    tirados: list[str] = []
+    diff = ""
+    mesclas: list[tuple[tuple[str, ...], bool]] = [((), False), *([(("-Xtheirs",), True)] if em_conflito else [])]
+    for opcoes, dos_conflitos in mesclas:
+        mescla = _mescla_da_base(git, resultado, antiga=antiga, base=base, opcoes=opcoes)
+        aqui = [caminho for caminho in arquivos_entre(git, resultado, mescla) if (caminho in em_conflito) == dos_conflitos]
+        tirados += aqui
+        diff += _diff(git, resultado, mescla, arquivos=aqui)
+    return tuple(tirados), diff
+
+
+def _mescla_da_base(git: GitDoGoal, resultado: str, *, antiga: str, base: str, opcoes: Sequence[str] = ()) -> str:
+    """A árvore da mescla da base nova no resultado, desde a base antiga (no conflito, com os marcadores)."""
+    feito = git.tentar(*SEM_ASPAS, "merge-tree", "--write-tree", *opcoes, f"--merge-base={antiga}", base, resultado)
+    arvore = feito.saida.split("\n", 1)[0].strip()
+    if feito.codigo not in (0, 1) or not arvore:
+        raise FalhaDoGitDoGoal("o git nao mesclou a base nova no resultado da fatia", {"base": base[:12], "erro": feito.erro.strip()})
+    return arvore
 
 
 def aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada, *, numero: int) -> str:

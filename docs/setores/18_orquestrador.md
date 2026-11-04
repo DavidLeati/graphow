@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13582 linhas · 104 classes
+72 módulos · 13644 linhas · 104 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -37,7 +37,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 222 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 284 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 178 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
@@ -690,13 +690,14 @@ A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou ver
 | `LIMITE_DO_DIFF` | `int` | `6000` |
 | `MODELO_DO_CONFLITO` | `str` | `'opus'` |
 | `COMO_RESOLVER` | `str` | `'Nesta fatia, a area traz o trabalho do Goal com a base nova mesclada, …` |
+| `COMO_MANTER_A_BASE` | `str` | `'O orquestrador recusa a tentativa: mantenha cada linha que a base pos …` |
 
 ### Funções do módulo
 
 - `abrir_fatia_de_conflito(contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase) -> str` — A fatia do marco final que resolve o conflito com a base nova; devolve o id da Task.
 - `referencia_da_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — Contra o que a tentativa se compara: o HEAD; na fatia de conflito, a árvore da ponta do Goal com a base nova mesclada.
 - `preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — A referência da tentativa; na fatia de conflito, a área e o índice a recebem, fora de commit, com o HEAD onde estava.
-- `desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — Na fatia de conflito, o erro da área que mudou, desde a árvore mesclada, arquivo que só a base mudou; vazio sem ele.
+- `desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — Na fatia de conflito, o erro da área que desfaz o que a base nova trouxe; vazio quando a mudança da base continua nela.
 - `aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str` — Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio.
 - `commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str` — O commit da fatia; o da de conflito, da árvore que a conferência julgou sobre a referência, vai sobre a base nova e é
 

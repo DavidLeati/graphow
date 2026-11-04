@@ -246,7 +246,7 @@ def _conferir_o_que_mudou(contexto: ContextoDoGoal, estado: EstadoDoGoal, tentat
     decidem = conftests_que_decidem_o_resultado(contexto.area, mudados, antes=referencia)
     if decidem:
         return _decide_o_resultado(decidem), ()
-    base_desfeita = desfaz_a_base(contexto, tentativa.fatia, mudados)
+    base_desfeita = desfaz_a_base(contexto, tentativa.fatia, mudados, referencia=referencia)
     if base_desfeita:
         return base_desfeita, ()
     soltos = fora_da_referencia(contexto.area, referencia, soltos_que_mudam_os_testes(contexto.area))
