@@ -1,21 +1,26 @@
-"""A fatia de conflito (revisão da T3g): a base nova mesclada é a referência, e nada a desfaz."""
+"""A fatia de conflito e o aceite depois do rebase (revisão da T3g): a base nova mesclada é a referência, e nada a desfaz."""
 
 from pathlib import Path
 
-from graphow.orquestrador.contexto_do_laco import OpcoesDoLaco
+from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.leitura_do_goal import FatiaRegistrada, ler_estado
 
 from tests.orquestrador.apoio_git import git
 from tests.orquestrador.apoio_laco import (
+    SOMA_ERRADA,
     Bancada,
+    ate_o_portao_aprovado,
+    autor_de_aceite,
     executor_pronto,
     montar_bancada,
     verificacao,
 )
 from tests.orquestrador.test_base_que_andou import (
+    RAMO,
     SOMA_DA_BASE_QUE_CONFLITA,
     SOMA_RESOLVIDA,
     ExecutorQueAndaABase,
+    _rebases,
     _roteiro_limpo,
     _verificacoes,
 )
@@ -24,6 +29,10 @@ AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 SETTINGS_DO_HUMANO: str = '{"permissions": {"allow": []}}\n'
 INSTRUCOES_DO_HUMANO: str = "# Instrucoes do humano\nResponda em portugues.\n"
 CONFTEST_DO_HUMANO: str = "def pytest_pyfunc_call(pyfuncitem):\n    return None\n"
+ACEITE_COM_FATOR: str = (
+    'import sys\nsys.path.insert(0, ".")\nfrom soma import somar\nfrom fator import FATOR\n\n\n'
+    "def test_c1_soma():\n    assert somar(2, 3) * FATOR == 5, 'C1'\n\n\ntest_c1_soma()\nprint('aceite ok')\n"
+)
 
 
 def _commit(repositorio: Path, arquivos: dict[str, str], mensagem: str) -> str:
@@ -54,6 +63,15 @@ def _roteiro_com_a_fatia(*executores: dict[str, object]) -> dict[str, list[dict[
     roteiro = _roteiro_limpo()
     roteiro["executor"] += list(executores)
     roteiro["verificador"].append(verificacao("atende"))
+    return roteiro
+
+
+def _roteiro_do_fator(*executores: dict[str, object]) -> dict[str, list[dict[str, object]]]:
+    """O roteiro limpo com o teste de aceite de C1 que depende de fator.py, que nenhuma fatia toca."""
+    roteiro = _roteiro_limpo()
+    roteiro["aceite"] = [autor_de_aceite()]
+    roteiro["aceite"][0]["arquivos"] = {"aceite/aceite_c1.py": ACEITE_COM_FATOR}
+    roteiro["executor"] += list(executores)
     return roteiro
 
 
@@ -104,3 +122,40 @@ def test_fatia_de_conflito_com_o_aceite_de_outro_goal_e_o_conftest_do_humano_na_
     assert git(bancada.repositorio, "show", "main:aceite/aceite_outro_goal.py") == "print('outro goal')\n"
     assert git(bancada.repositorio, "show", "main:conftest.py") == CONFTEST_DO_HUMANO
     assert _verificacoes(bancada) == ["verificador", "conferencia"]
+
+
+def test_aceite_vermelho_depois_do_rebase_limpo_vira_fatia_de_conflito_e_nao_chega_a_base_edge_case(tmp_path: Path) -> None:
+    """T3g2.2: a base muda fator.py, que nenhuma fatia toca, e o aceite fica vermelho; a fatia de conflito não o resolve."""
+    bancada = montar_bancada(tmp_path, _roteiro_do_fator(executor_pronto({}), executor_pronto({})))
+    _commit(bancada.repositorio, {"fator.py": "FATOR = 1\n"}, "Fator")
+    executor = _humano_depois_do_verificador(bancada, {"fator.py": "FATOR = 2\n"})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.PENDENCIA and "M1.R1" in parada.mensagem, parada.mensagem
+    assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_ERRADA, "o Goal com o aceite vermelho nao chega a base"
+    assert git(bancada.repositorio, "show", "main:fator.py") == "FATOR = 2\n"
+    conflito = _fatia_de_conflito(bancada)
+    assert conflito.propriedades["conflito_com_a_base"]["motivo"] == "aceite_vermelho"
+    assert conflito.propriedades["conflito_com_a_base"]["arquivos"] == ["fator.py"]
+    primeira, segunda = (chamada["stdin"] for chamada in bancada.chamadas("executor")[2:])
+    assert "deixou vermelho o teste de aceite test_c1_soma de C1" in primeira and "fator.py" in primeira
+    assert "a area resolvida deixou vermelho o teste de aceite test_c1_soma de C1" in segunda
+    assert _rebases(bancada) == [] and _verificacoes(bancada) == ["verificador"]
+
+
+def test_aceite_vermelho_depois_do_rebase_limpo_no_supervisionado_para_e_a_branch_fica_edge_case(tmp_path: Path) -> None:
+    """T3g2.2: no supervisionado, o aceite vermelho depois do rebase limpo para em conflito_com_a_base, com a falha."""
+    bancada = montar_bancada(tmp_path, _roteiro_do_fator())
+    _commit(bancada.repositorio, {"fator.py": "FATOR = 1\n"}, "Fator")
+    orquestrador = ate_o_portao_aprovado(bancada)
+    assert orquestrador.rodar("goal-soma", OpcoesDoLaco()).motivo == MotivoDaParada.PRONTO_PARA_INTEGRAR
+    ponta = git(bancada.repositorio, "rev-parse", RAMO).strip()
+    _commit(bancada.repositorio, {"fator.py": "FATOR = 2\n"}, "Humano muda o fator")
+
+    parada = orquestrador.rodar("goal-soma", OpcoesDoLaco())
+
+    assert parada.motivo == MotivoDaParada.CONFLITO_COM_A_BASE, parada.mensagem
+    assert "deixou vermelho o teste de aceite test_c1_soma de C1" in parada.mensagem and "C1" in parada.mensagem
+    assert git(bancada.repositorio, "rev-parse", RAMO).strip() == ponta and _rebases(bancada) == []
+    assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_ERRADA

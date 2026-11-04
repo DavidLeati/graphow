@@ -48,7 +48,7 @@ def test_objetivo_da_fatia_de_conflito_traz_o_nome_com_acento_edge_case(tmp_path
     contexto = cast(ContextoDoGoal, _Contexto(GitDoGoal(area), _Configuracao("main")))
     conflito = ConflitoNoRebase(antes, antes, antes, ("relatório.md",))
 
-    objetivo = _objetivo(contexto, conflito, arvore="HEAD", arquivos=["relatório.md"], suite=None)
+    objetivo = _objetivo(contexto, conflito, arvore="HEAD", arquivos=["relatório.md"], vermelho=None)
 
     assert "diff --git a/relatório.md b/relatório.md" in objetivo
     assert OCTAL_DO_ACENTO not in objetivo

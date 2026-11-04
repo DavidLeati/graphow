@@ -18,8 +18,8 @@ ganha uma nova tentativa com o erro no briefing; na segunda, a fatia vira
 pendência do Goal e o laço para. O que não vira commit vai para um `.patch`
 e sai da área, para não vazar para a fatia seguinte. A fatia de conflito com
 a base que andou começa com a base nova mesclada na área, que é a referência
-das recusas e do selo, recusa a área que desfaz a base e commita sobre a base
-nova (orquestrador/fatia_de_conflito.py). A fatia que caiu no
+das recusas e do selo, recusa a área que desfaz a base, roda também os
+testes de aceite e commita sobre a base nova (orquestrador/fatia_de_conflito.py). A fatia que caiu no
 meio da sessão passa por isso na retomada, e antes do pedido do humano que
 chega primeiro (`guardar_a_fatia_interrompida`).
 """
@@ -52,6 +52,7 @@ from graphow.orquestrador.decisoes_do_agente import (
 from graphow.orquestrador.esquemas import ESQUEMA_DA_EXECUCAO_AUTONOMA, PAPEL_EXECUTOR
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.fatia_de_conflito import (
+    aceite_da_fatia,
     commitar_a_fatia,
     desfaz_a_base,
     preparar_a_fatia,
@@ -219,6 +220,9 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
         )
     if not suite.passou:
         return suite.descrever()
+    vermelho = aceite_da_fatia(contexto, estado, tentativa.fatia, numero=tentativa.numero)
+    if vermelho:
+        return vermelho
     motivo = de_risco(tentativa.fatia) or _sinal_da_configuracao(tentativa.fatia, configuracao)
     return revisar_fatia(contexto, estado, PedidoDeRevisao(tentativa.fatia, tentativa.numero, motivo)) if motivo else ""
 

@@ -1143,24 +1143,26 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    Se a base andou desde que a branch do Goal saiu dela, não há
    fast-forward. O orquestrador faz o rebase da branch sobre a base nova, no
    clone (cada commit vira um novo, com a mesma mensagem e os trailers), e
-   roda a suíte. Verde, o rebase vai ao livro-razão antes de as refs andarem:
-   uma `Evidence` `rebase_do_goal` com as duas bases, as duas pontas e o
-   commit novo de cada antigo e de cada fatia; as fatias e os `Artifact`
-   passam a apontar para o commit novo. Se o rebase não mudou arquivo que um
-   critério cobre (os das fatias do plano dele e os testes de aceite), a
-   verificação final segue valendo: a ponta guarda o commit verificado em
-   `equivalente_a`, e o kernel o aceita. Se mudou, a verificação final roda
-   de novo antes de integrar. Com conflito ou suíte vermelha, o
-   supervisionado desfaz o rebase, deixa a branch como estava e para em
-   `conflito_com_a_base`, com os arquivos. O autônomo abre uma fatia de
-   conflito no marco final: a área recebe o Goal com a base nova mesclada,
-   com os marcadores, e o commit da fatia vai sobre a base nova com o
-   trabalho do Goal inteiro. Nessa fatia, a árvore mesclada é a referência:
-   o `.claude/` e os `CLAUDE.md` voltam a ela antes de cada sessão, as
-   recusas comparam contra ela, e a tentativa que desfaz um arquivo que só a
-   base mudou é recusada. A base é conferida de novo a cada passo que
-   chega a integrar. Logo antes do fast-forward o Goal é relido, e o
-   cancelamento que chegou no meio do passo impede a integração.
+   roda a suíte e, com ela verde, os testes de aceite de todos os critérios,
+   na configuração entregue. Verde, o rebase vai ao livro-razão antes de as
+   refs andarem: uma `Evidence` `rebase_do_goal` com as duas bases, as duas
+   pontas e o commit novo de cada antigo e de cada fatia; as fatias e os
+   `Artifact` passam a apontar para o commit novo. Se o rebase não mudou
+   arquivo que um critério cobre (os das fatias do plano dele e os testes de
+   aceite), a verificação final segue valendo: a ponta guarda o commit
+   verificado em `equivalente_a`, e o kernel o aceita. Se mudou, a
+   verificação final roda de novo antes de integrar. Com conflito, suíte
+   vermelha ou aceite vermelho, o supervisionado desfaz o rebase, deixa a
+   branch como estava e para em `conflito_com_a_base`, com os arquivos ou a
+   falha. O autônomo abre uma fatia de conflito no marco final: a área
+   recebe o Goal com a base nova mesclada, com os marcadores, e o commit da
+   fatia vai sobre a base nova com o trabalho do Goal inteiro. Nessa fatia, a
+   árvore mesclada é a referência: o `.claude/` e os `CLAUDE.md` voltam a ela
+   antes de cada sessão, as recusas comparam contra ela, e a tentativa que
+   desfaz um arquivo que só a base mudou é recusada, como a que deixa o
+   aceite vermelho. A base é conferida de novo a cada passo que chega a
+   integrar. Logo antes do fast-forward o Goal é relido, e o cancelamento que
+   chegou no meio do passo impede a integração.
 
 **Saídas do humano.** O Goal parado tem saída. Cada uma é um pedido gravado
 como `Decision` do humano (`orquestrador/pedidos_do_humano.py`), sempre com

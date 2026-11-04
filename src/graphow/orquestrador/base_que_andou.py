@@ -1,18 +1,21 @@
-"""A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte.
+"""A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite.
 
-Substitui o portão Integrar e o `graphow base-colisoes`, que a fase 3 apagou.
-Quando a base do repositório do humano não está mais na história da branch do
-Goal, não há fast-forward. O orquestrador traz a base nova ao clone, faz o
-rebase (orquestrador/rebase_no_clone.py) e roda a suíte do plano, sem os testes
-de aceite e sem rastro, como na fatia:
+Substitui o portão Integrar e o comando que listava as colisões com a base,
+que a fase 3 apagou. Quando a base do repositório do humano não está mais na
+história da branch do Goal, não há fast-forward. O orquestrador traz a base
+nova ao clone, faz o rebase (orquestrador/rebase_no_clone.py) e roda a suíte
+do plano, sem os testes de aceite e sem rastro, como na fatia, e depois os
+testes de aceite de todos os critérios, na configuração entregue
+(orquestrador/vermelho_do_rebase.py):
 
 - tudo verde: o rebase vai ao livro-razão (orquestrador/registro_do_rebase.py),
   e só então as refs andam. Se ele não mudou arquivo que um critério cobre (os
   das fatias do plano dele e os testes de aceite), a verificação final segue
   valendo; se mudou, ela roda de novo antes de integrar;
-- conflito, ou suíte vermelha: o clone volta à branch como estava, e nada se
-  registra. No supervisionado, o laço para em `conflito_com_a_base`, com os
-  arquivos; no autônomo, abre a fatia de conflito sobre a base nova
+- conflito, suíte vermelha ou aceite vermelho: o clone volta à branch como
+  estava, e nada se registra. No supervisionado, o laço para em
+  `conflito_com_a_base`, com os arquivos ou a falha; no autônomo, abre a fatia
+  de conflito sobre a base nova, com a falha no objetivo
   (orquestrador/fatia_de_conflito.py).
 """
 
@@ -27,6 +30,7 @@ from graphow.orquestrador.rebase_no_clone import ConflitoNoRebase, desfazer_o_re
 from graphow.orquestrador.registro_do_rebase import rebases_do_goal, registrar_o_rebase
 from graphow.orquestrador.suite import ResultadoDaSuite, arquivos_ocultos, rodar_suite
 from graphow.orquestrador.suite_sem_rastro import sem_o_que_a_suite_escreve
+from graphow.orquestrador.vermelho_do_rebase import Vermelho, aceite_vermelho, da_suite
 
 ARQUIVOS_NA_MENSAGEM: int = 20
 
@@ -45,13 +49,22 @@ def rebasear_o_goal(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
     feito = rebasear(contexto.area, contexto.configuracao.ramo, contexto.configuracao.base)
     if isinstance(feito, ConflitoNoRebase):
         return _sem_rebase(contexto, estado, feito)
-    suite = _rodar_a_suite(contexto, estado, numero)
-    if not suite.passou:
+    vermelho = _vermelho_depois_do_rebase(contexto, estado, numero)
+    if vermelho is not None:
         desfazer_o_rebase(contexto.area, contexto.configuracao.ramo)
-        return _sem_rebase(contexto, estado, ConflitoNoRebase(feito.base_antes, feito.base_depois, feito.antes, ()), suite=suite)
+        conflito = ConflitoNoRebase(feito.base_antes, feito.base_depois, feito.antes, ())
+        return _sem_rebase(contexto, estado, conflito, vermelho=vermelho)
     registrar_o_rebase(contexto, estado, feito)
     mover_as_refs(contexto.area_do_goal, feito.antes, feito.depois)
     return None
+
+
+def _vermelho_depois_do_rebase(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) -> Vermelho | None:
+    """A suíte do plano e, com ela verde, os testes de aceite na ponta rebaseada; None quando tudo passa."""
+    suite = _rodar_a_suite(contexto, estado, numero)
+    if not suite.passou:
+        return da_suite(suite)
+    return aceite_vermelho(contexto, estado, contexto.patch(f"rebase-{numero}-aceite"))
 
 
 def _rodar_a_suite(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) -> ResultadoDaSuite:
@@ -63,20 +76,20 @@ def _rodar_a_suite(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) 
 
 
 def _sem_rebase(
-    contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase, *, suite: ResultadoDaSuite | None = None
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase, *, vermelho: Vermelho | None = None
 ) -> Parada | None:
     """O rebase que não deu: a fatia de conflito no autônomo, a parada no supervisionado."""
     if contexto.configuracao.modo == m.MODO_AUTONOMO:
-        abrir_fatia_de_conflito(contexto, estado, conflito, suite=suite)
+        abrir_fatia_de_conflito(contexto, estado, conflito, vermelho=vermelho)
         return None
-    return parada_do_conflito(contexto, conflito, suite)
+    return parada_do_conflito(contexto, conflito, vermelho)
 
 
-def parada_do_conflito(contexto: ContextoDoGoal, conflito: ConflitoNoRebase, suite: ResultadoDaSuite | None = None) -> Parada:
+def parada_do_conflito(contexto: ContextoDoGoal, conflito: ConflitoNoRebase, vermelho: Vermelho | None = None) -> Parada:
     """O rebase que não deu, no supervisionado: a branch do Goal ficou como estava, e a parada diz por quê e os arquivos."""
     configuracao = contexto.configuracao
     arquivos = ", ".join(conflito.arquivos[:ARQUIVOS_NA_MENSAGEM]) or "(o git nao listou arquivo)"
-    problema = (f"deixou a suite vermelha. {suite.descrever()}" if suite is not None
+    problema = (f"{vermelho.resumo}. {vermelho.detalhe}" if vermelho is not None
                 else f"deu conflito em {arquivos}" + (f". O git disse: {conflito.erro}" if not conflito.arquivos and conflito.erro else ""))
     return Parada(
         contexto.id_goal, MotivoDaParada.CONFLITO_COM_A_BASE,

@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-62 módulos · 11887 linhas · 86 classes
+63 módulos · 11980 linhas · 87 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
 | [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 88 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte. |
+| [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 101 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 374 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
@@ -31,9 +31,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/documento_do_goal.py`](#orquestradordocumentodogoal) | 136 | O documento do Goal no repositório: `docs/goals/<slug>.md`, a spec com o plano e as pendências. |
 | [`orquestrador/entrada_do_goal.py`](#orquestradorentradadogoal) | 144 | De onde o laço parte: o Goal que uma spec cria (ou retoma), o Goal do gerente que ele adota e a configuração. |
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
-| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 395 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
+| [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 158 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou a suíte vermelha, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 169 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 399 | O git do Goal: a área de trabalho numa branch própria, o commit de cada fatia e a integração. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 390 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 132 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
@@ -74,6 +74,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 217 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 273 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 65 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
 ## `orquestrador/aceite_intocado.py`
@@ -156,7 +157,7 @@ O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelho
 
 ## `orquestrador/base_que_andou.py`
 
-A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte.
+A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
@@ -166,7 +167,7 @@ A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre
 
 - `base_andou(contexto: ContextoDoGoal) -> bool` — A base do repositório do humano não está na história da branch do Goal: não há fast-forward.
 - `rebasear_o_goal(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | None` — O rebase da branch do Goal sobre a base nova, com a suíte; None quando o laço segue (registrado, ou com a fatia de conflito).
-- `parada_do_conflito(contexto: ContextoDoGoal, conflito: ConflitoNoRebase, suite: ResultadoDaSuite | None) -> Parada` — O rebase que não deu, no supervisionado: a branch do Goal ficou como estava, e a parada diz por quê e os arquivos.
+- `parada_do_conflito(contexto: ContextoDoGoal, conflito: ConflitoNoRebase, vermelho: Vermelho | None) -> Parada` — O rebase que não deu, no supervisionado: a branch do Goal ficou como estava, e a parada diz por quê e os arquivos.
 
 ## `orquestrador/briefing.py`
 
@@ -555,7 +556,7 @@ O limite de uso da conta e o erro passageiro da API: não são falha do papel, n
 
 ## `orquestrador/fatia_de_conflito.py`
 
-A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou a suíte vermelha, vira trabalho do executor.
+A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
@@ -570,6 +571,7 @@ A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou a s
 - `referencia_da_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — Contra o que a tentativa se compara: o HEAD; na fatia de conflito, a árvore da ponta do Goal com a base nova mesclada.
 - `preparar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada) -> str` — A referência da tentativa; na fatia de conflito, a área a recebe, fora de commit, com o HEAD onde estava.
 - `desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Sequence[str]) -> str` — Na fatia de conflito, o erro da área que mudou, desde a árvore mesclada, arquivo que só a base mudou; vazio sem ele.
+- `aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada) -> str` — Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio.
 - `commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str` — O commit da fatia; o da fatia de conflito vai sobre a base nova, registrado como rebase antes de as refs andarem.
 
 ## `orquestrador/git_do_goal.py`
@@ -1894,6 +1896,27 @@ A verificação de um marco: uma sessão nova do verificador, a suíte que o orq
 - `decisoes_do_plano(estado: EstadoDoGoal) -> tuple[str, ...]` — Os ids das decisões do plano.
 - `nos_do_plano(plano: Mapping[str, Any]) -> dict[str, str]` — O nó do livro-razão de cada critério e decisão do plano, pelo código.
 - `sincronizar_documento(contexto: ContextoDoGoal, pendencias: Sequence[Mapping[str, Any]]) -> None` — Reescreve a seção de pendências do documento como o livro-razão a tem e commita só ele, pelo caminho, se ele mudou.
+
+## `orquestrador/vermelho_do_rebase.py`
+
+O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MOTIVO_DA_SUITE` | `str` | `'suite_vermelha'` |
+| `MOTIVO_DO_ACEITE` | `str` | `'aceite_vermelho'` |
+| `LIMITE_DA_SAIDA` | `int` | `1500` |
+
+### `Vermelho`
+
+*DTO imutável* — O que ficou vermelho depois do rebase: o motivo que a fatia de conflito grava, a frase e o fim da saída.
+
+**Campos:** `motivo: str`, `resumo: str`, `detalhe: str`
+
+### Funções do módulo
+
+- `da_suite(suite: ResultadoDaSuite) -> Vermelho` — A suíte do plano que ficou vermelha.
+- `aceite_vermelho(contexto: ContextoDoGoal, estado: EstadoDoGoal, rastro: Path) -> Vermelho | None` — Os testes de aceite de todos os critérios na área como ela está, sem rastro; None quando todos passam.
 
 ## `orquestrador/vermelho_do_refeito.py`
 

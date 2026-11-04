@@ -1,4 +1,4 @@
-"""A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou a suíte vermelha, vira trabalho do executor.
+"""A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor.
 
 No supervisionado, o laço para (orquestrador/base_que_andou.py). No autônomo
 não há quem resolva, e o orquestrador abre uma fatia no marco final,
@@ -14,7 +14,9 @@ volta a ela, que traz o da base nova (orquestrador/trava_do_git.py); as
 recusas comparam contra ela, e o que a base trouxe (o aceite de outro Goal, o
 conftest do humano) não é da fatia. Depois da sessão, todo arquivo que a base
 mudou e o Goal não precisa estar como na base nova: a fatia que desfaz o
-trabalho do humano é recusada (`desfaz_a_base`).
+trabalho do humano é recusada (`desfaz_a_base`). A suíte e os testes de
+aceite rodam na área resolvida; o aceite vermelho também recusa a tentativa
+(orquestrador/vermelho_do_rebase.py).
 
 O commit da fatia tem a base nova como pai e leva o trabalho do Goal inteiro:
 a história da branch passa a ser a base nova e esse commit, verde pela suíte
@@ -43,8 +45,8 @@ from graphow.orquestrador.rebase_no_clone import (
     mover_as_refs,
 )
 from graphow.orquestrador.registro_do_rebase import registrar_o_rebase
-from graphow.orquestrador.suite import ResultadoDaSuite
 from graphow.orquestrador.tipo_da_verificacao import arquivos_por_criterio
+from graphow.orquestrador.vermelho_do_rebase import Vermelho, aceite_vermelho
 
 CAMPO_CONFLITO: str = "conflito_com_a_base"
 LIMITE_DO_DIFF: int = 6000
@@ -52,13 +54,14 @@ MODELO_DO_CONFLITO: str = "opus"
 COMO_RESOLVER: str = (
     "Nesta fatia, a area traz o trabalho do Goal com a base nova mesclada, fora de commit: os arquivos em conflito tem os "
     "marcadores <<<<<<< (o lado do Goal), ======= e >>>>>>> (o lado da base). Resolva cada conflito mantendo o que o Goal "
-    "entregou e o que a base trouxe, sem regredir criterio nenhum, tire os marcadores e deixe a suite verde. Nao desfaca a "
-    "base: o arquivo que a base mudou e o Goal nao fica como na base, e o orquestrador commita a area sobre ela."
+    "entregou e o que a base trouxe, sem regredir criterio nenhum, tire os marcadores e deixe a suite e os testes de aceite "
+    "verdes. Nao desfaca a base: o arquivo que a base mudou e o Goal nao fica como na base, e o orquestrador commita a area "
+    "sobre ela."
 )
 
 
 def abrir_fatia_de_conflito(
-    contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase, *, suite: ResultadoDaSuite | None = None
+    contexto: ContextoDoGoal, estado: EstadoDoGoal, conflito: ConflitoNoRebase, *, vermelho: Vermelho | None = None
 ) -> str:
     """A fatia do marco final que resolve o conflito com a base nova; devolve o id da Task."""
     marco = estado.marcos()[-1]
@@ -68,11 +71,11 @@ def abrir_fatia_de_conflito(
     propriedades = {
         m.CAMPO_STATUS: m.STATUS_PENDENTE, m.CAMPO_FATIA: codigo, m.CAMPO_MARCO: marco.id, m.CAMPO_TENTATIVAS: 0,
         m.CAMPO_ORDEM: max((fatia.ordem for fatia in estado.fatias), default=0) + 1,
-        m.CAMPO_OBJETIVO: _objetivo(contexto, conflito, arvore=arvore, arquivos=arquivos, suite=suite),
+        m.CAMPO_OBJETIVO: _objetivo(contexto, conflito, arvore=arvore, arquivos=arquivos, vermelho=vermelho),
         m.CAMPO_CRITERIOS: _criterios_dos_arquivos(contexto, estado, arquivos), m.CAMPO_ARQUIVOS_ALVO: list(arquivos),
         m.CAMPO_MODELO: MODELO_DO_CONFLITO,
         CAMPO_CONFLITO: {"base": conflito.base_depois, "base_antes": conflito.base_antes, "ponta": conflito.antes,
-                         "arquivos": list(arquivos), "motivo": "suite_vermelha" if suite is not None else "conflito"},
+                         "arquivos": list(arquivos), "motivo": vermelho.motivo if vermelho is not None else "conflito"},
     }
     id_task = m.id_da_fatia(contexto.configuracao.slug, codigo)
     titulo = f"Conflito com a base {contexto.configuracao.base}: " + (", ".join(arquivos[:3]) or "suite vermelha")
@@ -82,11 +85,11 @@ def abrir_fatia_de_conflito(
 
 
 def _objetivo(
-    contexto: ContextoDoGoal, conflito: ConflitoNoRebase, *, arvore: str, arquivos: Sequence[str], suite: ResultadoDaSuite | None
+    contexto: ContextoDoGoal, conflito: ConflitoNoRebase, *, arvore: str, arquivos: Sequence[str], vermelho: Vermelho | None
 ) -> str:
     """O objetivo da fatia: o que o rebase encontrou, como resolver e o diff da ponta do Goal à área mesclada."""
     diff = contexto.git.tentar(*SEM_ASPAS, "diff", conflito.antes, arvore, "--", *arquivos).saida[:LIMITE_DO_DIFF]
-    problema = f"deixou a suite vermelha:\n{suite.descrever()}" if suite is not None else f"deu conflito em {', '.join(arquivos)}."
+    problema = f"{vermelho.resumo}:\n{vermelho.detalhe}" if vermelho is not None else f"deu conflito em {', '.join(arquivos)}."
     return (f"A base {contexto.configuracao.base} andou para {conflito.base_depois[:12]} desde que a branch do Goal saiu dela, "
             f"e o rebase da branch sobre ela {problema}\n\n{COMO_RESOLVER}\n\nO diff do conflito, da ponta do Goal a area "
             f"mesclada:\n```\n{diff}\n```")
@@ -139,6 +142,14 @@ def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Seq
     return (f"a fatia de conflito desfez o que a base nova ({base[:12]}) trouxe em {', '.join(desfeitos)}: a base mudou esses "
             "arquivos e o Goal nao, e eles ficam como na base, porque sao trabalho do humano ou de outro Goal. O orquestrador "
             "recusa a tentativa: resolva so o conflito, sem tocar no que a base mudou fora dele.")
+
+
+def aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaRegistrada, *, numero: int) -> str:
+    """Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio."""
+    if _conflito_da(fatia) is None:
+        return ""
+    vermelho = aceite_vermelho(contexto, estado, contexto.patch(f"{fatia.id}-t{numero}-aceite"))
+    return "" if vermelho is None else f"a area resolvida {vermelho.resumo}. {vermelho.detalhe}"
 
 
 def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str) -> str:
