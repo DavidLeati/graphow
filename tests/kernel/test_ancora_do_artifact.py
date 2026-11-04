@@ -177,3 +177,47 @@ def test_artifact_isento_nao_ganha_depois_deriva_de_a_task_de_codigo_edge_case()
     assert codigo["sucesso"] is False and codigo["modo_de_falha"] == "artifact_sem_ancora"
     assert "deriva de Task de acao externa e de Task que nao e" in codigo["mensagem"]
     assert outra_acao["sucesso"] is True, outra_acao
+
+
+@pytest.mark.parametrize("papel", ["executor", "humano"])
+def test_isencao_montada_em_lotes_e_recusada_edge_case(papel: str) -> None:
+    """Caso de borda (X1): sem o `deriva_de` da ação externa o Artifact fica sem isenção, e a Task de código não o adota."""
+    kernel = _kernel_com_acao_externa(acao_externa_no_executor=False)
+    assert servidor(kernel, papel).executar_ferramenta("assumir_tarefa", {"id_task": "task-a"})["sucesso"]
+    assert _propor(kernel, [*_artifact("art-x", resumo="soma.py"), _deriva("art-x", "t-envio")], papel)["sucesso"]
+
+    removido = _propor(kernel, [{"op": "remove", "path": "/arestas/deriva_de-art-x-t-envio"}], papel)
+    codigo = _propor(kernel, [_deriva("art-x", "task-a")], papel)
+
+    assert removido["sucesso"] is False and removido["modo_de_falha"] == "artifact_sem_ancora"
+    assert "nao tem 'deriva_de'" in removido["mensagem"]
+    assert codigo["sucesso"] is False and codigo["modo_de_falha"] == "artifact_sem_ancora"
+    assert kernel.obter_view().contem_aresta("deriva_de-art-x-t-envio")
+    assert not kernel.obter_view().contem_aresta("deriva_de-art-x-task-a")
+
+
+@pytest.mark.parametrize("papel", ["executor", "humano"])
+def test_terceiro_lote_recusado_mesmo_quando_o_segundo_passa_edge_case(papel: str) -> None:
+    """Caso de borda (X1): com duas ações externas, tirar uma passa; trocar a outra pela Task de código, não."""
+    kernel = _kernel_com_acao_externa(acao_externa_no_executor=False)
+    assert servidor(kernel, papel).executar_ferramenta("assumir_tarefa", {"id_task": "task-a"})["sucesso"]
+    assert _propor(kernel, [*_artifact("art-y", resumo="soma.py"), _deriva("art-y", "t-envio"), _deriva("art-y", "t-aviso")], papel)["sucesso"]
+
+    uma_a_menos = _propor(kernel, [{"op": "remove", "path": "/arestas/deriva_de-art-y-t-envio"}], papel)
+    trocada = _propor(kernel, [{"op": "remove", "path": "/arestas/deriva_de-art-y-t-aviso"}, _deriva("art-y", "task-a")], papel)
+
+    assert uma_a_menos["sucesso"] is True, uma_a_menos
+    assert trocada["sucesso"] is False and trocada["modo_de_falha"] == "artifact_sem_ancora"
+    assert "nao deriva de Task de acao externa" in trocada["mensagem"]
+
+
+def test_remover_a_task_da_acao_externa_conta_como_tirar_o_deriva_de_edge_case() -> None:
+    """Caso de borda: o nó removido leva o `deriva_de`; o Artifact que ficaria sem isenção segura a remoção."""
+    kernel = _kernel_com_acao_externa(acao_externa_no_executor=False)
+    assert _propor(kernel, [*_artifact("art-z", resumo="e-mail enviado"), _deriva("art-z", "t-envio")], "humano")["sucesso"]
+
+    so_a_task = _propor(kernel, [{"op": "remove", "path": "/nos/t-envio"}], "humano")
+    com_o_artifact = _propor(kernel, [{"op": "remove", "path": "/nos/t-envio"}, {"op": "remove", "path": "/nos/art-z"}], "humano")
+
+    assert so_a_task["sucesso"] is False and so_a_task["modo_de_falha"] == "artifact_sem_ancora"
+    assert com_o_artifact["sucesso"] is True, com_o_artifact

@@ -27,9 +27,13 @@ A Task de ação externa (`entrega: acao_externa`) não deixa conteúdo para tr�
 o Artifact que deriva só dela segue com o `resumo`, e a prova é a Evidence com
 `fonte` e `resultado`. A isenção pede que todos os `deriva_de` do Artifact vão a
 Tasks de ação externa: com um só, o executor isentava a entrega de código
-citando, ao lado da Task dele, qualquer Task de ação externa do grafo. Pela
-mesma razão, o Artifact sem âncora que deriva de ação externa não ganha depois
-um `deriva_de` a outra Task.
+citando, ao lado da Task dele, qualquer Task de ação externa do grafo.
+
+A isenção é julgada nos `deriva_de` que sobram ao fim do lote, e vale também
+para o Artifact de que o lote só cria ou tira uma aresta `deriva_de` (ou
+remove o nó da outra ponta). Antes, o lote só de aresta não reavaliava o nó, e
+o executor montava a isenção em três lotes: o Artifact sem âncora derivando da
+ação externa, a remoção dessa aresta e a ligação à Task de código dele.
 """
 
 from collections.abc import Mapping
@@ -90,29 +94,43 @@ def diagnosticar_ancora(propriedades: Mapping[str, Any]) -> str | None:
     return "falta 'commit' ou 'sha256'"
 
 
-def validar_ancora_do_artifact(proposta: PropostaPatch, estado: GrafoEstado) -> ResultadoValidacao:
-    """Recusa o Artifact que o lote deixaria sem âncora quando ele precisa dela."""
+def validar_ancora_do_artifact(proposta: PropostaPatch, estado: GrafoEstado, *, depois: GrafoEstado) -> ResultadoValidacao:
+    """Recusa o Artifact que o lote deixaria sem âncora quando ele precisa dela.
+
+    `depois` é o grafo ao fim do lote, remoções incluídas (`EstruturaAposLote`).
+    Julga o Artifact que o lote cria ou edita (menos o antigo sem âncora) e todo
+    Artifact de que o lote cria ou tira um `deriva_de`, pelos `deriva_de` que
+    sobram: o lote só de aresta montava a isenção em partes.
+    """
     recriados, nos = _recriados(proposta), projetar_nos_do_lote(proposta, estado)
     tocados = {no.id: no for no in nos}
-    for no in nos:
-        if no.tipo != TipoNo.ARTIFACT or _antigo_sem_ancora(no.id, estado, recriados=recriados):
-            continue
-        problema = diagnosticar_ancora(no.propriedades)
-        if problema is not None and not _isento(_de_acao_externa(no.id, proposta, estado, tocados=tocados)):
-            return _recusa(no.id, problema)
-    for id_no in _origens_de_deriva_do_lote(proposta):
-        no = tocados.get(id_no) or estado.nos.get(id_no)
-        if no is None or no.tipo != TipoNo.ARTIFACT or ancora_do_artifact(no.propriedades) is not None:
-            continue
-        derivadas = _de_acao_externa(id_no, proposta, estado, tocados=tocados)
-        if any(derivadas) and not all(derivadas):
-            return _recusa(id_no, "deriva de Task de acao externa e de Task que nao e")
+    julgados = {no.id: no for no in nos if not _antigo_sem_ancora(no.id, estado, recriados=recriados)}
+    for id_no in _com_deriva_de_mexido(proposta, estado, depois):
+        julgados.setdefault(id_no, tocados.get(id_no) or depois.nos[id_no])
+    sem_ancora = {
+        no.id: problema for no in julgados.values()
+        if no.tipo == TipoNo.ARTIFACT and (problema := diagnosticar_ancora(no.propriedades)) is not None
+    }
+    destinos = _destinos_de_deriva(frozenset(sem_ancora), depois) if sem_ancora else {}
+    for id_no, problema in sem_ancora.items():
+        derivadas = [_e_acao_externa(tocados.get(destino) or depois.nos.get(destino)) for destino in destinos.get(id_no, [])]
+        if not _isento(derivadas):
+            return _recusa(id_no, f"{problema}, e {_sem_isencao(derivadas)}")
     return ResultadoValidacao.sucesso()
 
 
 def _isento(derivadas: list[bool]) -> bool:
     """A isenção da ação externa: há `deriva_de`, e todos vão a Tasks de ação externa."""
     return bool(derivadas) and all(derivadas)
+
+
+def _sem_isencao(derivadas: list[bool]) -> str:
+    """Por que os `deriva_de` que sobram ao fim do lote não isentam o Artifact."""
+    if not derivadas:
+        return "nao tem 'deriva_de'"
+    if any(derivadas):
+        return "deriva de Task de acao externa e de Task que nao e"
+    return "nao deriva de Task de acao externa"
 
 
 def _recusa(id_no: str, problema: str) -> ResultadoValidacao:
@@ -144,32 +162,31 @@ def _antigo_sem_ancora(id_no: str, estado: GrafoEstado, *, recriados: frozenset[
     return ancora_do_artifact(anterior.propriedades) is None
 
 
-def _de_acao_externa(id_no: str, proposta: PropostaPatch, estado: GrafoEstado, *, tocados: Mapping[str, NoGrafo]) -> list[bool]:
-    """Para cada `deriva_de` do Artifact (os do lote e, se ele já existia, os gravados), se o destino é Task de ação externa."""
-    return [_e_acao_externa(tocados.get(destino) or estado.nos.get(destino)) for destino in _destinos_de_deriva(id_no, proposta, estado)]
-
-
 def _e_acao_externa(no: NoGrafo | None) -> bool:
     """O nó é uma Task com `entrega: acao_externa`, como ficará depois do lote."""
     return no is not None and no.tipo == TipoNo.TASK and ler_texto(no.propriedades, CAMPO_ENTREGA) == ENTREGA_ACAO_EXTERNA
 
 
-def _origens_de_deriva_do_lote(proposta: PropostaPatch) -> tuple[str, ...]:
-    """Os nós de onde sai um `deriva_de` que o lote cria."""
-    valores = (item.value for item in proposta.operacoes if item.op == OperacaoPatch.ADD and _segmentos(item.path)[:1] == ["arestas"])
-    origens = (str(valor.get("origem_id", "")) for valor in valores if isinstance(valor, dict) and valor.get("tipo") == TipoAresta.DERIVA_DE.value)
-    return tuple(dict.fromkeys(origens))
+def _com_deriva_de_mexido(proposta: PropostaPatch, estado: GrafoEstado, depois: GrafoEstado) -> tuple[str, ...]:
+    """Os nós que seguem no grafo e de onde sai um `deriva_de` que o lote cria ou tira.
+
+    Tira a aresta o `remove` dela e o `remove` do nó de uma das pontas, que leva
+    as arestas dele junto.
+    """
+    caminhos = [(item.op, _segmentos(item.path)) for item in proposta.operacoes]
+    ids_de_aresta = {seg[1] for _, seg in caminhos if len(seg) == SEGMENTOS_DO_ELEMENTO and seg[0] == "arestas"}
+    nos_removidos = {seg[1] for op, seg in caminhos if op == OperacaoPatch.REMOVE and len(seg) == SEGMENTOS_DO_ELEMENTO and seg[0] == "nos"}
+    mexidas = [aresta for id_aresta in ids_de_aresta for aresta in (estado.arestas.get(id_aresta), depois.arestas.get(id_aresta)) if aresta]
+    if nos_removidos:
+        mexidas += [a for a in estado.arestas.values() if a.origem_id in nos_removidos or a.destino_id in nos_removidos]
+    origens = (aresta.origem_id for aresta in mexidas if aresta.tipo == TipoAresta.DERIVA_DE)
+    return tuple(id_no for id_no in dict.fromkeys(origens) if id_no in depois.nos)
 
 
-def _destinos_de_deriva(id_no: str, proposta: PropostaPatch, estado: GrafoEstado) -> list[str]:
-    """Os destinos das arestas `deriva_de` que saem do nó: as que o lote cria e, se o nó já existia, as gravadas."""
-    do_lote = [item.value for item in proposta.operacoes if item.op == OperacaoPatch.ADD and _segmentos(item.path)[:1] == ["arestas"]]
-    destinos = [str(valor.get("destino_id", "")) for valor in do_lote if isinstance(valor, dict) and _deriva_de(valor, id_no)]
-    if id_no in estado.nos:
-        destinos += [a.destino_id for a in estado.arestas.values() if a.origem_id == id_no and a.tipo == TipoAresta.DERIVA_DE]
+def _destinos_de_deriva(origens: frozenset[str], depois: GrafoEstado) -> dict[str, list[str]]:
+    """Os destinos dos `deriva_de` que saem de cada origem ao fim do lote."""
+    destinos: dict[str, list[str]] = {}
+    for aresta in depois.arestas.values():
+        if aresta.origem_id in origens and aresta.tipo == TipoAresta.DERIVA_DE:
+            destinos.setdefault(aresta.origem_id, []).append(aresta.destino_id)
     return destinos
-
-
-def _deriva_de(valor: Mapping[str, Any], id_no: str) -> bool:
-    """A aresta declarada é um `deriva_de` que sai do nó."""
-    return valor.get("origem_id") == id_no and valor.get("tipo") == TipoAresta.DERIVA_DE.value

@@ -73,7 +73,7 @@ class InvariantGate:
             lambda: self._validar_nos_na_hierarquia(estrutura),
             lambda: self._validar_origem_de_aprendizado(estrutura),
             lambda: self._validar_localizacao_de_evidencia(proposta, estado),
-            lambda: validar_ancora_do_artifact(proposta, estado),
+            lambda: validar_ancora_do_artifact(proposta, estado, depois=estrutura.depois),
             lambda: self._validar_bloqueio_questoes(proposta, estrutura.antes),
             lambda: self._validar_posse_da_tarefa(proposta, estado, locks),
             lambda: self._validar_veredito_do_fechamento(proposta, estrutura),
