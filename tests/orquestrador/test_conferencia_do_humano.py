@@ -1,4 +1,4 @@
-"""T3a6: a tabela da conferência do repositório do humano, linha a linha; a perda para o laço, o avanço segue."""
+"""T3a6 e T3a8: a tabela da conferência do repositório do humano, linha a linha; a perda para o laço, o avanço segue."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -14,6 +14,8 @@ from tests.orquestrador.apoio_git import criar_repositorio, git
 HASH: re.Pattern[str] = re.compile(r"\b[0-9a-f]{40,64}\b")
 VOLTOU: str = "voltou ao conteudo do HEAD ou do indice de antes da sessao"
 SUMIU: str = "sumiu da arvore sem ir a um commit"
+SOBRESCRITO: str = "foi sobrescrito por um conteudo que o git ja tinha, e o de antes nao ficou em commit nem no indice"
+TROCADA: str = "indice INDICE.txt: a entrada foi trocada por um conteudo que o git ja tinha"
 Acao = Callable[[Path], object]
 
 
@@ -66,8 +68,6 @@ PERDAS: list[tuple[str, Acao, list[str]]] = [
     ("mudado_apagado", _apagar("NOTAS.txt"), [f"NOTAS.txt {SUMIU}"]),
     ("solto_apagado", _apagar("rascunho.txt"), [f"rascunho.txt {SUMIU}"]),
     ("limpo_apagado_sem_commit", _apagar("README.md"), [f"README.md {SUMIU}"]),
-    ("indice_que_saiu", _git("rm", "-q", "--cached", "preparado.txt"), ["indice preparado.txt: a entrada saiu"]),
-    ("indice_que_voltou", _git("reset", "-q", "--", "INDICE.txt"), ["indice INDICE.txt: a entrada voltou a do HEAD"]),
     ("commit_desfeito", _varias(_git("commit", "-q", "-am", "x"), _git("reset", "-q", "--hard", "HEAD~1")),
      [f"INDICE.txt {VOLTOU}", "indice INDICE.txt: a entrada voltou a do HEAD", f"NOTAS.txt {VOLTOU}", f"preparado.txt {SUMIU}",
       "indice preparado.txt: a entrada saiu"]),
@@ -90,12 +90,20 @@ AVANCOS: list[tuple[str, Acao, list[str]]] = [
     ("ref_por_fast_forward", _commit_na_lateral(True), ["ref refs/heads/lateral andou por fast-forward (# -> #)"]),
     ("ref_nova", _git("tag", "-a", "v1", "-m", "release"), ["ref refs/tags/v1 nova (#)"]),
     ("troca_de_branch_com_as_mudancas", _git("switch", "-q", "lateral"), ["HEAD: main # -> lateral #"]),
+    ("indice_que_saiu_com_o_conteudo_na_arvore", _git("rm", "-q", "--cached", "preparado.txt"),
+     ["indice preparado.txt: a entrada saiu, e o conteudo preparado esta na arvore"]),
+    ("indice_que_voltou_com_o_conteudo_na_arvore", _git("reset", "-q", "--", "INDICE.txt"),
+     ["indice INDICE.txt: a entrada mudou, e o conteudo preparado esta na arvore"]),
+    ("mudado_editado_e_preparado", _varias(_escrever("NOTAS.txt", "mais trabalho\n"), _git("add", "NOTAS.txt")),
+     ["NOTAS.txt mudou para um conteudo novo"]),
+    ("mudado_editado_e_commitado", _varias(_escrever("NOTAS.txt", "mais trabalho\n"), _git("commit", "-q", "-am", "humano")),
+     ["ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> main #", "NOTAS.txt mudou para um conteudo novo"]),
 ]
 
 
-def _conferir(tmp_path: Path, acao: Acao) -> tuple[list[str], list[str]]:
+def _conferir(tmp_path: Path, acao: Acao, montar: Callable[[Path], Path] = _humano) -> tuple[list[str], list[str]]:
     """A perda e o avanço da ação no repositório do humano, sem os hashes."""
-    repositorio = _humano(tmp_path / "humano")
+    repositorio = montar(tmp_path / "humano")
     antes = foto_antes_da_sessao(repositorio)
     assert antes is not None
     acao(repositorio)
@@ -136,3 +144,50 @@ def test_avanco_vai_ao_registro_e_a_perda_tambem_para_edge_case(tmp_path: Path) 
         conferir_o_humano(antes, "verificador", "", registrar=registrar)
 
     assert registrados == [("executor", "F1", 0, 1), ("verificador", "", 1, 0)]
+
+
+def _com_lateral(pasta: Path) -> Path:
+    """T3a8: NOTAS.txt mudado, INDICE.txt mudado no índice, rascunho.txt solto e a branch `lateral`, um commit à frente da
+    main, em que NOTAS.txt e INDICE.txt têm outro conteúdo."""
+    repositorio = criar_repositorio(pasta, {"README.md": "# brinquedo\n", "NOTAS.txt": "notas\n", "INDICE.txt": "v1\n"})
+    git(repositorio, "switch", "-q", "-c", "lateral")
+    _varias(_escrever("NOTAS.txt", "notas da lateral\n"), _escrever("INDICE.txt", "v1 da lateral\n"))(repositorio)
+    git(repositorio, "commit", "-q", "-am", "lateral")
+    git(repositorio, "switch", "-q", "main")
+    _varias(_escrever("NOTAS.txt", "trabalho do humano\n"), _escrever("INDICE.txt", "v2 no indice\n"))(repositorio)
+    git(repositorio, "add", "INDICE.txt")
+    _escrever("rascunho.txt", "solto\n")(repositorio)
+    return repositorio
+
+
+DESCARTADOS: list[str] = [f"INDICE.txt {SOBRESCRITO}", TROCADA, f"NOTAS.txt {SOBRESCRITO}"]
+TROCAS_QUE_DESCARTAM: list[tuple[str, Acao, list[str]]] = [
+    ("f2_checkout_forcado", _git("checkout", "-q", "-f", "lateral"), DESCARTADOS),
+    ("switch_discard_changes", _git("switch", "-q", "--discard-changes", "lateral"), DESCARTADOS),
+    ("f2b_reset_hard_para_o_descendente", _git("reset", "-q", "--hard", "lateral"), DESCARTADOS),
+    ("checkout_do_arquivo_de_outra_branch", _git("checkout", "lateral", "--", "NOTAS.txt"), [f"NOTAS.txt {SOBRESCRITO}"]),
+]
+
+
+@pytest.mark.parametrize(("acao", "esperado"), [caso[1:] for caso in TROCAS_QUE_DESCARTAM], ids=[caso[0] for caso in TROCAS_QUE_DESCARTAM])
+def test_troca_que_descarta_o_sujo_e_perda_edge_case(tmp_path: Path, acao: Acao, esperado: list[str]) -> None:
+    """T3a8.1 (F2 e F2b): a troca de HEAD que põe na árvore o conteúdo de outro commit apaga o mudado, e o de antes não fica
+    em lugar nenhum; para o laço, mesmo com a main andando por fast-forward."""
+    perdas, _ = _conferir(tmp_path, acao, _com_lateral)
+
+    assert perdas == esperado
+
+
+def test_humano_que_commita_o_sujo_e_troca_de_branch_avanca_nominal(tmp_path: Path) -> None:
+    """T3a8.1, contraprova: o humano commita tudo (o mudado, o preparado e o solto) e troca de branch; o conteúdo de antes
+    está na ponta que andou, e nada para."""
+    acao = _varias(_git("add", "-A"), _git("commit", "-q", "-m", "salva"), _git("switch", "-q", "lateral"))
+
+    perdas, avancos = _conferir(tmp_path, acao, _com_lateral)
+
+    na_main = "esta em refs/heads/main"
+    assert (perdas, avancos) == ([], [
+        "ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> lateral #",
+        f"INDICE.txt mudou, e o conteudo de antes {na_main}", f"indice INDICE.txt: a entrada mudou, e o conteudo preparado {na_main}",
+        f"NOTAS.txt mudou, e o conteudo de antes {na_main}", f"rascunho.txt sumiu, e o conteudo de antes {na_main}"])
+

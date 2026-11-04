@@ -1,4 +1,4 @@
-"""T3a5 e T3a6: a foto do repositório do humano em volta de cada sessão; a perda para o laço, o avanço segue."""
+"""T3a5, T3a6 e T3a8: a foto do repositório do humano em volta de cada sessão; a perda para o laço, o avanço segue."""
 
 from pathlib import Path
 import re
@@ -10,7 +10,7 @@ import pytest
 
 from graphow.core.models import NoGrafo
 from graphow.core.types import TipoNo
-from graphow.orquestrador.conferencia_do_humano import conferir_as_fotos, conferir_o_humano
+from graphow.orquestrador.conferencia_do_humano import SOBRESCRITO, conferir_as_fotos, conferir_o_humano
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
 from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao, fotografar_o_humano
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
@@ -264,3 +264,68 @@ def test_sessoes_que_nao_mexem_no_humano_nao_param_e_o_trabalho_dele_fica_nomina
     assert git(bancada.repositorio, "ls-files", "-s", "NOTAS.txt") == indice
     assert (bancada.repositorio / "rascunho.txt").read_text(encoding="utf-8") == "solto\n"
     assert git(bancada.repositorio, "status", "--porcelain", "-uall").splitlines() == ["A  NOTAS.txt", "?? rascunho.txt"]
+
+
+def _com_lateral(bancada: Bancada) -> str:
+    """T3a8: NOTAS.txt na main, a branch `lateral` um commit à frente com outro NOTAS.txt e, na main, NOTAS.txt mudado;
+    devolve o commit da main."""
+    repositorio = bancada.repositorio
+    (repositorio / "NOTAS.txt").write_text("notas\n", encoding="utf-8", newline="\n")
+    git(repositorio, "add", "NOTAS.txt")
+    git(repositorio, "commit", "-q", "-m", "Notas do humano")
+    git(repositorio, "switch", "-q", "-c", "lateral")
+    (repositorio / "NOTAS.txt").write_text("notas da lateral\n", encoding="utf-8", newline="\n")
+    git(repositorio, "commit", "-q", "-am", "Notas da lateral")
+    git(repositorio, "switch", "-q", "main")
+    (repositorio / "NOTAS.txt").write_text(TRABALHO, encoding="utf-8", newline="\n")
+    return git(repositorio, "rev-parse", "main").strip()
+
+
+@pytest.mark.parametrize("troca", [["checkout", "-q", "-f", "lateral"], ["switch", "-q", "--discard-changes", "lateral"],
+                                   ["reset", "-q", "--hard", "lateral"]], ids=["checkout_f", "switch_discard", "reset_hard"])
+def test_troca_de_head_que_descarta_o_sujo_para_o_laco_edge_case(tmp_path: Path, troca: list[str]) -> None:
+    """T3a8.1 (F2 e F2b): o executor troca o HEAD do humano por fora do hook, e a troca apaga o NOTAS.txt mudado; o laço para
+    em FALHA, e a Note diz o arquivo. Com a trava no ambiente, o hook dela recusa mover a ref, mas a árvore e o índice já têm
+    o conteúdo da `lateral`. De volta ao HEAD de antes, como a mensagem pede, a recuperação devolve o trabalho."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    main = _com_lateral(bancada)
+    script = f"import subprocess\nsubprocess.run(['git', '-C', r'{bancada.repositorio}', *{troca!r}], check=False)\n"
+    roteiro["executor"][0] = executor_pronto(dict(TUDO), comandos=[[sys.executable, "-c", script]])
+    bancada.trocar_roteiro(roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert parada.motivo == MotivoDaParada.FALHA and "repositorio_do_humano_mexido" in parada.mensagem, parada.mensagem
+    assert (bancada.repositorio / "NOTAS.txt").read_text(encoding="utf-8") == "notas da lateral\n"
+    (nota,) = _notas_do_humano(bancada)
+    assert nota.obter_propriedade("perdas") == [f"NOTAS.txt {SOBRESCRITO}"]
+    assert f"o `stash apply` vale sobre o HEAD de antes (main {main}), com a arvore e o indice iguais a ele" in parada.mensagem
+    git(bancada.repositorio, "reset", "-q", "--hard", main)
+    for comando in nota.obter_propriedade("recuperar"):
+        _rodar(comando)
+    assert (bancada.repositorio / "NOTAS.txt").read_text(encoding="utf-8") == TRABALHO
+
+
+def test_humano_que_commita_o_sujo_e_troca_de_branch_durante_a_sessao_e_o_laco_fecha_nominal(tmp_path: Path) -> None:
+    """T3a8.1, contraprova: durante a sessão do executor, o humano commita o NOTAS.txt mudado na main e troca para a
+    `lateral`; o conteúdo de antes está na ponta que andou, e o laço segue e fecha."""
+    bancada = montar_bancada(tmp_path, roteiro_farto())
+    repositorio = bancada.repositorio
+    _com_lateral(bancada)
+
+    def humano() -> None:
+        git(repositorio, "commit", "-q", "-am", "Humano commita as notas")
+        git(repositorio, "switch", "-q", "lateral")
+
+    parada = bancada.orquestrador(executor=ExecutorComHumano(bancada.executor, humano, na=3)).iniciar_da_spec(
+        bancada.spec, repositorio, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert git(repositorio, "show", "main:NOTAS.txt") == TRABALHO and git(repositorio, "branch", "--show-current").strip() == "lateral"
+    assert _notas_do_humano(bancada) == []
+    (avanco,) = _notas_do_humano(bancada, "repositorio_do_humano_avancou")
+    assert [HASH.sub("#", item) for item in avanco.obter_propriedade("avancos")] == [
+        "ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> lateral #",
+        "NOTAS.txt mudou, e o conteudo de antes esta em refs/heads/main"]
+

@@ -12,12 +12,16 @@ rastreado no HEAD e no índice), as refs, as entradas do índice (`ls-files
 -s`), o hash do conteúdo de cada arquivo que o status lista e o hash de
 cada arquivo que muda o que o git roda (orquestrador/arquivos_do_git.py: a
 configuração, os includes, os hooks, o exclude e o reflog do stash), com a
-lista deles tirada do `git config --list --show-origin`. Junto, guarda a
+lista deles tirada do `git config --list --show-origin`. Do arquivo mudado
+fora do índice e do não rastreado, a foto de antes guarda também o objeto
+que o `git add` faria (`git hash-object --stdin-paths`, sem gravar): é por
+ele que a conferência acha o conteúdo de antes num commit. Junto, guarda a
 salvaguarda (orquestrador/salvaguarda_do_humano.py), numa pasta do estado do
 Goal: o commit de `git stash create` com as mudanças rastreadas e uma árvore
 com os não rastreados, cada um como blob (`git hash-object -w`). São
 quatro processos do git na foto de antes e três na de depois quando o
-repositório está limpo; a salvaguarda só roda quando há o que guardar. Depois
+repositório está limpo; o objeto e a salvaguarda só rodam quando há o que
+guardar. Depois
 da sessão, com a árvore de processos dela já morta, a conferência lê de novo
 os arquivos do git, sem processo, e só então refaz a foto e separa a perda do
 avanço (orquestrador/conferencia_do_humano.py).
@@ -31,8 +35,9 @@ também fora do do humano; e os objetos da salvaguarda vão para a pasta dela.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+import re
 
 from graphow.orquestrador.arquivos_do_git import (
     AUSENTE,
@@ -50,6 +55,7 @@ from graphow.orquestrador.salvaguarda_do_humano import PedidoDeSalvaguarda, Salv
 CAMPOS_ANTES_DO_CAMINHO: Mapping[str, int] = {"1": 8, "2": 9, "u": 10, "?": 1}
 CABECALHO_DO_STATUS: str = "# branch."
 NAO_RASTREADO: str = "?"
+OBJETO_DO_GIT: re.Pattern[str] = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 
 
 @dataclass(frozen=True)
@@ -76,7 +82,8 @@ class FotoDoHumano:
     `cabeca` é a branch e o commit do HEAD; `indice`, as entradas (`modo objeto estágio`) de cada caminho; `listados`, o
     que o status lista; `conteudos`, o sha256 de cada arquivo listado (e dos pedidos, na foto de depois); `do_git`, o
     de cada arquivo que muda o git, pelo nome, e `vigia`, a lista deles, que a foto de antes tira da configuração e a
-    conferência de depois relê. A `salvaguarda` só vem na foto de antes da sessão.
+    conferência de depois relê. `objetos` (o objeto do git do conteúdo de cada arquivo mudado fora do índice e de cada
+    não rastreado) e a `salvaguarda` só vêm na foto de antes da sessão.
     """
 
     repositorio: Path
@@ -87,6 +94,7 @@ class FotoDoHumano:
     conteudos: Mapping[str, str]
     do_git: Mapping[str, str]
     vigia: ArquivosDoGit
+    objetos: Mapping[str, str] = field(default_factory=dict)
     salvaguarda: Salvaguarda = Salvaguarda()
 
 
@@ -95,6 +103,7 @@ def foto_antes_da_sessao(repositorio: Path | None, *, salvaguarda: Path | None =
     if repositorio is None:
         return None
     foto = fotografar_o_humano(repositorio)
+    foto = replace(foto, objetos=_objetos(repositorio, foto))
     if salvaguarda is None:
         return foto
     rastreado = any(listado.tipo != NAO_RASTREADO for listado in foto.listados.values())
@@ -173,6 +182,34 @@ def _pastas_do_git(repositorio: Path) -> tuple[Path, Path]:
 
 def soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]:
     """Os não rastreados que a árvore da salvaguarda guarda: o arquivo comum (o link e a pasta ficam de fora)."""
-    return tuple(caminho for caminho, listado in foto.listados.items() if listado.tipo == NAO_RASTREADO and "\n" not in caminho
-                 and foto.conteudos.get(caminho, AUSENTE) not in (AUSENTE, PASTA) and not foto.conteudos[caminho].startswith(LINK))
+    return tuple(caminho for caminho, listado in foto.listados.items() if listado.tipo == NAO_RASTREADO and _comum(foto, caminho))
+
+
+def _comum(foto: FotoDoHumano, caminho: str) -> bool:
+    """O caminho é um arquivo comum na foto (nem link, nem pasta, nem ausente), com um nome que cabe numa linha."""
+    conteudo = foto.conteudos.get(caminho, AUSENTE)
+    return "\n" not in caminho and conteudo not in (AUSENTE, PASTA) and not conteudo.startswith(LINK)
+
+
+def _objetos(repositorio: Path, foto: FotoDoHumano) -> dict[str, str]:
+    """O objeto que o `git add` faria do conteúdo (`hash-object --stdin-paths`, com os filtros e sem gravar) de cada
+    arquivo comum cujo conteúdo o índice não tem: o mudado fora do índice e o não rastreado. Vazio quando o git falha."""
+    caminhos = [caminho for caminho, listado in foto.listados.items()
+                if (listado.tipo == NAO_RASTREADO or listado.xy[1:] not in (".", "D")) and _comum(foto, caminho)]
+    if not caminhos:
+        return {}
+    entrada = "".join(f"{caminho}\n" for caminho in caminhos).encode("utf-8")
+    objetos = (git_da_foto(repositorio, ("hash-object", "--stdin-paths"), entrada=entrada) or "").split()
+    return dict(zip(caminhos, objetos, strict=True)) if len(objetos) == len(caminhos) else {}
+
+
+def objetos_nos_commits(repositorio: Path, pedidos: Iterable[tuple[str, str]]) -> dict[tuple[str, str], str]:
+    """O objeto de cada caminho em cada commit pedido (`<commit>:<caminho>`, num `cat-file --batch-check`); o caminho que
+    o commit não tem fica de fora, e tudo fica quando o git falha."""
+    lista = [(commit, caminho) for commit, caminho in dict.fromkeys(pedidos) if OBJETO_DO_GIT.fullmatch(commit) and "\n" not in caminho]
+    if not lista:
+        return {}
+    entrada = "".join(f"{commit}:{caminho}\n" for commit, caminho in lista).encode("utf-8")
+    saida = (git_da_foto(repositorio, ("cat-file", "--batch-check=%(objectname)"), entrada=entrada) or "").splitlines()
+    return {pedido: objeto for pedido, objeto in zip(lista, saida) if OBJETO_DO_GIT.fullmatch(objeto)} if len(saida) == len(lista) else {}
 

@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13691 linhas · 104 classes
+72 módulos · 13822 linhas · 105 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,7 +25,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 114 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
-| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 226 | A conferência do repositório do humano depois de cada sessão de papel: a perda para o laço, o avanço segue. |
+| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 320 | A conferência do repositório do humano depois de cada sessão de papel: a perda para o laço, o avanço segue. |
 | [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 221 | A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 197 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -38,7 +38,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 316 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
-| [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 178 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
+| [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 215 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
@@ -314,18 +314,27 @@ A conferência do repositório do humano depois de cada sessão de papel: a perd
 | `LIMITE_DE_MUDANCAS_NA_PARADA` | `int` | `20` |
 | `NO_HEAD` | `str` | `'voltou ao conteudo do HEAD ou do indice de antes da sessao'` |
 | `SUMIU` | `str` | `'sumiu da arvore sem ir a um commit'` |
+| `SOBRESCRITO` | `str` | `'foi sobrescrito por um conteudo que o git ja tinha, e o de antes nao f…` |
+| `NOVO` | `str` | `'mudou para um conteudo novo'` |
+| `TROCADA` | `str` | `'foi trocada por um conteudo que o git ja tinha'` |
 
 ### `HumanoMexido`
 
 *DTO imutável* — O que mudou no repositório do humano durante a sessão, separado em perda e avanço, e a salvaguarda de antes dela.
 
-**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`
+**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`, `cabeca_de_antes: str`
 
 - `recuperar() -> tuple[str, ...]` `[property]` — Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
 
 ### `RepositorioDoHumanoMexido` (GraphowError)
 
 *serviço* — O repositório do humano perdeu trabalho durante a sessão de papel: o laço para em FALHA.
+
+### `_Conferencia`
+
+*DTO imutável* — As duas fotos e o que a conferência consulta no git do humano: a história e o objeto de cada caminho nos commits de
+
+**Campos:** `antes: FotoDoHumano`, `depois: FotoDoHumano`, `e_ancestral: Callable[[str, str], bool]`, `objetos: Mapping[tuple[str, str], str]`
 
 ### Funções do módulo
 
@@ -712,6 +721,7 @@ A foto do repositório do humano em volta de cada sessão de papel: a camada da 
 | `CAMPOS_ANTES_DO_CAMINHO` | `Mapping[str, int]` | `{'1': 8, '2': 9, 'u': 10, '?': 1}` |
 | `CABECALHO_DO_STATUS` | `str` | `'# branch.'` |
 | `NAO_RASTREADO` | `str` | `'?'` |
+| `OBJETO_DO_GIT` | `re.Pattern[str]` | `re.compile('[0-9a-f]{40}|[0-9a-f]{64}')` |
 
 ### `ArquivoListado`
 
@@ -725,13 +735,14 @@ A foto do repositório do humano em volta de cada sessão de papel: a camada da 
 
 *DTO imutável* — O repositório do humano num instante.
 
-**Campos:** `repositorio: Path`, `cabeca: str`, `refs: Mapping[str, str]`, `indice: Mapping[str, tuple[str, ...]]`, `listados: Mapping[str, ArquivoListado]`, `conteudos: Mapping[str, str]`, `do_git: Mapping[str, str]`, `vigia: ArquivosDoGit`, `salvaguarda: Salvaguarda`
+**Campos:** `repositorio: Path`, `cabeca: str`, `refs: Mapping[str, str]`, `indice: Mapping[str, tuple[str, ...]]`, `listados: Mapping[str, ArquivoListado]`, `conteudos: Mapping[str, str]`, `do_git: Mapping[str, str]`, `vigia: ArquivosDoGit`, `objetos: Mapping[str, str]`, `salvaguarda: Salvaguarda`
 
 ### Funções do módulo
 
 - `foto_antes_da_sessao(repositorio: Path | None) -> FotoDoHumano | None` — A foto de antes da sessão e, com a pasta dada, a salvaguarda nela; None sem repositório do humano a guardar.
 - `fotografar_o_humano(repositorio: Path, tambem: Iterable[str]) -> FotoDoHumano` — Os arquivos do git (da lista dada, ou da tirada agora da configuração), o HEAD, o status, as refs e o índice, com o
 - `soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]` — Os não rastreados que a árvore da salvaguarda guarda: o arquivo comum (o link e a pasta ficam de fora).
+- `objetos_nos_commits(repositorio: Path, pedidos: Iterable[tuple[str, str]]) -> dict[tuple[str, str], str]` — O objeto de cada caminho em cada commit pedido (`<commit>:<caminho>`, num `cat-file --batch-check`); o caminho que
 
 ## `orquestrador/git_da_foto.py`
 
