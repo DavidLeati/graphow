@@ -51,9 +51,12 @@ FIM_DO_EXEC_DO_FIND: frozenset[str] = frozenset({";", "+"})
 # O arquivo que é a entrada padrão: o script lido dele é texto que a trava não vê.
 DA_ENTRADA: re.Pattern[str] = re.compile(r"-|/dev/stdin|/dev/fd/\d+|/proc/[^/]+/fd/\d+")
 LIMITE_DE_ANINHAMENTO: int = 8
-# A palavra git como comando: não colada a letra, dígito, `_`, `.` ou `-` antes; depois, espaço, fim, `.exe` ou
-# o que encerra palavra no shell (`$(echo git)`, `git;`, `git|`).
-PALAVRA_GIT: re.Pattern[str] = re.compile(r"(?<![\w.-])git(?=[\s;&|()<>`}]|$|\.exe)")
+# A palavra git que pode ser o comando. Só não cita o pedaço de nome maior: colado a letra, dígito ou `_` antes, ou
+# seguido deles ou de extensão que não é de executável (`.gitignore`, `git.py`). Qualquer outro vizinho cita, como
+# em `git${IFS}commit`, `git$'' commit`, `{git,} commit` e `$(dirname git/x)`, que são o git.
+PALAVRA_GIT: re.Pattern[str] = re.compile(
+    r"(?<!\w)git(?!\w|\.(?!(?:" + "|".join(sufixo[1:] for sufixo in SUFIXOS_DE_EXECUTAVEL) + r")(?!\w))\w)"
+)
 
 
 @dataclass(frozen=True)
@@ -104,13 +107,15 @@ def decidir(comando: str) -> Decisao:
 
 
 def cita_git(texto: str) -> bool:
-    """O texto tem a palavra `git` como comando, sem contar aspas (`g"i"t` cita).
+    """O texto tem a palavra `git` que pode ser o comando, sem contar aspas (`g"i"t` cita).
 
-    Início de palavra (ou de nome depois de `/` ou `\\`), seguida de espaço,
-    fim, `.exe` ou do que encerra palavra no shell: `git commit`,
-    `/usr/bin/git`, `C:\\Git\\cmd\\git.exe`, `$(echo git)`. Pedaço
-    de nome de arquivo não cita (`test_git_do_goal.py`, `test_digits.py`,
-    `.gitignore`). A barra invertida conta tirada (`g\\it`) e como pasta.
+    Erra para o lado da recusa: cita `git commit`, `/usr/bin/git`,
+    `C:\\Git\\cmd\\git.exe`, `$(echo git)` e também `git` colado a `$`, `{`,
+    `,`, `[`, `/` ou `-` (`git${IFS}commit`, `{git,} commit`). Só o pedaço
+    de um nome maior não cita: colado a letra, dígito ou `_` antes, ou
+    seguido deles ou de extensão que não é de executável
+    (`test_git_do_goal.py`, `test_digits.py`, `.gitignore`, `git.py`). A
+    barra invertida conta tirada (`g\\it`) e como pasta.
     """
     sem_aspas = re.sub(r"[\"']", "", texto).lower()
     return any(PALAVRA_GIT.search(variante) for variante in (sem_aspas.replace("\\", ""), sem_aspas.replace("\\", "/")))

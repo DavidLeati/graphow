@@ -171,7 +171,7 @@ LIBERADOS_NA_T3A3: tuple[str, ...] = (
     "git -C . status",
     '"$PY" -m pytest -q tests/orquestrador/test_git_do_goal.py',
     "timeout $T python -m pytest tests/test_digits.py",
-    '"$PY" -m pytest .gitignore src/git/soma.py',
+    '"$PY" -m pytest .gitignore tests/git.py src/gitlab/x_git.py',
 )
 RECUSADOS_NA_T3A3: tuple[str, ...] = (
     "git tag v1",
@@ -187,6 +187,20 @@ RECUSADOS_NA_T3A3: tuple[str, ...] = (
     '"$PY" C:\\Git\\cmd\\git.exe push',
     '"$PY" g\\it commit',
     "timeout $T git push",
+)
+# T3a4: o git colado a `$`, `{` ou `,` que a T3a3 liberava (sonda N1; `{git,} -c core.hooksPath=` commitou no Git
+# Bash). A pasta `git/` também cita: `$(dirname git/x)` é o git.
+RECUSADOS_NA_T3A4: tuple[str, ...] = (
+    "git${IFS}commit -qam x",
+    "git$@ commit -qam x",
+    "git$'' commit -qam x",
+    "git$() commit -qam x",
+    "git${x:-} commit -qam x",
+    "{git,} commit -qam x",
+    "{git,} -c core.hooksPath=nada commit -qam x",
+    "{git,} -C ../outro checkout -- .",
+    "$(dirname git/x) commit -qam x",
+    '"$PY" -m pytest src/git/soma.py',
 )
 
 
@@ -233,6 +247,20 @@ def test_tag_e_config_que_gravam_e_git_atras_de_opaco_sao_recusados_edge_case(co
 
     assert not decisao.permitido
     assert "quem commita e o orquestrador" in decisao.motivo
+
+
+@pytest.mark.parametrize("comando", RECUSADOS_NA_T3A4)
+def test_git_colado_a_cifrao_chave_ou_virgula_e_recusado_edge_case(comando: str) -> None:
+    """T3a4.1 (N1): `git${IFS}commit`, `git$@`, `git$''`, `git$()`, `git${x:-}` e `{git,}` citam git e são recusados.
+
+    O programa só se sabe ao rodar (opaco) e nenhuma regra de prefixo os
+    casa: a recusa é do hook. Os nomes com git dentro seguem liberados
+    (`LIBERADOS_NA_T3A3`: `test_git_do_goal.py`, `.gitignore`, `git.py`).
+    """
+    decisao = decidir(comando)
+
+    assert not decisao.permitido
+    assert "cita git" in decisao.motivo and "quem commita e o orquestrador" in decisao.motivo
 
 
 @pytest.mark.parametrize("comando", (*PERMITIDOS, *LIBERADOS_NA_T3A2, *LIBERADOS_NA_T3A3))
