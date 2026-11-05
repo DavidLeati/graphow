@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-73 módulos · 14081 linhas · 108 classes
+75 módulos · 14351 linhas · 112 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,17 +18,17 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/arquivos_do_git.py`](#orquestradorarquivosdogit) | 134 | Os arquivos que mudam o que o git do humano roda, lidos em bytes, sem processo nenhum. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 189 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
-| [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 101 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 190 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 103 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 392 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/cancelamento_tardio.py`](#orquestradorcancelamentotardio) | 76 | O cancelamento tardio: o humano cancela o Goal quando a base já tem o trabalho dele, e o livro-razão guarda isso. |
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 115 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
-| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 373 | A conferência do repositório do humano depois de cada sessão de papel: a perda para o laço, o avanço segue. |
+| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 320 | A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue. |
 | [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 226 | A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
-| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 197 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
+| [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 206 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
 | [`orquestrador/correcoes.py`](#orquestradorcorrecoes) | 106 | As fatias de correção de um ciclo: os bloqueantes dele todos numa fatia só. |
 | [`orquestrador/decisoes_do_agente.py`](#orquestradordecisoesdoagente) | 75 | O modo autônomo não tem humano no meio: o executor decide, e o teste de aceite errado se refaz sozinho, uma vez. |
 | [`orquestrador/diff_das_correcoes.py`](#orquestradordiffdascorrecoes) | 85 | O diff das correções que vai à conferência: o resumo de todos os arquivos, o corpo do código primeiro e o aviso do corte. |
@@ -37,7 +37,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 321 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 323 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 227 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
@@ -47,18 +47,20 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 338 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/humano_mexido.py`](#orquestradorhumanomexido) | 114 | O que a conferência achou no repositório do humano, e como a parada e a Note o dizem. |
+| [`orquestrador/janela_do_humano.py`](#orquestradorjaneladohumano) | 177 | A janela da foto do repositório do humano: da foto de antes da sessão ao fim do código do agente que o orquestrador roda. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 347 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 184 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 367 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 368 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 229 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
 | [`orquestrador/rastro.py`](#orquestradorrastro) | 235 | O rastro de cada critério do Goal: o que o prova, o que o cobre, quem o atestou e o que o fere. |
 | [`orquestrador/rebase_no_clone.py`](#orquestradorrebasenoclone) | 234 | O rebase da branch do Goal sobre a base que andou, feito pelo orquestrador no clone do Goal. |
-| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 262 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
+| [`orquestrador/refazer_aceite.py`](#orquestradorrefazeraceite) | 263 | Refazer o aceite de um critério: o autor de aceite reescreve os testes dele, com o motivo do humano no briefing. |
 | [`orquestrador/refs_do_humano.py`](#orquestradorrefsdohumano) | 73 | As refs do repositório do humano que o orquestrador move: a base, na integração, e a branch do Goal, depois do rebase. |
 | [`orquestrador/registro_do_rebase.py`](#orquestradorregistrodorebase) | 206 | O rebase no livro-razão: a Evidence dele, a ponta nova, os commits novos das fatias e dos Artifact, e a retomada depois da queda. |
 | [`orquestrador/regra_da_conferencia.py`](#orquestradorregradaconferencia) | 192 | A regra da conferência num ponto só: o que ela reprova e o código dá por `atende`, e a regressão que o código confirma. |
@@ -72,7 +74,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 140 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
 | [`orquestrador/sed_e_awk.py`](#orquestradorsedeawk) | 45 | Quando o `sed` e o `awk` rodam comando: a trava os trata como texto que ela não lê (orquestrador/git_no_comando.py). |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
-| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 399 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
+| [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 400 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
 | [`orquestrador/spec_do_goal.py`](#orquestradorspecdogoal) | 129 | A spec de um Goal que o gerente gravou, montada dos nós ligados a ele com o texto inteiro. |
 | [`orquestrador/status.py`](#orquestradorstatus) | 136 | O `--status` do orquestrador: onde o Goal está, o que prova que ele está pronto, o que cada fatia fez e quanto custou. |
 | [`orquestrador/suite.py`](#orquestradorsuite) | 169 | A suíte do projeto, rodada pelo orquestrador na área do Goal antes de cada commit. |
@@ -83,7 +85,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trechos_do_rebase.py`](#orquestradortrechosdorebase) | 137 | Os trechos de um arquivo em conflito em que a fatia aberta pelo rebase tira o que a base nova trouxe (revisão da T3g5). |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 245 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
-| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
+| [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 283 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 71 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |
 
@@ -307,35 +309,21 @@ A conferência da Evidence sobre código na leitura: os arquivos que ela afirma 
 
 ## `orquestrador/conferencia_do_humano.py`
 
-A conferência do repositório do humano depois de cada sessão de papel: a perda para o laço, o avanço segue.
+A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue.
 
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
-| `MOTIVO_DA_PARADA` | `str` | `'repositorio_do_humano_mexido'` |
-| `LIMITE_DE_MUDANCAS_NA_PARADA` | `int` | `20` |
 | `NO_HEAD` | `str` | `'voltou ao conteudo do HEAD ou do indice de antes da sessao'` |
 | `SUMIU` | `str` | `'sumiu da arvore sem ir a um commit'` |
 | `SOBRESCRITO` | `str` | `'foi sobrescrito por um conteudo que o git ja tinha, e o de antes nao f…` |
 | `NOVO` | `str` | `'mudou para um conteudo novo'` |
 | `TROCADA` | `str` | `'foi trocada por um conteudo que o git ja tinha'` |
 
-### `HumanoMexido`
-
-*DTO imutável* — O que mudou no repositório do humano durante a sessão, separado em perda e avanço, e a salvaguarda de antes dela.
-
-**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`, `cabeca_de_antes: str`
-
-- `recuperar() -> tuple[str, ...]` `[property]` — Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
-
 ### `RamoDeOutroGoal`
 
 *DTO imutável* — A branch (`refs/heads/<ramo>`) de outro Goal do grafo no mesmo repositório e o par (antes, depois) de cada rebase que o
 
 **Campos:** `goal: str`, `ref: str`, `rebases: tuple[tuple[str, str], ...]`
-
-### `RepositorioDoHumanoMexido` (GraphowError)
-
-*serviço* — O repositório do humano perdeu trabalho durante a sessão de papel: o laço para em FALHA.
 
 ### `_Conferencia`
 
@@ -345,11 +333,11 @@ A conferência do repositório do humano depois de cada sessão de papel: a perd
 
 ### Funções do módulo
 
-- `resumo(mudancas: tuple[str, ...]) -> tuple[str, ...]` — As primeiras mudanças e quantas sobram.
 - `conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str) -> None` — Depois da sessão, a foto refeita; o que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`).
+- `mexido_desde(antes: FotoDoHumano | None, outros_goals: LeitorDosOutrosGoals | None) -> HumanoMexido | None` — O que mudou desde a foto de antes: os arquivos do git relidos e, iguais eles, a foto refeita; None sem foto.
+- `relatar(mexido: HumanoMexido | None, papel: str, fatia: str) -> None` — O que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`); sem mudança, nada.
 - `conferir_os_arquivos_do_git(antes: FotoDoHumano) -> HumanoMexido | None` — Os arquivos que mudam o git, relidos em bytes, sem processo; None quando nenhum mudou. Mudou algum, a perda são eles,
 - `conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None) -> HumanoMexido` — O que mudou de uma foto para a outra, separado em perda e avanço; sem o leitor dos outros Goals, nenhuma ref fora de
-- `mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str` — O motivo, a perda, a salvaguarda e os comandos que a recuperam.
 
 ## `orquestrador/conferencia_na_leitura.py`
 
@@ -434,6 +422,7 @@ O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orça
 - `id_goal() -> str` `[property]` — O Goal.
 - `area() -> Path` `[property]` — O clone do Goal, onde as sessões trabalham.
 - `area_do_goal() -> AreaDoGoal` `[property]` — O clone, o repositório do humano, a branch e a base, juntos.
+- `janela() -> JanelaDoHumano` `[property]` — A janela da foto do repositório do humano (orquestrador/janela_do_humano.py).
 - `commitar(mensagem: str) -> str` — O commit do orquestrador no clone (com `caminhos`, só deles), já levado à branch do Goal no repositório do humano.
 - `commit_do_codigo() -> str` — O commit do código da área: o último que mudou algo além do documento do Goal.
 - `registrar_ponta() -> None` — A ponta da branch do Goal no livro-razão, quando o git andou desde a última gravada.
@@ -971,6 +960,77 @@ O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando B
 - `decisao_da_entrada(texto: str) -> Decisao` — A decisão sobre o evento do PreToolUse; a entrada que não se lê é recusada.
 - `responder(entrada: BinaryIO | None, erro: BinaryIO | None) -> int` — Lê o evento da entrada padrão e devolve o código de saída: 0 passa, 2 recusa com o motivo no stderr.
 
+## `orquestrador/humano_mexido.py`
+
+O que a conferência achou no repositório do humano, e como a parada e a Note o dizem.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `MOTIVO_DA_PARADA` | `str` | `'repositorio_do_humano_mexido'` |
+| `LIMITE_DE_MUDANCAS_NA_PARADA` | `int` | `20` |
+
+### `Durante`
+
+*DTO imutável* — O que rodou enquanto o repositório mudou: o texto da parada e da Note; se foi só o código do agente que o orquestrador
+
+**Campos:** `texto: str`, `fora_da_sessao: bool`, `sessoes: str`
+
+### `HumanoMexido`
+
+*DTO imutável* — O que mudou no repositório do humano durante a janela, separado em perda e avanço, e a salvaguarda de antes dela.
+
+**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`, `cabeca_de_antes: str`, `durante: Durante`
+
+- `recuperar() -> tuple[str, ...]` `[property]` — Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
+- `durante_o(papel: str) -> str` — O que rodou enquanto o repositório mudou; sem o que a janela disse, a sessão do papel.
+
+### `RepositorioDoHumanoMexido` (GraphowError)
+
+*serviço* — O repositório do humano perdeu trabalho durante a sessão de papel, ou o código do agente que o orquestrador rodou: o
+
+### Funções do módulo
+
+- `resumo(mudancas: tuple[str, ...]) -> tuple[str, ...]` — As primeiras mudanças e quantas sobram.
+- `mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str` — O motivo, o que rodou, a perda, a salvaguarda, os comandos que a recuperam e quem pode ter mexido.
+
+## `orquestrador/janela_do_humano.py`
+
+A janela da foto do repositório do humano: da foto de antes da sessão ao fim do código do agente que o orquestrador roda.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `PAPEL_DO_ORQUESTRADOR` | `str` | `PapelAutor.ORQUESTRADOR.value` |
+| `SEM_ARQUIVO` | `tuple[str, ...]` | `('HEAD: ',)` |
+| `SEM_TRECHO` | `str` | `'o passo do laco, desde a foto de antes'` |
+
+### `ConfiguracaoDaJanela`
+
+*DTO imutável* — De onde a janela tira a foto e para onde manda o que achou: o repositório do humano (None: nada a conferir), a pasta
+
+**Campos:** `repositorio: Path | None`, `salvaguarda: Path | None`, `registrar: RegistroDoHumanoMexido | None`, `outros_goals: LeitorDosOutrosGoals | None`
+
+### `JanelaDoHumano`
+
+*serviço* — A foto de antes, aberta até a conferência que a fecha, e os trechos do meio.
+
+- `aberta() -> bool` `[property]` — Há foto de antes esperando a conferência.
+- `trechos() -> tuple[Trecho, ...]` `[property]` — Os trechos da janela aberta, na ordem.
+- `abrir() -> None` — A foto de antes e a salvaguarda, quando a janela está fechada; aberta, nada.
+- `marcar(quem: str) -> None` — Um trecho novo (a janela abre, se estava fechada), com a marca lida sem processo; o mesmo de antes segue.
+- `fechar() -> None` — A conferência do que mudou desde a foto de antes, com quem rodou no trecho de cada mudança; fechada, nada.
+- `trecho(quem: str) -> Iterator[None]` — O bloco dentro da janela: na aberta, um trecho dela (sem `quem`, os trechos que ele marcar); sem janela, uma só do
+
+### `Trecho`
+
+*DTO imutável* — Um trecho da janela: o que rodou (a sessão de um papel, ou o código do agente que o orquestrador rodou, sem papel), a
+
+**Campos:** `quem: str`, `papel: str`, `fatia: str`, `marca: Mapping[str, str]`
+
+### Funções do módulo
+
+- `marca_do_humano(antes: FotoDoHumano) -> dict[str, str]` — O sha256 de cada arquivo que a foto listou, dos que mudam o git e das refs, pelo nome que a conferência usa; só
+- `durante(trechos: Sequence[Trecho], final: Mapping[str, str], mexido: HumanoMexido) -> Durante` — Quem rodou nos trechos das perdas (sem perda, dos avanços): o texto, se foi só o código do agente fora da sessão e as
+
 ## `orquestrador/laco.py`
 
 O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão.
@@ -1216,7 +1276,7 @@ O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`.
 - `concluir_fatia(id_task: str, tentativa: int) -> None` — O commit vira Artifact da fatia, com os `arquivos` lidos dele, e a fatia fecha.
 - `registrar_falha(id_task: str, tentativa: int) -> None` — A tentativa que falhou vira Note da fatia, e a fatia volta a pendente com o erro e a conta das falhas.
 - `registrar_trava_mexida(papel: str, fatia: str, motivo: str) -> None` — A sessão de papel que mexeu na trava do git vira Note da Sessao do Goal (e da fatia, quando há), com o papel e o motivo.
-- `registrar_humano_mexido(papel: str, fatia: str, mexido: HumanoMexido) -> None` — A sessão em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia): a que perdeu trabalho, com a
+- `registrar_humano_mexido(papel: str, fatia: str, mexido: HumanoMexido) -> None` — A janela da foto em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia), com o que rodou
 - `registrar_revisao(id_task: str, tentativa: int) -> None` — O veredito da revisão da fatia de risco vira Evidence que deriva da fatia, com os Achados dela no mesmo lote.
 - `marcar_pendencia(id_task: str, motivo: str, pendencias: Sequence[Mapping[str, Any]]) -> None` — A fatia que falhou duas vezes sai da fila e vira pendência do Goal.
 - `abrir_duvida(id_task: str, tentativa: int) -> str` — A dúvida do executor vira Question que bloqueia a fatia; devolve o id dela.
@@ -1935,7 +1995,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 *DTO imutável* — O que vale para toda sessão de agente do Goal.
 
-**Campos:** `pasta_das_sessoes: Path`, `ambiente_da_trava: Mapping[str, str]`, `hook_da_trava: Path`, `modelos: Mapping[str, str]`, `modo_de_permissao: str`, `tempo_limite_s: float`, `banco_dos_hooks: Path | None`, `esperar: Callable[[float], None]`, `recuos_s: tuple[float, ...]`, `registrar_trava_mexida: RegistroDaTravaMexida | None`, `repositorio_do_humano: Path | None`, `registrar_humano_mexido: RegistroDoHumanoMexido | None`, `salvaguarda_do_humano: Path | None`, `outros_goals: LeitorDosOutrosGoals | None`
+**Campos:** `pasta_das_sessoes: Path`, `ambiente_da_trava: Mapping[str, str]`, `hook_da_trava: Path`, `modelos: Mapping[str, str]`, `modo_de_permissao: str`, `tempo_limite_s: float`, `banco_dos_hooks: Path | None`, `esperar: Callable[[float], None]`, `recuos_s: tuple[float, ...]`, `registrar_trava_mexida: RegistroDaTravaMexida | None`, `janela: JanelaDoHumano`
 
 ### `PedidoDePapel`
 
@@ -1955,6 +2015,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 
 *serviço* — Roda as sessões dos papéis e registra cada invocação na telemetria.
 
+- `janela() -> JanelaDoHumano` `[property]` — A janela da foto do repositório do humano, a mesma para as sessões e para o código que o orquestrador roda.
 - `modelo_do_papel(papel: str) -> str` — O modelo configurado para o papel; Opus quando a configuração não diz.
 - `rodar(pedido: PedidoDePapel) -> RespostaDePapel` — A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido.
 

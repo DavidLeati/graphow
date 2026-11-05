@@ -1,4 +1,4 @@
-"""A conferência do repositório do humano depois de cada sessão de papel: a perda para o laço, o avanço segue.
+"""A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue.
 
 O orquestrador trabalha num clone para o humano seguir trabalhando ao lado,
 e não há como saber quem mexeu no repositório dele durante a sessão. Por isso
@@ -35,7 +35,9 @@ diz qual arquivo mudou. Só com eles iguais a foto de depois roda o git.
 para um conteúdo novo (ou cujo conteúdo de antes ficou num commit), a entrada
 nova no índice, a ref nova, a que andou por fast-forward ou que o rebase de
 outro Goal refez e a troca de HEAD, com as mudanças carregadas. Cada linha tem
-o seu caso em tests/orquestrador/test_conferencia_do_humano.py.
+o seu caso em tests/orquestrador/test_conferencia_do_humano.py. A janela
+(orquestrador/janela_do_humano.py) diz quando a foto de antes é tirada e
+quando a conferência roda, e o que rodou no meio (orquestrador/humano_mexido.py).
 
 O lado seguro tem custo: do humano, também param o `git stash` (o reflog
 muda), o `commit --amend`, o rebase, o `git config`, a edição da configuração
@@ -48,7 +50,6 @@ from dataclasses import dataclass, field, replace
 from functools import cache, partial
 from pathlib import Path
 
-from graphow.core.exceptions import GraphowError
 from graphow.orquestrador.arquivos_do_git import AUSENTE, conteudo_do_arquivo, ler_os_arquivos_do_git
 from graphow.orquestrador.foto_do_humano import (
     NAO_RASTREADO,
@@ -60,10 +61,14 @@ from graphow.orquestrador.foto_do_humano import (
 )
 from graphow.orquestrador.git_da_foto import e_ancestral_no_humano
 from graphow.orquestrador.git_do_goal import TRAILER_DO_GOAL
-from graphow.orquestrador.salvaguarda_do_humano import Salvaguarda, comandos_de_recuperacao
+from graphow.orquestrador.humano_mexido import (
+    HumanoMexido,
+    RegistroDoHumanoMexido,
+    RepositorioDoHumanoMexido,
+    mensagem_da_parada,
+    resumo,
+)
 
-MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
-LIMITE_DE_MUDANCAS_NA_PARADA: int = 20
 NO_HEAD: str = "voltou ao conteudo do HEAD ou do indice de antes da sessao"
 SUMIU: str = "sumiu da arvore sem ir a um commit"
 SOBRESCRITO: str = "foi sobrescrito por um conteudo que o git ja tinha, e o de antes nao ficou em commit nem no indice"
@@ -71,32 +76,6 @@ NOVO: str = "mudou para um conteudo novo"
 TROCADA: str = "foi trocada por um conteudo que o git ja tinha"
 # Uma mudança da conferência: se é perda e o texto.
 Mudanca = tuple[bool, str]
-
-
-@dataclass(frozen=True)
-class HumanoMexido:
-    """O que mudou no repositório do humano durante a sessão, separado em perda e avanço, e a salvaguarda de antes dela.
-
-    `soltos_perdidos` são os não rastreados que sumiram, os que a árvore da salvaguarda devolve; `git_mexido` diz que um
-    arquivo que muda o git mudou, e `arvore_conferida`, que a foto de depois rodou (não roda quando aquele mudou);
-    `cabeca_de_antes`, o HEAD de antes da sessão quando ela o trocou ou pôs o conteúdo de outro commit na árvore ou no
-    índice: o `stash apply` vale sobre ele.
-    """
-
-    repositorio: Path
-    perdas: tuple[str, ...]
-    avancos: tuple[str, ...]
-    salvaguarda: Salvaguarda
-    soltos_perdidos: tuple[str, ...] = ()
-    git_mexido: bool = False
-    arvore_conferida: bool = True
-    cabeca_de_antes: str = ""
-
-    @property
-    def recuperar(self) -> tuple[str, ...]:
-        """Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
-        `restore` do não rastreado."""
-        return comandos_de_recuperacao(self.repositorio, self.salvaguarda, self.soltos_perdidos)
 
 
 @dataclass(frozen=True)
@@ -125,28 +104,23 @@ class _Conferencia:
     objetos: Mapping[tuple[str, str], str] = field(default_factory=dict)
 
 
-def resumo(mudancas: tuple[str, ...]) -> tuple[str, ...]:
-    """As primeiras mudanças e quantas sobram."""
-    sobra = len(mudancas) - LIMITE_DE_MUDANCAS_NA_PARADA
-    return (*mudancas[:LIMITE_DE_MUDANCAS_NA_PARADA], *([f"e mais {sobra}"] if sobra > 0 else []))
-
-
-# Quem guarda no livro-razão o repositório do humano que mudou: o papel, a fatia (vazia fora delas) e o que mudou.
-RegistroDoHumanoMexido = Callable[[str, str, HumanoMexido], None]
-
-
-class RepositorioDoHumanoMexido(GraphowError):
-    """O repositório do humano perdeu trabalho durante a sessão de papel: o laço para em FALHA."""
-
-
 def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None,
                       outros_goals: LeitorDosOutrosGoals | None = None) -> None:
     """Depois da sessão, a foto refeita; o que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`)."""
+    relatar(mexido_desde(antes, outros_goals), papel, fatia, registrar=registrar)
+
+
+def mexido_desde(antes: FotoDoHumano | None, outros_goals: LeitorDosOutrosGoals | None = None) -> HumanoMexido | None:
+    """O que mudou desde a foto de antes: os arquivos do git relidos e, iguais eles, a foto refeita; None sem foto."""
     if antes is None:
-        return
-    mexido = conferir_os_arquivos_do_git(antes) or conferir_as_fotos(
+        return None
+    return conferir_os_arquivos_do_git(antes) or conferir_as_fotos(
         antes, fotografar_o_humano(antes.repositorio, antes.listados, vigia=antes.vigia), outros_goals)
-    if not mexido.perdas and not mexido.avancos:
+
+
+def relatar(mexido: HumanoMexido | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None) -> None:
+    """O que mudou vai ao livro-razão, e a perda para o laço (`RepositorioDoHumanoMexido`); sem mudança, nada."""
+    if mexido is None or (not mexido.perdas and not mexido.avancos):
         return
     if registrar is not None:
         registrar(papel, fatia, mexido)
@@ -180,33 +154,6 @@ def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: L
     return HumanoMexido(antes.repositorio, tuple(texto for perda, texto in mudancas if perda),
                         tuple(texto for perda, texto in mudancas if not perda), antes.salvaguarda, soltos, git_mexido=bool(do_git),
                         cabeca_de_antes=antes.cabeca if trocou else "")
-
-
-def mensagem_da_parada(mexido: HumanoMexido, papel: str) -> str:
-    """O motivo, a perda, a salvaguarda e os comandos que a recuperam."""
-    partes = ([f"o commit {mexido.salvaguarda.stash} (as mudancas rastreadas)"] if mexido.salvaguarda.stash else []) + (
-        [f"a arvore {mexido.salvaguarda.soltos} (os nao rastreados)"] if mexido.salvaguarda.soltos and mexido.soltos_perdidos else [])
-    recuperar = ", depois ".join(f"`{comando}`" for comando in mexido.recuperar)
-    voltar = (f" A sessao trocou o HEAD ou pos na arvore o conteudo de outro commit: o `stash apply` vale sobre o HEAD de antes "
-              f"({mexido.cabeca_de_antes}), com a arvore e o indice iguais a ele; volte a ele antes."
-              if mexido.cabeca_de_antes and mexido.salvaguarda.stash else "")
-    salvaguarda = (f"A salvaguarda de antes da sessao e {' e '.join(partes)}, guardada fora do repositorio, em "
-                   f"{mexido.salvaguarda.pasta}: recupere com {recuperar}.{voltar}" if partes
-                   else "Antes da sessao nao havia o que salvaguardar desses arquivos.")
-    return (f"{MOTIVO_DA_PARADA}: o repositorio do humano ({mexido.repositorio}) "
-            f"{'teve mudado o que o git roda' if mexido.git_mexido else 'perdeu trabalho'} durante a sessao do {papel}: "
-            f"{'; '.join(resumo(mexido.perdas))}. {salvaguarda}{_aviso_do_git(mexido)} Se foi voce quem mexeu durante a sessao, "
-            "confira e rode o Goal de novo; se nao, a sessao mexeu fora do clone do Goal, e o que ela fez la nao foi desfeito.")
-
-
-def _aviso_do_git(mexido: HumanoMexido) -> str:
-    """O aviso dos arquivos que mudam o git: sem salvaguarda, e antes de qualquer git no repositório, inclusive a recuperação."""
-    if not mexido.git_mexido:
-        return ""
-    conferida = "" if mexido.arvore_conferida else (" A conferencia parou antes de rodar git nesse repositorio: a arvore e o "
-                                                     "indice nao foram conferidos.")
-    return (f"{conferida} Os arquivos que mudam o que o git roda nao tem salvaguarda: confira-os e desfaca a mudanca antes de "
-            "rodar qualquer git nesse repositorio, inclusive os comandos de recuperacao, que rodariam o que foi plantado.")
 
 
 def _conferencia(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None) -> _Conferencia:

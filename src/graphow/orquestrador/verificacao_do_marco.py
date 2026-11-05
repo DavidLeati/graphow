@@ -64,13 +64,17 @@ from graphow.orquestrador.tipo_da_verificacao import TipoDaVerificacao, escolher
 
 
 def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistrado) -> Parada | None:
-    """Uma sessão nova do verificador no commit atual e a suíte do plano, gravadas como Evidence do Goal."""
+    """Uma sessão nova do verificador no commit atual e a suíte do plano, gravadas como Evidence do Goal.
+
+    Da foto de antes do aceite ao fim da segunda opinião, uma janela da foto do humano (orquestrador/janela_do_humano.py).
+    """
     sem_orcamento = contexto.sem_orcamento()
     if sem_orcamento is not None:
         return sem_orcamento
     head, plano, commit_do_aceite = contexto.git.head(), estado.plano or {}, str((estado.aceite or {}).get("commit", ""))
     descartar_mudancas(contexto.area, contexto.patch(f"antes-da-verificacao-{len(estado.verificacoes) + 1}"))
     tirado = preparar_o_aceite(contexto.area, commit_do_aceite)
+    contexto.janela.marcar(f"o aceite que o orquestrador rodou na verificacao do marco {marco.id}")
     aceite = rodar_o_aceite(contexto, estado, criterios_ate_o_marco(estado, marco), final=marco.final)
     descartar_mudancas(contexto.area, contexto.patch(f"aceite-{len(estado.verificacoes) + 1}"))
     tipo = escolher_o_tipo(estado, marco, contexto.git)
@@ -79,11 +83,13 @@ def verificar_marco(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: Marco
         return dados
     tirado = (*tirado, *preparar_o_aceite(contexto.area, commit_do_aceite))
     rastro = contexto.patch(f"suite-{len(estado.verificacoes) + 1}")
+    contexto.janela.marcar(f"a suite que o orquestrador rodou na verificacao do marco {marco.id}")
     with sem_o_que_a_suite_escreve(contexto.area, rastro), arquivos_ocultos(
             contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
         suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
                             tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
     registro = _registro(contexto, estado, marco, dados=dados, suite=suite, aceite=aceite, head=head, tirado=tirado, tipo=tipo)
+    contexto.janela.fechar()
     gravar_verificacao(contexto.livro, registro)
     sincronizar_documento(contexto, registro.pendencias, numero=registro.numero)
     return None

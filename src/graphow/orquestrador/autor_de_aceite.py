@@ -147,6 +147,7 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
         if problemas:
             return problemas
         guarda["rodadas"] = int(guarda.get("rodadas", 0)) + 1
+        contexto.janela.marcar("os testes de aceite que o orquestrador rodou para conferir o vermelho deles")
         with sem_o_que_a_suite_escreve(contexto.area, contexto.patch(f"aceite-vermelho-{guarda['rodadas']}")):
             problemas, execucoes = conferir_vermelho(saida, rodar)
         guarda["execucoes"] = [execucao.em_json() for execucao in execucoes]

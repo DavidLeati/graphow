@@ -7,7 +7,8 @@ hooks, as skills e os subagentes do usuário (`--setting-sources project`), só 
 no ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O briefing traz tudo; o agente não lê o grafo.
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o que era: o que o agente mexeu no git
 do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). O repositório do humano também
-é fotografado: a perda de trabalho nele para o laço em FALHA, e o avanço vira Note (orquestrador/conferencia_do_humano.py).
+é fotografado: cada invocação é um trecho da janela da foto aberta, ou da que a sessão abre e fecha quando nenhuma está
+aberta; a perda de trabalho nele para o laço em FALHA, e o avanço vira Note (orquestrador/janela_do_humano.py).
 Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook é regravado e o `.claude/` do clone
 volta à referência do pedido (o HEAD; na fatia de conflito, a base nova mesclada); a invocação que mexeu num deles
 mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o motivo (`RespostaDePapel.trava_mexida`), que
@@ -32,7 +33,6 @@ from typing import Any
 
 from graphow.orquestrador.briefing import pedido_de_correcao_da_saida
 from graphow.orquestrador.comandos_do_stream import comandos_bash, comandos_nao_rodados, problema_dos_comandos
-from graphow.orquestrador.conferencia_do_humano import LeitorDosOutrosGoals, RegistroDoHumanoMexido, conferir_o_humano
 from graphow.orquestrador.esquemas import (
     ESQUEMA_POR_PAPEL,
     PAPEL_AUTOR_DE_ACEITE,
@@ -46,7 +46,7 @@ from graphow.orquestrador.esquemas import (
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
-from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao
+from graphow.orquestrador.janela_do_humano import JanelaDoHumano
 from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone, selar_a_sessao, trava_mexida
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
@@ -101,10 +101,7 @@ class ConfiguracaoDasSessoes:
     esperar: Callable[[float], None] = time.sleep
     recuos_s: tuple[float, ...] = RECUOS_DO_ERRO_DA_API_S
     registrar_trava_mexida: RegistroDaTravaMexida | None = None
-    repositorio_do_humano: Path | None = None
-    registrar_humano_mexido: RegistroDoHumanoMexido | None = None
-    salvaguarda_do_humano: Path | None = None
-    outros_goals: LeitorDosOutrosGoals | None = None
+    janela: JanelaDoHumano = field(default_factory=JanelaDoHumano)
 
 
 @dataclass(frozen=True)
@@ -160,6 +157,11 @@ class SessoesDePapel:
         self._telemetria: RepositorioTelemetria = telemetria
         self._configuracao: ConfiguracaoDasSessoes = configuracao
 
+    @property
+    def janela(self) -> JanelaDoHumano:
+        """A janela da foto do repositório do humano, a mesma para as sessões e para o código que o orquestrador roda."""
+        return self._configuracao.janela
+
     def modelo_do_papel(self, papel: str) -> str:
         """O modelo configurado para o papel; Opus quando a configuração não diz."""
         return self._configuracao.modelos.get(papel) or modelo_padrao(papel)
@@ -167,13 +169,11 @@ class SessoesDePapel:
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido."""
         foto = fotografar_clone(pedido.pasta)
-        humano = foto_antes_da_sessao(self._configuracao.repositorio_do_humano, salvaguarda=self._configuracao.salvaguarda_do_humano)
-        try:
-            resposta = self._rodar_e_conferir(pedido)
-        finally:
-            desfeito = restaurar_o_clone(foto)
-            conferir_o_humano(humano, pedido.papel, pedido.fatia, registrar=self._configuracao.registrar_humano_mexido,
-                              outros_goals=self._configuracao.outros_goals)
+        with self.janela.trecho():
+            try:
+                resposta = self._rodar_e_conferir(pedido)
+            finally:
+                desfeito = restaurar_o_clone(foto)
         return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
@@ -223,6 +223,7 @@ class SessoesDePapel:
         selo = selar_a_sessao(self._configuracao.hook_da_trava, pedido.pasta, pedido.referencia_do_selo)
         aberta = registro_em_andamento(pedido, arquivo, retomar=retomar, modelo=modelo)
         id_linha = self._telemetria.registrar(aberta)
+        self.janela.marcar(f"a sessao do {pedido.papel}", papel=pedido.papel, fatia=pedido.fatia)
         resultado = self._executor.rodar(self._pedido_de_sessao(pedido, prompt, retomar, arquivo=arquivo, modelo=modelo))
         self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
         motivo = trava_mexida(selo)

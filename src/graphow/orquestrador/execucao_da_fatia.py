@@ -8,7 +8,8 @@ do runner de testes ou que pôs num conftest.py um hook do pytest que decide o
 resultado (orquestrador/aceite_intocado.py), e a que mexeu na trava (o settings
 do hook ou o `.claude/`, orquestrador/sessoes_de_papel.py), roda a
 suíte ele mesmo (sem os testes de aceite, que provam o Goal inteiro e ficam
-vermelhos até a fatia que os atende) e devolve a área à árvore conferida, sem
+vermelhos até a fatia que os atende; na janela da foto do humano aberta antes
+do executor, orquestrador/janela_do_humano.py) e devolve a área à árvore conferida, sem
 o que a suíte escreveu (orquestrador/suite_sem_rastro.py), passa a fatia de
 risco, e a que mudou a configuração de teste (o que é sinal, e não recusa), pela revisão
 (orquestrador/revisao_da_fatia.py) e só então commita na branch do Goal, com
@@ -109,14 +110,14 @@ def executar_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: FatiaR
         return sem_orcamento
     contexto.livro.iniciar_tentativa(fatia.id, numero)
     tentativa = Tentativa(fatia, numero, preparar_a_fatia(contexto, fatia))
+    contexto.janela.abrir()
     resposta = contexto.sessoes.rodar(
         PedidoDePapel(
             papel=PAPEL_EXECUTOR, id_goal=contexto.id_goal, pasta=contexto.area, fatia=fatia.id, tentativa=numero,
             briefing=briefing_do_executor(estado, fatia, _contexto_da_fatia(contexto, estado, numero, fatia=fatia)),
             conferir=lambda dados: SaidaDoExecutor.de_json(dados).conferir(),
-            modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(),
+            modelo=_modelo(contexto, fatia), orcamento_restante_usd=contexto.restante(), referencia_do_selo=tentativa.referencia,
             esquema=ESQUEMA_DA_EXECUCAO_AUTONOMA if contexto.configuracao.modo == m.MODO_AUTONOMO else None,
-            referencia_do_selo=tentativa.referencia,
         )
     )
     if resposta.dados is None:
@@ -212,12 +213,11 @@ def _conferir_a_entrega(contexto: ContextoDoGoal, tentativa: Tentativa) -> str |
         return problema
     plano = estado.plano or {}
     rastro = contexto.patch(f"{tentativa.fatia.id}-t{tentativa.numero}-suite")
+    contexto.janela.marcar(f"a suite que o orquestrador rodou com a entrega da fatia {tentativa.fatia.id}")
     with sem_o_que_a_suite_escreve(contexto.area, rastro), arquivos_ocultos(
             contexto.area, estado.arquivos_protegidos(), contexto.pasta / "aceite-oculto"):
-        suite = rodar_suite(
-            contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
-            tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s,
-        )
+        suite = rodar_suite(contexto.area, str(plano.get("comando_suite", "")), contexto.banco_descartavel,
+                            tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s)
     if not suite.passou:
         return suite.descrever()
     vermelho = aceite_da_fatia(contexto, estado, tentativa.fatia, numero=tentativa.numero)

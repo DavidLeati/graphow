@@ -26,7 +26,7 @@ from graphow.kernel.write_kernel import WriteKernel
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.conferencia_da_evidencia import CAMPO_ARVORE
 from graphow.orquestrador.correcoes import agrupar_o_ciclo, propriedades_da_correcao, titulo_da_correcao
-from graphow.orquestrador.conferencia_do_humano import HumanoMexido, resumo
+from graphow.orquestrador.humano_mexido import HumanoMexido, resumo
 from graphow.orquestrador.leitura_do_goal import AchadoRegistrado, FatiaRegistrada
 from graphow.orquestrador.saidas import SaidaDoExecutor
 from graphow.projection.graph_view import GrafoView
@@ -243,16 +243,17 @@ class LivroRazaoDoGoal:
         self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
 
     def registrar_humano_mexido(self, papel: str, fatia: str, mexido: HumanoMexido) -> None:
-        """A sessão em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia): a que perdeu trabalho, com a
-        salvaguarda e os comandos que a recuperam; a que só avançou, com o avanço, que não para o laço."""
+        """A janela da foto em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia), com o que rodou
+        nela: a que perdeu trabalho, com a salvaguarda e os comandos que a recuperam; a que só avançou, com o avanço, que
+        não para o laço."""
         perdeu = bool(mexido.perdas)
         id_nota = f"nota-humano-{'mexido' if perdeu else 'avancou'}-{papel}-{secrets.token_hex(4)}"
         propriedades = {"acao": m.ACAO_DO_HUMANO_MEXIDO if perdeu else m.ACAO_DO_HUMANO_QUE_AVANCOU, "papel": papel, "fatia": fatia,
-                        "perdas": list(resumo(mexido.perdas)), "avancos": list(resumo(mexido.avancos)),
-                        "salvaguarda": mexido.salvaguarda.stash, "soltos": mexido.salvaguarda.soltos,
-                        "guardada_em": mexido.salvaguarda.pasta,
+                        "durante": mexido.durante_o(papel), "perdas": list(resumo(mexido.perdas)),
+                        "avancos": list(resumo(mexido.avancos)), "salvaguarda": mexido.salvaguarda.stash,
+                        "soltos": mexido.salvaguarda.soltos, "guardada_em": mexido.salvaguarda.pasta,
                         "recuperar": list(mexido.recuperar), "repositorio": str(mexido.repositorio)}
-        rotulo = f"O repositorio do humano {'perdeu trabalho' if perdeu else 'avancou'} durante a sessao do {papel}"
+        rotulo = f"O repositorio do humano {'perdeu trabalho' if perdeu else 'avancou'} durante {mexido.durante_o(papel)}"
         da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []
         self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
 

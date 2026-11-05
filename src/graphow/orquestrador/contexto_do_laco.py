@@ -18,6 +18,7 @@ from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.commit_do_pedido import commitar_so
 from graphow.orquestrador.documento_do_goal import caminho_do_documento
 from graphow.orquestrador.git_do_goal import AreaDoGoal, GitDoGoal, commitar, sincronizar_ramo
+from graphow.orquestrador.janela_do_humano import JanelaDoHumano
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import LivroRazaoDoGoal
 from graphow.orquestrador.sessoes_de_papel import MODO_DE_PERMISSAO_PADRAO, SessoesDePapel
@@ -127,8 +128,16 @@ class ContextoDoGoal:
         configuracao = self.configuracao
         return AreaDoGoal(Path(configuracao.repositorio), self.area, configuracao.ramo, configuracao.base)
 
+    @property
+    def janela(self) -> JanelaDoHumano:
+        """A janela da foto do repositório do humano (orquestrador/janela_do_humano.py)."""
+        return self.sessoes.janela
+
     def commitar(self, mensagem: str, *, vazio_permitido: bool = False, caminhos: Sequence[str] = ()) -> str:
-        """O commit do orquestrador no clone (com `caminhos`, só deles), já levado à branch do Goal no repositório do humano."""
+        """O commit do orquestrador no clone (com `caminhos`, só deles), já levado à branch do Goal no repositório do humano.
+
+        A janela da foto fecha antes: o orquestrador não mexe no repositório do humano com ela aberta."""
+        self.janela.fechar()
         commit = (commitar_so(self.area, mensagem, caminhos, vazio_permitido=vazio_permitido) if caminhos
                   else commitar(self.area, mensagem, vazio_permitido=vazio_permitido))
         sincronizar_ramo(self.area_do_goal)

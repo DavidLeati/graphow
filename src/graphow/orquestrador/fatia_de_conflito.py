@@ -298,13 +298,15 @@ def aceite_da_fatia(contexto: ContextoDoGoal, estado: EstadoDoGoal, fatia: Fatia
     """Na fatia de conflito, os testes de aceite na área resolvida: o erro do vermelho, ou vazio; nas outras fatias, vazio."""
     if _conflito_da(fatia) is None:
         return ""
+    contexto.janela.marcar(f"o aceite que o orquestrador rodou com a entrega da fatia {fatia.id}")
     vermelho = aceite_vermelho(contexto, estado, contexto.patch(f"{fatia.id}-t{numero}-aceite"))
     return "" if vermelho is None else f"a area resolvida {vermelho.resumo}. {vermelho.detalhe}"
 
 
 def commitar_a_fatia(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mensagem: str, *, referencia: str) -> str:
     """O commit da fatia; o da de conflito, da árvore que a conferência julgou sobre a referência, vai sobre a base nova e é
-    registrado como rebase antes de as refs andarem."""
+    registrado como rebase antes de as refs andarem. A janela da foto do humano fecha antes: as refs dele vão andar."""
+    contexto.janela.fechar()
     conflito = _conflito_da(fatia)
     if conflito is None:
         return contexto.commitar(mensagem, vazio_permitido=True)

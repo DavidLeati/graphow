@@ -60,11 +60,13 @@ def rebasear_o_goal(contexto: ContextoDoGoal, estado: EstadoDoGoal) -> Parada | 
 
 
 def _vermelho_depois_do_rebase(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) -> Vermelho | None:
-    """A suíte do plano e, com ela verde, os testes de aceite na ponta rebaseada; None quando tudo passa."""
-    suite = _rodar_a_suite(contexto, estado, numero)
-    if not suite.passou:
-        return da_suite(suite)
-    return aceite_vermelho(contexto, estado, contexto.patch(f"rebase-{numero}-aceite"))
+    """A suíte do plano e, com ela verde, os testes de aceite na ponta rebaseada, numa janela da foto do humano só deles
+    (fechada antes de as refs andarem); None quando tudo passa."""
+    with contexto.janela.trecho("a suite e o aceite que o orquestrador rodou na branch rebaseada sobre a base nova"):
+        suite = _rodar_a_suite(contexto, estado, numero)
+        if not suite.passou:
+            return da_suite(suite)
+        return aceite_vermelho(contexto, estado, contexto.patch(f"rebase-{numero}-aceite"))
 
 
 def _rodar_a_suite(contexto: ContextoDoGoal, estado: EstadoDoGoal, numero: int) -> ResultadoDaSuite:

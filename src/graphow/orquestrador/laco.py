@@ -43,6 +43,7 @@ from graphow.orquestrador.entrada_do_goal import (
 from graphow.orquestrador.execucao_da_fatia import executar_fatia, guardar_a_fatia_interrompida
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import descartar_mudancas, preparar_area, raiz_do_repositorio
+from graphow.orquestrador.janela_do_humano import ConfiguracaoDaJanela, JanelaDoHumano
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.pedidos_do_humano import (
@@ -230,14 +231,22 @@ class Orquestrador:
                 modelos=self._dependencias.modelos, modo_de_permissao=self._dependencias.modo_de_permissao,
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
                 esperar=self._dependencias.esperar, registrar_trava_mexida=livro.registrar_trava_mexida,
-                repositorio_do_humano=Path(configuracao.repositorio), registrar_humano_mexido=livro.registrar_humano_mexido,
-                salvaguarda_do_humano=pasta / PASTA_DA_SALVAGUARDA, outros_goals=leitor_dos_outros_goals(livro),
+                janela=JanelaDoHumano(ConfiguracaoDaJanela(Path(configuracao.repositorio), pasta / PASTA_DA_SALVAGUARDA,
+                                                           livro.registrar_humano_mexido, leitor_dos_outros_goals(livro))),
             ),
         )
         return ContextoDoGoal(livro, configuracao, sessoes, self._dependencias.telemetria, pasta, opcoes)
 
 
 def _passo(contexto: ContextoDoGoal) -> Parada | None:
+    """Um passo do laço, e a janela da foto do humano que ele deixou aberta fechada no fim, mesmo por exceção."""
+    try:
+        return _passo_decidido(contexto)
+    finally:
+        contexto.janela.fechar()
+
+
+def _passo_decidido(contexto: ContextoDoGoal) -> Parada | None:
     """Um passo do laço, decidido pelo estado de agora; None quando o laço segue."""
     contexto.registrar_ponta()
     estado = contexto.estado()

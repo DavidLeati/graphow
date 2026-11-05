@@ -134,6 +134,7 @@ def _sessao(contexto: ContextoDoGoal, estado: EstadoDoGoal, pedido: PedidoDoHuma
 
     def conferir(dados: Mapping[str, Any]) -> tuple[str, ...]:
         refeito = SaidaDoAceite.de_json(dados)
+        contexto.janela.marcar(f"os testes refeitos de {pedido.alvo} que o orquestrador rodou para conferi-los")
         problemas = _conferir(contexto, estado, refeito, pedido=pedido, rodar=rodar)
         guarda["aceite"] = _com_o_refeito(atual, refeito, pedido.alvo)
         refez = not problemas and _refez(contexto, atual, refeito, criterio=pedido.alvo)
