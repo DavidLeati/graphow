@@ -1,5 +1,5 @@
 """T3a7, item 3: a salvaguarda fica fora do repositório do humano e a recuperação sobrevive ao `git gc --prune=now`; T3a9,
-item 2: o avanço aponta para ela."""
+itens 2 e 3: o avanço aponta para ela, e ela sai quando o Goal fecha."""
 
 import base64
 import os
@@ -20,6 +20,7 @@ from tests.orquestrador.apoio_git import criar_repositorio, git
 from tests.orquestrador.apoio_laco import executor_pronto, montar_bancada
 from tests.orquestrador.test_foto_do_humano import _notas_do_humano
 from tests.orquestrador.test_retomada import TUDO, roteiro_farto
+from tests.orquestrador.test_trava_do_git import ExecutorComHumano
 
 AUTONOMO: OpcoesDoLaco = OpcoesDoLaco(modo="autonomo")
 TRABALHO: str = "TRABALHO DO HUMANO, NAO COMMITADO\n"
@@ -167,3 +168,28 @@ def test_note_do_avanco_do_checkout_com_retoque_traz_o_hash_da_salvaguarda_edge_
     assert avanco.obter_propriedade("avancos") == ["NOTAS.txt mudou para um conteudo novo"]
     assert salvaguarda and avanco.obter_propriedade("ver_o_de_antes") == [f'git -C "{pasta.as_posix()}" show "{salvaguarda}:NOTAS.txt"']
     assert avanco.obter_propriedade("durante") == "a sessao do executor"
+
+
+@pytest.mark.parametrize("fecha", [True, False], ids=["goal_que_fecha", "laco_em_falha"])
+def test_goal_que_fecha_apaga_a_salvaguarda_e_o_que_para_em_falha_a_deixa_edge_case(tmp_path: Path, fecha: bool) -> None:
+    """T3a9.4: com um não rastreado no humano, toda janela grava a salvaguarda. O Goal que fecha não deixa a pasta (nem o
+    clone); o laço que para em FALHA (a sessão do executor apaga o não rastreado) a deixa, e a parada a cita."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    rascunho, pasta = bancada.repositorio / "rascunho.txt", bancada.raiz / "estado" / "goal-soma" / "salvaguarda-do-humano"
+    rascunho.write_bytes(RASCUNHO)
+    vista: list[bool] = []
+    apagar = [] if fecha else [[sys.executable, "-c", f"import os; os.remove(r'{rascunho}')"]]
+    roteiro["executor"][0] = executor_pronto(dict(TUDO), comandos=apagar)
+    bancada.trocar_roteiro(roteiro)
+
+    parada = bancada.orquestrador(executor=ExecutorComHumano(bancada.executor, lambda: vista.append(pasta.is_dir()), na=3)
+                                  ).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert vista == [True], "a salvaguarda existia durante a sessao do executor"
+    if fecha:
+        assert parada.fechou and not pasta.exists() and not (pasta.parent / "area").exists(), parada.mensagem
+        assert rascunho.read_bytes() == RASCUNHO, "o nao rastreado do humano fica"
+        return
+    assert parada.motivo == MotivoDaParada.FALHA and f"em {pasta}:" in parada.mensagem, parada.mensagem
+    assert (pasta / "HEAD").is_file() and not rascunho.exists()

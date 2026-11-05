@@ -41,6 +41,7 @@ from graphow.orquestrador.leitura_das_verificacoes import AchadoRegistrado
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, MarcoRegistrado, VerificacaoRegistrada
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
 from graphow.orquestrador.registro_do_rebase import equivalentes_da_ponta
+from graphow.orquestrador.salvaguarda_do_humano import PASTA_DA_SALVAGUARDA
 from graphow.orquestrador.verificacao_do_marco import sincronizar_documento, verificar_marco
 
 
@@ -238,8 +239,14 @@ def _cancelado_depois_da_leitura(contexto: ContextoDoGoal) -> Parada | None:
 
 
 def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
-    """Fecha o Goal e tira a área de trabalho, que já cumpriu o papel."""
+    """Fecha o Goal e tira a área de trabalho e a salvaguarda do repositório do humano, que já cumpriram o papel.
+
+    A salvaguarda só serve enquanto uma parada ou uma Note do Goal pode citá-la para recuperar (ou ver) o de antes de uma
+    sessão; com o Goal fechado, o laço não roda mais, e a pasta sai (orquestrador/salvaguarda_do_humano.py).
+    """
     contexto.livro.fechar(integrado)
-    removida = remover_area(contexto.area)
-    sobra = "" if removida else f" A area {contexto.area} ficou no disco (o git nao a removeu)."
+    salvaguarda = contexto.pasta / PASTA_DA_SALVAGUARDA
+    removida, sem_salvaguarda = remover_area(contexto.area), remover_area(salvaguarda)
+    sobra = ("" if removida else f" A area {contexto.area} ficou no disco (o git nao a removeu).") + (
+        "" if sem_salvaguarda else f" A salvaguarda {salvaguarda} ficou no disco.")
     return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"Goal fechado: {contexto.configuracao.base} em {integrado[:12]}.{sobra}")
