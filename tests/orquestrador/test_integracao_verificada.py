@@ -9,7 +9,7 @@ import pytest
 
 from graphow.core.types import TipoNo
 from graphow.orquestrador import laco, verificacao_do_goal
-from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, Parada
+from graphow.orquestrador.contexto_do_laco import ContextoDoGoal, MotivoDaParada, OpcoesDoLaco, Parada
 from graphow.orquestrador.leitura_do_goal import ler_estado
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_CANCELAR, NovoPedido
 from graphow.orquestrador.refs_do_humano import integrar_por_fast_forward
@@ -135,3 +135,21 @@ def test_goal_cancelado_antes_do_primeiro_commit_tem_a_ponta_na_base_e_nao_ganha
     ponta = estado.propriedades["ponta_do_ramo"]["commit"]
     assert ponta == git(bancada.repositorio, "rev-parse", "main").strip(), "a ponta gravada esta na base"
     assert "cancelamento_tardio" not in estado.propriedades
+
+
+def test_pronto_para_integrar_manda_integrar_o_hash_verificado_e_nao_a_branch_edge_case(tmp_path: Path) -> None:
+    """T3g6.2: no supervisionado, a mensagem traz `merge --ff-only <hash da ponta verificada>`, e não o nome da branch; o
+    commit que chega à branch depois disso não vai à base pelo comando da mensagem."""
+    bancada = montar_bancada(tmp_path, _roteiro_limpo())
+    orquestrador = ate_o_portao_aprovado(bancada)
+
+    pronto = orquestrador.rodar("goal-soma", OpcoesDoLaco())
+
+    verificado = git(bancada.repositorio, "rev-parse", RAMO).strip()
+    assert pronto.motivo == MotivoDaParada.PRONTO_PARA_INTEGRAR, pronto.mensagem
+    assert f"merge --ff-only {verificado}` (na base main)" in pronto.mensagem, pronto.mensagem
+    assert f"--ff-only {RAMO}" not in pronto.mensagem, pronto.mensagem
+    _commit_no_ramo(bancada.repositorio, RAMO, "NAO_VERIFICADO.txt", b"ninguem verificou\n")
+    git(bancada.repositorio, "merge", "-q", "--ff-only", verificado)
+    assert git(bancada.repositorio, "rev-parse", "main").strip() == verificado
+    assert "NAO_VERIFICADO.txt" not in git(bancada.repositorio, "ls-tree", "--name-only", "main")

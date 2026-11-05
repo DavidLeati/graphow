@@ -158,13 +158,18 @@ def _fechar(contexto: ContextoDoGoal, estado: EstadoDoGoal, marco: MarcoRegistra
 
 
 def _pronto_para_integrar(contexto: ContextoDoGoal, head: str) -> Parada:
-    """A parada do supervisionado: a verificação limpa vale para a ponta, e o humano integra."""
+    """A parada do supervisionado: a verificação limpa vale para a ponta, e o humano integra o hash dela.
+
+    O comando leva o hash, e não o nome da branch: a branch que anda depois
+    da verificação não leva à base, por ele, um commit que ninguém verificou
+    (revisão da T3f2).
+    """
     configuracao = contexto.configuracao
     return Parada(
         contexto.id_goal,
         MotivoDaParada.PRONTO_PARA_INTEGRAR,
         f"Pronto para integrar: a verificacao limpa vale para {head[:12]}. Integre com "
-        f"`git -C \"{configuracao.repositorio}\" merge --ff-only {configuracao.ramo}` (na base {configuracao.base}) e rode de "
+        f"`git -C \"{configuracao.repositorio}\" merge --ff-only {head}` (na base {configuracao.base}) e rode de "
         f"novo para fechar.",
     )
 
