@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from graphow.core.exceptions import GraphowError
-from graphow.orquestrador.salvaguarda_do_humano import Salvaguarda, comandos_de_recuperacao
+from graphow.orquestrador.salvaguarda_do_humano import Salvaguarda, comandos_de_recuperacao, comandos_para_ver
 
 MOTIVO_DA_PARADA: str = "repositorio_do_humano_mexido"
 LIMITE_DE_MUDANCAS_NA_PARADA: int = 20
@@ -39,7 +39,8 @@ class HumanoMexido:
     `soltos_perdidos` são os não rastreados que sumiram, os que a árvore da salvaguarda devolve; `git_mexido` diz que um
     arquivo que muda o git mudou, e `arvore_conferida`, que a foto de depois rodou (não roda quando aquele mudou);
     `cabeca_de_antes`, o HEAD de antes da sessão quando ela o trocou ou pôs o conteúdo de outro commit na árvore ou no
-    índice: o `stash apply` vale sobre ele.
+    índice: o `stash apply` vale sobre ele. `rastreados_mudados` e `soltos_mudados` são os arquivos listados antes cujo
+    conteúdo mudou ou sumiu, perda ou avanço: o de antes deles está na salvaguarda.
     """
 
     repositorio: Path
@@ -51,6 +52,14 @@ class HumanoMexido:
     arvore_conferida: bool = True
     cabeca_de_antes: str = ""
     durante: Durante = Durante()
+    rastreados_mudados: tuple[str, ...] = ()
+    soltos_mudados: tuple[str, ...] = ()
+
+    @property
+    def ver_o_de_antes(self) -> tuple[str, ...]:
+        """O `git show` que mostra, da salvaguarda e sem tocar no humano, o conteúdo de antes de cada arquivo listado que
+        mudou: é o que a Note do avanço cita (o `checkout -- .` seguido de um retoque é avanço)."""
+        return comandos_para_ver(self.salvaguarda, self.rastreados_mudados, self.soltos_mudados)
 
     @property
     def recuperar(self) -> tuple[str, ...]:

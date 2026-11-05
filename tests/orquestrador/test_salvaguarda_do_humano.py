@@ -1,4 +1,5 @@
-"""T3a7, item 3: a salvaguarda fica fora do repositório do humano e a recuperação sobrevive ao `git gc --prune=now`."""
+"""T3a7, item 3: a salvaguarda fica fora do repositório do humano e a recuperação sobrevive ao `git gc --prune=now`; T3a9,
+item 2: o avanço aponta para ela."""
 
 import base64
 import os
@@ -10,9 +11,9 @@ import sys
 
 import pytest
 
-from graphow.orquestrador.conferencia_do_humano import conferir_o_humano
+from graphow.orquestrador.conferencia_do_humano import conferir_as_fotos, conferir_o_humano
 from graphow.orquestrador.contexto_do_laco import MotivoDaParada, OpcoesDoLaco
-from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao
+from graphow.orquestrador.foto_do_humano import foto_antes_da_sessao, fotografar_o_humano
 from graphow.orquestrador.suite import shell_dos_agentes
 
 from tests.orquestrador.apoio_git import criar_repositorio, git
@@ -111,3 +112,58 @@ def test_foto_de_um_repositorio_sujo_nao_cria_nem_muda_arquivo_no_git_do_humano_
     assert foto is not None and foto.salvaguarda.stash and foto.salvaguarda.soltos
     assert _listagem(repositorio / ".git") == antes
     assert list((tmp_path / "salvaguarda" / "objects" / "pack").glob("*.pack")), "o pack do que o stash alcanca e o HEAD nao"
+
+
+def _retoca(repositorio: Path, *caminhos: str) -> str:
+    """O F3 da sonda: `checkout -- .` e um retoque em cada arquivo dado (a linha a mais), em Python, por fora do hook."""
+    retoques = "".join(f"open(os.path.join(h, {caminho!r}), 'ab').write(b'+')\n" for caminho in caminhos)
+    return (f"import os, subprocess\nh = {str(repositorio)!r}\n"
+            f"subprocess.run(['git', '-C', h, 'checkout', '--', '.'], check=True)\n{retoques}")
+
+
+def test_checkout_e_retoque_e_avanco_com_o_comando_que_mostra_o_de_antes_edge_case(tmp_path: Path) -> None:
+    """T3a9.3 (F3): `checkout -- .` seguido de um retoque é avanço (T3a6); o que a conferência devolve traz o `git show`
+    da pasta da salvaguarda, com o hash dela, que mostra o conteúdo de antes do rastreado e do não rastreado, os bytes
+    como estavam, sem mudar nada no repositório do humano."""
+    repositorio = criar_repositorio(tmp_path / "humano", {"README.md": "# brinquedo\n"})
+    (repositorio / "README.md").write_text(TRABALHO, encoding="utf-8", newline="\n")
+    (repositorio / "rascunho.txt").write_bytes(RASCUNHO)
+    foto = foto_antes_da_sessao(repositorio, salvaguarda=tmp_path / "salvaguarda")
+    assert foto is not None
+    subprocess.run([sys.executable, "-c", _retoca(repositorio, "README.md", "rascunho.txt")], check=True)
+
+    mexido = conferir_as_fotos(foto, fotografar_o_humano(repositorio, foto.listados))
+
+    assert mexido.perdas == () and mexido.avancos == ("README.md mudou para um conteudo novo", "rascunho.txt mudou para um conteudo novo")
+    pasta = (tmp_path / "salvaguarda").as_posix()
+    assert mexido.ver_o_de_antes == (f'git -C "{pasta}" show "{foto.salvaguarda.stash}:README.md"',
+                                     f'git -C "{pasta}" show "{foto.salvaguarda.soltos}:rascunho.txt"')
+    estado = _listagem(repositorio / ".git")
+    saidas = [subprocess.run(comando, shell=True, capture_output=True, check=True).stdout for comando in mexido.ver_o_de_antes]
+    assert saidas == [TRABALHO.encode("utf-8"), RASCUNHO]
+    assert _listagem(repositorio / ".git") == estado, "o git show roda na pasta da salvaguarda, nao no humano"
+
+
+def test_note_do_avanco_do_checkout_com_retoque_traz_o_hash_da_salvaguarda_edge_case(tmp_path: Path) -> None:
+    """T3a9.3 (F3), no laço: a sessão do executor faz `checkout -- .` no humano e retoca NOTAS.txt; o laço segue, e a Note
+    do avanço traz o hash da salvaguarda e o `git show` com ele."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    h = bancada.repositorio
+    (h / "NOTAS.txt").write_text("notas\n", encoding="utf-8", newline="\n")
+    git(h, "add", "NOTAS.txt")
+    git(h, "commit", "-q", "-m", "Notas do humano")
+    (h / "NOTAS.txt").write_text(TRABALHO, encoding="utf-8", newline="\n")
+    roteiro["executor"][0] = executor_pronto(dict(TUDO), comandos=[[sys.executable, "-c", _retoca(h, "NOTAS.txt")]])
+    bancada.trocar_roteiro(roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, h, AUTONOMO)
+
+    assert parada.fechou, parada.mensagem
+    assert (h / "NOTAS.txt").read_text(encoding="utf-8") == "notas\n+", "o trabalho saiu, e o retoque o esconde da conferencia"
+    assert _notas_do_humano(bancada) == []
+    (avanco,) = _notas_do_humano(bancada, "repositorio_do_humano_avancou")
+    salvaguarda, pasta = str(avanco.obter_propriedade("salvaguarda")), Path(str(avanco.obter_propriedade("guardada_em")))
+    assert avanco.obter_propriedade("avancos") == ["NOTAS.txt mudou para um conteudo novo"]
+    assert salvaguarda and avanco.obter_propriedade("ver_o_de_antes") == [f'git -C "{pasta.as_posix()}" show "{salvaguarda}:NOTAS.txt"']
+    assert avanco.obter_propriedade("durante") == "a sessao do executor"

@@ -21,7 +21,9 @@ do humano:
 A recuperação traz os objetos ao humano com `git fetch` da pasta, pelo hash,
 e então roda o `stash apply` e o `restore --source`. Os três são git puro,
 sem variável de ambiente nem redireção, e valem no Git Bash, no PowerShell e
-no cmd. A pasta não é apagada quando o laço para.
+no cmd. A pasta não é apagada quando o laço para. O conteúdo de antes de um
+arquivo que a sessão mudou sem perda (o avanço) se vê sem tocar no humano,
+com `git -C <pasta> show <hash>:<caminho>` (`comandos_para_ver`).
 """
 
 from collections.abc import Mapping, Sequence
@@ -81,6 +83,16 @@ def comandos_de_recuperacao(repositorio: Path, salvaguarda: Salvaguarda, soltos:
     aplicar = [f"{humano} stash apply {salvaguarda.stash}"] if salvaguarda.stash else []
     devolver = [f"{humano} restore --source={salvaguarda.soltos} -- {caminhos}"] if salvaguarda.soltos and soltos else []
     return f'{humano} fetch --no-tags "{Path(salvaguarda.pasta).as_posix()}" {" ".join(objetos)}', *aplicar, *devolver
+
+
+def comandos_para_ver(salvaguarda: Salvaguarda, rastreados: Sequence[str], soltos: Sequence[str]) -> tuple[str, ...]:
+    """O `git show` que mostra, da pasta da salvaguarda e sem tocar no repositório do humano, o conteúdo de antes de cada
+    arquivo: o rastreado no commit do stash, o não rastreado na árvore dos soltos (a pasta vê os objetos do humano)."""
+    if not salvaguarda.pasta:
+        return ()
+    mostrar = f'git -C "{Path(salvaguarda.pasta).as_posix()}" show'
+    pares = [*((salvaguarda.stash, caminho) for caminho in rastreados), *((salvaguarda.soltos, caminho) for caminho in soltos)]
+    return tuple(f'{mostrar} "{objeto}:{caminho}"' for objeto, caminho in pares if objeto and '"' not in caminho)
 
 
 def _preparar_a_pasta(pasta: Path, objetos_do_humano: Path) -> bool:

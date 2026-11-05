@@ -50,7 +50,7 @@ from dataclasses import dataclass, field, replace
 from functools import cache, partial
 from pathlib import Path
 
-from graphow.orquestrador.arquivos_do_git import AUSENTE, conteudo_do_arquivo, ler_os_arquivos_do_git
+from graphow.orquestrador.arquivos_do_git import AUSENTE, PASTA, conteudo_do_arquivo, ler_os_arquivos_do_git
 from graphow.orquestrador.foto_do_humano import (
     NAO_RASTREADO,
     FotoDoHumano,
@@ -151,9 +151,20 @@ def conferir_as_fotos(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: L
     mudancas = [*_refs(conferencia), *_cabeca(antes, depois), *_arquivos(conferencia), *do_git]
     soltos = tuple(caminho for caminho in soltos_da_salvaguarda(antes) if depois.conteudos.get(caminho) == AUSENTE)
     trocou = antes.cabeca != depois.cabeca or any(perda and (SOBRESCRITO in texto or TROCADA in texto) for perda, texto in mudancas)
+    rastreados, soltos_mudados = _mudados_de_antes(antes, depois)
     return HumanoMexido(antes.repositorio, tuple(texto for perda, texto in mudancas if perda),
                         tuple(texto for perda, texto in mudancas if not perda), antes.salvaguarda, soltos, git_mexido=bool(do_git),
-                        cabeca_de_antes=antes.cabeca if trocou else "")
+                        cabeca_de_antes=antes.cabeca if trocou else "", rastreados_mudados=rastreados, soltos_mudados=soltos_mudados)
+
+
+def _mudados_de_antes(antes: FotoDoHumano, depois: FotoDoHumano) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Os arquivos listados antes cujo conteúdo mudou ou sumiu e que a salvaguarda guarda: os rastreados (no stash, sem o
+    apagado antes e o submódulo) e os não rastreados (na árvore dos soltos)."""
+    mudados = [caminho for caminho in antes.listados if depois.conteudos.get(caminho, AUSENTE) != antes.conteudos.get(caminho, AUSENTE)]
+    guardados = set(soltos_da_salvaguarda(antes))
+    return (tuple(caminho for caminho in mudados if antes.listados[caminho].tipo != NAO_RASTREADO
+                  and antes.conteudos.get(caminho, AUSENTE) not in (AUSENTE, PASTA)),
+            tuple(caminho for caminho in mudados if caminho in guardados))
 
 
 def _conferencia(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None) -> _Conferencia:

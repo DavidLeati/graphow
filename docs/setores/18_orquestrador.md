@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-75 módulos · 14351 linhas · 112 classes
+75 módulos · 14384 linhas · 112 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,7 +25,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 115 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
-| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 320 | A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue. |
+| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 331 | A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue. |
 | [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 226 | A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 206 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -47,14 +47,14 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/gravacao_do_plano.py`](#orquestradorgravacaodoplano) | 134 | O plano do planejador gravado no livro-razão: critérios, decisões e fatias, num lote só. |
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
-| [`orquestrador/humano_mexido.py`](#orquestradorhumanomexido) | 114 | O que a conferência achou no repositório do humano, e como a parada e a Note o dizem. |
+| [`orquestrador/humano_mexido.py`](#orquestradorhumanomexido) | 123 | O que a conferência achou no repositório do humano, e como a parada e a Note o dizem. |
 | [`orquestrador/janela_do_humano.py`](#orquestradorjaneladohumano) | 177 | A janela da foto do repositório do humano: da foto de antes da sessão ao fim do código do agente que o orquestrador roda. |
 | [`orquestrador/laco.py`](#orquestradorlaco) | 347 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
 | [`orquestrador/leituras_do_git.py`](#orquestradorleiturasdogit) | 184 | Quais invocações do git a trava deixa o agente rodar: só as leituras, com as opções que não gravam nem rodam nada. |
-| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 368 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
+| [`orquestrador/livro_razao.py`](#orquestradorlivrorazao) | 369 | O livro-razão do Goal, gravado pelo orquestrador com o papel `orquestrador`. |
 | [`orquestrador/modelo_do_goal.py`](#orquestradormodelodogoal) | 229 | Como o orquestrador guarda um Goal no livro-razão: ids, propriedades e a configuração do laço. |
 | [`orquestrador/pedidos_do_humano.py`](#orquestradorpedidosdohumano) | 167 | Os pedidos do humano ao laço: cada saída que ele tem de um Goal parado, gravada como Decision dele. |
 | [`orquestrador/planejamento.py`](#orquestradorplanejamento) | 155 | O passo do plano: uma sessão do planejador, o documento do Goal commitado e o plano no livro-razão. |
@@ -71,7 +71,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 140 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
+| [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 152 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
 | [`orquestrador/sed_e_awk.py`](#orquestradorsedeawk) | 45 | Quando o `sed` e o `awk` rodam comando: a trava os trata como texto que ela não lê (orquestrador/git_no_comando.py). |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 400 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -979,8 +979,9 @@ O que a conferência achou no repositório do humano, e como a parada e a Note o
 
 *DTO imutável* — O que mudou no repositório do humano durante a janela, separado em perda e avanço, e a salvaguarda de antes dela.
 
-**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`, `cabeca_de_antes: str`, `durante: Durante`
+**Campos:** `repositorio: Path`, `perdas: tuple[str, ...]`, `avancos: tuple[str, ...]`, `salvaguarda: Salvaguarda`, `soltos_perdidos: tuple[str, ...]`, `git_mexido: bool`, `arvore_conferida: bool`, `cabeca_de_antes: str`, `durante: Durante`, `rastreados_mudados: tuple[str, ...]`, `soltos_mudados: tuple[str, ...]`
 
+- `ver_o_de_antes() -> tuple[str, ...]` `[property]` — O `git show` que mostra, da salvaguarda e sem tocar no humano, o conteúdo de antes de cada arquivo listado que
 - `recuperar() -> tuple[str, ...]` `[property]` — Os comandos que devolvem o de antes da sessão: o `fetch` da pasta da salvaguarda, o `stash apply` do rastreado e o
 - `durante_o(papel: str) -> str` — O que rodou enquanto o repositório mudou; sem o que a janela disse, a sessão do papel.
 
@@ -1946,6 +1947,7 @@ A salvaguarda do repositório do humano, guardada fora dele: a recuperação sob
 
 - `salvaguardar(pedido: PedidoDeSalvaguarda, pasta: Path) -> Salvaguarda` — A salvaguarda na pasta, fora do repositório do humano; vazia, sem processo, quando não há o que guardar.
 - `comandos_de_recuperacao(repositorio: Path, salvaguarda: Salvaguarda, soltos: Sequence[str]) -> tuple[str, ...]` — O `fetch` que traz da pasta os objetos, o `stash apply` do rastreado e o `restore` dos não rastreados que sumiram.
+- `comandos_para_ver(salvaguarda: Salvaguarda, rastreados: Sequence[str], soltos: Sequence[str]) -> tuple[str, ...]` — O `git show` que mostra, da pasta da salvaguarda e sem tocar no repositório do humano, o conteúdo de antes de cada
 
 ## `orquestrador/sed_e_awk.py`
 

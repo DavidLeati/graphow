@@ -245,14 +245,15 @@ class LivroRazaoDoGoal:
     def registrar_humano_mexido(self, papel: str, fatia: str, mexido: HumanoMexido) -> None:
         """A janela da foto em que o repositório do humano mudou vira Note da Sessao do Goal (e da fatia), com o que rodou
         nela: a que perdeu trabalho, com a salvaguarda e os comandos que a recuperam; a que só avançou, com o avanço, que
-        não para o laço."""
+        não para o laço; as duas, com o hash da salvaguarda e o `git show` que mostra o conteúdo de antes do que mudou."""
         perdeu = bool(mexido.perdas)
         id_nota = f"nota-humano-{'mexido' if perdeu else 'avancou'}-{papel}-{secrets.token_hex(4)}"
         propriedades = {"acao": m.ACAO_DO_HUMANO_MEXIDO if perdeu else m.ACAO_DO_HUMANO_QUE_AVANCOU, "papel": papel, "fatia": fatia,
                         "durante": mexido.durante_o(papel), "perdas": list(resumo(mexido.perdas)),
                         "avancos": list(resumo(mexido.avancos)), "salvaguarda": mexido.salvaguarda.stash,
                         "soltos": mexido.salvaguarda.soltos, "guardada_em": mexido.salvaguarda.pasta,
-                        "recuperar": list(mexido.recuperar), "repositorio": str(mexido.repositorio)}
+                        "recuperar": list(mexido.recuperar), "ver_o_de_antes": list(mexido.ver_o_de_antes),
+                        "repositorio": str(mexido.repositorio)}
         rotulo = f"O repositorio do humano {'perdeu trabalho' if perdeu else 'avancou'} durante {mexido.durante_o(papel)}"
         da_fatia = [aresta(id_nota, fatia, TipoAresta.DERIVA_DE)] if fatia else []
         self.gravar([*self.produzido(id_nota, TipoNo.NOTE, rotulo, propriedades=propriedades), *da_fatia], rotulo)
