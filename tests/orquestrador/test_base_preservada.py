@@ -30,6 +30,7 @@ VERIFICAR_PELO_FATOR: str = "from soma import somar\nassert somar(2, 3) == 2.5, 
 SOMA_DA_BASE_EM_DOIS_TRECHOS: str = "# soma de inteiros\ndef somar(a, b):\n    # so inteiros\n    return 0\n"
 SOMA_SEM_O_CABECALHO: str = "def somar(a, b):\n    # so inteiros\n    return a + b\n"
 SOMA_COM_OS_DOIS: str = "# soma de inteiros\ndef somar(a, b):\n    # so inteiros\n    return a + b\n"
+SOMA_SEM_O_CABECALHO_E_COM_A_LINHA_COLADA: str = "def somar(a, b):  # do goal\n    # so inteiros\n    return a + b\n"
 RECUSA: str = "tirou do resultado parte do que a base nova"
 
 
@@ -59,7 +60,8 @@ def test_fatia_do_vermelho_que_tira_a_linha_da_base_e_recusada_e_a_que_corrige_s
 
 def test_fatia_de_conflito_que_tira_a_base_fora_do_trecho_em_conflito_e_recusada_edge_case(tmp_path: Path) -> None:
     """T3g5.2: a base muda soma.py em dois trechos, e só um conflita com o Goal; a resolução que tira o outro (o cabeçalho)
-    é recusada, e a que mantém os dois passa: no arquivo em conflito, a mescla favorece o resultado só no trecho dele."""
+    é recusada, e a que mantém os dois passa: no arquivo em conflito, só o trecho em conflito do rebase pode diferir da base
+    (a linha 1 da base nova falta no resultado, fora dele)."""
     roteiro = _roteiro_com_a_fatia(executor_pronto({"soma.py": SOMA_SEM_O_CABECALHO}), executor_pronto({"soma.py": SOMA_COM_OS_DOIS}))
     bancada = montar_bancada(tmp_path, roteiro)
     executor = _humano_depois_do_verificador(bancada, {"soma.py": SOMA_DA_BASE_EM_DOIS_TRECHOS})
@@ -70,6 +72,28 @@ def test_fatia_de_conflito_que_tira_a_base_fora_do_trecho_em_conflito_e_recusada
     assert conflito.propriedades["conflito_com_a_base"]["motivo"] == "conflito"
     executores = bancada.chamadas("executor")
     assert len(executores) == 4 and RECUSA in executores[3]["stdin"], "a primeira tentativa da fatia foi recusada"
+    assert "soma.py (linha 1 da base nova, linha da base fora do resultado)" in executores[3]["stdin"]
+    assert parada.fechou and conflito.falhas == 1, parada.mensagem
+    assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_COM_OS_DOIS
+
+
+def test_fatia_de_conflito_que_tira_o_cabecalho_e_muda_a_linha_colada_a_ele_e_recusada_edge_case(tmp_path: Path) -> None:
+    """T3g6.1 (sonda da revisão da T3g5): o executor tira o cabeçalho, fora do trecho em conflito, e muda a linha colada a
+    ele, o que abre na mescla um conflito novo; o conflito fica fora do trecho que o rebase abriu, e a fatia é recusada com o
+    arquivo e o trecho (as linhas da base nova); a resolução que mantém os dois passa, e a main tem o cabeçalho."""
+    primeira = executor_pronto({"soma.py": SOMA_SEM_O_CABECALHO_E_COM_A_LINHA_COLADA})
+    roteiro = _roteiro_com_a_fatia(primeira, executor_pronto({"soma.py": SOMA_COM_OS_DOIS}))
+    bancada = montar_bancada(tmp_path, roteiro)
+    executor = _humano_depois_do_verificador(bancada, {"soma.py": SOMA_DA_BASE_EM_DOIS_TRECHOS})
+
+    parada = bancada.orquestrador(executor=executor).iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    conflito = _fatia_de_conflito(bancada)
+    executores = bancada.chamadas("executor")
+    assert len(executores) == 4, "a primeira tentativa da fatia foi recusada, e houve uma segunda"
+    segunda = executores[3]["stdin"]
+    assert RECUSA in segunda and "soma.py (linhas 1 a 4 da base nova, conflito fora do trecho do rebase)" in segunda, segunda
+    assert "+# soma de inteiros" in segunda.split(RECUSA, 1)[1], segunda
     assert parada.fechou and conflito.falhas == 1, parada.mensagem
     assert git(bancada.repositorio, "show", "main:soma.py") == SOMA_COM_OS_DOIS
 

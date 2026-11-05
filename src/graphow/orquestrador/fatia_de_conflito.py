@@ -25,7 +25,9 @@ trabalho do humano é recusada (`desfaz_a_base`). Nos arquivos que os dois
 mudaram, a mudança da base precisa continuar no resultado: `git merge-tree
 --merge-base=<base antiga> <base nova> <resultado>` devolve o próprio
 resultado, e a fatia que tira dali a linha que a base pôs é recusada com o
-arquivo e o que a base poria de volta (revisão da T3g3 e da T3g4, V1). O
+arquivo e o que a base poria de volta (revisão da T3g3 e da T3g4, V1). No
+arquivo que o rebase deixou em conflito, só o trecho em conflito dele pode
+diferir (orquestrador/trechos_do_rebase.py, revisão da T3g5). O
 que anula a base em tempo de execução mantém o texto dela, e não tem
 conferência mecânica: a fatia vai à revisão de risco já na primeira
 tentativa, com o diff da base no briefing e a pergunta se o resultado o anula
@@ -66,6 +68,7 @@ from graphow.orquestrador.rebase_no_clone import (
 )
 from graphow.orquestrador.registro_do_rebase import registrar_o_rebase
 from graphow.orquestrador.saida_do_aceite import dentro_do_aceite
+from graphow.orquestrador.trechos_do_rebase import TextosDoArquivo, trechos_fora_do_rebase
 from graphow.orquestrador.tipo_da_verificacao import arquivos_por_criterio
 from graphow.orquestrador.vermelho_do_rebase import Vermelho, aceite_vermelho
 
@@ -218,50 +221,52 @@ def desfaz_a_base(contexto: ContextoDoGoal, fatia: FatiaRegistrada, mudados: Seq
 
 
 def _base_fora_do_resultado(contexto: ContextoDoGoal, base: str, *, referencia: str) -> str:
-    """O erro do resultado de onde saiu parte da mudança da base nova, com os arquivos e o que ela poria de volta; vazio sem.
+    """O erro do resultado de onde saiu parte da mudança da base nova, com os arquivos, os trechos e o que ela poria de volta;
+    vazio sem.
 
     `git merge-tree --merge-base=<base antiga> <base nova> <resultado>`
     devolve a própria árvore do resultado quando a mudança da base continua
     nele; o arquivo em que a mescla difere é o de onde a fatia a tirou, como a
     linha que a base pôs num arquivo que os dois mudaram (revisão da T3g3 e
-    da T3g4, V1). A base antiga é a de onde a branch do Goal saiu.
+    da T3g4, V1). A base antiga é a de onde a branch do Goal saiu. No arquivo
+    que o rebase deixou em conflito, só o trecho em conflito pode diferir
+    (orquestrador/trechos_do_rebase.py).
     """
     git, head = contexto.git, contexto.git.head()
     antiga = git.rodar("merge-base", head, base).strip()
-    em_conflito = frozenset(arvore_mesclada(contexto.area, head, base)[1])
+    rebase, em_conflito = arvore_mesclada(contexto.area, head, base)
     resultado = arvore_da_area(contexto.area, referencia)
-    tirados, diff = _fora_do_resultado(git, resultado, antiga=antiga, base=base, em_conflito=em_conflito)
+    mescla = _mescla_da_base(git, resultado, antiga=antiga, base=base)
+    trechos = {caminho: _trechos_tirados(git, caminho, (base, rebase, resultado, mescla)) if caminho in em_conflito else None
+               for caminho in arquivos_entre(git, resultado, mescla)}
+    tirados = [caminho for caminho, seus in trechos.items() if seus != ""]
     if not tirados:
         return ""
+    diff = _diff(git, resultado, mescla, arquivos=tirados)
     return (f"a fatia aberta pelo rebase tirou do resultado parte do que a base nova ({base[:12]}) trouxe em "
-            f"{', '.join(tirados)}: `git merge-tree --merge-base={antiga[:12]} {base[:12]} <resultado>` nao devolve o "
-            f"resultado, porque a mudanca da base nesses arquivos nao esta mais nele. {COMO_MANTER_A_BASE} O que a base poria "
-            f"de volta no resultado:\n```\n{diff[:LIMITE_DO_DIFF]}\n```")
+            f"{', '.join(caminho + (f' ({trechos[caminho]})' if trechos[caminho] else '') for caminho in tirados)}: `git "
+            f"merge-tree --merge-base={antiga[:12]} {base[:12]} <resultado>` nao devolve o resultado, porque a mudanca da base "
+            "nesses arquivos nao esta mais nele; no arquivo que o rebase deixou em conflito, so o trecho em conflito pode "
+            f"diferir da base. {COMO_MANTER_A_BASE} O que a base poria de volta no resultado:\n```\n{diff[:LIMITE_DO_DIFF]}\n```")
 
 
-def _fora_do_resultado(
-    git: GitDoGoal, resultado: str, *, antiga: str, base: str, em_conflito: frozenset[str]
-) -> tuple[tuple[str, ...], str]:
-    """Os arquivos em que a mescla da base nova no resultado difere dele, e o diff do que ela muda.
+def _trechos_tirados(git: GitDoGoal, caminho: str, arvores: tuple[str, str, str, str]) -> str | None:
+    """No arquivo que o rebase deixou em conflito, os trechos fora do conflito dele de onde a fatia tirou a base; vazio sem.
 
-    Nos arquivos que o rebase deixou em conflito, a resolução difere da base
-    por definição: neles a mescla favorece o resultado (`-Xtheirs`) e confere
-    só o que a base mudou fora do trecho em conflito.
+    As árvores são a base nova, a do rebase, a do resultado e a da mescla. O
+    arquivo que falta numa delas (apagado de um lado) não tem trecho: None, e
+    ele é recusado inteiro, como o arquivo fora do conflito.
     """
-    tirados: list[str] = []
-    diff = ""
-    mesclas: list[tuple[tuple[str, ...], bool]] = [((), False), *([(("-Xtheirs",), True)] if em_conflito else [])]
-    for opcoes, dos_conflitos in mesclas:
-        mescla = _mescla_da_base(git, resultado, antiga=antiga, base=base, opcoes=opcoes)
-        aqui = [caminho for caminho in arquivos_entre(git, resultado, mescla) if (caminho in em_conflito) == dos_conflitos]
-        tirados += aqui
-        diff += _diff(git, resultado, mescla, arquivos=aqui)
-    return tuple(tirados), diff
+    textos = [git.tentar(*SEM_ASPAS, "cat-file", "blob", f"{arvore}:{caminho}") for arvore in arvores]
+    if any(texto.codigo != 0 for texto in textos):
+        return None
+    base, rebase, resultado, mescla = (texto.saida for texto in textos)
+    return "; ".join(trechos_fora_do_rebase(TextosDoArquivo(base, rebase, resultado, mescla)))
 
 
-def _mescla_da_base(git: GitDoGoal, resultado: str, *, antiga: str, base: str, opcoes: Sequence[str] = ()) -> str:
-    """A árvore da mescla da base nova no resultado, desde a base antiga (no conflito, com os marcadores)."""
-    feito = git.tentar(*SEM_ASPAS, "merge-tree", "--write-tree", *opcoes, f"--merge-base={antiga}", base, resultado)
+def _mescla_da_base(git: GitDoGoal, resultado: str, *, antiga: str, base: str) -> str:
+    """A árvore da mescla da base nova no resultado, desde a base antiga, sem opção (no conflito, com os marcadores)."""
+    feito = git.tentar(*SEM_ASPAS, "merge-tree", "--write-tree", f"--merge-base={antiga}", base, resultado)
     arvore = feito.saida.split("\n", 1)[0].strip()
     if feito.codigo not in (0, 1) or not arvore:
         raise FalhaDoGitDoGoal("o git nao mesclou a base nova no resultado da fatia", {"base": base[:12], "erro": feito.erro.strip()})

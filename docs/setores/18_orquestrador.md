@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-72 módulos · 13934 linhas · 106 classes
+73 módulos · 14076 linhas · 108 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -37,7 +37,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/esquemas.py`](#orquestradoresquemas) | 216 | Os schemas da saída de cada papel: o que o planejador, o autor de aceite, o executor e o verificador devolvem. |
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
-| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 316 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
+| [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 321 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 227 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
@@ -80,6 +80,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/tipo_da_verificacao.py`](#orquestradortipodaverificacao) | 271 | O tipo de cada verificação: a caçada uma vez, na primeira final; a do marco intermediário; a conferência depois de cada correção. |
 | [`orquestrador/trava_do_git.py`](#orquestradortravadogit) | 307 | A trava do git nas sessões de agente: as regras, o ambiente e a restauração do clone depois de cada sessão. |
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
+| [`orquestrador/trechos_do_rebase.py`](#orquestradortrechosdorebase) | 137 | Os trechos de um arquivo em conflito em que a fatia aberta pelo rebase tira o que a base nova trouxe (revisão da T3g5). |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
 | [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 240 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 277 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
@@ -2162,6 +2163,36 @@ Um orquestrador por Goal: a trava que impede duas execuções de `graphow orques
 - `ler_dono(caminho: Path) -> DonoDaTrava | None` — Quem tem a trava; None sem trava, ou com uma que não dá para ler (vazia, corrompida ou de outro formato).
 - `processo_vivo(pid: int) -> bool` — O processo de PID dado existe nesta máquina (no POSIX, o sinal 0; no Windows, OpenProcess, que não mata nada).
 - `hora_de_criacao(pid: int) -> float | None` — Quando o processo do PID foi criado, em segundos da época do Unix; None quando não dá para ler.
+
+## `orquestrador/trechos_do_rebase.py`
+
+Os trechos de um arquivo em conflito em que a fatia aberta pelo rebase tira o que a base nova trouxe (revisão da T3g5).
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `ABRE` | `str` | `'<<<<<<<'` |
+| `ANTIGA` | `str` | `'|||||||'` |
+| `MEIO` | `str` | `'======='` |
+| `FECHA` | `str` | `'>>>>>>>'` |
+| `SECAO_DEPOIS` | `dict[str, int]` | `{ABRE: 0, ANTIGA: 2, MEIO: 1}` |
+
+### `Resolvida`
+
+*DTO imutável* — O texto mesclado com cada conflito resolvido para um lado, e o trecho (início, fim) de cada conflito nas linhas dele.
+
+**Campos:** `linhas: tuple[str, ...]`, `trechos: tuple[Trecho, ...]`
+
+### `TextosDoArquivo`
+
+*DTO imutável* — Um arquivo em conflito: na base nova, no rebase (a ponta do Goal com a base), no resultado e na mescla da base nele.
+
+**Campos:** `base: str`, `rebase: str`, `resultado: str`, `mescla: str`
+
+### Funções do módulo
+
+- `trechos_fora_do_rebase(textos: TextosDoArquivo) -> tuple[str, ...]` — Os trechos, em linhas da base nova, em que a mescla tem conflito ou tira linha da base fora dos trechos em conflito do
+- `linhas_do_texto(texto: str) -> tuple[str, ...]` — As linhas do texto como o git as conta, cada uma com a quebra (a última pode não ter).
+- `resolvida(texto: str) -> Resolvida` — O texto com os marcadores de conflito, com cada conflito resolvido para o lado dado (0, o primeiro da mescla; 1, o
 
 ## `orquestrador/validacao_json.py`
 
