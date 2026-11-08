@@ -24,19 +24,37 @@ sessão. A saída com `conferidos` vai como está. Cada resposta pode:
 - `limite`: o limite de uso da conta, como o Claude Code o mostra (o
   `rate_limit_event` recusado e o `result` com `usage_limit_reached`), e sai com 1;
 - `sobrecarga`: o `result` com o erro 529 da API, e sai com 1;
-- `levantar`: grava os arquivos e sai com 7 sem responder.
+- `levantar`: grava os arquivos e sai com 7 sem responder;
+- `encontro`: o nome de um ponto de encontro, ou {nome, partes, prazo}. A
+  sessão grava a sua chegada nele e espera as outras (duas ao todo, por
+  padrão) por até 20 s; sem elas, responde erro e não faz o resto. É assim
+  que um teste prova que duas sessões rodaram ao mesmo tempo;
+- `dormir`: os segundos que a sessão espera antes de responder (a telemetria
+  tem resolução de segundo).
+
+A lista de um papel pode vir por fatia, {código: [respostas]}: a chamada
+consome a próxima da fatia do `# Fatia <código>` com que o briefing começa, e
+o briefing sem ele, a da chave "". Com a lista, a ordem é a de sempre.
+
+Duas sessões podem rodar ao mesmo tempo: o estado do roteiro (contadores,
+custos e conferidos) só é lido e regravado sob uma trava de arquivo, e o
+número do registro é tomado com `O_EXCL`.
 
 O que cada chamada recebeu (argumentos, pasta, entrada, o settings do
 `--settings` lido antes de responder e parte do ambiente) vai para
-`GRAPHOW_TESTE_REGISTRO`, um JSON numerado por chamada.
+`GRAPHOW_TESTE_REGISTRO`, um JSON numerado por chamada, com o `encontro`
+quando houve um.
 """
 
+from collections.abc import Iterator
+import contextlib
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 import uuid
 
 
@@ -53,43 +71,106 @@ VERIFICACOES = ("marco", "conferencia")
 # O bloco do briefing da conferência com os achados conferidos, e o id de cada um.
 BLOCO_DOS_CONFERIDOS = re.compile(r"^## Achados conferidos[^\n]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 ID_DO_CONFERIDO = re.compile(r"^- (achado-[\w.-]+): ", re.MULTILINE)
+# A fatia do briefing do executor, na primeira linha.
+FATIA_DO_BRIEFING = re.compile(r"# Fatia (\S+)")
+PRAZO_DA_TRAVA_S = 30.0
+PRAZO_DO_ENCONTRO_S = 20.0
 
 
-def _proxima(papel: str) -> dict:
-    papel = "verificador" if papel in VERIFICACOES else papel
+def _trancar(descritor: int) -> None:
+    if os.name != "nt":
+        import fcntl
+        fcntl.flock(descritor, fcntl.LOCK_EX)
+        return
+    import msvcrt
+    limite = time.monotonic() + PRAZO_DA_TRAVA_S
+    while True:
+        try:
+            msvcrt.locking(descritor, msvcrt.LK_NBLCK, 1)
+            return
+        except OSError:
+            if time.monotonic() > limite:
+                raise
+            time.sleep(0.01)
+
+
+def _destrancar(descritor: int) -> None:
+    if os.name != "nt":
+        import fcntl
+        fcntl.flock(descritor, fcntl.LOCK_UN)
+        return
+    import msvcrt
+    os.lseek(descritor, 0, os.SEEK_SET)
+    msvcrt.locking(descritor, msvcrt.LK_UNLCK, 1)
+
+
+@contextlib.contextmanager
+def _estado() -> Iterator[dict]:
+    """O estado do roteiro, lido e regravado sob a trava de arquivo.
+
+    A trava é do sistema (msvcrt ou flock), e não um arquivo criado com
+    O_EXCL: a sessão morta por tempo no meio dela não a deixa presa.
+    """
     roteiro = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"])
     estado_path = roteiro.with_suffix(".estado.json")
-    estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})
-    indice = estado["contadores"].get(papel, 0)
-    respostas = _ler_json(roteiro, {}).get(papel, [])
-    estado["contadores"][papel] = indice + 1
-    estado_path.write_text(json.dumps(estado), encoding="utf-8")
+    descritor = os.open(roteiro.with_suffix(".trava"), os.O_RDWR | os.O_CREAT)
+    try:
+        _trancar(descritor)
+        try:
+            estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})
+            yield estado
+            estado_path.write_text(json.dumps(estado), encoding="utf-8")
+        finally:
+            _destrancar(descritor)
+    finally:
+        os.close(descritor)
+
+
+def _proxima(papel: str, entrada: str) -> dict:
+    papel = "verificador" if papel in VERIFICACOES else papel
+    respostas, chave = _ler_json(Path(os.environ["GRAPHOW_TESTE_ROTEIRO"]), {}).get(papel, []), papel
+    if isinstance(respostas, dict):
+        fatia = FATIA_DO_BRIEFING.match(entrada)
+        codigo = fatia.group(1) if fatia else ""
+        respostas, chave = respostas.get(codigo, []), f"{papel} da fatia {codigo}"
+    with _estado() as estado:
+        indice = estado["contadores"].get(chave, 0)
+        estado["contadores"][chave] = indice + 1
     if indice >= len(respostas):
-        return {"texto": f"roteiro sem resposta {indice} para {papel}", "erro": True}
+        return {"texto": f"roteiro sem resposta {indice} para {chave}", "erro": True}
     return respostas[indice]
 
 
 def _acumular(sessao: str, custo: float) -> float:
-    roteiro = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"])
-    estado_path = roteiro.with_suffix(".estado.json")
-    estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})
-    total = estado["custos"].get(sessao, 0.0) + custo
-    estado["custos"][sessao] = total
-    estado_path.write_text(json.dumps(estado), encoding="utf-8")
+    with _estado() as estado:
+        total = estado["custos"].get(sessao, 0.0) + custo
+        estado["custos"][sessao] = total
     return total
 
 
 def _conferidos_da_sessao(sessao: str, entrada: str) -> list[str]:
     """Os ids dos achados conferidos do briefing; na retomada, os que a sessão recebeu no começo."""
-    roteiro = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"])
-    estado_path = roteiro.with_suffix(".estado.json")
-    estado = _ler_json(estado_path, {"contadores": {}, "custos": {}})
-    guardados = estado.setdefault("conferidos", {})
-    if sessao not in guardados:
-        bloco = BLOCO_DOS_CONFERIDOS.search(entrada)
-        guardados[sessao] = ID_DO_CONFERIDO.findall(bloco.group(1)) if bloco else []
-        estado_path.write_text(json.dumps(estado), encoding="utf-8")
+    with _estado() as estado:
+        guardados = estado.setdefault("conferidos", {})
+        if sessao not in guardados:
+            bloco = BLOCO_DOS_CONFERIDOS.search(entrada)
+            guardados[sessao] = ID_DO_CONFERIDO.findall(bloco.group(1)) if bloco else []
     return guardados[sessao]
+
+
+def _encontrar(encontro: object, sessao: str) -> dict:
+    """Grava a chegada da sessão no ponto de encontro e espera as outras até o prazo."""
+    pedido = {"nome": encontro} if isinstance(encontro, str) else dict(encontro)
+    nome, partes = str(pedido["nome"]), int(pedido.get("partes", 2))
+    ponto = Path(os.environ["GRAPHOW_TESTE_ROTEIRO"]).with_suffix(".encontros") / nome
+    ponto.mkdir(parents=True, exist_ok=True)
+    (ponto / sessao).write_text(os.getcwd(), encoding="utf-8")
+    limite = time.monotonic() + float(pedido.get("prazo", PRAZO_DO_ENCONTRO_S))
+    presentes = len(list(ponto.iterdir()))
+    while presentes < partes and time.monotonic() < limite:
+        time.sleep(0.05)
+        presentes = len(list(ponto.iterdir()))
+    return {"nome": nome, "partes": partes, "presentes": presentes, "encontrou": presentes >= partes}
 
 
 def _com_os_conferidos(resposta: dict, ids: list[str]) -> dict:
@@ -104,10 +185,18 @@ def _com_os_conferidos(resposta: dict, ids: list[str]) -> dict:
 
 
 def _registrar(dados: dict) -> None:
+    """Grava o registro no próximo número livre: com O_EXCL, duas sessões não tomam o mesmo."""
     pasta = Path(os.environ["GRAPHOW_TESTE_REGISTRO"])
     pasta.mkdir(parents=True, exist_ok=True)
     numero = len(list(pasta.glob("*.json"))) + 1
-    (pasta / f"{numero:03d}.json").write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
+    while True:
+        try:
+            descritor = os.open(pasta / f"{numero:03d}.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0))
+            break
+        except FileExistsError:
+            numero += 1
+    with open(descritor, "w", encoding="utf-8") as arquivo:
+        arquivo.write(json.dumps(dados, ensure_ascii=False))
 
 
 def _executar(resposta: dict) -> list[dict]:
@@ -149,16 +238,23 @@ def main() -> int:
     argv = sys.argv[1:]
     entrada = sys.stdin.buffer.read().decode("utf-8")
     papel = Path(_valor(argv, "--append-system-prompt-file")).stem or "desconhecido"
-    resposta = _proxima(papel)
+    resposta = _proxima(papel, entrada)
     sessao = _valor(argv, "--resume") or str(uuid.uuid4())
     if papel == "conferencia":
         resposta = _com_os_conferidos(resposta, _conferidos_da_sessao(sessao, entrada))
+    encontro = _encontrar(resposta["encontro"], sessao) if "encontro" in resposta else None
+    if encontro is not None and not encontro["encontrou"]:
+        resposta = {"texto": f"encontro {encontro['nome']}: {encontro['presentes']} de {encontro['partes']} sessoes no prazo",
+                    "erro": True}
+    if resposta.get("dormir"):
+        time.sleep(float(resposta["dormir"]))
     settings = Path(_valor(argv, "--settings"))
     recebido = settings.read_text(encoding="utf-8") if settings.is_file() else ""
     feitos = _executar(resposta)
     ambiente = {nome: valor for nome, valor in os.environ.items() if nome.startswith(("GIT_CONFIG", "GRAPHOW_DB"))}
-    _registrar({"papel": papel, "argv": argv, "cwd": os.getcwd(), "stdin": entrada, "ambiente": ambiente, "settings": recebido,
-                "tem_claude": any(nome.upper().startswith("CLAUDE") for nome in os.environ), "comandos": feitos})
+    registro = {"papel": papel, "argv": argv, "cwd": os.getcwd(), "stdin": entrada, "ambiente": ambiente, "settings": recebido,
+                "tem_claude": any(nome.upper().startswith("CLAUDE") for nome in os.environ), "comandos": feitos}
+    _registrar(registro if encontro is None else {**registro, "encontro": encontro})
     if resposta.get("levantar"):
         return 7
     print(json.dumps({"type": "system", "subtype": "init", "session_id": sessao, "model": "claude-teste"}), flush=True)
