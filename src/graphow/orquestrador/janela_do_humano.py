@@ -21,6 +21,15 @@ A janela fecha antes de o orquestrador mexer no repositório do humano (o
 commit leva a branch a ele: `ContextoDoGoal.commitar`) e no fim de todo passo
 do laço, mesmo por exceção.
 
+Logo depois de cada sessão, antes do primeiro git (o do clone inclusive:
+`trava_mexida`, `restaurar_o_clone`), `conferir_o_git` relê em bytes os
+arquivos que mudam o git (a global, a do XDG, os includes), sem processo: a
+sessão que plantou ali um programa que o `-c` do orquestrador não desliga (um
+filtro, um driver de diff, um `uploadpack.packObjectsHook`) para o laço sem
+que git nenhum rode (`GitDoHumanoMexido`). A janela aberta fica gravada em
+disco (orquestrador/janela_gravada.py), e `retomar`, no começo da chamada
+seguinte a uma queda, faz a mesma conferência antes do primeiro git.
+
 Para dizer quem mexeu sem outra conferência, cada trecho da janela (cada
 invocação de sessão, cada vez que o orquestrador roda o código do agente)
 começa com uma marca, lida sem processo: o sha256 de cada arquivo que a foto
@@ -39,26 +48,34 @@ from pathlib import Path
 
 from graphow.core.types import PapelAutor
 from graphow.orquestrador.arquivos_do_git import conteudo_do_arquivo, ler_os_arquivos_do_git
-from graphow.orquestrador.conferencia_do_humano import LeitorDosOutrosGoals, mexido_desde, relatar
+from graphow.orquestrador.conferencia_do_humano import LeitorDosOutrosGoals, conferir_os_arquivos_do_git, mexido_desde, relatar
 from graphow.orquestrador.foto_do_humano import FotoDoHumano, foto_antes_da_sessao
-from graphow.orquestrador.humano_mexido import Durante, HumanoMexido, RegistroDoHumanoMexido
+from graphow.orquestrador.humano_mexido import Durante, HumanoMexido, RegistroDoHumanoMexido, RepositorioDoHumanoMexido
+from graphow.orquestrador.janela_gravada import apagar_a_gravada, foto_gravada, gravar_a_janela
 
 PAPEL_DO_ORQUESTRADOR: str = PapelAutor.ORQUESTRADOR.value
 # A mudança da conferência que não é de arquivo: a troca de HEAD vem com a ref que andou.
 SEM_ARQUIVO: tuple[str, ...] = ("HEAD: ",)
 # O que se diz da janela que fechou sem trecho nenhum (a sessão que não chegou a abrir).
 SEM_TRECHO: str = "o passo do laco, desde a foto de antes"
+# O que se diz da janela que a execução anterior deixou aberta ao cair, conferida na retomada.
+NA_QUEDA: str = "a execucao anterior do laco, que caiu com a janela da foto aberta"
+
+
+class GitDoHumanoMexido(RepositorioDoHumanoMexido):
+    """Um arquivo que muda o git do humano mudou: o laço para sem rodar mais git, nem no clone."""
 
 
 @dataclass(frozen=True)
 class ConfiguracaoDaJanela:
     """De onde a janela tira a foto e para onde manda o que achou: o repositório do humano (None: nada a conferir), a pasta
-    da salvaguarda, o registro no livro-razão e o leitor dos outros Goals."""
+    da salvaguarda, o registro no livro-razão, o leitor dos outros Goals e onde a janela aberta fica gravada."""
 
     repositorio: Path | None = None
     salvaguarda: Path | None = None
     registrar: RegistroDoHumanoMexido | None = None
     outros_goals: LeitorDosOutrosGoals | None = None
+    gravada: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -91,10 +108,12 @@ class JanelaDoHumano:
         return tuple(self._trechos)
 
     def abrir(self) -> None:
-        """A foto de antes e a salvaguarda, quando a janela está fechada; aberta, nada."""
+        """A foto de antes e a salvaguarda, gravadas para a retomada, quando a janela está fechada; aberta, nada."""
         if self._antes is None:
             configuracao = self._configuracao
             self._antes = foto_antes_da_sessao(configuracao.repositorio, salvaguarda=configuracao.salvaguarda)
+            if self._antes is not None and configuracao.gravada is not None:
+                gravar_a_janela(self._antes, configuracao.gravada)
 
     def marcar(self, quem: str, *, papel: str = "", fatia: str = "") -> None:
         """Um trecho novo (a janela abre, se estava fechada), com a marca lida sem processo; o mesmo de antes segue."""
@@ -105,18 +124,50 @@ class JanelaDoHumano:
 
     def fechar(self) -> None:
         """A conferência do que mudou desde a foto de antes, com quem rodou no trecho de cada mudança; fechada, nada."""
+        antes, trechos = self._fechada()
+        mexido = mexido_desde(antes, self._configuracao.outros_goals) if antes is not None else None
+        if antes is not None and mexido is not None:
+            self._relatar(trechos, mexido, marca_do_humano(antes))
+
+    def conferir_o_git(self) -> None:
+        """Logo depois da sessão, antes de qualquer git: os arquivos que mudam o git, relidos em bytes; mudou algum, a janela
+        fecha e o laço para sem rodar git (`GitDoHumanoMexido`). Iguais, ou sem janela, nada."""
+        mexido = conferir_os_arquivos_do_git(self._antes) if self._antes is not None else None
+        if self._antes is not None and mexido is not None:
+            marca = marca_do_humano(self._antes)
+            self._relatar(self._fechada()[1], mexido, marca)
+
+    def retomar(self) -> None:
+        """Antes do primeiro git da chamada: a janela que a execução que caiu deixou gravada, conferida pelos arquivos que
+        mudam o git, sem processo, e apagada; mudou algum, o laço para sem rodar git (`GitDoHumanoMexido`)."""
+        caminho = self._configuracao.gravada
+        antes = foto_gravada(caminho) if caminho is not None and self._antes is None else None
+        apagar_a_gravada(caminho if antes is not None else None)
+        mexido = conferir_os_arquivos_do_git(antes) if antes is not None else None
+        if mexido is not None:
+            self._relatar((), replace(mexido, durante=Durante(NA_QUEDA)), {})
+
+    def _fechada(self) -> tuple[FotoDoHumano | None, tuple[Trecho, ...]]:
+        """A janela fechada (a gravação sai), e a foto de antes e os trechos que ela tinha."""
         antes, trechos = self._antes, tuple(self._trechos)
         self._antes, self._trechos = None, []
-        if antes is None:
-            return
-        mexido = mexido_desde(antes, self._configuracao.outros_goals)
+        apagar_a_gravada(self._configuracao.gravada if antes is not None else None)
+        return antes, trechos
+
+    def _relatar(self, trechos: Sequence[Trecho], mexido: HumanoMexido | None, final: Mapping[str, str]) -> None:
+        """O que mudou vai ao livro-razão, com quem rodou, e a perda para o laço; a do arquivo do git, sem mais git."""
         if mexido is None:
             return
         sessoes = [trecho for trecho in trechos if trecho.papel]
         papel = sessoes[0].papel if sessoes else PAPEL_DO_ORQUESTRADOR
         fatia = next((trecho.fatia for trecho in trechos if trecho.fatia), "")
-        mexido = replace(mexido, durante=durante(trechos, marca_do_humano(antes), mexido))
-        relatar(mexido, papel, fatia, registrar=self._configuracao.registrar)
+        mexido = mexido if mexido.durante.texto else replace(mexido, durante=durante(trechos, final, mexido))
+        try:
+            relatar(mexido, papel, fatia, registrar=self._configuracao.registrar)
+        except RepositorioDoHumanoMexido as erro:
+            if not mexido.git_mexido:
+                raise
+            raise GitDoHumanoMexido(erro.mensagem, erro.contexto) from None
 
     @contextmanager
     def trecho(self, quem: str = "") -> Iterator[None]:

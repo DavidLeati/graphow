@@ -44,6 +44,7 @@ from graphow.orquestrador.execucao_da_fatia import executar_fatia, guardar_a_fat
 from graphow.orquestrador.falhas_da_api import LimiteDaApi
 from graphow.orquestrador.git_do_goal import descartar_mudancas, preparar_area, raiz_do_repositorio
 from graphow.orquestrador.janela_do_humano import ConfiguracaoDaJanela, JanelaDoHumano
+from graphow.orquestrador.janela_gravada import JANELA_GRAVADA
 from graphow.orquestrador.leitura_do_goal import EstadoDoGoal, ler_estado
 from graphow.orquestrador.livro_razao import GoalNovo, LivroRazaoDoGoal, propriedade
 from graphow.orquestrador.pedidos_do_humano import (
@@ -175,12 +176,12 @@ class Orquestrador:
     def _rodar(self, id_goal: str, opcoes: OpcoesDoLaco, repositorio: Path | None) -> Parada:
         """O laço, passo a passo, até uma parada.
 
-        Antes do primeiro passo, o rebase que o processo deixou pela metade
-        sai, e o registrado leva as refs que ficaram para trás
-        (orquestrador/registro_do_rebase.py); e a configuração de teste que a
-        rodada do aceite deixou trocada (o processo caiu no meio dela) volta à
-        entregue: todo passo pode commitar a área, o pedido do humano
-        inclusive, e o commit levaria a do aceite.
+        Antes do primeiro git, a janela da foto que uma queda deixou aberta é
+        conferida (`JanelaDoHumano.retomar`). Antes do primeiro passo, o rebase
+        que o processo deixou pela metade sai, e o registrado leva as refs que
+        ficaram para trás (orquestrador/registro_do_rebase.py); e a configuração
+        de teste que a rodada do aceite deixou trocada (o processo caiu no meio
+        dela) volta à entregue: todo passo pode commitar a área, e o commit a levaria.
         """
         estado = ler_estado(self._view(), id_goal)
         if estado is None:
@@ -190,6 +191,7 @@ class Orquestrador:
         if estado.cancelado:
             return self._parada_do_goal_cancelado(estado)
         contexto = self._contexto(estado, opcoes, repositorio)
+        contexto.janela.retomar()
         retomar_o_rebase(contexto)
         preparar_area(contexto.area_do_goal)
         restaurar_a_configuracao_entregue(contexto.area)
@@ -232,7 +234,8 @@ class Orquestrador:
                 tempo_limite_s=self._dependencias.tempo_limite_da_sessao_s, banco_dos_hooks=pasta / "descartavel.db",
                 esperar=self._dependencias.esperar, registrar_trava_mexida=livro.registrar_trava_mexida,
                 janela=JanelaDoHumano(ConfiguracaoDaJanela(Path(configuracao.repositorio), pasta / PASTA_DA_SALVAGUARDA,
-                                                           livro.registrar_humano_mexido, leitor_dos_outros_goals(livro))),
+                                                           livro.registrar_humano_mexido, leitor_dos_outros_goals(livro),
+                                                           pasta / JANELA_GRAVADA)),
             ),
         )
         return ContextoDoGoal(livro, configuracao, sessoes, self._dependencias.telemetria, pasta, opcoes)

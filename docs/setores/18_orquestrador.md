@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-75 módulos · 14415 linhas · 112 classes
+76 módulos · 14528 linhas · 113 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -48,8 +48,9 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/historico_da_correcao.py`](#orquestradorhistoricodacorrecao) | 121 | O que a fatia de correção recebe além do achado: o comando que o reproduz e, quando a falha volta, a tentativa anterior. |
 | [`orquestrador/hook_do_git.py`](#orquestradorhookdogit) | 61 | O hook PreToolUse da trava do git: o Claude Code o chama antes de cada comando Bash da sessão de agente. |
 | [`orquestrador/humano_mexido.py`](#orquestradorhumanomexido) | 123 | O que a conferência achou no repositório do humano, e como a parada e a Note o dizem. |
-| [`orquestrador/janela_do_humano.py`](#orquestradorjaneladohumano) | 177 | A janela da foto do repositório do humano: da foto de antes da sessão ao fim do código do agente que o orquestrador roda. |
-| [`orquestrador/laco.py`](#orquestradorlaco) | 347 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
+| [`orquestrador/janela_do_humano.py`](#orquestradorjaneladohumano) | 228 | A janela da foto do repositório do humano: da foto de antes da sessão ao fim do código do agente que o orquestrador roda. |
+| [`orquestrador/janela_gravada.py`](#orquestradorjanelagravada) | 59 | A janela da foto do humano gravada em disco enquanto está aberta, para a retomada depois de uma queda. |
+| [`orquestrador/laco.py`](#orquestradorlaco) | 350 | O laço do `graphow orquestrar`: de uma spec ou de um Goal até o Goal fechado, ou até um portão. |
 | [`orquestrador/leitura_das_verificacoes.py`](#orquestradorleituradasverificacoes) | 190 | As verificações do Goal e os nós Achado delas e das revisões de risco, como o laço os lê do livro-razão. |
 | [`orquestrador/leitura_do_goal.py`](#orquestradorleituradogoal) | 399 | O estado do laço lido do livro-razão: o Goal, as fatias, as dúvidas e as verificações. |
 | [`orquestrador/leitura_do_shell.py`](#orquestradorleituradoshell) | 399 | A leitura de um comando Bash em comandos simples, para a trava do git decidir sobre cada um. |
@@ -1003,12 +1004,17 @@ A janela da foto do repositório do humano: da foto de antes da sessão ao fim d
 | `PAPEL_DO_ORQUESTRADOR` | `str` | `PapelAutor.ORQUESTRADOR.value` |
 | `SEM_ARQUIVO` | `tuple[str, ...]` | `('HEAD: ',)` |
 | `SEM_TRECHO` | `str` | `'o passo do laco, desde a foto de antes'` |
+| `NA_QUEDA` | `str` | `'a execucao anterior do laco, que caiu com a janela da foto aberta'` |
 
 ### `ConfiguracaoDaJanela`
 
 *DTO imutável* — De onde a janela tira a foto e para onde manda o que achou: o repositório do humano (None: nada a conferir), a pasta
 
-**Campos:** `repositorio: Path | None`, `salvaguarda: Path | None`, `registrar: RegistroDoHumanoMexido | None`, `outros_goals: LeitorDosOutrosGoals | None`
+**Campos:** `repositorio: Path | None`, `salvaguarda: Path | None`, `registrar: RegistroDoHumanoMexido | None`, `outros_goals: LeitorDosOutrosGoals | None`, `gravada: Path | None`
+
+### `GitDoHumanoMexido` (RepositorioDoHumanoMexido)
+
+*serviço* — Um arquivo que muda o git do humano mudou: o laço para sem rodar mais git, nem no clone.
 
 ### `JanelaDoHumano`
 
@@ -1016,9 +1022,11 @@ A janela da foto do repositório do humano: da foto de antes da sessão ao fim d
 
 - `aberta() -> bool` `[property]` — Há foto de antes esperando a conferência.
 - `trechos() -> tuple[Trecho, ...]` `[property]` — Os trechos da janela aberta, na ordem.
-- `abrir() -> None` — A foto de antes e a salvaguarda, quando a janela está fechada; aberta, nada.
+- `abrir() -> None` — A foto de antes e a salvaguarda, gravadas para a retomada, quando a janela está fechada; aberta, nada.
 - `marcar(quem: str) -> None` — Um trecho novo (a janela abre, se estava fechada), com a marca lida sem processo; o mesmo de antes segue.
 - `fechar() -> None` — A conferência do que mudou desde a foto de antes, com quem rodou no trecho de cada mudança; fechada, nada.
+- `conferir_o_git() -> None` — Logo depois da sessão, antes de qualquer git: os arquivos que mudam o git, relidos em bytes; mudou algum, a janela
+- `retomar() -> None` — Antes do primeiro git da chamada: a janela que a execução que caiu deixou gravada, conferida pelos arquivos que
 - `trecho(quem: str) -> Iterator[None]` — O bloco dentro da janela: na aberta, um trecho dela (sem `quem`, os trechos que ele marcar); sem janela, uma só do
 
 ### `Trecho`
@@ -1031,6 +1039,20 @@ A janela da foto do repositório do humano: da foto de antes da sessão ao fim d
 
 - `marca_do_humano(antes: FotoDoHumano) -> dict[str, str]` — O sha256 de cada arquivo que a foto listou, dos que mudam o git e das refs, pelo nome que a conferência usa; só
 - `durante(trechos: Sequence[Trecho], final: Mapping[str, str], mexido: HumanoMexido) -> Durante` — Quem rodou nos trechos das perdas (sem perda, dos avanços): o texto, se foi só o código do agente fora da sessão e as
+
+## `orquestrador/janela_gravada.py`
+
+A janela da foto do humano gravada em disco enquanto está aberta, para a retomada depois de uma queda.
+
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `JANELA_GRAVADA` | `str` | `'janela-do-humano-aberta.json'` |
+
+### Funções do módulo
+
+- `gravar_a_janela(antes: FotoDoHumano, caminho: Path) -> None` — A foto de antes, no que a conferência dos arquivos do git usa, gravada em JSON no caminho dado.
+- `foto_gravada(caminho: Path) -> FotoDoHumano | None` — A foto de antes que a janela que não fechou gravou, com o bastante para conferir os arquivos do git; None sem
+- `apagar_a_gravada(caminho: Path | None) -> None` — A gravação sai: a janela fechou, ou a retomada já a conferiu.
 
 ## `orquestrador/laco.py`
 
@@ -2028,7 +2050,7 @@ A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e 
 ### Funções do módulo
 
 - `modelo_padrao(papel: str) -> str` — O modelo do papel quando a chamada não diz outro.
-- `argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]` — O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
+- `argumentos_do_papel(papel: str, orcamento_restante_usd: float) -> tuple[str, ...]` — O que o comando leva além do que o pedido de sessão nomeia (`hook`: o settings do hook da trava); a lista variádica
 - `ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapping[str, Any] | None, tuple[str, ...]]` — O JSON da sessão conferido, ou os problemas: o `structured_output`, senão o texto final como JSON.
 - `saida_conferida_da_telemetria(registros: Sequence[SessaoRegistrada], papel: str, problemas: Conferencia) -> Mapping[str, Any] | None` — A saída mais nova do papel, relida do stream gravado, que passa na conferência; None sem nenhuma.
 - `registro_em_andamento(pedido: PedidoDePapel, arquivo: Path) -> SessaoRegistrada` — A linha da invocação antes de a sessão abrir: quem, onde e desde quando.

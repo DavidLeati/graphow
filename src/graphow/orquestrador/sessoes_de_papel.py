@@ -8,7 +8,9 @@ no ambiente) e com o que resta do orçamento do Goal (`--max-budget-usd`). O bri
 Antes da sessão o clone do Goal é fotografado e, depois dela, volta a ser o que era: o que o agente mexeu no git
 do clone é desfeito e vai na resposta como observação (orquestrador/trava_do_git.py). O repositório do humano também
 é fotografado: cada invocação é um trecho da janela da foto aberta, ou da que a sessão abre e fecha quando nenhuma está
-aberta; a perda de trabalho nele para o laço em FALHA, e o avanço vira Note (orquestrador/janela_do_humano.py).
+aberta; a perda de trabalho nele para o laço em FALHA, e o avanço vira Note (orquestrador/janela_do_humano.py). Logo
+depois de cada invocação, antes do primeiro git, a janela relê os arquivos que mudam o git; mudou algum, o laço para, e
+o clone não é restaurado: a restauração rodaria git com o que foi plantado.
 Antes de cada invocação, a retomada e a repetida inclusive, o settings do hook é regravado e o `.claude/` do clone
 volta à referência do pedido (o HEAD; na fatia de conflito, a base nova mesclada); a invocação que mexeu num deles
 mexeu na trava: a sessão para ali, sem retomada, e o papel falha com o motivo (`RespostaDePapel.trava_mexida`), que
@@ -46,7 +48,7 @@ from graphow.orquestrador.esquemas import (
     caminho_do_prompt,
 )
 from graphow.orquestrador.falhas_da_api import falha_da_api, recusa
-from graphow.orquestrador.janela_do_humano import JanelaDoHumano
+from graphow.orquestrador.janela_do_humano import GitDoHumanoMexido, JanelaDoHumano
 from graphow.orquestrador.trava_do_git import fotografar_clone, regras_que_negam_git, restaurar_o_clone, selar_a_sessao, trava_mexida
 from graphow.orquestrador.validacao_json import validar_contra_esquema
 from graphow.sessoes.leitura_stream import LeituraDoStream, ler_stream
@@ -55,14 +57,10 @@ from graphow.sessoes.sessao_claude import ExecutorDeSessao, ResultadoDeSessao, e
 from graphow.storage.telemetria_de_sessoes import ESTADO_CONCLUIDA, ESTADO_EM_ANDAMENTO, ESTADO_RECUPERADA, RepositorioTelemetria, SessaoRegistrada
 
 FERRAMENTAS_POR_PAPEL: Mapping[str, tuple[str, ...]] = {
-    PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"),
-    PAPEL_AUTOR_DE_ACEITE: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
-    PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
-    PAPEL_REVISOR: ("Bash", "Read", "Glob", "Grep"),
-    PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"),
-    PAPEL_VERIFICADOR_DO_MARCO: ("Bash", "Read", "Glob", "Grep"),
-    PAPEL_CONFERENCIA: ("Bash", "Read", "Glob", "Grep"),
-    PAPEL_SEGUNDA_OPINIAO: (),
+    PAPEL_PLANEJADOR: ("Bash", "Read", "Glob", "Grep"), PAPEL_AUTOR_DE_ACEITE: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"),
+    PAPEL_EXECUTOR: ("Bash", "Read", "Edit", "Write", "Glob", "Grep"), PAPEL_REVISOR: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_VERIFICADOR: ("Bash", "Read", "Glob", "Grep"), PAPEL_VERIFICADOR_DO_MARCO: ("Bash", "Read", "Glob", "Grep"),
+    PAPEL_CONFERENCIA: ("Bash", "Read", "Glob", "Grep"), PAPEL_SEGUNDA_OPINIAO: (),
 }
 MODO_DE_PERMISSAO_PADRAO: str = "bypassPermissions"
 MODELO_PADRAO: str = "opus"
@@ -168,12 +166,15 @@ class SessoesDePapel:
 
     def rodar(self, pedido: PedidoDePapel) -> RespostaDePapel:
         """A sessão conferida, e o clone deixado como estava antes dela, mesmo quando a API a recusa; o humano conferido."""
-        foto = fotografar_clone(pedido.pasta)
+        foto, restaurar = fotografar_clone(pedido.pasta), True
         with self.janela.trecho():
             try:
                 resposta = self._rodar_e_conferir(pedido)
+            except GitDoHumanoMexido:
+                restaurar = False
+                raise
             finally:
-                desfeito = restaurar_o_clone(foto)
+                desfeito = restaurar_o_clone(foto) if restaurar else ""
         return replace(resposta, desfeito=desfeito)
 
     def _rodar_e_conferir(self, pedido: PedidoDePapel) -> RespostaDePapel:
@@ -226,6 +227,7 @@ class SessoesDePapel:
         self.janela.marcar(f"a sessao do {pedido.papel}", papel=pedido.papel, fatia=pedido.fatia)
         resultado = self._executor.rodar(self._pedido_de_sessao(pedido, prompt, retomar, arquivo=arquivo, modelo=modelo))
         self._telemetria.atualizar(id_linha, com_o_resultado(aberta, resultado))
+        self.janela.conferir_o_git()
         motivo = trava_mexida(selo)
         if motivo:
             raise _TravaMexida(motivo, resultado)
@@ -268,10 +270,8 @@ def _marca_da_invocacao() -> str:
 def argumentos_do_papel(
     papel: str, orcamento_restante_usd: float, *, hook: Path, esquema: Mapping[str, Any] | None = None
 ) -> tuple[str, ...]:
-    """O que o comando da sessão leva além do que o pedido de sessão já nomeia; a lista variádica vai por último.
-
-    `hook` é o settings do hook PreToolUse da trava do git (trava_do_git.gravar_hook_da_trava).
-    """
+    """O que o comando leva além do que o pedido de sessão nomeia (`hook`: o settings do hook da trava); a lista variádica
+    vai por último."""
     return (
         "--append-system-prompt-file", str(caminho_do_prompt(papel)),
         "--json-schema", json.dumps(esquema or ESQUEMA_POR_PAPEL[papel], separators=(",", ":")),
