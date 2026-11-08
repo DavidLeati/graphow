@@ -1,4 +1,4 @@
-"""T3a6 e T3a8: a tabela da conferência do repositório do humano, linha a linha; a perda para o laço, o avanço segue."""
+"""T3a6, T3a8 e T3a11: a tabela da conferência do repositório do humano, linha a linha; a perda para o laço, o avanço segue."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -199,6 +199,39 @@ def test_humano_que_commita_o_sujo_e_troca_de_branch_avanca_nominal(tmp_path: Pa
     na_main = "esta em refs/heads/main"
     assert (perdas, avancos) == ([], [
         "ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> lateral #",
+        f"INDICE.txt mudou, e o conteudo de antes {na_main}", f"indice INDICE.txt: a entrada mudou, e o conteudo preparado {na_main}",
+        f"NOTAS.txt mudou, e o conteudo de antes {na_main}", f"rascunho.txt sumiu, e o conteudo de antes {na_main}"])
+
+
+def _com_historia(pasta: Path) -> Path:
+    """T3a11: a main com dois commits, NOTAS.txt e INDICE.txt mudando de um para o outro, e por cima NOTAS.txt mudado,
+    INDICE.txt mudado no índice e rascunho.txt solto."""
+    repositorio = criar_repositorio(pasta, {"README.md": "# brinquedo\n", "NOTAS.txt": "notas\n", "INDICE.txt": "v1\n"})
+    _varias(_escrever("NOTAS.txt", "notas v2\n"), _escrever("INDICE.txt", "v1 de novo\n"), _git("commit", "-q", "-am", "v2"),
+            _escrever("NOTAS.txt", "trabalho do humano\n"), _escrever("INDICE.txt", "v2 no indice\n"), _git("add", "INDICE.txt"),
+            _escrever("rascunho.txt", "solto\n"))(repositorio)
+    return repositorio
+
+
+@pytest.mark.parametrize("troca", [["checkout", "-q", "-f", "--detach", "HEAD~1"], ["switch", "-q", "--detach", "--discard-changes", "HEAD~1"]],
+                         ids=["checkout_f_detach", "switch_discard_changes"])
+def test_troca_para_um_commit_antigo_que_descarta_o_sujo_e_perda_edge_case(tmp_path: Path, troca: list[str]) -> None:
+    """T3a11.1 (S1): a troca para um commit que não é ponta, mas já estava na história (HEAD~1), põe na árvore e no índice o
+    conteúdo dele; o HEAD novo conta como o que o git já tinha, e o de antes não fica em lugar nenhum."""
+    perdas, avancos = _conferir(tmp_path, _git(*troca), _com_historia)
+
+    assert (perdas, avancos) == (DESCARTADOS, ["HEAD: main # -> (detached) #"])
+
+
+def test_humano_que_commita_o_sujo_e_volta_a_um_commit_antigo_avanca_nominal(tmp_path: Path) -> None:
+    """T3a11.1, contraprova: o humano commita tudo e vai a um commit antigo; o conteúdo de antes está na ponta que andou."""
+    acao = _varias(_git("add", "-A"), _git("commit", "-q", "-m", "salva"), _git("checkout", "-q", "--detach", "HEAD~2"))
+
+    perdas, avancos = _conferir(tmp_path, acao, _com_historia)
+
+    na_main = "esta em refs/heads/main"
+    assert (perdas, avancos) == ([], [
+        "ref refs/heads/main andou por fast-forward (# -> #)", "HEAD: main # -> (detached) #",
         f"INDICE.txt mudou, e o conteudo de antes {na_main}", f"indice INDICE.txt: a entrada mudou, e o conteudo preparado {na_main}",
         f"NOTAS.txt mudou, e o conteudo de antes {na_main}", f"rascunho.txt sumiu, e o conteudo de antes {na_main}"])
 

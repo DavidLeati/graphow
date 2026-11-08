@@ -215,6 +215,16 @@ def objetos_nos_commits(repositorio: Path, pedidos: Iterable[tuple[str, str]]) -
     return {pedido: objeto for pedido, objeto in zip(lista, saida) if OBJETO_DO_GIT.fullmatch(objeto)} if len(saida) == len(lista) else {}
 
 
+def na_historia_de_antes(repositorio: Path, commit: str, pontas: Iterable[str]) -> bool:
+    """O commit está na história de uma das pontas dadas (ou é uma delas): o `rev-list --stdin` do commit sem o que elas
+    alcançam sai vazio. O git que falha conta como sim, o lado que para."""
+    if not OBJETO_DO_GIT.fullmatch(commit):
+        return False
+    entrada = "".join([f"{commit}\n", *(f"^{ponta}\n" for ponta in dict.fromkeys(pontas) if OBJETO_DO_GIT.fullmatch(ponta))])
+    saida = git_da_foto(repositorio, ("rev-list", "-n", "1", "--stdin"), entrada=entrada.encode("ascii"))
+    return saida is None or not saida.strip()
+
+
 def commits_sem_o_goal(repositorio: Path, era: str, agora: str, *, goal: str) -> tuple[str, ...] | None:
     """Os commits que saíram da história (`log <era> --not <agora>`) sem `Graphow-Goal: <goal>` no bloco de trailers;
     None quando o git falha."""

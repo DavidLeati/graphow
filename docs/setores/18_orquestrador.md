@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-76 módulos · 14528 linhas · 113 classes
+76 módulos · 14549 linhas · 113 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -25,7 +25,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/comandos_do_stream.py`](#orquestradorcomandosdostream) | 115 | Os comandos que uma sessão rodou de fato, lidos do stream: o comando, o código de saída e um trecho do que imprimiu. |
 | [`orquestrador/commit_do_pedido.py`](#orquestradorcommitdopedido) | 41 | O commit do pedido do humano: só os caminhos que o pedido escreveu, e nunca a área inteira. |
 | [`orquestrador/conferencia_da_evidencia.py`](#orquestradorconferenciadaevidencia) | 115 | A conferência da Evidence sobre código na leitura: os arquivos que ela afirma mudaram desde o commit dela? |
-| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 331 | A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue. |
+| [`orquestrador/conferencia_do_humano.py`](#orquestradorconferenciadohumano) | 342 | A conferência do repositório do humano no fim de cada janela da foto: a perda para o laço, o avanço segue. |
 | [`orquestrador/conferencia_na_leitura.py`](#orquestradorconferencianaleitura) | 226 | A conferência da Evidence na hora da leitura: o briefing, a vista, o canvas e o `--status` perguntam aqui. |
 | [`orquestrador/configuracao_do_aceite.py`](#orquestradorconfiguracaodoaceite) | 204 | A segunda rodada do aceite: com a configuração de teste do commit do aceite, quando o executor a mudou. |
 | [`orquestrador/contexto_do_laco.py`](#orquestradorcontextodolaco) | 206 | O que cada passo do laço recebe: o Goal, a configuração, as sessões, o orçamento e onde gravar. |
@@ -38,7 +38,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/execucao_da_fatia.py`](#orquestradorexecucaodafatia) | 399 | O passo de uma fatia: a sessão do executor, a conferência do git e da suíte, o commit e o registro. |
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 323 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
-| [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 227 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
+| [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 237 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
 | [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 41 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
 | [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 395 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
@@ -330,7 +330,7 @@ A conferência do repositório do humano no fim de cada janela da foto: a perda 
 
 *DTO imutável* — As duas fotos e o que a conferência consulta no git do humano: a história, as branches dos outros Goals (lidas do grafo
 
-**Campos:** `antes: FotoDoHumano`, `depois: FotoDoHumano`, `e_ancestral: Callable[[str, str], bool]`, `ramos: Callable[[], Mapping[str, RamoDeOutroGoal]]`, `objetos: Mapping[tuple[str, str], str]`
+**Campos:** `antes: FotoDoHumano`, `depois: FotoDoHumano`, `e_ancestral: Callable[[str, str], bool]`, `ramos: Callable[[], Mapping[str, RamoDeOutroGoal]]`, `objetos: Mapping[tuple[str, str], str]`, `ja_tinha: tuple[str, ...]`
 
 ### Funções do módulo
 
@@ -740,6 +740,7 @@ A foto do repositório do humano em volta de cada sessão de papel: a camada da 
 - `fotografar_o_humano(repositorio: Path, tambem: Iterable[str]) -> FotoDoHumano` — Os arquivos do git (da lista dada, ou da tirada agora da configuração), o HEAD, o status, as refs e o índice, com o
 - `soltos_da_salvaguarda(foto: FotoDoHumano) -> tuple[str, ...]` — Os não rastreados que a árvore da salvaguarda guarda: o arquivo comum (o link e a pasta ficam de fora).
 - `objetos_nos_commits(repositorio: Path, pedidos: Iterable[tuple[str, str]]) -> dict[tuple[str, str], str]` — O objeto de cada caminho em cada commit pedido (`<commit>:<caminho>`, num `cat-file --batch-check`); o caminho que
+- `na_historia_de_antes(repositorio: Path, commit: str, pontas: Iterable[str]) -> bool` — O commit está na história de uma das pontas dadas (ou é uma delas): o `rev-list --stdin` do commit sem o que elas
 - `commits_sem_o_goal(repositorio: Path, era: str, agora: str) -> tuple[str, ...] | None` — Os commits que saíram da história (`log <era> --not <agora>`) sem `Graphow-Goal: <goal>` no bloco de trailers;
 
 ## `orquestrador/git_da_foto.py`

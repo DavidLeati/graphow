@@ -10,11 +10,14 @@ que a recupera:
   está mais em lugar nenhum, nem na árvore, nem no índice novo, nem, no mesmo
   caminho, no HEAD novo ou na ponta de uma ref que andou na sessão, quando o
   arquivo sumiu ou agora tem um conteúdo que o git já tinha antes da sessão
-  (o do HEAD, o do índice ou o de uma ponta de antes, no mesmo caminho). É o
-  `checkout -- .`, o `checkout -f` e o `switch --discard-changes` de outra
-  branch e o `reset --hard` para um descendente. O humano que commita e troca
-  de branch não perde nada: o conteúdo está na ponta que andou. E o que ele
-  escreve de novo (e commita) não é um conteúdo que o git já tinha;
+  (o do HEAD, o do índice ou o de uma ponta de antes, no mesmo caminho, e o
+  do HEAD novo quando esse commit já existia, na história do HEAD ou de uma
+  ponta de antes). É o `checkout -- .`, o `checkout -f` e o `switch
+  --discard-changes` de outra branch ou para um commit antigo (`--detach
+  HEAD~1`) e o `reset --hard` para um descendente. O humano que commita e
+  troca de branch não perde nada: o conteúdo está na ponta que andou. E o que
+  ele escreve de novo (e commita) não é um conteúdo que o git já tinha: o
+  commit novo dele não estava na história de antes;
 - o mesmo para o conteúdo preparado no índice, que sai ou dá lugar a um que o
   git já tinha sem ficar na árvore, no índice, no HEAD nem numa ponta que andou;
 - o arquivo rastreado limpo que sumiu sem a remoção ir a um commit;
@@ -56,6 +59,7 @@ from graphow.orquestrador.foto_do_humano import (
     FotoDoHumano,
     commits_sem_o_goal,
     fotografar_o_humano,
+    na_historia_de_antes,
     objetos_nos_commits,
     soltos_da_salvaguarda,
 )
@@ -95,13 +99,15 @@ LeitorDosOutrosGoals = Callable[[Path], Sequence[RamoDeOutroGoal]]
 @dataclass(frozen=True)
 class _Conferencia:
     """As duas fotos e o que a conferência consulta no git do humano: a história, as branches dos outros Goals (lidas do grafo
-    uma vez, só quando uma ref anda fora de fast-forward) e o objeto de cada caminho nos commits de antes e de depois."""
+    uma vez, só quando uma ref anda fora de fast-forward), o objeto de cada caminho nos commits de antes e de depois e os
+    commits cujo conteúdo o git já tinha antes da sessão (`ja_tinha`)."""
 
     antes: FotoDoHumano
     depois: FotoDoHumano
     e_ancestral: Callable[[str, str], bool]
     ramos: Callable[[], Mapping[str, RamoDeOutroGoal]]
     objetos: Mapping[tuple[str, str], str] = field(default_factory=dict)
+    ja_tinha: tuple[str, ...] = ()
 
 
 def conferir_o_humano(antes: FotoDoHumano | None, papel: str, fatia: str, *, registrar: RegistroDoHumanoMexido | None = None,
@@ -169,12 +175,16 @@ def _mudados_de_antes(antes: FotoDoHumano, depois: FotoDoHumano) -> tuple[tuple[
 
 def _conferencia(antes: FotoDoHumano, depois: FotoDoHumano, outros_goals: LeitorDosOutrosGoals | None) -> _Conferencia:
     """O que a conferência consulta: o objeto, nos commits de antes e de depois, de cada caminho que mudou para um conteúdo que
-    o git sabe (ou sumiu), num processo só, e nenhum quando não há caminho assim."""
+    o git sabe (ou sumiu), num processo só, e nenhum quando não há caminho assim; com caminho assim e o HEAD num commit que
+    não é o de antes nem uma ponta de antes, um processo mais diz se ele já existia."""
     ramos = cache(lambda: {ramo.ref: ramo for ramo in (outros_goals(antes.repositorio) if outros_goals is not None else ())})
     conferencia = _Conferencia(antes, depois, partial(e_ancestral_no_humano, antes.repositorio), ramos)
     caminhos = [caminho for caminho in antes.listados if _pede_os_commits(caminho, antes, depois)]
-    commits = {antes.cabeca.rpartition(" ")[2], *antes.refs.values(), *(commit for _, commit in _pontas_de_depois(antes, depois))}
-    return replace(conferencia, objetos=objetos_nos_commits(antes.repositorio, ((c, caminho) for caminho in caminhos for c in commits)))
+    de_antes, cabeca = (antes.cabeca.rpartition(" ")[2], *antes.refs.values()), depois.cabeca.rpartition(" ")[2]
+    antiga = bool(caminhos) and cabeca not in de_antes and na_historia_de_antes(antes.repositorio, cabeca, de_antes)
+    commits = {*de_antes, *(commit for _, commit in _pontas_de_depois(antes, depois))}
+    objetos = objetos_nos_commits(antes.repositorio, ((c, caminho) for caminho in caminhos for c in commits))
+    return replace(conferencia, objetos=objetos, ja_tinha=(*de_antes, *([cabeca] if antiga else [])))
 
 
 def _pede_os_commits(caminho: str, antes: FotoDoHumano, depois: FotoDoHumano) -> bool:
@@ -297,11 +307,12 @@ def _conteudo_de_antes(caminho: str, antes: FotoDoHumano) -> str:
 
 
 def _ja_tinha(conferencia: _Conferencia, caminho: str, objeto: str) -> bool:
-    """O objeto já estava no git antes da sessão, no mesmo caminho: no HEAD, no índice ou na ponta de uma ref."""
-    era, antes = conferencia.antes.listados[caminho], conferencia.antes
-    commits = (antes.cabeca.rpartition(" ")[2], *antes.refs.values())
-    nas_pontas = any(conferencia.objetos.get((commit, caminho)) == objeto for commit in commits)
-    return bool(objeto) and (objeto in (era.no_head, era.no_indice) or nas_pontas)
+    """O objeto já estava no git antes da sessão, no mesmo caminho: no HEAD, no índice ou na ponta de uma ref de antes, ou no
+    HEAD novo, quando esse commit já existia (o `checkout -f --detach HEAD~1`). O HEAD novo que é um commit novo não conta: é
+    o humano que commita o que escreveu."""
+    era = conferencia.antes.listados[caminho]
+    nos_commits = any(conferencia.objetos.get((commit, caminho)) == objeto for commit in conferencia.ja_tinha)
+    return bool(objeto) and (objeto in (era.no_head, era.no_indice) or nos_commits)
 
 
 def _onde_esta(conferencia: _Conferencia, caminho: str, objeto: str) -> str:
