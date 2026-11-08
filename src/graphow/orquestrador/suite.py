@@ -5,8 +5,12 @@ O comando é o que o planejador declarou, rodado na raiz da área pelo mesmo
 shell em que a ferramenta Bash dos agentes roda: o bash (no Windows, o Git
 Bash, como o Claude Code faz; nunca o bash do WSL), para que o comando que o
 executor rodou na sessão seja o mesmo que o orquestrador roda. `GRAPHOW_SHELL`
-escolhe outro; sem bash nenhum, vale o shell da máquina. No tempo esgotado a
-suíte morre com a árvore dela, pelo PID, como as sessões: nunca por nome. O
+escolhe outro; sem bash nenhum, vale o shell da máquina. A suíte nasce na
+árvore de processos das sessões (sessoes/arvore_da_sessao.py: o Job Object com
+`KILL_ON_JOB_CLOSE` no Windows, o grupo de processos fora dele), e a árvore
+morre quando o comando acaba, no tempo esgotado também: o filho solto que o
+código do agente deixou não sobra para mexer no repositório do humano depois
+da conferência da janela. Nunca por nome. O
 `GRAPHOW_DB` aponta para um banco descartável do Goal, para que um projeto que
 use o graphow nos testes não escreva no banco do usuário. A saída é lida em
 UTF-8 (o Python da suíte é posto em UTF-8 por `PYTHONIOENCODING`, quando o
@@ -30,7 +34,7 @@ import shutil
 import subprocess
 
 from graphow.sessoes.pedido import VARIAVEL_DO_BANCO
-from graphow.sessoes.arvore_da_sessao import NO_WINDOWS, matar_arvore
+from graphow.sessoes.arvore_da_sessao import CRIACAO_DA_SESSAO, NO_WINDOWS, ArvoreDaSessao, matar_a_arvore, prender_a_arvore
 
 VARIAVEL_DO_SHELL: str = "GRAPHOW_SHELL"
 # A variável com que o Claude Code acha o Git Bash no Windows: o orquestrador acha o mesmo.
@@ -112,17 +116,27 @@ def rodar_suite(
     try:
         processo = subprocess.Popen(
             argumentos, shell=shell is None, cwd=area, env=ambiente, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL, start_new_session=not NO_WINDOWS,
+            stdin=subprocess.DEVNULL, start_new_session=not NO_WINDOWS, creationflags=CRIACAO_DA_SESSAO,
         )
+        arvore = prender_a_arvore(processo)
     except OSError as erro:
         return ResultadoDaSuite(comando, None, f"a suite nao abriu: {erro}", shell=descricao)
+    saida, esgotado = _esperar(processo, arvore, tempo_limite_s)
+    return ResultadoDaSuite(comando, processo.returncode, _texto(saida), tempo_esgotado=esgotado, shell=descricao)
+
+
+def _esperar(processo: subprocess.Popen[bytes], arvore: ArvoreDaSessao, tempo_limite_s: float) -> tuple[bytes, bool]:
+    """A saída e se o tempo esgotou; a árvore do comando morre quando ele acaba, no tempo esgotado e na exceção da espera."""
+    esgotado = False
     try:
         saida, _ = processo.communicate(timeout=tempo_limite_s)
     except subprocess.TimeoutExpired:
-        matar_arvore(processo)
+        esgotado = True
+    finally:
+        matar_a_arvore(processo, arvore)
+    if esgotado:
         saida, _ = processo.communicate()
-        return ResultadoDaSuite(comando, processo.returncode, _texto(saida), tempo_esgotado=True, shell=descricao)
-    return ResultadoDaSuite(comando, processo.returncode, _texto(saida), shell=descricao)
+    return saida or b"", esgotado
 
 
 def _ambiente(banco_descartavel: Path, *, do_aceite: bool) -> dict[str, str]:
