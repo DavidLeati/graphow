@@ -204,7 +204,7 @@ def montar_bancada(tmp_path: Path, roteiro: dict[str, list[dict[str, Any]]]) -> 
     executor = ExecutorDeSessao((sys.executable, str(CLAUDE_ROTEIRIZADO)), ambiente)
     return Bancada(
         raiz=tmp_path, repositorio=repositorio, spec=spec, kernel=montar_kernel_em_memoria(),
-        telemetria=RepositorioTelemetria(sqlite3.connect(":memory:")), roteiro=caminho_do_roteiro,
+        telemetria=RepositorioTelemetria(sqlite3.connect(":memory:", check_same_thread=False)), roteiro=caminho_do_roteiro,
         registro=tmp_path / "registro", executor=executor,
     )
 
