@@ -16,7 +16,8 @@ rodado no repositório do humano), sem forçar, depois de cada commit dele e no
 começo de cada chamada. A integração na base continua por fast-forward no
 repositório do humano (orquestrador/refs_do_humano.py). A trava que impede o
 agente de escrever no git e a restauração do clone depois de cada sessão moram em orquestrador/trava_do_git.py;
-aqui fica o git do próprio orquestrador, que roda sem a trava.
+aqui fica o git do próprio orquestrador, que roda sem a trava e sem o programa que uma configuração plantada
+aponte (`SEM_CODIGO_PLANTADO`, os hooks numa pasta vazia nova a cada comando).
 """
 
 from collections.abc import Callable
@@ -27,6 +28,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from typing import Any
 
 from graphow.core.exceptions import GraphowError
@@ -49,6 +51,12 @@ IDENTIDADE_DE_RESERVA: tuple[str, ...] = ("-c", "user.name=graphow orquestrar", 
 LIMITE_DO_RESUMO_DO_DIFF: int = 4000
 # Sem isto o git cita o nome com acento (`relatório.md` sai `"relat\303\263rio.md"`): todo comando que lista caminhos o leva.
 SEM_ASPAS: tuple[str, ...] = ("-c", "core.quotepath=false")
+# Todo git do orquestrador, no clone e no humano, vai sem o fsmonitor e sem assinar nem conferir assinatura (o
+# `gpg.program`), e com o `core.hooksPath` numa pasta vazia: a sessão que planta isso na global, no `.git/config` ou nos
+# hooks do clone não roda nada pelo git dele. O que o `-c` não desliga (filtro, driver de diff, `insteadOf`): notas T3a10.
+SEM_CODIGO_PLANTADO: tuple[str, ...] = ("-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false", "-c", "log.showSignature=false",
+                                        "-c", "merge.verifySignatures=false")
+CHAVE_DOS_HOOKS: str = "core.hooksPath"
 
 
 class FalhaDoGitDoGoal(GraphowError):
@@ -89,13 +97,15 @@ class GitDoGoal:
         return saida
 
     def _executar(self, argumentos: tuple[str, ...]) -> tuple[int, bytes, bytes]:
-        """O git na pasta, sem as variáveis que apontariam outro repositório; o código e as duas saídas em bytes."""
-        comando = [EXECUTAVEL_DO_GIT, "-C", str(self.pasta), *argumentos]
+        """O git na pasta, sem código plantado e sem as variáveis que apontariam outro repositório; o código e as duas saídas
+        em bytes."""
         ambiente = {nome: valor for nome, valor in os.environ.items() if nome.upper() not in VARIAVEIS_DE_OUTRO_REPOSITORIO}
-        try:
-            feito = subprocess.run(comando, capture_output=True, check=False, env=ambiente)
-        except OSError as erro:
-            raise FalhaDoGitDoGoal("git indisponivel", {"erro": str(erro)}) from erro
+        with tempfile.TemporaryDirectory(prefix="graphow-ganchos-") as vazia:
+            comando = [EXECUTAVEL_DO_GIT, "-C", str(self.pasta), *SEM_CODIGO_PLANTADO, "-c", f"{CHAVE_DOS_HOOKS}={vazia}", *argumentos]
+            try:
+                feito = subprocess.run(comando, capture_output=True, check=False, env=ambiente)
+            except OSError as erro:
+                raise FalhaDoGitDoGoal("git indisponivel", {"erro": str(erro)}) from erro
         return feito.returncode, feito.stdout, feito.stderr
 
     def rodar(self, *argumentos: str) -> str:

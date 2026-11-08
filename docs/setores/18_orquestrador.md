@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-75 módulos · 14392 linhas · 112 classes
+75 módulos · 14401 linhas · 112 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -39,8 +39,8 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/falhas_da_api.py`](#orquestradorfalhasdaapi) | 81 | O limite de uso da conta e o erro passageiro da API: não são falha do papel, nem da fatia. |
 | [`orquestrador/fatia_de_conflito.py`](#orquestradorfatiadeconflito) | 323 | A fatia de conflito: no modo autônomo, o rebase que deu conflito, ou deixou vermelho a suíte ou o aceite, vira trabalho do executor. |
 | [`orquestrador/foto_do_humano.py`](#orquestradorfotodohumano) | 227 | A foto do repositório do humano em volta de cada sessão de papel: a camada da trava que não lê o comando. |
-| [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 42 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
-| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 385 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
+| [`orquestrador/git_da_foto.py`](#orquestradorgitdafoto) | 41 | O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor, sem hooks e sem trava opcional. |
+| [`orquestrador/git_do_goal.py`](#orquestradorgitdogoal) | 395 | O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia. |
 | [`orquestrador/git_no_comando.py`](#orquestradorgitnocomando) | 399 | A decisão da trava do git sobre um comando Bash do agente: só as leituras do git passam. |
 | [`orquestrador/gravacao_da_verificacao.py`](#orquestradorgravacaodaverificacao) | 132 | A verificação gravada no livro-razão: a Evidence, um nó Achado por problema, o estado dos critérios e as pendências, num lote só. |
 | [`orquestrador/gravacao_do_aceite.py`](#orquestradorgravacaodoaceite) | 104 | Os testes de aceite gravados no livro-razão: o commit como Artifact, a ligação de cada critério aos seus testes e o Goal. |
@@ -748,8 +748,6 @@ O git que a foto e a salvaguarda rodam no repositório do humano: sem fsmonitor,
 | Constante | Tipo | Valor |
 | :--- | :--- | :--- |
 | `SEM_TRAVA_OPCIONAL` | `str` | `'--no-optional-locks'` |
-| `SEM_FSMONITOR` | `tuple[str, ...]` | `('-c', 'core.fsmonitor=false')` |
-| `CHAVE_DOS_HOOKS` | `str` | `'core.hooksPath'` |
 | `VARIAVEIS_DA_FOTO` | `frozenset[str]` | `VARIAVEIS_DE_OUTRO_REPOSITORIO | {'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNAT…` |
 
 ### Funções do módulo
@@ -774,6 +772,8 @@ O git do Goal: a área de trabalho numa branch própria e o commit de cada fatia
 | `IDENTIDADE_DE_RESERVA` | `tuple[str, ...]` | `('-c', 'user.name=graphow orquestrar', '-c', 'user.email=orquestrador@g…` |
 | `LIMITE_DO_RESUMO_DO_DIFF` | `int` | `4000` |
 | `SEM_ASPAS` | `tuple[str, ...]` | `('-c', 'core.quotepath=false')` |
+| `SEM_CODIGO_PLANTADO` | `tuple[str, ...]` | `('-c', 'core.fsmonitor=false', '-c', 'commit.gpgSign=false', '-c', 'log…` |
+| `CHAVE_DOS_HOOKS` | `str` | `'core.hooksPath'` |
 
 ### `AreaDoGoal`
 
