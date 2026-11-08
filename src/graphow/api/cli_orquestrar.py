@@ -21,6 +21,7 @@ from dataclasses import dataclass
 import getpass
 from pathlib import Path
 import sqlite3
+import threading
 
 from graphow.api.console import EscritorConsole
 from graphow.kernel.write_kernel import WriteKernel
@@ -112,18 +113,19 @@ def _registrar_opcoes_do_git(parser: argparse.ArgumentParser) -> None:
 
 @dataclass(frozen=True)
 class AmbienteDoOrquestrar:
-    """O que a CLI já abriu: o kernel, a conexão do banco, o console e onde o banco mora."""
+    """O que a CLI já abriu: o kernel, a conexão do banco e a trava dela, o console e onde o banco mora."""
 
     kernel: WriteKernel
     conexao: sqlite3.Connection
     console: EscritorConsole
     pasta_do_banco: Path
     executor: ExecutorDeSessao | None = None
+    trava: "threading.RLock | None" = None
 
 
 def executar_orquestrar(argumentos: argparse.Namespace, ambiente: AmbienteDoOrquestrar) -> int:
     """Executa a ação pedida e devolve o código de saída."""
-    telemetria = RepositorioTelemetria(ambiente.conexao)
+    telemetria = RepositorioTelemetria(ambiente.conexao, trava=ambiente.trava)
     if argumentos.status or argumentos.rastro:
         return _status(argumentos, ambiente, telemetria)
     orquestrador = Orquestrador(_dependencias(argumentos, ambiente, telemetria))

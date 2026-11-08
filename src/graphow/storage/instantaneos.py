@@ -80,9 +80,9 @@ class RepositorioInstantaneosEmMemoria(RepositorioInstantaneos):
 class RepositorioInstantaneosSQLite(RepositorioInstantaneos):
     """Instantâneos no mesmo arquivo do log de eventos."""
 
-    def __init__(self, conexao: sqlite3.Connection) -> None:
+    def __init__(self, conexao: sqlite3.Connection, *, trava: "threading.RLock | None" = None) -> None:
         self._conexao: sqlite3.Connection = conexao
-        self._lock: threading.RLock = threading.RLock()
+        self._lock: threading.RLock = trava if trava is not None else threading.RLock()
         with self._lock:
             self._conexao.execute(DDL_TABELA_INSTANTANEOS)
 

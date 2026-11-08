@@ -38,7 +38,7 @@ class ArquiteturaOrquestrar:
         """Roda o laço do Goal da spec até ele fechar ou parar, e devolve as sessões da telemetria."""
         with SQLiteEventStore(pedido.banco) as store:
             kernel = montar_kernel_sqlite(store)
-            telemetria = RepositorioTelemetria(store.conexao)
+            telemetria = RepositorioTelemetria(store.conexao, trava=store.trava)
             dependencias = DependenciasDoLaco(
                 kernel=kernel, executor=sessoes, telemetria=telemetria,
                 pasta_de_estado=pedido.diretorio / PASTA_DO_ESTADO, tempo_limite_da_sessao_s=pedido.tempo_limite_s,

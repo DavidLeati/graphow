@@ -123,7 +123,9 @@ class ManipuladorComandosGrafo:
         if self._store is None:
             self._console.escrever_linha("ERRO: orquestrar precisa do banco SQLite aberto")
             return CODIGO_FALHA_DOMINIO
-        ambiente = AmbienteDoOrquestrar(self._kernel, self._store.conexao, self._console, localizacao.caminho.parent)
+        ambiente = AmbienteDoOrquestrar(
+            self._kernel, self._store.conexao, self._console, localizacao.caminho.parent, trava=self._store.trava
+        )
         return executar_orquestrar(argumentos, ambiente)
 
     def _executar_notas_gerar(self, argumentos: argparse.Namespace) -> int:

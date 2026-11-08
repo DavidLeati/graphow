@@ -10,15 +10,15 @@ Interface de terminal, resolução de dependências por subcomando e formataçã
 
 ## Inventário
 
-10 módulos · 1830 linhas · 12 classes
+10 módulos · 1834 linhas · 12 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
 | [`api/cli.py`](#apicli) | 155 | Interface de Linha de Comando (CLI) para operação do Graphow. |
 | [`api/cli_bancada.py`](#apiclibancada) | 278 | O subcomando `graphow bancada`: rodar uma arquitetura nas demandas do laboratório, auditar e comparar. |
 | [`api/cli_execucao.py`](#apicliexecucao) | 323 | Despacho e execução dos subcomandos da linha de comando do Graphow. |
-| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 244 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
-| [`api/cli_orquestrar.py`](#apicliorquestrar) | 242 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
+| [`api/cli_execucao_grafo.py`](#apicliexecucaografo) | 246 | Manipuladores dos subcomandos que operam sobre um grafo já aberto. |
+| [`api/cli_orquestrar.py`](#apicliorquestrar) | 244 | O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, aprovar o plano e ver o status. |
 | [`api/cli_parser.py`](#apicliparser) | 354 | Construção do analisador de argumentos da linha de comando do Graphow. |
 | [`api/cli_setup.py`](#apiclisetup) | 117 | O subcomando `graphow setup`: o ambiente do Claude Code inteiro num comando só. |
 | [`api/console.py`](#apiconsole) | 71 | Adaptadores de escrita em console imunes a limitações de codificação do terminal. |
@@ -139,9 +139,9 @@ O subcomando `graphow orquestrar`: rodar um Goal de uma spec ou do gerente, apro
 
 ### `AmbienteDoOrquestrar`
 
-*DTO imutável* — O que a CLI já abriu: o kernel, a conexão do banco, o console e onde o banco mora.
+*DTO imutável* — O que a CLI já abriu: o kernel, a conexão do banco e a trava dela, o console e onde o banco mora.
 
-**Campos:** `kernel: WriteKernel`, `conexao: sqlite3.Connection`, `console: EscritorConsole`, `pasta_do_banco: Path`, `executor: ExecutorDeSessao | None`
+**Campos:** `kernel: WriteKernel`, `conexao: sqlite3.Connection`, `console: EscritorConsole`, `pasta_do_banco: Path`, `executor: ExecutorDeSessao | None`, `trava: 'threading.RLock | None'`
 
 ### Funções do módulo
 

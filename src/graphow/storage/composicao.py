@@ -38,13 +38,17 @@ def montar_repositorios_em_memoria() -> ConjuntoRepositorios:
 
 
 def montar_repositorios_sqlite(store: SQLiteEventStore) -> ConjuntoRepositorios:
-    """Monta o conjunto persistente sobre um arquivo SQLite já aberto."""
-    ramos = RepositorioRamosSQLite(store.conexao)
+    """Monta o conjunto persistente sobre um arquivo SQLite já aberto, todos sob a trava da conexão.
+
+    Com uma trava para cada um, a escrita de um adaptador vinda de outra
+    thread entrava no lote que o store tinha aberto.
+    """
+    ramos = RepositorioRamosSQLite(store.conexao, trava=store.trava)
     return ConjuntoRepositorios(
         eventos=RepositorioEventosComLinhagem(store, ramos),
         ramos=ramos,
-        locks=LockStoreSQLite(store.conexao),
-        instantaneos=RepositorioInstantaneosSQLite(store.conexao),
+        locks=LockStoreSQLite(store.conexao, trava=store.trava),
+        instantaneos=RepositorioInstantaneosSQLite(store.conexao, trava=store.trava),
     )
 
 

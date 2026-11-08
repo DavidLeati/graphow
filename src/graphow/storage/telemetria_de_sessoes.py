@@ -171,11 +171,16 @@ def _ultimos_tokens(invocacoes: Sequence[SessaoRegistrada]) -> int:
 
 
 class RepositorioTelemetria:
-    """A tabela de telemetria numa conexão SQLite: a do banco de eventos, ou uma própria nos testes."""
+    """A tabela de telemetria numa conexão SQLite: a do banco de eventos, ou uma própria nos testes.
 
-    def __init__(self, conexao: sqlite3.Connection) -> None:
+    Na conexão do banco de eventos, a trava é a do store (`SQLiteEventStore.trava`):
+    com uma própria, o INSERT de outra thread entrava no lote aberto do kernel e o
+    `_confirmar` o commitava pela metade.
+    """
+
+    def __init__(self, conexao: sqlite3.Connection, *, trava: "threading.RLock | None" = None) -> None:
         self._conexao: sqlite3.Connection = conexao
-        self._lock: threading.RLock = threading.RLock()
+        self._lock: threading.RLock = trava if trava is not None else threading.RLock()
         with self._lock:
             self._conexao.execute(DDL_TABELA_TELEMETRIA)
             self._conexao.execute(DDL_INDICE_DO_GOAL)

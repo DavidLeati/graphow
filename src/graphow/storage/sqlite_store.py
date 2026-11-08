@@ -81,6 +81,17 @@ class SQLiteEventStore(RepositorioEventos):
         return self._conexao
 
     @property
+    def trava(self) -> threading.RLock:
+        """A trava da conexão: quem escreve nela fora deste store escreve sob ela.
+
+        A conexão é uma por processo, em autocommit. Um INSERT de outra thread
+        que caísse entre o `BEGIN IMMEDIATE` e o `COMMIT` de um lote entraria
+        no lote. É a trava mais interna: quem a segura só roda SQL, e o kernel
+        a pede já com a dele (`_lock_sincronizacao`), nunca o contrário.
+        """
+        return self._lock
+
+    @property
     def caminho_banco(self) -> str:
         """Caminho do arquivo SQLite em uso por este repositório."""
         return self._caminho_banco

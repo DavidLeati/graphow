@@ -65,9 +65,9 @@ class LockStoreEmMemoria(RepositorioLocks):
 class LockStoreSQLite(RepositorioLocks):
     """Coordenação de locks compartilhada entre processos pelo mesmo arquivo SQLite."""
 
-    def __init__(self, conexao: sqlite3.Connection) -> None:
+    def __init__(self, conexao: sqlite3.Connection, *, trava: "threading.RLock | None" = None) -> None:
         self._conexao: sqlite3.Connection = conexao
-        self._lock: threading.RLock = threading.RLock()
+        self._lock: threading.RLock = trava if trava is not None else threading.RLock()
         self._configurar_schema()
 
     def _configurar_schema(self) -> None:

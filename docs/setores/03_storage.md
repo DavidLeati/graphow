@@ -10,11 +10,11 @@ Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões d
 
 ## Inventário
 
-13 módulos · 1746 linhas · 38 classes
+13 módulos · 1766 linhas · 38 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
-| [`storage/composicao.py`](#storagecomposicao) | 54 | Fábricas que montam o conjunto de repositórios usado pelo kernel. |
+| [`storage/composicao.py`](#storagecomposicao) | 58 | Fábricas que montam o conjunto de repositórios usado pelo kernel. |
 | [`storage/in_memory_store.py`](#storageinmemorystore) | 80 | Implementação em memória do repositório de eventos append-only. |
 | [`storage/instantaneos.py`](#storageinstantaneos) | 126 | Instantâneos da projeção guardados junto do log, para a abertura não refazer o replay inteiro. |
 | [`storage/interfaces.py`](#storageinterfaces) | 88 | Interfaces abstratas de contrato para persistência de eventos e locks. |
@@ -24,8 +24,8 @@ Repositórios de eventos, locks, linhagem de ramos e a telemetria das sessões d
 | [`storage/migrador_banco.py`](#storagemigradorbanco) | 134 | Migração segura do banco de eventos entre localizações, preservando o WAL. |
 | [`storage/reparo_sequencia.py`](#storagereparosequencia) | 236 | Diagnóstico e reparo de sequências duplicadas no log de eventos. |
 | [`storage/repositorio_com_linhagem.py`](#storagerepositoriocomlinhagem) | 89 | Repositório de eventos que compõe a leitura de um ramo com a herança do pai. |
-| [`storage/sqlite_store.py`](#storagesqlitestore) | 261 | Implementação SQLite append-only do repositório de eventos. |
-| [`storage/telemetria_de_sessoes.py`](#storagetelemetriadesessoes) | 221 | A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela própria do banco. |
+| [`storage/sqlite_store.py`](#storagesqlitestore) | 272 | Implementação SQLite append-only do repositório de eventos. |
+| [`storage/telemetria_de_sessoes.py`](#storagetelemetriadesessoes) | 226 | A telemetria das sessões `claude -p` que o orquestrador roda, numa tabela própria do banco. |
 
 ## `storage/composicao.py`
 
@@ -40,7 +40,7 @@ Fábricas que montam o conjunto de repositórios usado pelo kernel.
 ### Funções do módulo
 
 - `montar_repositorios_em_memoria() -> ConjuntoRepositorios` — Monta o conjunto efêmero, com linhagem de ramos resolvida na leitura.
-- `montar_repositorios_sqlite(store: SQLiteEventStore) -> ConjuntoRepositorios` — Monta o conjunto persistente sobre um arquivo SQLite já aberto.
+- `montar_repositorios_sqlite(store: SQLiteEventStore) -> ConjuntoRepositorios` — Monta o conjunto persistente sobre um arquivo SQLite já aberto, todos sob a trava da conexão.
 - `abrir_repositorios_sqlite(caminho_banco: str | Path) -> tuple[SQLiteEventStore, ConjuntoRepositorios]` — Abre o arquivo e devolve o store cru junto do conjunto composto.
 
 ## `storage/in_memory_store.py`
@@ -389,6 +389,7 @@ Implementação SQLite append-only do repositório de eventos.
 *serviço* — Armazenamento persistente local-first em SQLite para eventos append-only.
 
 - `conexao() -> sqlite3.Connection` `[property]` — Conexão compartilhada, para adaptadores que residem no mesmo arquivo.
+- `trava() -> threading.RLock` `[property]` — A trava da conexão: quem escreve nela fora deste store escreve sob ela.
 - `caminho_banco() -> str` `[property]` — Caminho do arquivo SQLite em uso por este repositório.
 - `append_evento(evento: EventoLog) -> None` — Insere o evento de forma append-only no banco SQLite.
 - `append_eventos(eventos: Sequence[EventoLog]) -> None` — Insere o lote inteiro em uma única transação: ou todos, ou nenhum.
