@@ -32,6 +32,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from graphow.core import aceite as a
+from graphow.core.types import TipoAresta, TipoNo
 from graphow.orquestrador import modelo_do_goal as m
 from graphow.orquestrador.base_que_andou import base_andou, rebasear_o_goal
 from graphow.orquestrador.cancelamento_tardio import anotar_o_cancelamento_tardio
@@ -239,14 +240,33 @@ def _cancelado_depois_da_leitura(contexto: ContextoDoGoal) -> Parada | None:
 
 
 def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
-    """Fecha o Goal e tira a área de trabalho e a salvaguarda do repositório do humano, que já cumpriram o papel.
-
-    A salvaguarda só serve enquanto uma parada ou uma Note do Goal pode citá-la para recuperar (ou ver) o de antes de uma
-    sessão; com o Goal fechado, o laço não roda mais, e a pasta sai (orquestrador/salvaguarda_do_humano.py).
-    """
+    """Fecha o Goal e tira a área de trabalho, que já cumpriu o papel, e a salvaguarda do repositório do humano, salvo a que
+    uma Note de perda cita (`_sobra_da_salvaguarda`)."""
     contexto.livro.fechar(integrado)
+    sobra = ("" if remover_area(contexto.area) else f" A area {contexto.area} ficou no disco (o git nao a removeu).")
+    return Parada(contexto.id_goal, MotivoDaParada.FECHADO,
+                  f"Goal fechado: {contexto.configuracao.base} em {integrado[:12]}.{sobra}{_sobra_da_salvaguarda(contexto)}")
+
+
+def _sobra_da_salvaguarda(contexto: ContextoDoGoal) -> str:
+    """O que a mensagem do fechamento diz da salvaguarda: a que uma Note de perda cita fica, e a mensagem diz onde; a outra
+    sai, e só vai na mensagem se o disco a segurar.
+
+    A salvaguarda serve enquanto uma parada ou uma Note do Goal pode citá-la para recuperar (ou ver) o de antes de uma
+    sessão. A perda para o laço em FALHA, e a parada sugere rodar de novo; o Goal que então fecha não pode levar a pasta
+    que o `recuperar` da Note usa, porque o humano pode não ter recuperado ainda. Ela fica, a mensagem diz onde, e o humano
+    a apaga quando quiser (orquestrador/salvaguarda_do_humano.py).
+    """
     salvaguarda = contexto.pasta / PASTA_DA_SALVAGUARDA
-    removida, sem_salvaguarda = remover_area(contexto.area), remover_area(salvaguarda)
-    sobra = ("" if removida else f" A area {contexto.area} ficou no disco (o git nao a removeu).") + (
-        "" if sem_salvaguarda else f" A salvaguarda {salvaguarda} ficou no disco.")
-    return Parada(contexto.id_goal, MotivoDaParada.FECHADO, f"Goal fechado: {contexto.configuracao.base} em {integrado[:12]}.{sobra}")
+    if not _perda_que_cita_a_salvaguarda(contexto):
+        return "" if remover_area(salvaguarda) else f" A salvaguarda {salvaguarda} ficou no disco."
+    return (f" A salvaguarda {salvaguarda} fica no disco: a Note da perda no repositorio do humano a cita para recuperar o "
+            "trabalho. Apague a pasta quando quiser.") if salvaguarda.is_dir() else ""
+
+
+def _perda_que_cita_a_salvaguarda(contexto: ContextoDoGoal) -> bool:
+    """O Goal tem uma Note `repositorio_do_humano_mexido` com perda e com a pasta da salvaguarda (`guardada_em`)."""
+    view, sessao = contexto.livro.view(), contexto.livro.id_sessao
+    notas = (view.obter_no(saida.destino_id) for saida in view.obter_arestas_saida(sessao, TipoAresta.PRODUZ))
+    return any(nota is not None and nota.tipo == TipoNo.NOTE and nota.obter_propriedade("acao") == m.ACAO_DO_HUMANO_MEXIDO
+               and nota.obter_propriedade("perdas") and nota.obter_propriedade("guardada_em") for nota in notas)

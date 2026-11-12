@@ -1,5 +1,5 @@
 """T3a7, item 3: a salvaguarda fica fora do repositório do humano e a recuperação sobrevive ao `git gc --prune=now`; T3a9,
-itens 2 e 3: o avanço aponta para ela, e ela sai quando o Goal fecha."""
+itens 2 e 3: o avanço aponta para ela, e ela sai quando o Goal fecha; T3a11, item 2: a que uma Note de perda cita fica."""
 
 import base64
 import os
@@ -193,3 +193,28 @@ def test_goal_que_fecha_apaga_a_salvaguarda_e_o_que_para_em_falha_a_deixa_edge_c
         return
     assert parada.motivo == MotivoDaParada.FALHA and f"em {pasta}:" in parada.mensagem, parada.mensagem
     assert (pasta / "HEAD").is_file() and not rascunho.exists()
+
+
+def test_goal_que_fecha_depois_da_falha_com_perda_deixa_a_salvaguarda_citada_edge_case(tmp_path: Path) -> None:
+    """T3a11.2 (S6): a sessão do executor apaga o não rastreado, e o laço para em FALHA citando a salvaguarda. Rodado de novo,
+    como a parada sugere, o Goal fecha sem o clone; a pasta que a Note da perda cita fica, a mensagem diz onde, e o
+    `recuperar` da Note devolve o arquivo depois do fechamento."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    rascunho, pasta = bancada.repositorio / "rascunho.txt", bancada.raiz / "estado" / "goal-soma" / "salvaguarda-do-humano"
+    rascunho.write_bytes(RASCUNHO)
+    apagar = [[sys.executable, "-c", f"import os; os.remove(r'{rascunho}')"]]
+    roteiro["executor"].insert(0, executor_pronto(dict(TUDO), comandos=apagar))
+    bancada.trocar_roteiro(roteiro)
+    primeira = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+    assert primeira.motivo == MotivoDaParada.FALHA and f"em {pasta}:" in primeira.mensagem, primeira.mensagem
+    (nota,) = _notas_do_humano(bancada)
+
+    segunda = bancada.orquestrador().iniciar_da_spec(bancada.spec, bancada.repositorio, AUTONOMO)
+
+    assert segunda.fechou and (pasta / "HEAD").is_file() and not (pasta.parent / "area").exists(), segunda.mensagem
+    assert f"A salvaguarda {pasta} fica no disco" in segunda.mensagem and "Apague a pasta quando quiser" in segunda.mensagem
+    assert nota.obter_propriedade("guardada_em") == str(pasta) and not rascunho.exists()
+    for comando in nota.obter_propriedade("recuperar"):
+        subprocess.run(comando, shell=True, check=True, capture_output=True)
+    assert rascunho.read_bytes() == RASCUNHO
