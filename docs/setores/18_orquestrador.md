@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-76 módulos · 14571 linhas · 113 classes
+76 módulos · 14583 linhas · 113 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -72,7 +72,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
-| [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 155 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
+| [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 157 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
 | [`orquestrador/sed_e_awk.py`](#orquestradorsedeawk) | 45 | Quando o `sed` e o `awk` rodam comando: a trava os trata como texto que ela não lê (orquestrador/git_no_comando.py). |
 | [`orquestrador/segunda_opiniao.py`](#orquestradorsegundaopiniao) | 86 | A segunda opinião sobre o achado que uma opinião só rebaixaria: rebaixá-lo a acompanhamento exige que dois concordem. |
 | [`orquestrador/sessoes_de_papel.py`](#orquestradorsessoesdepapel) | 400 | A sessão de cada papel: o pedido com o prompt e o schema, a saída conferida e a telemetria. |
@@ -85,7 +85,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/trava_do_goal.py`](#orquestradortravadogoal) | 309 | Um orquestrador por Goal: a trava que impede duas execuções de `graphow orquestrar` no mesmo Goal. |
 | [`orquestrador/trechos_do_rebase.py`](#orquestradortrechosdorebase) | 137 | Os trechos de um arquivo em conflito em que a fatia aberta pelo rebase tira o que a base nova trouxe (revisão da T3g5). |
 | [`orquestrador/validacao_json.py`](#orquestradorvalidacaojson) | 83 | Validação de um valor JSON contra o subconjunto de JSON Schema que os papéis usam. |
-| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 272 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
+| [`orquestrador/verificacao_do_goal.py`](#orquestradorverificacaodogoal) | 282 | O fim de cada marco: a verificação dele, as fatias de correção e, no último, o fechamento do Goal. |
 | [`orquestrador/verificacao_do_marco.py`](#orquestradorverificacaodomarco) | 283 | A verificação de um marco: uma sessão nova do verificador, a suíte que o orquestrador roda e o registro no livro-razão. |
 | [`orquestrador/vermelho_do_rebase.py`](#orquestradorvermelhodorebase) | 71 | O que fica vermelho depois do rebase: a suíte do plano e os testes de aceite, na configuração entregue. |
 | [`orquestrador/vermelho_do_refeito.py`](#orquestradorvermelhodorefeito) | 94 | O teste de aceite refeito só vale se falhar contra o código de antes da implementação. |

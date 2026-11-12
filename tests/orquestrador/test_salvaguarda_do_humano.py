@@ -1,5 +1,6 @@
 """T3a7, item 3: a salvaguarda fica fora do repositório do humano e a recuperação sobrevive ao `git gc --prune=now`; T3a9,
-itens 2 e 3: o avanço aponta para ela, e ela sai quando o Goal fecha; T3a11, item 2: a que uma Note de perda cita fica."""
+itens 2 e 3: o avanço aponta para ela, e ela sai quando o Goal fecha; T3a11, item 2: a que uma Note de perda cita fica;
+T3a14: a que uma Note de avanço cita com o que mostrar também fica."""
 
 import base64
 import os
@@ -218,3 +219,47 @@ def test_goal_que_fecha_depois_da_falha_com_perda_deixa_a_salvaguarda_citada_edg
     for comando in nota.obter_propriedade("recuperar"):
         subprocess.run(comando, shell=True, check=True, capture_output=True)
     assert rascunho.read_bytes() == RASCUNHO
+
+
+def test_goal_que_fecha_com_avanco_que_cita_a_salvaguarda_deixa_a_pasta_edge_case(tmp_path: Path) -> None:
+    """T3a14.1 (A5): a sessão do executor faz `checkout -- .` no humano e retoca NOTAS.txt. É avanço, o laço segue e o Goal
+    fecha no mesmo `iniciar`; a pasta que a Note do avanço cita fica, a mensagem diz onde, e o `ver_o_de_antes` da Note
+    devolve o trabalho do humano depois do fechamento."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    h, pasta = bancada.repositorio, bancada.raiz / "estado" / "goal-soma" / "salvaguarda-do-humano"
+    (h / "NOTAS.txt").write_text("notas\n", encoding="utf-8", newline="\n")
+    git(h, "add", "NOTAS.txt")
+    git(h, "commit", "-q", "-m", "Notas do humano")
+    (h / "NOTAS.txt").write_text(TRABALHO, encoding="utf-8", newline="\n")
+    roteiro["executor"][0] = executor_pronto(dict(TUDO), comandos=[[sys.executable, "-c", _retoca(h, "NOTAS.txt")]])
+    bancada.trocar_roteiro(roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, h, AUTONOMO)
+
+    assert parada.fechou and (pasta / "HEAD").is_file() and not (pasta.parent / "area").exists(), parada.mensagem
+    assert f"A salvaguarda {pasta} fica no disco: a Note do avanco" in parada.mensagem, parada.mensagem
+    assert "Apague a pasta quando quiser" in parada.mensagem
+    (avanco,) = _notas_do_humano(bancada, "repositorio_do_humano_avancou")
+    (comando,) = avanco.obter_propriedade("ver_o_de_antes")
+    assert avanco.obter_propriedade("guardada_em") == str(pasta) and _notas_do_humano(bancada) == []
+    assert subprocess.run(comando, shell=True, capture_output=True, check=True).stdout == TRABALHO.encode("utf-8")
+
+
+def test_goal_que_fecha_com_avanco_sem_o_que_mostrar_apaga_a_salvaguarda_edge_case(tmp_path: Path) -> None:
+    """T3a14.2: com um não rastreado no humano (a pasta existe), a sessão do executor só cria um arquivo novo ali. É avanço
+    sem conteúdo de antes para mostrar: a Note não cita nada que more na pasta, e o Goal que fecha a apaga, como na T3a9.4."""
+    roteiro = roteiro_farto()
+    bancada = montar_bancada(tmp_path, roteiro)
+    h, pasta = bancada.repositorio, bancada.raiz / "estado" / "goal-soma" / "salvaguarda-do-humano"
+    (h / "rascunho.txt").write_bytes(RASCUNHO)
+    criar = [[sys.executable, "-c", f"open(r'{h / 'novo.txt'}', 'w').write('novo')"]]
+    roteiro["executor"][0] = executor_pronto(dict(TUDO), comandos=criar)
+    bancada.trocar_roteiro(roteiro)
+
+    parada = bancada.orquestrador().iniciar_da_spec(bancada.spec, h, AUTONOMO)
+
+    assert parada.fechou and not pasta.exists() and "salvaguarda" not in parada.mensagem, parada.mensagem
+    (avanco,) = _notas_do_humano(bancada, "repositorio_do_humano_avancou")
+    assert avanco.obter_propriedade("ver_o_de_antes") == [] and avanco.obter_propriedade("guardada_em") == str(pasta)
+    assert (h / "rascunho.txt").read_bytes() == RASCUNHO and (h / "novo.txt").read_text(encoding="utf-8") == "novo"

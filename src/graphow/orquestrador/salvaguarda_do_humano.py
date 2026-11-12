@@ -22,11 +22,13 @@ A recuperação traz os objetos ao humano com `git fetch` da pasta, pelo hash,
 e então roda o `stash apply` e o `restore --source`. Os três são git puro,
 sem variável de ambiente nem redireção, e valem no Git Bash, no PowerShell e
 no cmd. A pasta não é apagada quando o laço para, nem em FALHA: só quando o
-Goal fecha (orquestrador/verificacao_do_goal.py), e não se uma Note de perda
-a cita; essa fica para o `recuperar` dela, e o humano a apaga quando quiser.
-O conteúdo de antes de um arquivo que a sessão mudou sem perda (o avanço) se
-vê sem tocar no humano, com `git -C <pasta> show <hash>:<caminho>`
-(`comandos_para_ver`).
+Goal fecha (orquestrador/verificacao_do_goal.py), e não se uma Note do Goal
+ainda a cita: a da perda, para o `recuperar` dela, e a do avanço que tem o
+que mostrar. Essa fica, e o humano a apaga quando quiser. O conteúdo de antes
+de um arquivo que a sessão mudou sem perda (o avanço) se vê sem tocar no
+humano, com `git -C <pasta> show <hash>:<caminho>` (`comandos_para_ver`). O
+`checkout -- .` seguido de um retoque é avanço, e ali a pasta é a única cópia
+do trabalho que saiu.
 """
 
 from collections.abc import Mapping, Sequence

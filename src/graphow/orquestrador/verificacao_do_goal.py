@@ -241,7 +241,7 @@ def _cancelado_depois_da_leitura(contexto: ContextoDoGoal) -> Parada | None:
 
 def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
     """Fecha o Goal e tira a área de trabalho, que já cumpriu o papel, e a salvaguarda do repositório do humano, salvo a que
-    uma Note de perda cita (`_sobra_da_salvaguarda`)."""
+    uma Note do Goal ainda cita (`_sobra_da_salvaguarda`)."""
     contexto.livro.fechar(integrado)
     sobra = ("" if remover_area(contexto.area) else f" A area {contexto.area} ficou no disco (o git nao a removeu).")
     return Parada(contexto.id_goal, MotivoDaParada.FECHADO,
@@ -249,24 +249,34 @@ def _fechar_integrado(contexto: ContextoDoGoal, integrado: str) -> Parada:
 
 
 def _sobra_da_salvaguarda(contexto: ContextoDoGoal) -> str:
-    """O que a mensagem do fechamento diz da salvaguarda: a que uma Note de perda cita fica, e a mensagem diz onde; a outra
-    sai, e só vai na mensagem se o disco a segurar.
+    """O que a mensagem do fechamento diz da salvaguarda: a que uma Note do Goal ainda cita fica, e a mensagem diz onde e por
+    quê; a outra sai, e só vai na mensagem se o disco a segurar.
 
     A salvaguarda serve enquanto uma parada ou uma Note do Goal pode citá-la para recuperar (ou ver) o de antes de uma
     sessão. A perda para o laço em FALHA, e a parada sugere rodar de novo; o Goal que então fecha não pode levar a pasta
-    que o `recuperar` da Note usa, porque o humano pode não ter recuperado ainda. Ela fica, a mensagem diz onde, e o humano
-    a apaga quando quiser (orquestrador/salvaguarda_do_humano.py).
+    que o `recuperar` da Note usa, porque o humano pode não ter recuperado ainda. O avanço não para o laço, e o Goal fecha
+    na mesma chamada: o `checkout -- .` seguido de um retoque é avanço, e a pasta que o `ver_o_de_antes` da Note cita é a
+    única cópia do trabalho que saiu. Nos dois casos ela fica, a mensagem diz onde, e o humano a apaga quando quiser
+    (orquestrador/salvaguarda_do_humano.py).
     """
     salvaguarda = contexto.pasta / PASTA_DA_SALVAGUARDA
-    if not _perda_que_cita_a_salvaguarda(contexto):
+    citada = _o_que_cita_a_salvaguarda(contexto)
+    if not citada:
         return "" if remover_area(salvaguarda) else f" A salvaguarda {salvaguarda} ficou no disco."
-    return (f" A salvaguarda {salvaguarda} fica no disco: a Note da perda no repositorio do humano a cita para recuperar o "
-            "trabalho. Apague a pasta quando quiser.") if salvaguarda.is_dir() else ""
+    return f" A salvaguarda {salvaguarda} fica no disco: {citada}. Apague a pasta quando quiser." if salvaguarda.is_dir() else ""
 
 
-def _perda_que_cita_a_salvaguarda(contexto: ContextoDoGoal) -> bool:
-    """O Goal tem uma Note `repositorio_do_humano_mexido` com perda e com a pasta da salvaguarda (`guardada_em`)."""
+def _o_que_cita_a_salvaguarda(contexto: ContextoDoGoal) -> str:
+    """Por que a pasta da salvaguarda fica: uma Note do Goal a cita (`guardada_em`) com a perda, que o `recuperar` dela
+    devolve, ou com o conteúdo de antes do que avançou, que o `ver_o_de_antes` dela mostra; vazio quando nenhuma a cita.
+
+    A Note do avanço sem o que mostrar (arquivo novo, ref nova, troca de HEAD) não segura a pasta.
+    """
     view, sessao = contexto.livro.view(), contexto.livro.id_sessao
-    notas = (view.obter_no(saida.destino_id) for saida in view.obter_arestas_saida(sessao, TipoAresta.PRODUZ))
-    return any(nota is not None and nota.tipo == TipoNo.NOTE and nota.obter_propriedade("acao") == m.ACAO_DO_HUMANO_MEXIDO
-               and nota.obter_propriedade("perdas") and nota.obter_propriedade("guardada_em") for nota in notas)
+    produzidos = (view.obter_no(saida.destino_id) for saida in view.obter_arestas_saida(sessao, TipoAresta.PRODUZ))
+    notas = [no for no in produzidos if no is not None and no.tipo == TipoNo.NOTE and no.obter_propriedade("guardada_em")]
+    if any(nota.obter_propriedade("acao") == m.ACAO_DO_HUMANO_MEXIDO and nota.obter_propriedade("perdas") for nota in notas):
+        return "a Note da perda no repositorio do humano a cita para recuperar o trabalho"
+    if any(nota.obter_propriedade("acao") == m.ACAO_DO_HUMANO_QUE_AVANCOU and nota.obter_propriedade("ver_o_de_antes") for nota in notas):
+        return "a Note do avanco no repositorio do humano a cita para ver o conteudo de antes do que mudou"
+    return ""
