@@ -1152,18 +1152,22 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    commit que o humano fez nela depois da verificação impede o fechamento. No
    modo autônomo, o orquestrador integra por fast-forward na base e fecha. No
    supervisionado, para com "pronto para integrar", e a chamada seguinte vê a
-   branch integrada e fecha. A integração leva a base ao commit que a
-   verificação final viu, e não ao que o nome da branch aponta
-   (`orquestrador/refs_do_humano.py`): `git update-ref <base> <verificado>
-   <antigo>`, que o git recusa se a base andou no meio. A base aberta no
-   checkout do humano avança pelo `merge --ff-only` dele, e a que está
-   aberta em outro worktree não se move.
+   branch integrada e fecha. A integração leva a base a um commit dado, e não
+   ao que o nome da branch aponta (`orquestrador/refs_do_humano.py`): a ponta
+   do clone para a qual a verificação final limpa vale. Essa ponta pode vir
+   depois do commit verificado, quando o commit seguinte só registrou as
+   pendências no documento do Goal ou quando o rebase a refez sem mudar
+   arquivo de critério. O comando é `git update-ref <base> <ponta> <antigo>`,
+   que o git recusa se a base andou no meio. A base aberta no checkout do
+   humano avança pelo `merge --ff-only` dele, e a que está aberta em outro
+   worktree não se move.
 
    Se a base andou desde que a branch do Goal saiu dela, não há
    fast-forward. O orquestrador faz o rebase da branch sobre a base nova, no
    clone (cada commit vira um novo, com a mesma mensagem e os trailers), e
    roda a suíte e, com ela verde, os testes de aceite de todos os critérios,
-   na configuração entregue. Verde, o rebase vai ao livro-razão antes de as
+   na configuração entregue. A suíte roda na ponta refeita, e não em cada
+   commit refeito. Verde, o rebase vai ao livro-razão antes de as
    refs andarem: uma `Evidence` `rebase_do_goal` com as duas bases, as duas
    pontas e o commit novo de cada antigo e de cada fatia; as fatias e os
    `Artifact` passam a apontar para o commit novo. Se o rebase não mudou
@@ -1263,9 +1267,12 @@ par de commits). São quatro respostas:
   agentes do MCP.
 
 A marca aparece no `--status`, no `--rastro`, na vista do MCP e no canvas. No
-briefing da conferência e no da fatia de correção, o que veio de uma
-verificação que não vale mais na ponta chega como histórico, e não como fato
-vigente. Depois de um rebase a comparação é entre as árvores: o commit
+briefing da conferência, os pareceres de uma verificação que não vale mais na
+ponta chegam como histórico, e não como fato vigente. A fatia de correção de
+uma falha que voltou recebe, com o mesmo aviso, a verificação que reprovou a
+correção anterior. O `Achado` aberto segue no briefing com a prova de quando
+nasceu: quem diz se ele ainda vale é o estado dele, e não a conferência.
+Depois de um rebase a comparação é entre as árvores: o commit
 verificado sai da história da branch sem que o conteúdo tenha mudado, e a
 marca fica `vigente`, com o aviso "commit fora da branch".
 
@@ -1320,15 +1327,17 @@ fase 1; o hook e a foto, da fase 3:
   apagada volta e os hooks saem. A sessão não é reprovada por isso: o que foi
   desfeito vira observação.
 - **A foto do repositório do humano** (`orquestrador/foto_do_humano.py`) é a
-  camada que não depende do texto do comando: pega o script que não cita git
-  e o `git -C <repositório do humano>`, que escapam das outras quatro. Antes
-  de cada sessão, o orquestrador fotografa o repositório de onde o clone saiu
-  (o HEAD, o status, as refs, o índice e os arquivos que mudam o que o git
-  roda) e guarda fora dele, numa pasta do estado do Goal, o que a sessão
-  poderia apagar: as mudanças rastreadas e os arquivos não rastreados
-  (`orquestrador/salvaguarda_do_humano.py`). A foto vale até o fim do código
-  do agente que o orquestrador roda fora da sessão, a suíte e os testes de
-  aceite; esse intervalo é a janela da foto
+  camada que não depende do texto do comando. O script que o agente grava e
+  roda com `bash x.sh` não cita git, e um `git -C <humano> checkout -- .`
+  dentro dele apaga trabalho não commitado no repositório do humano, fora do
+  clone, onde a restauração não chega. Digitado no Bash, o mesmo comando é
+  recusado pelo hook. Antes de cada sessão, o orquestrador fotografa o
+  repositório de onde o clone saiu (o HEAD, o status, as refs, o índice e os
+  arquivos que mudam o que o git roda) e guarda fora dele, numa pasta do
+  estado do Goal, o que a sessão poderia apagar: as mudanças rastreadas e os
+  arquivos não rastreados (`orquestrador/salvaguarda_do_humano.py`). A foto
+  vale até o fim do código do agente que o orquestrador roda fora da sessão,
+  a suíte e os testes de aceite; esse intervalo é a janela da foto
   (`orquestrador/janela_do_humano.py`). No fim da janela, a conferência
   separa a perda do avanço (`orquestrador/conferencia_do_humano.py`). A
   perda para o laço em falha, com o motivo `repositorio_do_humano_mexido` e
@@ -1354,9 +1363,10 @@ O que fica de fora:
 
 - O hook não lê o git chamado por interpretador (`python -c`, `node -e`), por
   script em arquivo, por `make` ou por um teste, nem o dano sem git
-  (`rm -rf .git`). Para eles ficam a restauração do clone e a foto. E ele
-  erra para a recusa: o comando do PowerShell com a palavra git no texto é
-  recusado mesmo sem chamar o git.
+  (`rm -rf .git`). Para eles ficam as outras camadas: o ambiente da sessão,
+  que aborta a atualização de ref também no git que um script chama, a
+  restauração do clone e a foto. E ele erra para a recusa: o comando do
+  PowerShell com a palavra git no texto é recusado mesmo sem chamar o git.
 - O que só dispara com intenção de burlar, ou com duas falhas independentes
   na mesma janela, não ganha código. São casos conhecidos: a sessão que forja
   ou apaga a gravação da janela aberta e derruba o orquestrador; o arquivo
@@ -1380,8 +1390,8 @@ O que fica de fora:
 | O aceite prova o que diz | O teste de aceite roda da cópia do commit do aceite, sem arquivo solto do executor, com a configuração de teste entregue e, quando ela mudou, também com a do commit do aceite (o teste que só passa com a entregue reprova o critério quando, com a do commit do aceite, falha numa asserção; quando falha por import ou coleta, o verificador deve um parecer `legitima` ou `ilegitima`), e conta como verde só quando a saída do runner diz que passou sem pular; o kernel recusa toda reescrita do livro do aceite (a verificação, o `Achado`, o `Criterio`, a ponta, o fechamento) |
 | O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal, só por fast-forward; o rebase e a integração, cada ref só se ainda estiver no commit de antes). Dentro do clone valem as cinco camadas da trava do git, do hook PreToolUse à foto do repositório do humano, descritas acima com o que elas não cobrem. Nada fora do clone é desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou, e a perda de trabalho nele para o laço. Uma sonda real mostrou que `git -C . commit` passava pela regra de ferramenta sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook de ambiente; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
 | Uma execução por Goal | A trava `orquestrar.trava` na pasta de estado do Goal (`orquestrador/trava_do_goal.py`): a segunda chamada para em `ocupado`, e a trava de um processo que morreu é liberada na chamada seguinte |
-| O histórico compila commit a commit | Só a fatia muda código, e só com a suíte verde. O commit que pode deixar a suíte vermelha leva `Graphow-Aceite: vermelho`, e a medida `historico` da bancada roda a suíte em cada commit da entrega e conta os verdes, os vermelhos esperados e os inesperados |
-| O fato sobre código não envelhece em silêncio | A `Evidence` do orquestrador guarda o commit e os arquivos que afirma, e cada leitura a confere contra a ponta da branch do Goal: a que não vale mais sai marcada, e o briefing não a entrega como fato vigente |
+| O histórico verde commit a commit se mede | Só a fatia muda código, e só com a suíte verde, e o commit que pode deixar a suíte vermelha leva `Graphow-Aceite: vermelho`. O rebase sobre a base que andou refaz cada commit e roda a suíte só na ponta nova: um commit refeito no meio pode ficar vermelho sem o trailer. Por isso a medida `historico` da bancada confere de fora, com a suíte em cada commit da entrega, e conta os verdes, os vermelhos esperados e os inesperados |
+| O fato sobre código não envelhece em silêncio | A `Evidence` do orquestrador guarda o commit e os arquivos que afirma, e cada leitura a confere contra a ponta da branch do Goal: a que não vale mais sai marcada, e o briefing da conferência entrega os pareceres dela como histórico |
 | A entrega é rastreável critério a critério | O `--rastro` e a rota `/api/rastro` ligam cada critério aos testes de aceite, aos commits das fatias, à verificação que o atestou e aos achados |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |

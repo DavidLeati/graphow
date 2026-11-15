@@ -221,7 +221,7 @@ só do humano é decidido por uma política, em dois níveis (global e por proje
 e a política mora no grafo, para o replay do log dar o mesmo veredito: o kernel
 decide só pelo estado.
 
-### 5.1 Os Dezesseis Gestos
+### 5.1 Os Quinze Gestos
 
 Valores aceitos e o que cada preset fixo vale (`governanca_maxima` /
 `arbitragem_maxima`). `humano` significa que só o humano faz o gesto; `arbitro`,
