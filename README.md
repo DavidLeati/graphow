@@ -9,9 +9,9 @@
 
 O **Graphow** é uma plataforma de estado compartilhado (*common ground*) que atua como substrato bilateral para coordenação estruturada entre pessoas e agentes autônomos de Inteligência Artificial.
 
-Desde a fase 1 da reestruturação, **quem coordena é código**: `graphow orquestrar` conduz um `Goal` num laço que planeja, escreve os testes de aceite, executa, verifica e fecha, e os LLMs entram só onde há julgamento, cada um numa sessão `claude -p` nova (o planejador, o autor de aceite, um executor por fatia, o revisor da fatia de risco e o verificador adversarial de cada marco). Desde a fase 2, **o aceite está no centro**: o que prova que o Goal está pronto é escrito antes da implementação, por quem não implementa, atacado por um verificador em contexto novo a cada marco, e o kernel recusa fechar o Goal sem essa prova no commit atual. Nenhum agente escreve no grafo: cada um devolve JSON validado por schema, e o orquestrador grava o livro-razão (com o papel `orquestrador`) e commita cada fatia numa branch do Goal. O grafo é o livro-razão da intenção do humano, das decisões e das verificações; o MCP fica para a sessão do humano, onde o gerente alinha a demanda.
+Desde a fase 1 da reestruturação, **quem coordena é código**: `graphow orquestrar` conduz um `Goal` num laço que planeja, escreve os testes de aceite, executa, verifica e fecha, e os LLMs entram só onde há julgamento, cada um numa sessão `claude -p` nova (o planejador, o autor de aceite, um executor por fatia, o revisor da fatia de risco e o verificador adversarial de cada marco). Desde a fase 2, **o aceite está no centro**: o que prova que o Goal está pronto é escrito antes da implementação, por quem não implementa, atacado por um verificador em contexto novo a cada marco, e o kernel recusa fechar o Goal sem essa prova no commit atual. Desde a fase 3, **o git é o estado do trabalho**: toda entrega é um `Artifact` com o commit, a `Evidence` sobre código guarda o commit em que o fato foi visto e é conferida a cada leitura, e a base que andou ganha o rebase do orquestrador antes do fast-forward. Nenhum agente escreve no grafo: cada um devolve JSON validado por schema, e o orquestrador grava o livro-razão (com o papel `orquestrador`) e commita cada fatia numa branch do Goal. O grafo é o livro-razão da intenção do humano, das decisões e das verificações; o MCP fica para a sessão do humano, onde o gerente alinha a demanda.
 
-O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a verificação confere a entrega contra os critérios de aceite (o critério de `checagem` é provado por uma lista que o verificador executa, e não por teste). A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, integração de ramos, colisões de migrations) entra como caso, quando a entrega é código.
+O trabalho coordenado não precisa ser software. O mesmo grafo serve a uma pesquisa, a um relatório, a uma análise, a um planejamento ou a uma operação: o `Goal` é a intenção, as `Task`s entregam documentos, dados ou código, a `Evidence` diz de onde veio cada fato (um trecho de arquivo, uma URL, uma reunião) e a verificação confere a entrega contra os critérios de aceite (o critério de `checagem` é provado por uma lista que o verificador executa, e não por teste). A tarefa que é um gesto no mundo, como enviar um e-mail ou marcar uma reunião, tem entrega própria (`acao_externa`), e a política de governança diz se ela é da pessoa ou do agente. O que é próprio de código (testes, `git diff`, o commit de cada fatia, o rebase sobre a base que andou) entra como caso, quando a entrega é código.
 
 A arquitetura do Graphow é fundamentada em quatro pilares inegociáveis:
 1. **O Log é a Verdade (*ActiveGraph*):** Event store *append-only* (SQLite local-first ou memória), com o tempo do log como único eixo temporal; o grafo é uma projeção puramente determinística e reconstruível do zero absoluto via *event replay*.
@@ -147,6 +147,8 @@ Toda mutação no grafo (seja humana ou de IA) é submetida via JSON Patch RFC 6
    - **Hierarquia Obrigatória:** Todo nó novo, exceto `Projeto`, termina o lote que o cria com uma aresta de contenção chegando nele (`contem`, `produz` ou `decompoe`). Vale para todo papel, humano incluído: o nó solto só aparecia na pasta "Fora da hierarquia" e sumia de qualquer visão colapsada. A regra lê o estado depois do lote, com remoções e cascata aplicadas (`kernel/estrutura_apos_lote.py`): criar a contenção e removê-la no mesmo lote não pendura nada, e um agente não solta da hierarquia um nó que já existia.
    - **Memória com Origem:** Todo `Aprendizado` novo termina o lote com ao menos uma aresta `deriva_de` partindo dele; sem ela o lote cai com `aprendizado_sem_origem`. Um agente também não tira a última origem de um `Aprendizado` existente. Memória sem origem é opinião com autoridade de memória.
    - **Leitura Localizada:** A `Evidence` do planejador, e qualquer `Evidence` que cite `linhas`, `local` ou `trecho`, carrega o ponteiro inteiro, numa de duas formas: `arquivo`, `linhas` (`120` ou `120-135`) e o `trecho` literal, que cabe na faixa; ou, quando o fato não mora num arquivo com linhas, `fonte` (URL, documento, conversa com data e participantes), `local` livre opcional (página, seção, minuto) e o `trecho` literal. Vale na criação e na edição; sem isso o lote cai com `evidencia_sem_localizacao`. Uma interpretação sem o trecho que a sustenta não ganha autoridade de fato registrado.
+   - **Fato sobre Código com Âncora:** A `Evidence` sobre código nasce com o `commit` em que o fato foi visto (40 caracteres hexadecimais, ou 64 no repositório sha256). É sobre código toda `Evidence` do papel `orquestrador` (a verificação, a revisão de risco, o rebase), que leva também os `arquivos` que afirma, e a de qualquer papel que cite `arquivo` e `linhas`; a lida num arquivo fora de repositório git ancora no `sha256` do conteúdo dele. Sem âncora o lote cai com `evidencia_sem_ancora`, e a ancorada não a perde. A gravada antes da regra segue editável e aparece na leitura como "sem âncora" (`kernel/ancora_da_evidencia.py`). Na auditoria de 10/10/2026, 8 de 10 `Evidence` de um dos projetos já não batiam com os arquivos 20 minutos depois, e o grafo não tinha como saber.
+   - **Entrega com Âncora:** O `Artifact` novo nasce com o `commit` que traz a entrega e os `arquivos` que o git diz que ele mudou ou, fora de repositório git, com o `sha256` do conteúdo do documento e o `caminho` dele. Sem nenhuma das duas formas o lote cai com `artifact_sem_ancora`, para qualquer papel. Fica isento só o `Artifact` cujos `deriva_de` vão todos a `Task` de ação externa, que não deixa conteúdo para trás (`kernel/ancora_do_artifact.py`).
    - **Detecção de Ciclos:** DFS iterativa impedindo ciclos em `depende_de`.
    - **Bloqueio por Dúvidas:** Impede que uma `Task` passe para `concluido` enquanto houver `Question` aberta com aresta `bloqueia`, inclusive a que o próprio lote cria. Responder e concluir seguem sendo dois lotes.
    - **Veredito para Concluir:** Um papel não humano só escreve `concluido` numa `Task` cujo veredito de revisão efetivo é `aprovado`, em todo preset; sem isso o lote cai com `fechamento_sem_veredito_aprovado`. Só conta o veredito de uma `Evidence` de `revisor`, `humano` ou `arbitro` (o executor não aprova a própria entrega); uma correção aprovada supera a rejeição que a motivou; e o aceite pelo teto de correções, uma `Decision` de `acao: aceite_apos_reprovacao` do planejador, do humano ou do árbitro, justificada pela `Evidence` do veredito vigente, é a outra porta. Ficam isentos o humano, o orquestrador (cujo Goal só fecha com a verificação do Goal limpa no commit atual) e as `Task`s de condensar a sessão e consolidar aprendizados, que o próprio grafo abre sem revisor (`kernel/veredito_de_fechamento.py`).
@@ -489,6 +491,9 @@ graphow bancada rodar --arquitetura orquestrar --projeto todos --saida ../bancad
 graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
 graphow bancada placar --saida ../bancada-saida
 
+# Rodar de novo a suíte em cada commit da branch que uma execução entregou (o rodar já mede isso no fim)
+graphow bancada historico --execucao ../bancada-saida/orquestrar-estoque-loja-20261011-153000
+
 # Medir de novo a linha de base da bancada a partir dos logs do laboratório
 graphow bancada medir-laboratorio --laboratorio ../graphow-lab
 
@@ -555,6 +560,7 @@ identidade.
 | Paleta (`Ctrl+P`) | Lista todo comando da interface, com o atalho de cada um (`?` mostra todos) |
 | Canvas | Clique direito em nó, aresta ou fundo abre o menu daquilo; duplo clique num contêiner o abre; duplo clique no fundo cria um nó naquele ponto |
 | Histórico | O dia no calendário filtra os eventos; cada evento volta o grafo até ele, em modo somente leitura |
+| Lateral direita, numa `Evidence` ou num `Criterio` | A `Evidence` sobre código abre com a conferência dela na ponta da branch do Goal: vigente, desatualizada com os arquivos que mudaram, sem âncora ou não conferida, com o motivo. O `Criterio` traz o bloco "Rastro": os testes que o provam, as fatias que o cobrem, a verificação que o julgou por último e os achados que o ferem |
 | Memória | Os aprendizados do ramo com origem, alcance e as marcas de substituído e contradito, promovidos ou não, e as sessões com o fechamento e o estado da condensação. Promover fica a um clique, e o menu de qualquer Decision, Evidence, Note, Artifact ou Task registra um aprendizado a partir dele |
 | Configurações (engrenagem da faixa de ícones, ou `Ctrl+P`) | A aba da governança: escopo Global ou projeto, os três presets em cartões, a tabela dos quinze gestos com o valor e a origem de cada um, as linhas sempre humanas, a operação do projeto (quando o gerente grava) e a auditoria do que o árbitro fez. O que o árbitro respondeu ou promoveu leva o selo "pelo árbitro", e o menu da `Task` libera a posse de outro autor |
 
@@ -574,7 +580,7 @@ relaxação, e uma sessão de mil nós saía com y na casa de 7e12. O arranjo te
 testes próprios em `tests/web/js`, rodados por `node --test` e chamados pela
 suíte do pytest quando há Node no PATH.
 
-Quatro leituras sustentam a moldura, todas resolvidas no servidor:
+Estas rotas sustentam a moldura, todas resolvidas no servidor:
 
 | Rota | Para quê |
 | :--- | :--- |
@@ -584,6 +590,7 @@ Quatro leituras sustentam a moldura, todas resolvidas no servidor:
 | `POST /api/nodes` com `contido_em` | Cria o contêiner e a aresta `contem` até o pai no mesmo lote: se o portão recusar a aresta, o nó também não entra |
 | `GET /api/memoria` | Os aprendizados e as sessões do ramo para o painel de memória, na mesma leitura do acervo de notas. `POST /api/memoria/aprendizados` e `POST /api/memoria/promocoes` recebem do humano o registro e a promoção, sob a identidade do servidor |
 | `GET /api/governanca`, `PUT /api/governanca/global`, `GET`/`PUT /api/projetos/<id>/governanca`, `GET /api/governanca/auditoria?limite=` | A política global e a do projeto (a configuração guardada, a política efetiva e a origem de cada gesto, mais o catálogo de gestos e presets lido da própria política), a escrita pelo humano e os eventos do árbitro. `POST /api/tarefas/<id>/liberar-posse` devolve a posse de uma tarefa |
+| `GET /api/rastro?goal=<id>` ou `?criterio=<id>` | O rastro de cada critério de um Goal, o mesmo dado do `graphow orquestrar --rastro`. Responde 400 sem alvo e 404 quando o Goal não existe ou o `Criterio` pedido é de outro Goal |
 
 ---
 
@@ -984,7 +991,10 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    contra os critérios dela. Nas outras fatias não há revisão. A revisão que
    rejeita vira `Achado` da revisão, com a gravidade do código. Aprovada, a
    fatia vira um commit na branch do Goal, com a mensagem que cita a fatia e os
-   critérios, e o commit vira `Artifact`.
+   critérios, e o commit vira `Artifact`: o hash, os arquivos que o git diz
+   que ele mudou e a ligação à fatia, que o trailer `Graphow-Task` repete do
+   lado do git. O arquivo que o executor declarou e o commit não traz vai
+   para a observação do `Artifact`.
 
    A configuração de teste (conftest sem esses hooks, pytest.ini, a seção de
    teste do pyproject e do setup.cfg, tox.ini, os scripts de teste do
@@ -1102,7 +1112,8 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    no commit atual vale como a verificação final. O tipo vai na verificação e
    no `--status`.
 
-   **Registro e correção.** A verificação vira `Evidence` ligada ao Goal, e
+   **Registro e correção.** A verificação vira `Evidence` ligada ao Goal, com
+   o commit verificado e os arquivos que a entrega mudou da base até ele, e
    cada achado um nó `Achado`, no mesmo lote do estado de cada `Criterio`
    julgado e das pendências. O commit das pendências leva só o documento do
    Goal. Os bloqueantes do ciclo viram uma fatia de correção só, que deriva de
@@ -1141,7 +1152,12 @@ e os sete subagentes saíram. No lugar, `graphow orquestrar` (`src/graphow/orque
    commit que o humano fez nela depois da verificação impede o fechamento. No
    modo autônomo, o orquestrador integra por fast-forward na base e fecha. No
    supervisionado, para com "pronto para integrar", e a chamada seguinte vê a
-   branch integrada e fecha.
+   branch integrada e fecha. A integração leva a base ao commit que a
+   verificação final viu, e não ao que o nome da branch aponta
+   (`orquestrador/refs_do_humano.py`): `git update-ref <base> <verificado>
+   <antigo>`, que o git recusa se a base andou no meio. A base aberta no
+   checkout do humano avança pelo `merge --ff-only` dele, e a que está
+   aberta em outro worktree não se move.
 
    Se a base andou desde que a branch do Goal saiu dela, não há
    fast-forward. O orquestrador faz o rebase da branch sobre a base nova, no
@@ -1224,12 +1240,149 @@ Goal fechar, abre outro, com sufixo (`goal-soma-2`) no slug, nas fatias e na
 branch. Toda falha de domínio (o git que recusa, o lote que o kernel recusa,
 o pedido que não dá para conduzir) vira parada com o motivo, nunca exceção.
 
+**O git é o estado do trabalho.** O que vale sobre o código mora no git: o
+livro-razão guarda o hash e confere na leitura. Toda entrega de fatia é um
+`Artifact` com o commit, toda `Evidence` do orquestrador diz em que commit o
+fato foi visto, e o kernel recusa as duas sem a âncora (`artifact_sem_ancora`,
+`evidencia_sem_ancora`). O agente não roda git de escrita, uma só chamada
+conduz cada Goal, e a base que andou ganha o rebase do orquestrador, de modo
+que a integração é sempre um fast-forward.
+
+**A `Evidence` é conferida na leitura.** A verificação, a revisão de risco e
+o rebase afirmam o que o código era num commit, e o código segue mudando
+depois deles. Quem lê uma dessas `Evidence` pergunta ao git se os arquivos
+que ela afirma mudaram entre o commit dela e a ponta da branch do Goal
+(`orquestrador/conferencia_da_evidencia.py`, um `git diff --name-only` por
+par de commits). São quatro respostas:
+
+- `vigente`: nenhum arquivo que ela afirma mudou;
+- `desatualizada`: algum mudou, e a marca diz quais;
+- `sem_ancora`: a `Evidence` gravada antes da regra, ou o commit que não
+  existe mais no repositório;
+- `nao_conferida`: não há repositório à mão, que é o caso da `Evidence` dos
+  agentes do MCP.
+
+A marca aparece no `--status`, no `--rastro`, na vista do MCP e no canvas. No
+briefing da conferência e no da fatia de correção, o que veio de uma
+verificação que não vale mais na ponta chega como histórico, e não como fato
+vigente. Depois de um rebase a comparação é entre as árvores: o commit
+verificado sai da história da branch sem que o conteúdo tenha mudado, e a
+marca fica `vigente`, com o aviso "commit fora da branch".
+
+**Rastro por critério.** `graphow orquestrar --goal X --rastro` responde a
+quatro perguntas sobre cada critério do plano (`orquestrador/rastro.py`): que
+testes de aceite o provam, e em que commit do aceite; que fatias o cobrem, as
+de correção inclusive, e em que commit cada uma entrou; que verificação o
+julgou por último, com o veredito, o commit e a marca da conferência dela na
+ponta; e que `Achado` o fere, com o estado. O critério que o humano retirou
+segue na lista, com a `Decision` e o motivo. O comando só lê, e a rota
+`/api/rastro` do canvas devolve o mesmo dado.
+
+**Um orquestrador por Goal.** Duas chamadas no mesmo Goal usariam juntas o
+mesmo clone, o mesmo livro-razão e a mesma branch. A chamada que conduz toma
+uma trava (`orquestrador/trava_do_goal.py`): o arquivo `orquestrar.trava` na
+pasta de estado do Goal, criado com `O_CREAT | O_EXCL`, com o PID, a máquina,
+o início e o comando de quem a tomou. A segunda chamada para em `ocupado`,
+com código de saída 3, e a mensagem diz quem está rodando e onde a trava
+fica. A trava de um PID que não existe mais nesta máquina é liberada com um
+aviso na chamada seguinte; como o PID pode ser de outro processo depois de
+um boot, ela guarda também a hora de criação do processo. A de outra máquina
+só o humano libera, apagando o arquivo, porque daqui não dá para saber se o
+processo de lá ainda roda. O `--status` e o `--rastro` não pedem a trava.
+
+**A trava do git.** O agente não escreve no git: quem commita é o
+orquestrador, no clone, depois da suíte. Na auditoria de 10/10/2026,
+executores commitaram por conta própria e duas entregas ficaram sem commit.
+São cinco camadas (`orquestrador/trava_do_git.py`). As três do meio vêm da
+fase 1; o hook e a foto, da fase 3:
+
+- **O hook PreToolUse** (`orquestrador/hook_do_git.py`), que cada sessão
+  recebe por `--settings`. O Claude Code o chama antes de cada comando Bash, e
+  ele lê o comando inteiro (`orquestrador/git_no_comando.py`): acha o git
+  depois de `&&`, `;` e `|`, em subshell, em `$(...)`, dentro de `bash -c` e
+  de `eval`, com prefixo de variável, atrás de `env`, `xargs` ou `timeout` e
+  pelo caminho absoluto do executável. Passam só as leituras
+  (`orquestrador/leituras_do_git.py`): `status`, `diff`, `log`, `show`,
+  `blame`, `ls-files`, `rev-parse`, `grep` e outras oito, mais o `branch` e o
+  `tag` que listam, `stash list`, `remote -v` e `config --get`. O resto sai
+  com código 2 e o motivo no stderr, que o agente lê como o motivo da recusa.
+  A tabela de `tests/orquestrador/test_hook_do_git.py` tem 176 comandos, 70
+  liberados e 106 recusados.
+- **As regras de ferramenta** (`--disallowedTools`) negam o git de escrita
+  pelo prefixo do comando. O disfarce escapa delas (`env git push`,
+  `/usr/bin/git commit`, `bash -c "git ..."`), e é o hook que o pega.
+- **O ambiente da sessão** aponta `core.hooksPath` para uma pasta com o hook
+  `reference-transaction`, que aborta toda atualização de ref, e o
+  `pre-push`.
+- **A restauração do clone.** Antes de cada sessão o orquestrador guarda as
+  refs e a configuração do clone; depois dela, o clone volta ao que era. O
+  commit que escapou volta à árvore com `reset --soft`, a ref criada some, a
+  apagada volta e os hooks saem. A sessão não é reprovada por isso: o que foi
+  desfeito vira observação.
+- **A foto do repositório do humano** (`orquestrador/foto_do_humano.py`) é a
+  camada que não depende do texto do comando: pega o script que não cita git
+  e o `git -C <repositório do humano>`, que escapam das outras quatro. Antes
+  de cada sessão, o orquestrador fotografa o repositório de onde o clone saiu
+  (o HEAD, o status, as refs, o índice e os arquivos que mudam o que o git
+  roda) e guarda fora dele, numa pasta do estado do Goal, o que a sessão
+  poderia apagar: as mudanças rastreadas e os arquivos não rastreados
+  (`orquestrador/salvaguarda_do_humano.py`). A foto vale até o fim do código
+  do agente que o orquestrador roda fora da sessão, a suíte e os testes de
+  aceite; esse intervalo é a janela da foto
+  (`orquestrador/janela_do_humano.py`). No fim da janela, a conferência
+  separa a perda do avanço (`orquestrador/conferencia_do_humano.py`). A
+  perda para o laço em falha, com o motivo `repositorio_do_humano_mexido` e
+  os comandos que trazem de volta o que saiu: é o `checkout -- .` que apagou
+  trabalho não commitado, a ref apagada ou movida fora de fast-forward, o
+  hook ou a configuração plantados. O avanço vira uma Note e o laço segue: é
+  o humano trabalhando ao lado (o commit novo, o arquivo novo, a ref que
+  andou por fast-forward, a troca de branch).
+
+O hook não se desliga por dentro da sessão. Antes de cada invocação, o
+settings dele é regravado, e o `.claude/` e os `CLAUDE.md` do clone voltam ao
+que o commit traz. A sessão que mexe num deles para ali, sem retomada, e o
+papel falha com o motivo, que vai ao livro-razão como Note `trava_mexida`.
+
+**Contra quem a trava existe.** A trava e a foto existem contra o agente que
+erra sem querer: o que commita por conta própria, o que roda `checkout -- .`
+para "limpar" a área. Elas não são fronteira de segurança contra um agente
+que age de propósito contra o orquestrador. As sessões rodam com
+`bypassPermissions`, no usuário de quem chamou o comando, e quem roda
+`python -c` roda qualquer coisa. Contra esse agente a resposta é isolar no
+sistema operacional (contêiner, usuário separado), e o graphow não faz isso.
+O que fica de fora:
+
+- O hook não lê o git chamado por interpretador (`python -c`, `node -e`), por
+  script em arquivo, por `make` ou por um teste, nem o dano sem git
+  (`rm -rf .git`). Para eles ficam a restauração do clone e a foto. E ele
+  erra para a recusa: o comando do PowerShell com a palavra git no texto é
+  recusado mesmo sem chamar o git.
+- O que só dispara com intenção de burlar, ou com duas falhas independentes
+  na mesma janela, não ganha código. São casos conhecidos: a sessão que forja
+  ou apaga a gravação da janela aberta e derruba o orquestrador; o arquivo
+  não rastreado do humano que se perde na mesma janela em que o orquestrador
+  cai; a exceção ou o Ctrl+C entre o fim da sessão e a conferência dos
+  arquivos do git; o filtro, o `diff.external`, o driver e o
+  `uploadpack.packObjectsHook` plantados, que os `-c` do git do orquestrador
+  não desligam; o `checkout -f --detach HEAD~1` com a trava no ambiente, que
+  troca a árvore sem mover o HEAD e conta como avanço. A gravação da janela
+  aberta é só do Goal que caiu, e outro Goal no mesmo repositório não a lê.
+- A conferência erra para o lado seguro. Durante uma sessão, o `git stash`,
+  o `commit --amend`, o rebase e o `git config` do humano param o laço. Ele
+  para também, sem que nada se perca, quando o humano edita de novo um
+  arquivo que já estava sujo, commita e vai a um commit antigo, como num
+  bisect.
+
 | Garantia | Como |
 | :--- | :--- |
 | Nenhum agente escreve no grafo | As sessões rodam com `--strict-mcp-config` (sem servidor MCP) e `--setting-sources project` (sem os hooks, as skills e os subagentes do usuário); quem grava é o papel `orquestrador`, que nenhum servidor alcança |
 | Saída validada por schema | `--json-schema` em cada sessão (o `structured_output` do resultado), conferido de novo em código, inclusive o sentido (ids, cobertura, ciclos); a saída que não confere volta à mesma sessão por `--resume`, uma vez (o autor de aceite, duas) |
 | O aceite prova o que diz | O teste de aceite roda da cópia do commit do aceite, sem arquivo solto do executor, com a configuração de teste entregue e, quando ela mudou, também com a do commit do aceite (o teste que só passa com a entregue reprova o critério quando, com a do commit do aceite, falha numa asserção; quando falha por import ou coleta, o verificador deve um parecer `legitima` ou `ilegitima`), e conta como verde só quando a saída do runner diz que passou sem pular; o kernel recusa toda reescrita do livro do aceite (a verificação, o `Achado`, o `Criterio`, a ponta, o fechamento) |
-| O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal e o fast-forward da integração). Dentro do clone, três camadas em profundidade (`orquestrador/trava_do_git.py`): as regras `--disallowedTools` negam o git de escrita, `git -c`, `git -C`, config, remote, fetch e push; o ambiente da sessão aponta `core.hooksPath` para os hooks `reference-transaction`, que aborta toda atualização de ref, e `pre-push`; e, depois de cada sessão, o clone volta ao que era (a branch do Goal no commit de antes, com o commit que escapou de volta à árvore por `reset --soft`, as outras refs, a configuração e os hooks), sem reprovar a sessão, porque no clone só o agente mexe. Nada fora do clone é conferido nem desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou. Uma sonda real mostrou que `git -C . commit` passava pela regra sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
+| O agente não escreve no git do humano | O isolamento é o clone do Goal (`orquestrador/git_do_goal.py`): ele não divide ref, configuração nem hook com o repositório do humano, e esse repositório só muda pelo orquestrador (o fetch da branch do Goal, só por fast-forward; o rebase e a integração, cada ref só se ainda estiver no commit de antes). Dentro do clone valem as cinco camadas da trava do git, do hook PreToolUse à foto do repositório do humano, descritas acima com o que elas não cobrem. Nada fora do clone é desfeito: o que o humano fizer no repositório dele durante a sessão (commit noutra branch, tag, configuração, remoto, stash) fica como ele deixou, e a perda de trabalho nele para o laço. Uma sonda real mostrou que `git -C . commit` passava pela regra de ferramenta sozinha e que `git -c core.hooksPath=<vazia>` passava pelo hook de ambiente; num worktree, que dividia as refs com o humano, a conferência que tentava desfazer isso também desfazia o trabalho dele |
+| Uma execução por Goal | A trava `orquestrar.trava` na pasta de estado do Goal (`orquestrador/trava_do_goal.py`): a segunda chamada para em `ocupado`, e a trava de um processo que morreu é liberada na chamada seguinte |
+| O histórico compila commit a commit | Só a fatia muda código, e só com a suíte verde. O commit que pode deixar a suíte vermelha leva `Graphow-Aceite: vermelho`, e a medida `historico` da bancada roda a suíte em cada commit da entrega e conta os verdes, os vermelhos esperados e os inesperados |
+| O fato sobre código não envelhece em silêncio | A `Evidence` do orquestrador guarda o commit e os arquivos que afirma, e cada leitura a confere contra a ponta da branch do Goal: a que não vale mais sai marcada, e o briefing não a entrega como fato vigente |
+| A entrega é rastreável critério a critério | O `--rastro` e a rota `/api/rastro` ligam cada critério aos testes de aceite, aos commits das fatias, à verificação que o atestou e aos achados |
 | Prompts sem divergência | Os prompts de papel moram no pacote (`orquestrador/prompts/`, cada um abaixo de 5 KB) e vão à sessão por `--append-system-prompt-file`; nada é instalado em `~/.claude` |
 | Custo sob controle | Cada invocação vira uma linha de telemetria (`telemetria_de_sessoes`, no mesmo banco, fora do grafo): papel, fatia, sessão, modelo, custo, tokens, duração, erro e estado. A linha nasce `em_andamento` antes de a sessão abrir e fecha com o resultado; cada invocação tem stream próprio, e a refeita não apaga o da anterior; a que ficou em andamento porque o processo caiu é recuperada do stream na chamada seguinte. O total soma, por sessão, o último custo declarado, e o `--resume` que morre sem resultado não zera o que já se sabia. Há orçamento por Goal (`--orcamento-usd`, padrão 30), que também vai a cada sessão como `--max-budget-usd` |
 | Saída legível | A CLI escreve em UTF-8 a saída que vai para um cano ou arquivo (no Windows o Python os abre em cp1252, e o acento chegava como caractere de substituição), e a saída da suíte é lida em UTF-8, ou na página de código da máquina quando não é |
@@ -1241,10 +1394,15 @@ por padrão, menos o autor de aceite, a verificação do marco, a conferência e
 segunda opinião, Sonnet (`sugerido` no
 executor segue o modelo que o plano sugeriu para a fatia). Modo de permissão das sessões:
 `--permissao`, padrão `bypassPermissions`, o que a bancada usa. O estado de cada
-Goal (o clone da área, os streams das sessões, os patches e a trava do git) fica
-em `<pasta do banco>/orquestrar/<goal>/`; o clone sai quando o Goal fecha, e a
-branch do Goal fica no repositório do humano. A área de uma versão anterior, que
-era um worktree, dá lugar ao clone na chamada seguinte.
+Goal fica em `<pasta do banco>/orquestrar/<goal>/`: o clone da área, os streams
+das sessões, os patches, o settings do hook e os hooks da trava do git, a
+salvaguarda do repositório do humano e a trava do Goal. O clone sai quando o
+Goal fecha, e a branch do Goal fica no repositório do humano. A salvaguarda sai
+com ele, a menos que uma Note do Goal ainda a cite: a da perda, para recuperar
+o trabalho, ou a do avanço que guarda o conteúdo de antes de um arquivo. Essa
+fica, a mensagem do fechamento diz onde, e o humano a apaga quando quiser. A
+área de uma versão anterior, que era um worktree, dá lugar ao clone na chamada
+seguinte.
 
 O teste de fumaça real da fase 2 (um repositório de brinquedo com `media` e
 `mediana`, cinco critérios `teste` e um `checagem`, modo autônomo, Opus em todos
@@ -1296,6 +1454,31 @@ humano são os pedidos e os descartes; o resto é do `orquestrador`. A fumaça
 mostrou mais duas coisas, já corrigidas: a fatia de correção listava só o
 primeiro arquivo que o local do achado cita, e o executor se ateve a ele; e a
 parada da final com critério reprovado não avisava que o descarte não fecha.
+
+A fumaça da fase 3 (12/11/2026: duas ferramentas de uma cantina, `troco.py` e
+`cardapio.py`, em duas fatias e dois marcos, sete critérios, modo autônomo, os
+papéis no padrão e US$ 4 de orçamento) fechou o Goal com nove invocações em
+oito sessões, US$ 1,10 e 5,9 minutos. Enquanto o Goal rodava, um script fez o
+papel do humano e commitou `NOTAS.md` na base, logo depois de a primeira fatia
+entrar na branch. A foto do repositório leu o commit como avanço, gravou a
+Note, e o laço seguiu. Na integração, a base não estava mais na história da
+branch: o orquestrador refez os cinco commits do Goal sobre ela, e a
+`Evidence` do rebase registra que só `NOTAS.md` mudou e que a verificação
+final seguia valendo. A base chegou à ponta do Goal por fast-forward, sem
+merge. A medida `historico` rodou a suíte nos seis commits que a base ganhou
+(o do humano e os cinco do Goal) e contou seis verdes; os dois com o trailer
+`Graphow-Aceite: vermelho` também, porque os testes de aceite moram em
+`aceite/`, fora do comando da suíte do plano. As nove invocações levaram o
+`--settings` do hook. Nenhuma sessão tentou escrever no git: a fumaça mostra
+as leituras que passaram, em quatro sessões, e não uma recusa. O `--rastro`
+listou, para cada critério, os testes, as fatias com o commit novo e a
+verificação, marcada "vigente: commit fora da branch", porque o commit
+verificado é o de antes do rebase. O `--status` marcou a verificação do
+primeiro marco como desatualizada, com o `README.md` que a segunda fatia
+mudou depois dela. Uma primeira tentativa tinha parado em segundos, sem
+custo, porque o Claude Code não estava autenticado na linha de comando. A
+parada não diz essa causa: o texto do erro da sessão não chega ao motivo, e
+isso segue por corrigir.
 
 ---
 
@@ -1357,8 +1540,22 @@ linha `PLACAR:` do auditor.
 graphow bancada rodar --arquitetura enxuta --projeto estoque-loja --saida ../bancada-saida
 graphow bancada rodar --arquitetura orquestrar --projeto estoque-loja --saida ../bancada-saida
 graphow bancada auditar --execucao ../bancada-saida/enxuta-estoque-loja-20261011-153000
+graphow bancada historico --execucao ../bancada-saida/orquestrar-estoque-loja-20261011-153000
 graphow bancada placar --saida ../bancada-saida
 ```
+
+O `rodar` mede também o **histórico** da entrega (`bancada/historico.py`). Num
+clone do repositório da execução, ele faz checkout de cada commit que a branch
+ganhou depois da semente e roda o comando da suíte do plano do Goal, pelo
+mesmo caminho do orquestrador e com os testes de aceite à vista, como um
+`git bisect run` os veria. Cada commit conta como verde, como vermelho
+esperado (o que leva o trailer `Graphow-Aceite: vermelho`) ou como vermelho
+inesperado, e os três números formam a coluna Historico do placar. Cada suíte
+tem o seu tempo-limite (`--tempo-limite-suite`, 10 minutos); a que estoura
+conta como vermelha, e as outras seguem. Só a arquitetura com plano tem a
+medida: a `enxuta` fica sem ela, com o motivo, a menos que
+`historico --comando` dê o comando. O subcomando `historico` mede de novo uma
+execução que já existe.
 
 Os dados (sementes, specs, sondas, prompts e a linha de base com a fonte de
 cada número) vivem em `bancada/`, e o `bancada/README.md` diz o que cada
