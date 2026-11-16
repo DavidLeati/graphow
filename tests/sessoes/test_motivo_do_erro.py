@@ -76,9 +76,14 @@ def test_erro_da_api_com_texto_leva_os_dois_edge_case() -> None:
         ("x" * LIMITE, f'result com is_error (error_during_execution), a sessao disse "{"x" * LIMITE}"'),
         ("  \n \r\n", "result com is_error (error_during_execution)"),
         ("", "result com is_error (error_during_execution)"),
+        ("API Error: \ud83d truncado", 'result com is_error (error_during_execution), a sessao disse "API Error: ? truncado"'),
+        ("erro \x1b[31mvermelho\x1b[0m\tfim", 'result com is_error (error_during_execution), a sessao disse "erro ?[31mvermelho?[0m fim"'),
     ],
-    ids=["so-a-primeira-linha", "cortado-em-200", "exatamente-200", "so-espacos", "vazio"],
+    ids=["so-a-primeira-linha", "cortado-em-200", "exatamente-200", "so-espacos", "vazio", "surrogate-solto", "controle-e-tab"],
 )
 def test_texto_do_erro_entra_cortado_e_so_com_a_primeira_linha_edge_case(texto: str, esperado: str) -> None:
-    """T3l.3: a primeira linha com conteúdo, sem as pontas, cortada no limite; o texto em branco não entra."""
-    assert _com_o_texto(texto).motivo_do_erro == esperado
+    """T3l.3 e T3l.6: a primeira linha com conteúdo, sem as pontas, cortada no limite; o que não se imprime vira `?`."""
+    motivo = _com_o_texto(texto).motivo_do_erro
+
+    assert motivo == esperado
+    assert motivo.encode("utf-8").decode("utf-8") == motivo

@@ -227,8 +227,14 @@ def _dito_no_erro(resultado: ResultadoDoStream | None) -> str:
     e sem status de erro da API: a causa só está no texto ("Failed to
     authenticate..."). Na fumaça da fase 3, a parada não a dizia. O texto do
     `result` sem erro é a resposta da sessão, e não entra.
+
+    O que não se imprime vira `?`, e o espaço que não é espaço comum vira
+    espaço: o texto vai à parada, ao prompt da retomada e à telemetria, e o
+    surrogate solto que o JSON do stream deixa passar não se codifica em
+    UTF-8, o que derrubava o laço no lugar de pará-lo.
     """
     if resultado is None or not resultado.is_error:
         return ""
     linha = next((linha.strip() for linha in resultado.texto.splitlines() if linha.strip()), "")
-    return linha if len(linha) <= LIMITE_DO_QUE_A_SESSAO_DISSE else f"{linha[:LIMITE_DO_QUE_A_SESSAO_DISSE]}..."
+    limpa = "".join(letra if letra.isprintable() else (" " if letra.isspace() else "?") for letra in linha)
+    return limpa if len(limpa) <= LIMITE_DO_QUE_A_SESSAO_DISSE else f"{limpa[:LIMITE_DO_QUE_A_SESSAO_DISSE]}..."

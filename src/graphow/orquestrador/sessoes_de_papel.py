@@ -298,13 +298,13 @@ def ler_saida(resultado: ResultadoDeSessao, pedido: PedidoDePapel) -> tuple[Mapp
 
 
 def _dados_da_leitura(leitura: LeituraDoStream) -> dict[str, Any] | None:
-    """O objeto que a sessão devolveu: o `structured_output`, senão o texto final como JSON."""
+    """O objeto que a sessão devolveu: o `structured_output`, senão o JSON do texto final (o do `result` com erro é o erro, e não saída)."""
     resultado = leitura.resultado
     if resultado is None:
         return None
     if isinstance(resultado.saida_estruturada, dict):
         return resultado.saida_estruturada
-    return _json_do_texto(resultado.texto)
+    return None if resultado.is_error else _json_do_texto(resultado.texto)
 
 
 def saida_conferida_da_telemetria(
