@@ -292,8 +292,8 @@ def _nao_terminou(execucao: ExecucaoDeAceite) -> str:
     A conferência só sabe que o tempo acabou, e não por quê: a mensagem dá as
     duas saídas e diz de onde vem o limite, para o humano que a lê na parada.
     """
-    return (f"o teste {execucao.teste} de {execucao.criterio} nao terminou no tempo que a conferencia da a um teste sozinho "
-            "(um sexto do limite da suite, o --tempo-limite-suite). Antes da implementacao ele tem de falhar numa assercao "
+    return (f"o teste {execucao.teste} de {execucao.criterio} nao terminou no tempo que a conferencia da a um teste sozinho, "
+            "tirado do limite da suite (--tempo-limite-suite). Antes da implementacao ele tem de falhar numa assercao "
             "dele e sair: se abre servidor, processo filho, conexao ou temporizador, feche-os tambem quando a assercao "
             "falha; se e so lento, leve-o a assercao mais cedo")
 
@@ -345,8 +345,9 @@ def _problemas_do_comando_de_todos(saida: SaidaDoAceite, agregado: ExecucaoDeAce
     é que o esperava de novo, sozinho e com a suíte.
     """
     if agregado.codigo is None:
-        return [f"o comando_aceite `{saida.comando_aceite}` nao terminou no limite da suite (o --tempo-limite-suite): ele roda "
-                "os testes de aceite, todos eles, e sai, sem modo de observacao e sem deixar servidor ou processo aberto"]
+        return [f"o comando_aceite `{saida.comando_aceite}` nao terminou no limite da suite (--tempo-limite-suite). Ele roda os "
+                "testes de aceite, todos eles, e sai: se fica em modo de observacao ou deixa servidor ou processo aberto, "
+                "corrija-o; se so e lento, encurte os testes, ou o humano sobe o limite"]
     if agregado.passou == todos_passam:
         return []
     estado = "passa" if agregado.passou else "falha"

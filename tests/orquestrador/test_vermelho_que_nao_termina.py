@@ -65,7 +65,7 @@ def test_teste_que_nao_termina_volta_ao_autor_sem_esperar_o_comando_de_todos_nom
     assert len(problemas) == 2
     assert "o teste test_c1_servidor de C1 nao terminou" in problemas[0]
     assert "feche-os tambem quando a assercao falha" in problemas[0] and "se e so lento" in problemas[0]
-    assert "--tempo-limite-suite" in problemas[0]
+    assert "tirado do limite da suite (--tempo-limite-suite)" in problemas[0] and "um sexto" not in problemas[0]
     assert "o teste test_c1_reabre de C1 nao terminou" in problemas[1]
     assert not any("vermelho pelo motivo errado" in problema for problema in problemas)
 
@@ -125,7 +125,7 @@ def test_comando_de_todos_que_nao_termina_volta_ao_autor_edge_case() -> None:
 
     assert [e.codigo for e in execucoes] == [1, None]
     assert len(problemas) == 1 and f"o comando_aceite `{COMANDO_DE_TODOS}` nao terminou no limite da suite" in problemas[0]
-    assert "--tempo-limite-suite" in problemas[0]
+    assert "--tempo-limite-suite" in problemas[0] and "se so e lento" in problemas[0]
 
 
 def test_com_todos_terminando_o_comando_de_todos_roda_como_antes_edge_case() -> None:
