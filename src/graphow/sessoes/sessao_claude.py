@@ -27,6 +27,8 @@ from graphow.sessoes.executavel import descobrir_executavel
 from graphow.sessoes.leitura_stream import LeituraDoStream, ResultadoDoStream, UsoDeTokens, ler_stream
 from graphow.sessoes.pedido import PedidoDeSessao, limpar_ambiente, montar_comando
 
+# O corte do que a sessão disse no `result` com erro, quando vai ao motivo.
+LIMITE_DO_QUE_A_SESSAO_DISSE: int = 200
 
 
 class FalhaAoAbrirSessao(GraphowError):
@@ -70,14 +72,16 @@ class ResultadoDeSessao:
 
     @property
     def motivo_do_erro(self) -> str:
-        """Por que a sessão deu errado, com cada forma que aconteceu; vazio quando deu certo."""
+        """Por que a sessão deu errado, com cada forma que aconteceu e o que o `result` com erro disse; vazio quando deu certo."""
         resultado = self.leitura.resultado
+        dito = _dito_no_erro(resultado)
         motivos = (
             ("tempo esgotado", self.tempo_esgotado),
             (f"codigo de saida {self.codigo_saida}", self.codigo_saida not in (0, None) and not self.tempo_esgotado),
             ("sem evento result no stream", resultado is None),
             (f"result com is_error ({resultado.subtipo if resultado else ''}){_erro_da_api(resultado)}",
              bool(resultado and resultado.is_error)),
+            (f'a sessao disse "{dito}"', bool(dito)),
         )
         return ", ".join(motivo for motivo, aconteceu in motivos if aconteceu)
 
@@ -214,3 +218,17 @@ def _erro_da_api(resultado: ResultadoDoStream | None) -> str:
     if resultado is None or not (resultado.status_do_erro or resultado.erro_da_api):
         return ""
     return f": erro da API {resultado.status_do_erro or '-'} {resultado.erro_da_api or resultado.razao_do_fim}".rstrip()
+
+
+def _dito_no_erro(resultado: ResultadoDoStream | None) -> str:
+    """A primeira linha com conteúdo do que o `result` com erro disse, cortada; vazio sem erro ou sem texto.
+
+    A sessão que não autentica sai com `is_error`, `terminal_reason: api_error`
+    e sem status de erro da API: a causa só está no texto ("Failed to
+    authenticate..."). Na fumaça da fase 3, a parada não a dizia. O texto do
+    `result` sem erro é a resposta da sessão, e não entra.
+    """
+    if resultado is None or not resultado.is_error:
+        return ""
+    linha = next((linha.strip() for linha in resultado.texto.splitlines() if linha.strip()), "")
+    return linha if len(linha) <= LIMITE_DO_QUE_A_SESSAO_DISSE else f"{linha[:LIMITE_DO_QUE_A_SESSAO_DISSE]}..."

@@ -10,7 +10,7 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 
 ## Inventário
 
-6 módulos · 733 linhas · 11 classes
+6 módulos · 751 linhas · 11 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ Roda uma sessão `claude -p` pelo caminho único: acha o executável (GRAPHOW_CL
 | [`sessoes/executavel.py`](#sessoesexecutavel) | 46 | Onde está o executável do Claude Code: `GRAPHOW_CLAUDE`, depois o PATH. |
 | [`sessoes/leitura_stream.py`](#sessoesleiturastream) | 197 | O que o stream-json de uma sessão `claude -p` diz dela: quem é, o que respondeu e quanto custou. |
 | [`sessoes/pedido.py`](#sessoespedido) | 79 | O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em que roda. |
-| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 216 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
+| [`sessoes/sessao_claude.py`](#sessoessessaoclaude) | 234 | Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado. |
 
 ## `sessoes/arvore_da_sessao.py`
 
@@ -146,6 +146,10 @@ O pedido de uma sessão `claude -p`: o comando que ela recebe e o ambiente em qu
 
 Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 
+| Constante | Tipo | Valor |
+| :--- | :--- | :--- |
+| `LIMITE_DO_QUE_A_SESSAO_DISSE` | `int` | `200` |
+
 ### `ExecutorDeSessao`
 
 *serviço* — Lança o `claude -p` de cada pedido e espera por ele até o tempo limite.
@@ -166,7 +170,7 @@ Roda uma sessão `claude -p` com tempo limite e devolve o resultado tipado.
 - `session_id() -> str` `[property]` — A sessão que o stream abriu; vazio quando ele não chegou a abrir.
 - `texto_final() -> str` `[property]` — A resposta final da sessão.
 - `is_error() -> bool` `[property]` — Erro no resultado, no processo ou no tempo.
-- `motivo_do_erro() -> str` `[property]` — Por que a sessão deu errado, com cada forma que aconteceu; vazio quando deu certo.
+- `motivo_do_erro() -> str` `[property]` — Por que a sessão deu errado, com cada forma que aconteceu e o que o `result` com erro disse; vazio quando deu certo.
 - `saida_estruturada() -> Any` `[property]` — O `structured_output` do resultado, quando a sessão rodou com `--json-schema`; None sem ele.
 - `custo_usd() -> float | None` `[property]` — O custo que o resultado declarou (acumulado da sessão, se ela foi retomada); None sem resultado.
 - `tokens() -> UsoDeTokens | None` `[property]` — O `modelUsage` do resultado: sessão e subagentes, acumulado como o custo; None sem resultado.
