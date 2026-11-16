@@ -287,10 +287,15 @@ def _vermelho_errado(execucao: ExecucaoDeAceite, motivo: str) -> str:
 
 
 def _nao_terminou(execucao: ExecucaoDeAceite) -> str:
-    """O problema do teste que não terminou no limite de um teste, para a nova tentativa do autor."""
-    return (f"o teste {execucao.teste} de {execucao.criterio} nao terminou no tempo que a conferencia da a um teste sozinho. "
-            "Antes da implementacao ele tem de falhar numa assercao dele e sair: feche o que o teste abre (servidor, processo "
-            "filho, conexao, temporizador) tambem quando a assercao falha")
+    """O problema do teste que não terminou no limite de um teste, para a nova tentativa do autor.
+
+    A conferência só sabe que o tempo acabou, e não por quê: a mensagem dá as
+    duas saídas e diz de onde vem o limite, para o humano que a lê na parada.
+    """
+    return (f"o teste {execucao.teste} de {execucao.criterio} nao terminou no tempo que a conferencia da a um teste sozinho "
+            "(um sexto do limite da suite, o --tempo-limite-suite). Antes da implementacao ele tem de falhar numa assercao "
+            "dele e sair: se abre servidor, processo filho, conexao ou temporizador, feche-os tambem quando a assercao "
+            "falha; se e so lento, leve-o a assercao mais cedo")
 
 
 def _sem_rodar(nomes: Sequence[str]) -> str:
@@ -299,23 +304,25 @@ def _sem_rodar(nomes: Sequence[str]) -> str:
             "nao terminaram antes deles. Corrija os que nao terminam; a conferencia seguinte roda todos")
 
 
-def _rodar_ate_o_teto(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[ExecucaoDeAceite, ...], tuple[str, ...]]:
-    """Cada teste pelo comando dele, até o teto dos que não terminam; devolve as execuções e os nomes dos que ficaram sem rodar."""
+def _rodar_ate_o_teto(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[ExecucaoDeAceite, ...], tuple[tuple[str, str], ...]]:
+    """Cada teste pelo comando dele, até o teto dos que não terminam; devolve as execuções e quem ficou sem rodar (critério e nome)."""
     execucoes: list[ExecucaoDeAceite] = []
     fila = [(criterio.id, teste) for criterio, teste in saida.testes()]
     while fila and sum(e.codigo is None for e in execucoes) < PARTE_DA_SUITE_PARA_UM_TESTE:
         id_criterio, teste = fila.pop(0)
         execucoes.append(_execucao(id_criterio, teste.nome, sem_a_pasta_atual(teste.comando), rodar=rodar))
-    return tuple(execucoes), tuple(teste.nome for _, teste in fila)
+    return tuple(execucoes), tuple((id_criterio, teste.nome) for id_criterio, teste in fila)
 
 
-def _problemas_dos_que_terminaram(saida: SaidaDoAceite, terminaram: Sequence[ExecucaoDeAceite]) -> list[str]:
+def _problemas_dos_que_terminaram(saida: SaidaDoAceite, terminaram: Sequence[ExecucaoDeAceite], incompletos: set[str]) -> list[str]:
     """O teste que já passa sem o porquê, o vermelho pelo motivo errado e o `ja_atendido` sem teste verde.
 
     `ja_atendido` justifica os testes do critério que já passam, e só eles: os
     outros do mesmo critério continuam tendo de falhar pelo motivo certo. Na
     bancada, o autor marcou `ja_atendido` em C1 para justificar um teste de
-    cinco, e os quatro vermelhos viraram contradição sem saída.
+    cinco, e os quatro vermelhos viraram contradição sem saída. O critério
+    com teste que não terminou ou não rodou (`incompletos`) não é cobrado
+    pelo `ja_atendido` nesta rodada: o teste verde dele pode ser um desses.
     """
     ja_atendidos = {criterio.id for criterio in saida.criterios if criterio.ja_atendido}
     problemas = [
@@ -325,9 +332,26 @@ def _problemas_dos_que_terminaram(saida: SaidaDoAceite, terminaram: Sequence[Exe
     ]
     problemas += [_vermelho_errado(e, motivo) for e in terminaram if not e.passou and (motivo := e.vermelho_invalido())]
     problemas += [f"'ja_atendido' de {criterio} diz que o codigo ja atende o criterio, mas nenhum teste dele passa: tire a "
-                  "justificativa, ou corrija os testes" for criterio in sorted(ja_atendidos)
+                  "justificativa, ou corrija os testes" for criterio in sorted(ja_atendidos - incompletos)
                   if (deles := [e for e in terminaram if e.criterio == criterio]) and not any(e.passou for e in deles)]
     return problemas
+
+
+def _problemas_do_comando_de_todos(saida: SaidaDoAceite, agregado: ExecucaoDeAceite, *, todos_passam: bool) -> list[str]:
+    """O comando de todos que não termina, ou que passa quando devia falhar (e o contrário).
+
+    Com todos os testes vermelhos, o comando de todos que esgota o tempo
+    "falha" como devia, e antes passava pela conferência: a verificação final
+    é que o esperava de novo, sozinho e com a suíte.
+    """
+    if agregado.codigo is None:
+        return [f"o comando_aceite `{saida.comando_aceite}` nao terminou no limite da suite (o --tempo-limite-suite): ele roda "
+                "os testes de aceite, todos eles, e sai, sem modo de observacao e sem deixar servidor ou processo aberto"]
+    if agregado.passou == todos_passam:
+        return []
+    estado = "passa" if agregado.passou else "falha"
+    return [f"o comando_aceite `{saida.comando_aceite}` {estado}, e devia {'passar' if todos_passam else 'falhar'} "
+            "agora: ele roda so os testes de aceite, todos eles"]
 
 
 def conferir_vermelho(
@@ -342,15 +366,12 @@ def conferir_vermelho(
     """
     execucoes, sem_rodar = _rodar_ate_o_teto(saida, rodar_um or rodar)
     terminaram = tuple(e for e in execucoes if e.codigo is not None)
+    incompletos = {e.criterio for e in execucoes if e.codigo is None} | {criterio for criterio, _ in sem_rodar}
     problemas = [_nao_terminou(e) for e in execucoes if e.codigo is None]
-    problemas += [_sem_rodar(sem_rodar)] if sem_rodar else []
-    problemas += _problemas_dos_que_terminaram(saida, terminaram)
+    problemas += [_sem_rodar([nome for _, nome in sem_rodar])] if sem_rodar else []
+    problemas += _problemas_dos_que_terminaram(saida, terminaram, incompletos)
     if not execucoes or len(terminaram) < len(execucoes):
         return tuple(problemas), execucoes
     agregado = rodar_o_comando_de_aceite(saida, rodar)
-    todos_passam = all(e.passou for e in execucoes)
-    if agregado.passou != todos_passam:
-        estado = "passa" if agregado.passou else "falha"
-        problemas.append(f"o comando_aceite `{saida.comando_aceite}` {estado}, e devia {'passar' if todos_passam else 'falhar'} "
-                         "agora: ele roda so os testes de aceite, todos eles")
+    problemas += _problemas_do_comando_de_todos(saida, agregado, todos_passam=all(e.passou for e in execucoes))
     return tuple(problemas), execucoes + (agregado,)

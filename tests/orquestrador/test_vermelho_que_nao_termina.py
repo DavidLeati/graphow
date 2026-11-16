@@ -35,16 +35,20 @@ def _vermelho(comando: str, nome: str) -> ResultadoDaSuite:
 
 
 class Rodador:
-    """Um `Rodar` falso: os testes dados não terminam, os outros falham na asserção; guarda os comandos que recebeu."""
+    """Um `Rodar` falso: os testes dados não terminam, os outros falham na asserção; guarda os comandos que recebeu.
 
-    def __init__(self, sem_fim: tuple[str, ...]) -> None:
+    O comando de todos não termina quando algum teste não termina, ou quando o teste pede (`todos_sem_fim`).
+    """
+
+    def __init__(self, sem_fim: tuple[str, ...], *, todos_sem_fim: bool = False) -> None:
         self.sem_fim: tuple[str, ...] = sem_fim
+        self.todos_sem_fim: bool = todos_sem_fim or bool(sem_fim)
         self.comandos: list[str] = []
 
     def __call__(self, comando: str) -> ResultadoDaSuite:
         self.comandos.append(comando)
         nome = Path(comando.split()[-1]).stem
-        if nome in self.sem_fim or (comando.endswith(COMANDO_DE_TODOS.split()[-1]) and self.sem_fim):
+        if nome in self.sem_fim or (nome == Path(COMANDO_DE_TODOS).stem and self.todos_sem_fim):
             return ResultadoDaSuite(comando, None, "", tempo_esgotado=True)
         return _vermelho(comando, nome)
 
@@ -59,7 +63,9 @@ def test_teste_que_nao_termina_volta_ao_autor_sem_esperar_o_comando_de_todos_nom
     assert [e.teste for e in execucoes] == ["test_c1_servidor", "test_c1_soma", "test_c1_reabre"]
     assert [e.codigo for e in execucoes] == [None, 1, None]
     assert len(problemas) == 2
-    assert "o teste test_c1_servidor de C1 nao terminou" in problemas[0] and "feche o que o teste abre" in problemas[0]
+    assert "o teste test_c1_servidor de C1 nao terminou" in problemas[0]
+    assert "feche-os tambem quando a assercao falha" in problemas[0] and "se e so lento" in problemas[0]
+    assert "--tempo-limite-suite" in problemas[0]
     assert "o teste test_c1_reabre de C1 nao terminou" in problemas[1]
     assert not any("vermelho pelo motivo errado" in problema for problema in problemas)
 
@@ -95,6 +101,31 @@ def test_depois_de_seis_que_nao_terminam_os_outros_ficam_para_a_rodada_seguinte_
     assert sum("nao terminou" in problema for problema in problemas) == 6
     sobra = next(problema for problema in problemas if "nao foram rodados" in problema)
     assert "test_c1_caso7" in sobra and "test_c1_caso8" in sobra and "test_c1_caso6" not in sobra
+
+
+def test_teto_no_meio_de_um_criterio_ja_atendido_nao_cobra_o_teste_que_nao_rodou_edge_case() -> None:
+    """Achado 1 da revisão: o teste verde que ficou sem rodar por causa do teto não vira "nenhum teste dele passa"."""
+    presos = tuple(f"test_c1_preso{n}" for n in range(1, 7))
+    nomes = ("test_c1_vermelho", *presos, "test_c1_verde")
+    testes = tuple(sa.TesteDeAceite(f"aceite/{nome}.py", nome, f"python aceite/{nome}.py") for nome in nomes)
+    saida = sa.SaidaDoAceite("C1 em parte", COMANDO_DE_TODOS, (sa.AceiteDoCriterio("C1", testes, ja_atendido="somar ja existe"),))
+
+    problemas, execucoes = sa.conferir_vermelho(saida, Rodador(sem_fim=presos))
+
+    assert [e.teste for e in execucoes] == ["test_c1_vermelho", *presos]
+    assert "test_c1_verde" in next(problema for problema in problemas if "nao foram rodados" in problema)
+    assert not any("nenhum teste dele passa" in problema for problema in problemas)
+
+
+def test_comando_de_todos_que_nao_termina_volta_ao_autor_edge_case() -> None:
+    """Achado 2 da revisão: com cada teste vermelho e só o comando de todos preso, a conferência devolve o problema dele."""
+    rodar = Rodador(sem_fim=(), todos_sem_fim=True)
+
+    problemas, execucoes = sa.conferir_vermelho(_saida("test_c1_soma"), rodar)
+
+    assert [e.codigo for e in execucoes] == [1, None]
+    assert len(problemas) == 1 and f"o comando_aceite `{COMANDO_DE_TODOS}` nao terminou no limite da suite" in problemas[0]
+    assert "--tempo-limite-suite" in problemas[0]
 
 
 def test_com_todos_terminando_o_comando_de_todos_roda_como_antes_edge_case() -> None:
