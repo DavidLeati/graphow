@@ -10,7 +10,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 
 ## Inventário
 
-76 módulos · 14583 linhas · 113 classes
+76 módulos · 14653 linhas · 113 classes
 
 | Módulo | Linhas | Papel |
 | :--- | ---: | :--- |
@@ -18,7 +18,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/aceite_no_commit.py`](#orquestradoraceitenocommit) | 202 | O aceite que o orquestrador roda no commit verificado: com a configuração entregue e, se ela mudou, também com a do commit do aceite. |
 | [`orquestrador/arquivos_do_git.py`](#orquestradorarquivosdogit) | 134 | Os arquivos que mudam o que o git do humano roda, lidos em bytes, sem processo nenhum. |
 | [`orquestrador/atendimento_dos_pedidos.py`](#orquestradoratendimentodospedidos) | 67 | A conferência dos pedidos do humano contra o Goal como ele está, antes de gravá-los. |
-| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 190 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
+| [`orquestrador/autor_de_aceite.py`](#orquestradorautordeaceite) | 201 | O passo do aceite: uma sessão do autor de aceite, os testes conferidos vermelhos, o commit e o registro. |
 | [`orquestrador/base_que_andou.py`](#orquestradorbasequeandou) | 103 | A base que andou: antes de integrar, o orquestrador refaz a branch do Goal sobre a base nova e roda a suíte e o aceite. |
 | [`orquestrador/briefing.py`](#orquestradorbriefing) | 392 | O briefing de cada sessão, montado por código a partir do livro-razão e do git. |
 | [`orquestrador/cancelamento_tardio.py`](#orquestradorcancelamentotardio) | 76 | O cancelamento tardio: o humano cancela o Goal quando a base já tem o trabalho dele, e o livro-razão guarda isso. |
@@ -69,7 +69,7 @@ O `graphow orquestrar`: o laço que planeja, executa, verifica e fecha um Goal s
 | [`orquestrador/resultado_de_teste.py`](#orquestradorresultadodeteste) | 266 | O que a saída de um teste de aceite diz: passou de verdade, ou falhou pelo motivo certo. |
 | [`orquestrador/retirada_de_criterio.py`](#orquestradorretiradadecriterio) | 107 | Retirar um critério: a única saída do humano para fechar o Goal com um critério que a verificação reprova. |
 | [`orquestrador/revisao_da_fatia.py`](#orquestradorrevisaodafatia) | 192 | A revisão por fatia, só na fatia de risco: uma sessão nova julga o diff contra os critérios dela antes do commit. |
-| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 297 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
+| [`orquestrador/saida_do_aceite.py`](#orquestradorsaidadoaceite) | 356 | A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e o vermelho de antes da implementação. |
 | [`orquestrador/saida_do_verificador.py`](#orquestradorsaidadoverificador) | 391 | A saída do verificador como objeto tipado: os pareceres, os comandos e os achados, com a gravidade decidida pelo código. |
 | [`orquestrador/saidas.py`](#orquestradorsaidas) | 254 | A saída de cada papel como objeto tipado, com a conferência que o schema não faz. |
 | [`orquestrador/salvaguarda_do_humano.py`](#orquestradorsalvaguardadohumano) | 157 | A salvaguarda do repositório do humano, guardada fora dele: a recuperação sobrevive a um `git gc --prune=now`. |
@@ -1732,6 +1732,8 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 | `LIMITE_DA_SAIDA_REGISTRADA` | `int` | `600` |
 | `TESTE_DO_COMANDO_DE_ACEITE` | `str` | `'comando_aceite'` |
 | `TESTE_DA_SUITE_COM_O_ACEITE` | `str` | `'suite_e_aceite'` |
+| `PARTE_DA_SUITE_PARA_UM_TESTE` | `int` | `6` |
+| `PISO_DE_UM_TESTE_S` | `float` | `60.0` |
 | `_PYTHON_NO_COMANDO` | `re.Pattern[str]` | `re.compile('(?P<antes>(?:^|&&|\\|\\||[;|(])\\s*(?:[A-Za-z_]\\w*=\\S*\\s…` |
 
 ### `AceiteDoCriterio`
@@ -1774,6 +1776,7 @@ A saída do autor de aceite e a conferência dela: a forma, o lugar dos testes e
 
 ### Funções do módulo
 
+- `limite_de_um_teste(limite_da_suite_s: float) -> float` — O tempo que um teste de aceite tem, sozinho, na conferência do vermelho: um sexto do da suíte, com piso e teto.
 - `conferir_forma(saida: SaidaDoAceite, criterios: Mapping[str, str], area: Path) -> tuple[str, ...]` — Uma entrada por critério do plano, o teste certo para o critério `teste`, a checagem para o `checagem` e tudo em aceite/.
 - `e_cache(caminho: str) -> bool` — O caminho é de cache que a execução dos testes deixa (bytecode, cache do pytest, dependências instaladas).
 - `dentro_do_aceite(caminho: str) -> bool` — O caminho, relativo à raiz, está na pasta dos testes de aceite.

@@ -41,11 +41,13 @@ from graphow.orquestrador.leitura_do_goal import EstadoDoGoal
 from graphow.orquestrador.pedidos_do_humano import PEDIDO_REFAZER_ACEITE
 from graphow.orquestrador.saida_do_aceite import (
     PASTA_DO_ACEITE,
+    Rodar,
     SaidaDoAceite,
     conferir_forma,
     conferir_vermelho,
     dentro_do_aceite,
     e_cache,
+    limite_de_um_teste,
 )
 from graphow.orquestrador.sessoes_de_papel import Conferencia, PedidoDePapel
 from graphow.orquestrador.suite import ResultadoDaSuite, rodar_suite
@@ -132,13 +134,13 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
     """A conferência da saída do autor: a forma, o lugar dos arquivos e o vermelho, guardando as execuções.
 
     O que os testes escrevem ao rodar vai a um .patch e sai da área: nem o
-    commit do aceite o leva, nem a conferência seguinte o cobra do autor.
+    commit do aceite o leva, nem a conferência seguinte o cobra do autor. Cada
+    teste roda sozinho com o limite de um teste, e o comando de todos com o
+    da suíte.
     """
     criterios = {str(c["id"]): str(c["verificacao"]) for c in (estado.plano or {}).get("criterios", [])}
-
-    def rodar(comando: str) -> ResultadoDaSuite:
-        return rodar_suite(contexto.area, comando, contexto.banco_descartavel,
-                           tempo_limite_s=contexto.opcoes.tempo_limite_da_suite_s, do_aceite=True)
+    da_suite = contexto.opcoes.tempo_limite_da_suite_s
+    rodar, rodar_um = _rodador(contexto, da_suite), _rodador(contexto, limite_de_um_teste(da_suite))
 
     def conferir(dados: Mapping[str, Any]) -> tuple[str, ...]:
         saida = SaidaDoAceite.de_json(dados)
@@ -149,11 +151,20 @@ def _conferencia(contexto: ContextoDoGoal, estado: EstadoDoGoal, guarda: dict[st
         guarda["rodadas"] = int(guarda.get("rodadas", 0)) + 1
         contexto.janela.marcar("os testes de aceite que o orquestrador rodou para conferir o vermelho deles")
         with sem_o_que_a_suite_escreve(contexto.area, contexto.patch(f"aceite-vermelho-{guarda['rodadas']}")):
-            problemas, execucoes = conferir_vermelho(saida, rodar)
+            problemas, execucoes = conferir_vermelho(saida, rodar, rodar_um=rodar_um)
         guarda["execucoes"] = [execucao.em_json() for execucao in execucoes]
         return problemas
 
     return conferir
+
+
+def _rodador(contexto: ContextoDoGoal, tempo_limite_s: float) -> Rodar:
+    """O que roda um comando de aceite na área do Goal, com o limite dado e sem o `PYTHONPATH` herdado."""
+
+    def rodar(comando: str) -> ResultadoDaSuite:
+        return rodar_suite(contexto.area, comando, contexto.banco_descartavel, tempo_limite_s=tempo_limite_s, do_aceite=True)
+
+    return rodar
 
 
 def _commit_do_aceite(contexto: ContextoDoGoal, saida: SaidaDoAceite, *, id_do_aceite: str) -> str | None:

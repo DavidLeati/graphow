@@ -19,6 +19,11 @@ nada; e o que falha tem de falhar numa asserção dele, lida na saída do runner
 nome errado. O que não confere volta à mesma sessão, até duas vezes. Todo
 teste de aceite em Python roda com `-P`, sem a pasta atual no `sys.path`
 (`sem_a_pasta_atual`), para que um módulo com o nome do runner não o troque.
+
+Na conferência do vermelho cada teste roda sozinho com o limite de um teste
+(`limite_de_um_teste`), menor que o da suíte. O que não termina volta ao autor
+com os outros da rodada, sem que o comando de todos rode, e depois de seis que
+não terminaram a conferência deixa os outros para a rodada seguinte.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -39,8 +44,20 @@ SUFIXOS_DE_CACHE: tuple[str, ...] = (".pyc", ".pyo")
 LIMITE_DA_SAIDA_REGISTRADA: int = 600
 TESTE_DO_COMANDO_DE_ACEITE: str = "comando_aceite"
 TESTE_DA_SUITE_COM_O_ACEITE: str = "suite_e_aceite"
+# Antes da implementação um teste de aceite só tem de falhar numa asserção e sair. Na conferência do
+# vermelho ele roda sozinho com um sexto do limite da suíte (5 min no padrão), nunca menos de um minuto
+# nem mais que o da suíte, e depois de seis que não terminaram a conferência não roda os outros: a
+# espera por testes que não terminam fica perto do limite da suíte. No portão da fase 3, dois testes
+# que deixavam um servidor aberto seguraram o Goal por 90 minutos, 30 de cada um e 30 do comando de todos.
+PARTE_DA_SUITE_PARA_UM_TESTE: int = 6
+PISO_DE_UM_TESTE_S: float = 60.0
 
 Rodar = Callable[[str], ResultadoDaSuite]
+
+
+def limite_de_um_teste(limite_da_suite_s: float) -> float:
+    """O tempo que um teste de aceite tem, sozinho, na conferência do vermelho: um sexto do da suíte, com piso e teto."""
+    return min(limite_da_suite_s, max(limite_da_suite_s / PARTE_DA_SUITE_PARA_UM_TESTE, PISO_DE_UM_TESTE_S))
 
 
 def _textos(valor: object) -> tuple[str, ...]:
@@ -269,29 +286,71 @@ def _vermelho_errado(execucao: ExecucaoDeAceite, motivo: str) -> str:
             "transforme a ausencia em assert, sem skip, xfail nem todo, e com o resumo do runner na saida")
 
 
-def conferir_vermelho(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]:
-    """Cada teste falha numa asserção dele antes da implementação, ou já passa com o porquê; devolve os problemas e as execuções.
+def _nao_terminou(execucao: ExecucaoDeAceite) -> str:
+    """O problema do teste que não terminou no limite de um teste, para a nova tentativa do autor."""
+    return (f"o teste {execucao.teste} de {execucao.criterio} nao terminou no tempo que a conferencia da a um teste sozinho. "
+            "Antes da implementacao ele tem de falhar numa assercao dele e sair: feche o que o teste abre (servidor, processo "
+            "filho, conexao, temporizador) tambem quando a assercao falha")
+
+
+def _sem_rodar(nomes: Sequence[str]) -> str:
+    """O problema dos testes que a conferência deixou de rodar por causa do teto dos que não terminam."""
+    return (f"{len(nomes)} teste(s) nao foram rodados nesta rodada ({', '.join(nomes)}): {PARTE_DA_SUITE_PARA_UM_TESTE} testes "
+            "nao terminaram antes deles. Corrija os que nao terminam; a conferencia seguinte roda todos")
+
+
+def _rodar_ate_o_teto(saida: SaidaDoAceite, rodar: Rodar) -> tuple[tuple[ExecucaoDeAceite, ...], tuple[str, ...]]:
+    """Cada teste pelo comando dele, até o teto dos que não terminam; devolve as execuções e os nomes dos que ficaram sem rodar."""
+    execucoes: list[ExecucaoDeAceite] = []
+    fila = [(criterio.id, teste) for criterio, teste in saida.testes()]
+    while fila and sum(e.codigo is None for e in execucoes) < PARTE_DA_SUITE_PARA_UM_TESTE:
+        id_criterio, teste = fila.pop(0)
+        execucoes.append(_execucao(id_criterio, teste.nome, sem_a_pasta_atual(teste.comando), rodar=rodar))
+    return tuple(execucoes), tuple(teste.nome for _, teste in fila)
+
+
+def _problemas_dos_que_terminaram(saida: SaidaDoAceite, terminaram: Sequence[ExecucaoDeAceite]) -> list[str]:
+    """O teste que já passa sem o porquê, o vermelho pelo motivo errado e o `ja_atendido` sem teste verde.
 
     `ja_atendido` justifica os testes do critério que já passam, e só eles: os
     outros do mesmo critério continuam tendo de falhar pelo motivo certo. Na
     bancada, o autor marcou `ja_atendido` em C1 para justificar um teste de
     cinco, e os quatro vermelhos viraram contradição sem saída.
     """
-    execucoes = rodar_testes(saida, rodar)
     ja_atendidos = {criterio.id for criterio in saida.criterios if criterio.ja_atendido}
     problemas = [
         f"o teste {e.teste} de {e.criterio} ja passa sem implementacao: ou o criterio ja era atendido pelo codigo "
         "(diga por que em 'ja_atendido'), ou o teste nao prova nada (corrija-o para falhar enquanto o criterio nao for atendido)"
-        for e in execucoes if e.passou and e.criterio not in ja_atendidos
+        for e in terminaram if e.passou and e.criterio not in ja_atendidos
     ]
-    problemas += [_vermelho_errado(e, motivo) for e in execucoes if not e.passou and (motivo := e.vermelho_invalido())]
+    problemas += [_vermelho_errado(e, motivo) for e in terminaram if not e.passou and (motivo := e.vermelho_invalido())]
     problemas += [f"'ja_atendido' de {criterio} diz que o codigo ja atende o criterio, mas nenhum teste dele passa: tire a "
                   "justificativa, ou corrija os testes" for criterio in sorted(ja_atendidos)
-                  if (deles := [e for e in execucoes if e.criterio == criterio]) and not any(e.passou for e in deles)]
-    todos_passam = bool(execucoes) and all(e.passou for e in execucoes)
-    agregado = rodar_o_comando_de_aceite(saida, rodar) if execucoes else None
-    if agregado is not None and agregado.passou != todos_passam:
+                  if (deles := [e for e in terminaram if e.criterio == criterio]) and not any(e.passou for e in deles)]
+    return problemas
+
+
+def conferir_vermelho(
+    saida: SaidaDoAceite, rodar: Rodar, *, rodar_um: Rodar | None = None,
+) -> tuple[tuple[str, ...], tuple[ExecucaoDeAceite, ...]]:
+    """Cada teste falha numa asserção dele antes da implementação, ou já passa com o porquê; devolve os problemas e as execuções.
+
+    Cada teste roda sozinho por `rodar_um` (com o limite de um teste; sem ele,
+    por `rodar`), e o comando de todos por `rodar` (com o da suíte). O teste
+    que não termina volta ao autor com os outros da rodada, e com ele o
+    comando de todos não roda: só esperaria o limite de novo.
+    """
+    execucoes, sem_rodar = _rodar_ate_o_teto(saida, rodar_um or rodar)
+    terminaram = tuple(e for e in execucoes if e.codigo is not None)
+    problemas = [_nao_terminou(e) for e in execucoes if e.codigo is None]
+    problemas += [_sem_rodar(sem_rodar)] if sem_rodar else []
+    problemas += _problemas_dos_que_terminaram(saida, terminaram)
+    if not execucoes or len(terminaram) < len(execucoes):
+        return tuple(problemas), execucoes
+    agregado = rodar_o_comando_de_aceite(saida, rodar)
+    todos_passam = all(e.passou for e in execucoes)
+    if agregado.passou != todos_passam:
         estado = "passa" if agregado.passou else "falha"
         problemas.append(f"o comando_aceite `{saida.comando_aceite}` {estado}, e devia {'passar' if todos_passam else 'falhar'} "
                          "agora: ele roda so os testes de aceite, todos eles")
-    return tuple(problemas), execucoes + ((agregado,) if agregado is not None else ())
+    return tuple(problemas), execucoes + (agregado,)
